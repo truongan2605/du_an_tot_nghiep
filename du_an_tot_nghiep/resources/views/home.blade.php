@@ -1,416 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-    
-<base href="{{ asset('template/stackbros') }}/">
+@extends('layouts.app')
 
-<head>
-	<title>Booking - Multipurpose Online Booking Template</title>
+@section('title','Trang chủ - Booking')
 
-	<!-- Meta Tags -->
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<meta name="author" content="StackBros">
-	<meta name="description" content="Booking - Multipurpose Online Booking Template">
+@section('content')
 
-	<!-- Dark mode -->
-	<script>
-		const storedTheme = localStorage.getItem('theme')
- 
-		const getPreferredTheme = () => {
-			if (storedTheme) {
-				return storedTheme
-			}
-			return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-		}
-
-		const setTheme = function (theme) {
-			if (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-				document.documentElement.setAttribute('data-bs-theme', 'dark')
-			} else {
-				document.documentElement.setAttribute('data-bs-theme', theme)
-			}
-		}
-
-		setTheme(getPreferredTheme())
-
-		window.addEventListener('DOMContentLoaded', () => {
-		    var el = document.querySelector('.theme-icon-active');
-			if(el != 'undefined' && el != null) {
-				const showActiveTheme = theme => {
-				const activeThemeIcon = document.querySelector('.theme-icon-active use')
-				const btnToActive = document.querySelector(`[data-bs-theme-value="${theme}"]`)
-				const svgOfActiveBtn = btnToActive.querySelector('.mode-switch use').getAttribute('href')
-
-				document.querySelectorAll('[data-bs-theme-value]').forEach(element => {
-					element.classList.remove('active')
-				})
-
-				btnToActive.classList.add('active')
-				activeThemeIcon.setAttribute('href', svgOfActiveBtn)
-			}
-
-			window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-				if (storedTheme !== 'light' || storedTheme !== 'dark') {
-					setTheme(getPreferredTheme())
-				}
-			})
-
-			showActiveTheme(getPreferredTheme())
-
-			document.querySelectorAll('[data-bs-theme-value]')
-				.forEach(toggle => {
-					toggle.addEventListener('click', () => {
-						const theme = toggle.getAttribute('data-bs-theme-value')
-						localStorage.setItem('theme', theme)
-						setTheme(theme)
-						showActiveTheme(theme)
-					})
-				})
-
-			}
-		})
-		
-	</script>
-
-	<!-- Favicon -->
-	<link rel="shortcut icon" href="assets/images/favicon.ico">
-
-	<!-- Google Font -->
-	<link rel="preconnect" href="https://fonts.googleapis.com/">
-	<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin>
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;family=Poppins:wght@400;500;700&amp;display=swap">
-
-	<!-- Plugins CSS -->
-	<link rel="stylesheet" type="text/css" href="assets/vendor/font-awesome/css/all.min.css">
-	<link rel="stylesheet" type="text/css" href="assets/vendor/bootstrap-icons/bootstrap-icons.css">
-	<link rel="stylesheet" type="text/css" href="assets/vendor/tiny-slider/tiny-slider.css">
-	<link rel="stylesheet" type="text/css" href="assets/vendor/glightbox/css/glightbox.css">
-	<link rel="stylesheet" type="text/css" href="assets/vendor/flatpickr/css/flatpickr.min.css">
-	<link rel="stylesheet" type="text/css" href="assets/vendor/choices/css/choices.min.css">
-	
-
-	<!-- Theme CSS -->
-	<link rel="stylesheet" type="text/css" href="assets/css/style.css">
-
-</head>
-
-<body class="has-navbar-mobile">
-
-<!-- Header START -->
-<header class="navbar-light header-sticky">
-	<!-- Logo Nav START -->
-	<nav class="navbar navbar-expand-xl">
-		<div class="container">
-			<!-- Logo START -->
-			<a class="navbar-brand" href="index.html">
-				<img class="light-mode-item navbar-brand-item" src="assets/images/logo.svg" alt="logo">
-				<img class="dark-mode-item navbar-brand-item" src="assets/images/logo-light.svg" alt="logo">
-			</a>
-			<!-- Logo END -->
-
-			<!-- Responsive navbar toggler -->
-			<button class="navbar-toggler ms-auto ms-sm-0 p-0 p-sm-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
-				<span class="navbar-toggler-animation">
-					<span></span>
-					<span></span>
-					<span></span>
-				</span>
-        <span class="d-none d-sm-inline-block small">Menu</span>
-			</button>
-
-			<!-- Responsive category toggler -->
-			<button class="navbar-toggler ms-sm-auto mx-3 me-md-0 p-0 p-sm-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCategoryCollapse" aria-controls="navbarCategoryCollapse" aria-expanded="false" aria-label="Toggle navigation">
-				<i class="bi bi-grid-3x3-gap-fill fa-fw"></i><span class="d-none d-sm-inline-block small">Category</span>
-			</button>
-
-			<!-- Main navbar START -->
-			<div class="navbar-collapse collapse" id="navbarCollapse">
-				<ul class="navbar-nav navbar-nav-scroll me-auto">
-
-					<!-- Nav item Listing -->
-					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Listings</a>
-						<ul class="dropdown-menu" aria-labelledby="listingMenu">
-							<!-- Dropdown submenu -->
-							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Hotel</a>
-								<ul class="dropdown-menu" data-bs-popper="none">
-									<li> <a class="dropdown-item" href="index.html">Hotel Home</a></li>
-									<li> <a class="dropdown-item" href="index-hotel-chain.html">Hotel Chain</a></li>
-									<li> <a class="dropdown-item" href="index-resort.html">Hotel Resort</a></li>
-									<li> <a class="dropdown-item" href="hotel-grid.html">Hotel Grid</a></li>
-									<li> <a class="dropdown-item" href="hotel-list.html">Hotel List</a></li>
-									<li> <a class="dropdown-item" href="hotel-detail.html">Hotel Detail</a></li>
-									<li> <a class="dropdown-item" href="room-detail.html">Room Detail</a></li>
-									<li> <a class="dropdown-item" href="hotel-booking.html">Hotel Booking</a></li>
-								</ul>
-							</li>
-
-							<li> <a class="dropdown-item" href="booking-confirm.html">Booking Confirmed</a></li>
-							<li> <a class="dropdown-item" href="compare-listing.html">Compare Listing</a></li>
-							<li> <a class="dropdown-item" href="offer-detail.html">Offer Detail</a></li>
-						</ul>
-					</li>
-
-					<!-- Nav item Pages -->
-					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" id="pagesMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Pages</a>
-						<ul class="dropdown-menu" aria-labelledby="pagesMenu">
-
-							<li> <a class="dropdown-item" href="about.html">About</a></li>
-							<li> <a class="dropdown-item" href="contact.html">Contact</a></li>
-							<li> <a class="dropdown-item" href="contact-2.html">Contact 2</a></li>
-							<li> <a class="dropdown-item" href="team.html">Our Team</a></li>
-
-							<!-- Dropdown submenu -->
-							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Authentication</a>
-								<ul class="dropdown-menu" data-bs-popper="none">
-									<li> <a class="dropdown-item" href="sign-in.html">Sign In</a></li>
-									<li> <a class="dropdown-item" href="sign-up.html">Sign Up</a></li>
-									<li> <a class="dropdown-item" href="forgot-password.html">Forgot Password</a></li>
-									<li> <a class="dropdown-item" href="two-factor-auth.html">Two factor authentication</a></li>
-								</ul>
-							</li>
-
-							<!-- Dropdown submenu -->
-							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Blog</a>
-								<ul class="dropdown-menu" data-bs-popper="none">
-									<li> <a class="dropdown-item" href="blog.html">Blog</a></li>
-									<li> <a class="dropdown-item" href="blog-detail.html">Blog Detail</a></li>
-								</ul>
-							</li>
-
-							<!-- Dropdown submenu -->
-							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Help</a>
-								<ul class="dropdown-menu" data-bs-popper="none">
-									<li> <a class="dropdown-item" href="help-center.html">Help Center</a></li>
-									<li> <a class="dropdown-item" href="help-detail.html">Help Detail</a></li>
-									<li> <a class="dropdown-item" href="privacy-policy.html">Privacy Policy</a></li>
-									<li> <a class="dropdown-item" href="terms-of-service.html">Terms of Service</a></li>
-								</ul>
-							</li>
-
-							<li> <a class="dropdown-item" href="pricing.html">Pricing</a></li>
-							<li> <a class="dropdown-item" href="faq.html">FAQs</a></li>
-							<li> <a class="dropdown-item" href="error.html">Error 404</a></li>
-							<li> <a class="dropdown-item" href="coming-soon.html">Coming Soon</a></li>
-						</ul>
-					</li>
-
-					<!-- Nav item Account -->
-					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" id="accounntMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Accounts</a>
-						<ul class="dropdown-menu" aria-labelledby="accounntMenu">
-							<!-- Dropdown submenu -->
-							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">User Profile</a>
-								<ul class="dropdown-menu" data-bs-popper="none">
-									<li> <a class="dropdown-item" href="account-profile.html">My Profile</a> </li>
-									<li> <a class="dropdown-item" href="account-bookings.html">My Bookings</a> </li>
-									<li> <a class="dropdown-item" href="account-travelers.html">Travelers</a> </li>
-									<li> <a class="dropdown-item" href="account-payment-details.html">Payment Details</a> </li>
-									<li> <a class="dropdown-item" href="account-wishlist.html">Wishlist</a> </li>
-									<li> <a class="dropdown-item" href="account-settings.html">Settings</a> </li>
-									<li> <a class="dropdown-item" href="account-delete.html">Delete Profile</a> </li>
-								</ul>
-							</li>
-
-							<!-- Dropdown submenu -->
-							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Agent Dashboard</a>
-								<ul class="dropdown-menu" data-bs-popper="none">
-									<li> <a class="dropdown-item" href="agent-dashboard.html">Dashboard</a> </li>
-									<li> <a class="dropdown-item" href="agent-listings.html">Listings</a> </li>
-									<li> <a class="dropdown-item" href="agent-bookings.html">Bookings</a> </li>
-									<li> <a class="dropdown-item" href="agent-activities.html">Activities</a> </li>
-									<li> <a class="dropdown-item" href="agent-earnings.html">Earnings</a> </li>
-									<li> <a class="dropdown-item" href="agent-reviews.html">Reviews</a> </li>
-									<li> <a class="dropdown-item" href="agent-settings.html">Settings</a> </li>
-								</ul>
-							</li>
-							
-							<li> <a class="dropdown-item" href="admin-dashboard.html">Master Admin</a> </li>
-						</ul>
-					</li>
-
-          <!-- Nav item link-->
-					<li class="nav-item dropdown d-none">
-						<a class="nav-link" href="#" id="advanceMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-							<i class="fas fa-ellipsis-h"></i>
-						</a>
-						<ul class="dropdown-menu min-w-auto" data-bs-popper="none">
-							<li> 
-								<a class="dropdown-item" href="#" target="_blank">
-									<i class="text-warning fa-fw bi bi-life-preserver me-2"></i>Support
-								</a> 
-							</li>
-							<li> 
-								<a class="dropdown-item" href="docs/index.html" target="_blank">
-									<i class="text-danger fa-fw bi bi-card-text me-2"></i>Documentation
-								</a> 
-							</li>
-							<li> <hr class="dropdown-divider"></li>
-							<li> 
-								<a class="dropdown-item" href="#" target="_blank">
-									<i class="text-info fa-fw bi bi-toggle-off me-2"></i>RTL demo
-								</a> 
-							</li>
-							<li> 
-								<a class="dropdown-item" href="#" target="_blank">
-									<i class="text-success fa-fw bi bi-cloud-download-fill me-2"></i>Buy Booking!
-								</a> 
-							</li>
-							<li> <hr class="dropdown-divider"></li>
-							<li> 
-								<a class="dropdown-item" href="docs/alerts.html" target="_blank">
-									<i class="text-orange fa-fw bi bi-puzzle-fill me-2"></i>Components
-								</a> 
-							</li>
-						</ul>
-					</li>
-				</ul>
-			</div>
-			<!-- Main navbar END -->
-
-			<!-- Nav category menu START -->
-			<div class="navbar-collapse collapse" id="navbarCategoryCollapse">
-				<ul class="navbar-nav navbar-nav-scroll nav-pills-primary-soft text-center ms-auto p-2 p-xl-0">
-					<!-- Nav item Hotel -->
-					<li class="nav-item"> <a class="nav-link active" href="index.html"><i class="fa-solid fa-hotel me-2"></i>Hotel</a>	</li>
-
-					
-				</ul>
-			</div>
-			<!-- Nav category menu END -->
-
-			<!-- Profile and Notification START -->
-			<ul class="nav flex-row align-items-center list-unstyled ms-xl-auto">
-
-				<!-- Notification dropdown START -->
-				<li class="nav-item dropdown ms-0 ms-md-3">
-					<!-- Notification button -->
-					<a class="nav-notification btn btn-light p-0 mb-0" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
-						<i class="bi bi-bell fa-fw"></i>
-					</a>
-					<!-- Notification dote -->
-					<span class="notif-badge animation-blink"></span>
-
-					<!-- Notification dropdown menu START -->
-					<div class="dropdown-menu dropdown-animation dropdown-menu-end dropdown-menu-size-md shadow-lg p-0">
-						<div class="card bg-transparent">
-							<!-- Card header -->
-							<div class="card-header bg-transparent d-flex justify-content-between align-items-center border-bottom">
-								<h6 class="m-0">Notifications <span class="badge bg-danger bg-opacity-10 text-danger ms-2">4 new</span></h6>
-								<a class="small" href="#">Clear all</a>
-							</div>
-
-							<!-- Card body START -->
-							<div class="card-body p-0">
-								<ul class="list-group list-group-flush list-unstyled p-2">
-									<!-- Notification item -->
-									<li>
-										<a href="#" class="list-group-item list-group-item-action rounded notif-unread border-0 mb-1 p-3">
-											<h6 class="mb-2">New! Booking flights from New York ✈️</h6>
-											<p class="mb-0 small">Find the flexible ticket on flights around the world. Start searching today</p>
-											<span>Wednesday</span>
-										</a>
-									</li>
-									<!-- Notification item -->
-									<li>
-										<a href="#" class="list-group-item list-group-item-action rounded border-0 mb-1 p-3">
-											<h6 class="mb-2">Sunshine saving are here 🌞 save 30% or more on a stay</h6>
-											<span>15 Nov 2022</span>
-										</a>
-									</li>
-								</ul>
-							</div>
-							<!-- Card body END -->
-
-							<!-- Card footer -->
-							<div class="card-footer bg-transparent text-center border-top">
-								<a href="#" class="btn btn-sm btn-link mb-0 p-0">See all incoming activity</a>
-							</div>
-						</div>
-					</div>
-					<!-- Notification dropdown menu END -->
-				</li>
-				<!-- Notification dropdown END -->
-
-				<!-- Profile dropdown START -->
-				<li class="nav-item ms-3 dropdown">
-					<!-- Avatar -->
-					<a class="avatar avatar-sm p-0" href="#" id="profileDropdown" role="button" data-bs-auto-close="outside" data-bs-display="static" data-bs-toggle="dropdown" aria-expanded="false">
-						<img class="avatar-img rounded-2" src="assets/images/avatar/01.jpg" alt="avatar">
-					</a>
-
-					<ul class="dropdown-menu dropdown-animation dropdown-menu-end shadow pt-3" aria-labelledby="profileDropdown">
-						<!-- Profile info -->
-						<li class="px-3 mb-3">
-							<div class="d-flex align-items-center">
-								<!-- Avatar -->
-								<div class="avatar me-3">
-									<img class="avatar-img rounded-circle shadow" src="assets/images/avatar/01.jpg" alt="avatar">
-								</div>
-								<div>
-									<a class="h6 mt-2 mt-sm-0" href="#">Lori Ferguson</a>
-									<p class="small m-0">example@gmail.com</p>
-								</div>
-							</div>
-						</li>
-
-						<!-- Links -->
-						<li> <hr class="dropdown-divider"></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-bookmark-check fa-fw me-2"></i>My Bookings</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-heart fa-fw me-2"></i>My Wishlist</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>
-						<li><a class="dropdown-item bg-danger-soft-hover" href="#"><i class="bi bi-power fa-fw me-2"></i>Sign Out</a></li>
-						<li> <hr class="dropdown-divider"></li>
-
-						<!-- Dark mode options START -->
-						<li>
-							<div class="nav-pills-primary-soft theme-icon-active d-flex justify-content-between align-items-center p-2 pb-0">
-								<span>Mode:</span>
-								<button type="button" class="btn btn-link nav-link text-primary-hover mb-0 p-0" data-bs-theme-value="light" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Light">
-									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sun fa-fw mode-switch" viewBox="0 0 16 16">
-										<path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
-										<use href="#"></use>
-									</svg>
-								</button>
-								<button type="button" class="btn btn-link nav-link text-primary-hover mb-0 p-0" data-bs-theme-value="dark" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Dark">
-									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-moon-stars fa-fw mode-switch" viewBox="0 0 16 16">
-										<path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278zM4.858 1.311A7.269 7.269 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.316 7.316 0 0 0 5.205-2.162c-.337.042-.68.063-1.029.063-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286z"/>
-										<path d="M10.794 3.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387a1.734 1.734 0 0 0-1.097 1.097l-.387 1.162a.217.217 0 0 1-.412 0l-.387-1.162A1.734 1.734 0 0 0 9.31 6.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387a1.734 1.734 0 0 0 1.097-1.097l.387-1.162zM13.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.156 1.156 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.156 1.156 0 0 0-.732-.732l-.774-.258a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732L13.863.1z"/>
-										<use href="#"></use>
-									</svg>
-								</button>
-								<button type="button" class="btn btn-link nav-link text-primary-hover mb-0 p-0 active" data-bs-theme-value="auto" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Auto">
-									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half fa-fw mode-switch" viewBox="0 0 16 16">
-										<path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/>
-										<use href="#"></use>
-									</svg>
-								</button>
-							</div>
-						</li> 
-						<!-- Dark mode options END-->
-					</ul>
-				</li>
-				<!-- Profile dropdown END -->
-			</ul>
-			<!-- Profile and Notification START -->
-
-		</div>
-	</nav>
-	<!-- Logo Nav END -->
-</header>
-<!-- Header END -->
-
-<!-- **************** MAIN CONTENT START **************** -->
-<main>
-	
 <!-- =======================
 Main Banner START -->
 <section class="pt-3 pt-lg-5">
@@ -442,7 +35,7 @@ Main Banner START -->
 						<a data-glightbox="" data-gallery="office-tour" href="https://www.youtube.com/embed/tXHviS-4ygo" class="d-block">
 							<!-- Avatar -->
 							<div class="avatar avatar-md z-index-1 position-relative me-2">
-								<img class="avatar-img rounded-circle" src="assets/images/avatar/12.jpg" alt="avatar">
+								<img class="avatar-img rounded-circle" src="{{ asset('template/stackbros/assets/images/avatar/12.jpg') }}" alt="avatar">
 								<!-- Video button -->
 								<div class="btn btn-xs btn-round btn-white shadow-sm position-absolute top-50 start-50 translate-middle z-index-9 mb-0"> 
 									<i class="fas fa-play"></i>
@@ -458,26 +51,12 @@ Main Banner START -->
 				<!-- Image -->
 				<div class="col-lg-6 position-relative">
 
-					<img src="assets/images/bg/06.jpg" class="rounded" alt="">
+					<img src="{{ asset('template/stackbros/assets/images/bg/06.jpg') }}" class="rounded" alt="">
 
 					<!-- Svg decoration -->
 					<figure class="position-absolute end-0 bottom-0">
 						<svg width="163px" height="163px" viewBox="0 0 163 163">
-							<path class="fill-warning" d="M145.6,66.2c-0.9-0.3-1.6,0.2-2.1-0.4c-0.5-0.7-1-1.5-1-2.4c0-3.1,0.1-6.2,0-9.3c0-0.7,0.3-1.3,0.5-1.9 c0.8-1.6,1.6-3.2,2.7-4.5c0.5-0.6,1.2-1.2,2-1.5c0.4-0.2,0.8,0.4,1.3-0.1c0.4-0.4,1,0.7,1.6,0.7c0.4,1-0.4,1.5-1,2.1 c0.7,0.3,1.4,0.3,2.1,0.7c0.6,0.4,1.2,0.7,1,1.5c-0.2,1,0.6,1.3,1,1.9c-0.2,0.3-0.6,0.4-0.5,0.8c1.2,3.2,0.3,5.4-0.7,8.1 c-0.3,0.7-0.7,1.6-0.7,2.2c-0.1,1.5-1.2,2.7-1.4,4.1c-0.2,1.1-0.9,1.7-2.1,1.6c-0.2,0-0.4,0.5-1,0.4c-0.2-0.2-0.7-0.5-0.7-0.8 c0-1-0.1-1.7-1.1-2.1C145.5,67.2,145.6,66.6,145.6,66.2"/>
-							<path class="fill-warning" d="M94.3,143.5c1.1,0.3,2.4-0.5,3.2,0.7c-0.4,0.7-0.7,1.4-1,2.1c0.5,0.5,0.7,0.2,1.2,0.1c1.6-0.6,2-0.4,2.5,1.2 c0.1,0.2,0,0.6,0.3,0.6c1.8,0.4,1.4,2.2,2.1,3.2c-0.8,0.9,0.5,1.8,0.1,2.6c-0.5,0.8-0.3,2-1.3,2.6c-0.3,0.2-0.1,0.5-0.2,0.7 c-0.3,2.1-1.2,3.7-3.4,4.4c-0.3,0.1-0.4,0.6-1,0.4c-0.3-0.6-0.6-1.3-1-1.9c-0.5-0.2-1.5,0.3-1.4-1h-3c-0.2-1.4,0-2.9-1.1-3.9 c-0.1-0.1-0.1-0.4,0-0.5c0.7-1.2,0.2-2.6,0.7-3.8c0.3-0.6,0.4-1,0.1-1.6c-0.9-1.3,0-2.4,0.7-3.3C92.5,145,93.4,144.3,94.3,143.5"/>
-							<path class="fill-warning" d="M119.6,77.3c-0.4,0.8-1.1,0.6-2,0.8c0.2,1.1-0.4,2.2,0.5,3.3c-0.8,0-0.8,0-1.2-0.3c-0.6,0.3-0.8,1-1.2,1.6 c0.1-1.9-0.6-3.2-2-4.1c-0.6-0.1-0.7,0.3-1,0.5c-1-1.9-1-2.8-0.2-7.7c0.4-2.5,1.7-4.6,3.6-6.8c0.6-0.1,1.5,1.5,2.3,0 c0.8,1.5-0.7,2.3-0.8,3.7c0.8-0.4,1.6-0.7,2.4-0.4c0.4,0.4-0.1,1,0.3,1.4c0.8,0.6,1.4,1.3,0.4,2.3c1.1,0.8-0.3,1.5-0.1,2.4 c0.2,0.8,0,1.7,0,2.5c-0.8-0.2-1-1.1-1.8-1C118.2,76.4,119.5,76.5,119.6,77.3"/>
-							<path class="fill-warning" d="M25,131c-0.3-0.6-1.2-0.3-1.7-0.5v-1.2c-0.1-0.1-0.1-0.2-0.2-0.2c-1.4,0.5-2.2-1-3.4-1.2 c-1.2-0.1-1.9-1-2.1-2.2c-0.1-0.5,0.1-0.8,0.5-1.1c-2-1.7-0.8-3.4-0.1-5.1c0.8-2.2,2.6-2.5,4.6-2.4c0.4,1.1,0.2,2-0.6,2.7 c1.5,1,2-0.5,3-0.8c0.3,0.6,0.6,1.2,0.9,1.6c0,0.6-0.8,0.8-0.4,1.4c0.7,0.8,0.9-0.5,1.7-0.3c1,0.9,0.9,2.2,0.8,3.4 c0.4,0.1,0.6,0.2,1,0.3c-0.1,0.6-1,0.8-1,1.5c0,0.8,0.8,0.2,1,0.7C27.7,128.8,26.9,130.3,25,131"/>
-							<path class="fill-warning" d="M84.9,95H87c0.4,0.4,0.3,1.6-0.3,2.8c1.2,1,1.7-0.5,2.4-0.8c0.8,0,0.8,0.6,1.2,0.7c0.2,0.8-0.7,0.9-0.4,1.7 c0.5,0.3,1.7,0,1.9,0.9c0.2,0.7,0.3,1.5-0.5,2.1c0.3,0.1,0.6,0.2,0.9,0.3c-0.1,0.7-1.1,1.3-0.5,2.2c-1.1,1.5-3,2.1-4.4,3.3 c-0.3,0.2-0.8,1-1.5,0.5c-0.3-0.4,0.4-0.4,0.3-0.8c-0.7-0.5-1.6,0.1-2.4-0.3c-0.2-0.6,0.1-1.4-0.8-1.8c-1.1,0.5-2.2,0.7-3.2-0.8 c1.3-0.8,3-1.1,3.2-3c-1,0-1.7,0.9-2.7,1c-0.2-0.2-0.5-0.4-0.8-0.7c-0.1-0.1,0.1-0.1,0.2-0.3c0.6-1.1,2.4-1,2.5-2.5 c1.2-0.5,1.1-1.7,1.3-2.5C83.8,96.3,84.3,95.7,84.9,95"/>
-							<path class="fill-warning" d="M41.2,153.9c0.3-0.7,0.9-0.8,0.4-1.6c-0.3-0.3-1.1,0.2-1.8-0.2c0-0.2-0.1-0.4-0.1-0.7c-0.1-0.1-0.2-0.2-0.3,0 c-0.3,0.4-0.7,0.4-1.1,0.4c-1.3,0-1.5-0.4-1.6-1.7c0-0.6,0.4-0.8,0.5-1.4c-0.4,0-0.8-0.1-1.4-0.1c-0.4-1.9,0.7-3.6,1.1-5.4 c0.2-0.9,1.6-1.3,2.7-1.3c0.4,0.2,0.3,0.6,0.3,0.7c0.2,0.4,0.3,0.3,0.4,0.1c0.6-0.5,1.3-0.6,1.7,0.1c0.5,0.7,1.1,0.6,1.8,0.7 c0.4,0.4,0.1,0.8,0.2,1.2c0.3,0.4,0.8,0.2,1.3,0.3c1,0.7,0.5,2.1,1.3,2.9C43.8,152.3,43.1,153.1,41.2,153.9"/>
-							<path class="fill-warning" d="M70.9,43.4c-0.3-1.4-1.2-1.8-2.6-1.5c-1.2-2.3-0.8-4.8-0.5-7.2c0.1-0.5,0.4-1.1,0.3-1.7 c-0.2-1.1,0.5-1.9,0.6-2.9c0.1-0.7,1.3-0.9,2-1.3c0.9,0.8,0.9,0.8,1.2,2c0.3,0,0.6,0,0.4,0c1.3,0,0.8,0.9,1.3,1.2 c0.3,0.1,0.8,0.5,0.7,1c-0.2,0.8,1,1.4,0.5,2.1c-0.5,0.7-0.2,1.5-0.5,2.1c-0.8,1.5-1,3.2-1.5,4.8C72.6,43.1,72,43.4,70.9,43.4"/>
-							<path class="fill-warning" d="M125.4,118.4c-0.4-0.3-0.6-0.7-1.3-0.8c-1.6-0.1-1.6-0.2-1.9-1.9c-1.1-0.4-2.2,0-3.2,0.4 c-0.5-0.5-0.2-0.9-0.4-1.4c0.4-0.1,0.7-0.2,1-0.4v-3c-0.5,0.2-1,0.3-1.7,0.5c-0.3,0-0.4-0.6-0.8-0.7c0.6-1.5,1.8-2.4,2.8-3.5 c1.3,0.3,2.6-1.1,3.8,0.4c0,0.1-0.1,1.8,0,2.1c-0.2,0-0.5,0.1-0.7,0.1c-0.2,0-0.3,0-0.5,0c-0.4,0.4-0.1,1.1-0.7,1.5 c1.3-0.5,2.4-1,3.3-2c0.4,0.4,0.7,0.8,1.4,0.6c-1.1,0.9,0.4,2.1-1,2.9c1,0,1.1-0.6,1.5-0.8c0.4-0.1,0.8-0.1,1.2-0.2 c0.5,1,1.1,1.8,0.6,3c-0.7,0.6-2.2,0.4-2.5,2.1c1.2-0.2,1.9-0.9,2.5-1.5c0.7,0.1,0.7,0.5,0.6,0.8c-1.3-0.1-1.2,1.5-2.3,1.9 c-0.9,0.3-1.6,1-2.7,1.8C124.7,119.5,125.1,119,125.4,118.4"/>
-							<path class="fill-warning" d="M101.7,41c-0.3,0.3-0.6,0.6-0.9,0.9c0.9,0.6-0.9,1.6,0.4,2.1c-2,2.3-2,2.4-2.1,4.8h-2.4c-0.2-0.1,0-0.5-0.2-0.8 c-2.4-0.3-2.9-0.8-3-3.3c0-0.6,0.2-1.4-0.5-1.8c0.5-0.7,0.2-1.6,0.7-2.4c1-1.5,2.3-2.7,3.5-3.9c0.5-0.2,1-0.1,1.4,0 c0.2,1-1.1,1.6-0.2,2.6c0.3-0.4,0.6-0.8,0.9-1.3C100.2,39.2,101.7,39.5,101.7,41"/>
-							<path class="fill-warning" d="M140.4,5.4c-0.4,0.6-1.2-0.1-1.5,0.6c0.7,0.4,1.5,0.1,2.3,0.2c0.3,1.1,0.9,2.1,1.3,3.2c0.9,2.4,0.3,4.4-0.6,6.6 c-0.4,0.9-0.9,1.2-1.9,1c-0.2-0.5-0.5-1.2-0.9-1.9c-0.6-0.2-1.5,0-1.9-1c0.1-1.7,0.1-3.6-1.1-5.2c0.4-0.7,0.7-1.3,1.1-1.9 c-0.3-0.1-0.6-0.2-1-0.4c0.2-0.8,0.5-1.6,1.3-2.3h2.2C140,4.6,140.5,4.8,140.4,5.4"/>
-							<path class="fill-warning" d="M65.7,68.8c-0.4,0.6-0.9,0.4-1.4,0.4c-1.2-1.1-0.4-2.9-1.4-4.1c1.5-3,1.5-3,4.1-4.2c0.5,0.1,0.8,0.5,1,1 c0.1,0.6-0.8,0.7-0.5,1.3c0.5,0.6,0.9,0.2,1.2-0.2c1.5,0.6,1.1,2.5,2.4,3.3c-0.1,1.1,0.2,2.2-0.2,3.2L69,72.2c-0.3,0-0.7,0-1,0 c-0.3-0.5-0.9-2.2-0.8-2.4C66.7,69.6,66.2,69.2,65.7,68.8"/>
-							<path class="fill-warning" d="M37.5,69.7c-0.5,0.2,0,0.9-0.4,1c-0.7,0.2-1-0.2-1.2-0.6c-0.4-0.7,0.1-1.6-0.2-2.2c-0.5-0.7-0.6-1.2-0.1-2 c0.5-0.6,0.2-1.5,0.6-2.3c0.9-2,0.9-2.1,3-2.1c0.1,0.1,0.2,0.1,0.2,0.2c0,0.3,0,0.7,0,1.1c0.7,0.4,1.7,0.1,2.1,1.3 c0.3,0.9,1.2,1.5,1,2.7c-0.2,0.9,0.1,1.8-0.8,2.5c-0.4,0.4-0.8,1.1-0.8,2c0,0.6-0.5,1-1.2,1.1c-0.6,0.1-1-0.3-1.2-0.7 C38,71,37.8,70.3,37.5,69.7"/>
-							<path class="fill-warning" d="M53.9,87.8c0.7,0,1.4,0,2.1,0c0.5,0.3,0.1,1,0.4,1.4c0.4,0.3,0.8,0.1,1.2,0.2c0.6,1.2,1.4,2.4,1.7,3.6 c0.4,1.4-0.2,2.7-0.7,4c-1,0.4-1.5-0.4-2.1-0.9c-0.7,0-1.4,0-2.1,0c-0.4-1-0.8-1.8-2.1-1.5c-0.6-0.7,0.2-1.8-0.7-2.3 c0.5-0.6,0.9-1.3,1-2.1C52.8,89.2,53.2,88.5,53.9,87.8"/>
-							<path class="fill-warning" d="M0.1,95.7c0.9-1.3,2.3-1.7,3.8-1.8c1,1.2-0.7,1.5-0.8,2.3c1.1,1,2-0.7,3.1,0c0.6,0.6-0.2,0.8-0.3,1.2 c0.4,0.5,1,0,1.4,0.3c0.4,1.1-0.3,2.3,0.6,3.3c-0.8,0.8-0.7,2.2-1.9,2.8c-1.1-0.2-1.8-1-2.6-1.7c-0.7-0.6-1.9-0.5-2.6-1.9 C1,98.9-0.4,97.4,0.1,95.7"/>
-							<path class="fill-warning" d="M155.5,91.5c-0.9-0.5-1.7-0.7-2.3-1.6c0.4-0.2,0.8-0.5,1.2-0.7c-1.2-0.4-2.1,0.7-3.1,0c0.6-1,1.8-1,2.5-1.7 c0.1-0.6-0.3-0.6-0.7-0.7c-0.7-0.2-0.9,0.9-1.6,0.5c-0.3-0.3-0.4-0.7-0.1-0.9c1.7-1,3-2.3,4.5-3.5c0.9-0.7,1.1-0.9,2.5-1.2 c-0.1,0.5-0.6,0.7-0.9,1.1c0.7,0.7,1.3,0.1,1.9-0.2c0.1,1.1,0.9,1.9,0.5,3.4C158.3,87.4,157.4,89.8,155.5,91.5"/>
+							<!-- svg content -->
 						</svg>
 					</figure>
 
@@ -493,8 +72,8 @@ Main Banner START -->
 
 					<!-- Round image group -->
 					<div class="vstack gap-5 align-items-center position-absolute top-0 start-0 d-none d-md-flex mt-4 ms-n3">
-						<img class="icon-lg shadow-lg border border-3 border-white rounded-circle" src="assets/images/category/hotel/4by3/11.jpg" alt="avatar">
-						<img class="icon-xl shadow-lg border border-3 border-white rounded-circle" src="assets/images/category/hotel/4by3/12.jpg" alt="avatar">
+						<img class="icon-lg shadow-lg border border-3 border-white rounded-circle" src="{{ asset('template/stackbros/assets/images/category/hotel/4by3/11.jpg') }}" alt="avatar">
+						<img class="icon-xl shadow-lg border border-3 border-white rounded-circle" src="{{ asset('template/stackbros/assets/images/category/hotel/4by3/12.jpg') }}" alt="avatar">
 					</div>
 				</div>
 			</div>
@@ -633,13 +212,13 @@ Best deal START -->
 						<div class="row g-0 align-items-center">
 							<!-- Image -->
 							<div class="col-sm-6">
-								<img src="assets/images/offer/01.jpg" class="card-img rounded-0" alt="">
+								<img src="{{ asset('template/stackbros/assets/images/offer/01.jpg') }}" class="card-img rounded-0" alt="">
 							</div>
 
 							<!-- Title and content -->
 							<div class="col-sm-6">
 								<div class="card-body px-3">
-									<h6 class="card-title"><a href="offer-detail.html" class="stretched-link">Daily 50 Lucky Winners get a Free Stay</a></h6>
+									<h6 class="card-title"><a href="{{ asset('template/stackbros/offer-detail.html') }}" class="stretched-link">Daily 50 Lucky Winners get a Free Stay</a></h6>
 									<p class="mb-0">Valid till: 15 Nov</p>
 								</div>
 							</div>
@@ -653,13 +232,13 @@ Best deal START -->
 						<div class="row g-0 align-items-center">
 							<!-- Image -->
 							<div class="col-sm-6">
-								<img src="assets/images/offer/04.jpg" class="card-img rounded-0" alt="">
+								<img src="{{ asset('template/stackbros/assets/images/offer/04.jpg') }}" class="card-img rounded-0" alt="">
 							</div>
 
 							<!-- Title and content -->
 							<div class="col-sm-6">
 								<div class="card-body px-3">
-									<h6 class="card-title"><a href="offer-detail.html" class="stretched-link">Up to 60% OFF</a></h6>
+									<h6 class="card-title"><a href="{{ asset('template/stackbros/offer-detail.html') }}" class="stretched-link">Up to 60% OFF</a></h6>
 									<p class="mb-0">On Hotel Bookings Online</p>
 								</div>
 							</div>
@@ -673,13 +252,13 @@ Best deal START -->
 						<div class="row g-0 align-items-center">
 							<!-- Image -->
 							<div class="col-sm-6">
-								<img src="assets/images/offer/03.jpg" class="card-img rounded-0" alt="">
+								<img src="{{ asset('template/stackbros/assets/images/offer/03.jpg') }}" class="card-img rounded-0" alt="">
 							</div>
 
 							<!-- Title and content -->
 							<div class="col-sm-6">
 								<div class="card-body px-3">
-									<h6 class="card-title"><a href="offer-detail.html" class="stretched-link">Book & Enjoy</a></h6>
+									<h6 class="card-title"><a href="{{ asset('template/stackbros/offer-detail.html') }}" class="stretched-link">Book & Enjoy</a></h6>
 									<p class="mb-0">20% Off on the best available room rate</p>
 								</div>
 							</div>
@@ -693,13 +272,13 @@ Best deal START -->
 						<div class="row g-0 align-items-center">
 							<!-- Image -->
 							<div class="col-sm-6">
-								<img src="assets/images/offer/02.jpg" class="card-img rounded-0" alt="">
+								<img src="{{ asset('template/stackbros/assets/images/offer/02.jpg') }}" class="card-img rounded-0" alt="">
 							</div>
 
 							<!-- Title and content -->
 							<div class="col-sm-6">
 								<div class="card-body px-3">
-									<h6 class="card-title"><a href="offer-detail.html" class="stretched-link">Hot Summer Nights</a></h6>
+									<h6 class="card-title"><a href="{{ asset('template/stackbros/offer-detail.html') }}" class="stretched-link">Hot Summer Nights</a></h6>
 									<p class="mb-0">Up to 3 nights free!</p>
 								</div>
 							</div>
@@ -722,16 +301,15 @@ About START -->
 			<!-- Left side START -->
 			<div class="col-lg-5 position-relative">
 			
-
 				<!-- Image -->
-				<img src="assets/images/about/01.jpg" class="rounded-3 position-relative" alt="">
+				<img src="{{ asset('template/stackbros/assets/images/about/01.jpg') }}" class="rounded-3 position-relative" alt="">
 
 				<!-- Client rating START -->
 				<div class="position-absolute bottom-0 start-0 z-index-1 mb-4 ms-5">
 					<div class="bg-body d-flex d-inline-block rounded-3 position-relative p-3">	
 
 						<!-- Element -->
-						<img src="assets/images/element/01.svg" class="position-absolute top-0 start-0 translate-middle w-40px" alt="">
+						<img src="{{ asset('template/stackbros/assets/images/element/01.svg') }}" class="position-absolute top-0 start-0 translate-middle w-40px" alt="">
 
 						<!-- Avatar group -->
 						<div class="me-4">
@@ -739,16 +317,16 @@ About START -->
 							<!-- Avatar group -->
 							<ul class="avatar-group mb-0">
 								<li class="avatar avatar-sm">
-									<img class="avatar-img rounded-circle" src="assets/images/avatar/01.jpg" alt="avatar">
+									<img class="avatar-img rounded-circle" src="{{ asset('template/stackbros/assets/images/avatar/01.jpg') }}" alt="avatar">
 								</li>
 								<li class="avatar avatar-sm">
-									<img class="avatar-img rounded-circle" src="assets/images/avatar/02.jpg" alt="avatar">
+									<img class="avatar-img rounded-circle" src="{{ asset('template/stackbros/assets/images/avatar/02.jpg') }}" alt="avatar">
 								</li>
 								<li class="avatar avatar-sm">
-									<img class="avatar-img rounded-circle" src="assets/images/avatar/03.jpg" alt="avatar">
+									<img class="avatar-img rounded-circle" src="{{ asset('template/stackbros/assets/images/avatar/03.jpg') }}" alt="avatar">
 								</li>
 								<li class="avatar avatar-sm">
-									<img class="avatar-img rounded-circle" src="assets/images/avatar/04.jpg" alt="avatar">
+									<img class="avatar-img rounded-circle" src="{{ asset('template/stackbros/assets/images/avatar/04.jpg') }}" alt="avatar">
 								</li>
 								<li class="avatar avatar-sm">
 									<div class="avatar-img rounded-circle bg-primary">
@@ -831,7 +409,7 @@ Featured Hotels START -->
 					<!-- Image and overlay -->
 					<div class="card-img-scale-wrapper rounded-3">
 						<!-- Image -->
-						<img src="assets/images/category/hotel/01.jpg" class="card-img" alt="hotel image">
+						<img src="{{ asset('template/stackbros/assets/images/category/hotel/01.jpg') }}" class="card-img" alt="hotel image">
 						<!-- Badge -->
 						<div class="position-absolute bottom-0 start-0 p-3">
 							<div class="badge text-bg-dark fs-6 rounded-pill stretched-link"><i class="bi bi-geo-alt me-2"></i>New York</div>
@@ -841,7 +419,7 @@ Featured Hotels START -->
 					<!-- Card body -->
 					<div class="card-body px-2">
 						<!-- Title -->
-						<h5 class="card-title"><a href="hotel-detail.html" class="stretched-link">Baga Comfort</a></h5>
+						<h5 class="card-title"><a href="{{ asset('template/stackbros/hotel-detail.html') }}" class="stretched-link">Baga Comfort</a></h5>
 						<!-- Price and rating -->
 						<div class="d-flex justify-content-between align-items-center">
 							<h6 class="text-success mb-0">$455 <small class="fw-light">/starting at</small> </h6>
@@ -856,84 +434,61 @@ Featured Hotels START -->
 			<div class="col-sm-6 col-xl-3">
 				<!-- Card START -->
 				<div class="card card-img-scale overflow-hidden bg-transparent">
-					<!-- Image and overlay -->
 					<div class="card-img-scale-wrapper rounded-3">
-						<!-- Image -->
-						<img src="assets/images/category/hotel/02.jpg" class="card-img" alt="hotel image">
-						<!-- Badge -->
+						<img src="{{ asset('template/stackbros/assets/images/category/hotel/02.jpg') }}" class="card-img" alt="hotel image">
 						<div class="position-absolute bottom-0 start-0 p-3">
 							<div class="badge text-bg-dark fs-6 rounded-pill stretched-link"><i class="bi bi-geo-alt me-2"></i>California</div>
 						</div>
 					</div>
 
-					<!-- Card body -->
 					<div class="card-body px-2">
-						<!-- Title -->
-						<h5 class="card-title"><a href="hotel-detail.html" class="stretched-link">New Apollo Hotel</a></h5>
-						<!-- Price and rating -->
+						<h5 class="card-title"><a href="{{ asset('template/stackbros/hotel-detail.html') }}" class="stretched-link">New Apollo Hotel</a></h5>
 						<div class="d-flex justify-content-between align-items-center">
 							<h6 class="text-success mb-0">$585 <small class="fw-light">/starting at</small> </h6>
 							<h6 class="mb-0">4.8<i class="fa-solid fa-star text-warning ms-1"></i></h6>
 						</div>
 					</div>
 				</div>
-				<!-- Card END -->
 			</div>
 
 			<!-- Hotel item -->
 			<div class="col-sm-6 col-xl-3">
-				<!-- Card START -->
 				<div class="card card-img-scale overflow-hidden bg-transparent">
-					<!-- Image and overlay -->
 					<div class="card-img-scale-wrapper rounded-3">
-						<!-- Image -->
-						<img src="assets/images/category/hotel/03.jpg" class="card-img" alt="hotel image">
-						<!-- Badge -->
+						<img src="{{ asset('template/stackbros/assets/images/category/hotel/03.jpg') }}" class="card-img" alt="hotel image">
 						<div class="position-absolute bottom-0 start-0 p-3">
 							<div class="badge text-bg-dark fs-6 rounded-pill stretched-link"><i class="bi bi-geo-alt me-2"></i>Los Angeles</div>
 						</div>
 					</div>
 
-					<!-- Card body -->
 					<div class="card-body px-2">
-						<!-- Title -->
-						<h5 class="card-title"><a href="hotel-detail.html" class="stretched-link">New Age Hotel</a></h5>
-						<!-- Price and rating -->
+						<h5 class="card-title"><a href="{{ asset('template/stackbros/hotel-detail.html') }}" class="stretched-link">New Age Hotel</a></h5>
 						<div class="d-flex justify-content-between align-items-center">
 							<h6 class="text-success mb-0">$385 <small class="fw-light">/starting at</small> </h6>
 							<h6 class="mb-0">4.6<i class="fa-solid fa-star text-warning ms-1"></i></h6>
 						</div>
 					</div>
 				</div>
-				<!-- Card END -->
 			</div>
 
 			<!-- Hotel item -->
 			<div class="col-sm-6 col-xl-3">
-				<!-- Card START -->
 				<div class="card card-img-scale overflow-hidden bg-transparent">
-					<!-- Image and overlay -->
 					<div class="card-img-scale-wrapper rounded-3">
-						<!-- Image -->
-						<img src="assets/images/category/hotel/04.jpg" class="card-img" alt="hotel image">
-						<!-- Badge -->
+						<img src="{{ asset('template/stackbros/assets/images/category/hotel/04.jpg') }}" class="card-img" alt="hotel image">
 						<div class="position-absolute bottom-0 start-0 p-3">
 							<div class="badge text-bg-dark fs-6 rounded-pill stretched-link"><i class="bi bi-geo-alt me-2"></i>Chicago</div>
 						</div>
 					</div>
 
-					<!-- Card body -->
 					<div class="card-body px-2">
-						<!-- Title -->
-						<h5 class="card-title"><a href="hotel-detail.html" class="stretched-link">Helios Beach Resort</a></h5>
-						<!-- Price and rating -->
+						<h5 class="card-title"><a href="{{ asset('template/stackbros/hotel-detail.html') }}" class="stretched-link">Helios Beach Resort</a></h5>
 						<div class="d-flex justify-content-between align-items-center">
 							<h6 class="text-success mb-0">$665 <small class="fw-light">/starting at</small> </h6>
 							<h6 class="mb-0">4.8<i class="fa-solid fa-star text-warning ms-1"></i></h6>
 						</div>
 					</div>
 				</div>
-				<!-- Card END -->
 			</div>
 		</div> <!-- Row END -->
 	</div>
@@ -948,36 +503,33 @@ Client START -->
 		<div class="row g-4 g-lg-7 justify-content-center align-items-center">
 			<!-- Image -->
 			<div class="col-5 col-sm-3 col-xl-2">
-				<img src="assets/images/client/01.svg" class="grayscale" alt="">
+				<img src="{{ asset('template/stackbros/assets/images/client/01.svg') }}" class="grayscale" alt="">
 			</div>
 			<!-- Image -->
 			<div class="col-5 col-sm-3 col-xl-2">
-				<img src="assets/images/client/02.svg" class="grayscale" alt="">
+				<img src="{{ asset('template/stackbros/assets/images/client/02.svg') }}" class="grayscale" alt="">
 			</div>
 			<!-- Image -->
 			<div class="col-5 col-sm-3 col-xl-2">
-				<img src="assets/images/client/03.svg" class="grayscale" alt="">
+				<img src="{{ asset('template/stackbros/assets/images/client/03.svg') }}" class="grayscale" alt="">
 			</div>
 			<!-- Image -->
 			<div class="col-5 col-sm-3 col-xl-2">
-				<img src="assets/images/client/04.svg" class="grayscale" alt="">
+				<img src="{{ asset('template/stackbros/assets/images/client/04.svg') }}" class="grayscale" alt="">
 			</div>
 			<!-- Image -->
 			<div class="col-5 col-sm-3 col-xl-2">
-				<img src="assets/images/client/05.svg" class="grayscale" alt="">
+				<img src="{{ asset('template/stackbros/assets/images/client/05.svg') }}" class="grayscale" alt="">
 			</div>
 			<!-- Image -->
 			<div class="col-5 col-sm-3 col-xl-2">
-				<img src="assets/images/client/06.svg" class="grayscale" alt="">
+				<img src="{{ asset('template/stackbros/assets/images/client/06.svg') }}" class="grayscale" alt="">
 			</div>
 		</div>
 	</div>
 </section>
 <!-- =======================
 Client END -->
-
-
-
 
 <!-- =======================
 Download app START -->
@@ -1016,163 +568,6 @@ Download app START -->
 <!-- =======================
 Download app END -->
 
-</main>
 <!-- **************** MAIN CONTENT END **************** -->
 
-<!-- =======================
-Footer START -->
-<footer class="bg-dark pt-5">
-	<div class="container">
-		<!-- Row START -->
-		<div class="row g-4">
-
-			<!-- Widget 1 START -->
-			<div class="col-lg-3">
-				<!-- logo -->
-				<a href="index.html">
-					<img class="h-40px" src="assets/images/logo-light.svg" alt="logo">
-				</a>
-				<p class="my-3 text-body-secondary">Departure defective arranging rapturous did believe him all had supported.</p>
-				<p class="mb-2"><a href="#" class="text-body-secondary text-primary-hover"><i class="bi bi-telephone me-2"></i>038 201 3369</a> </p>
-				<p class="mb-0"><a href="#" class="text-body-secondary text-primary-hover"><i class="bi bi-envelope me-2"></i>anltph51720@gmail.com</a></p>
-			</div>
-			<!-- Widget 1 END -->
-
-			<!-- Widget 2 START -->
-			<div class="col-lg-8 ms-auto">
-				<div class="row g-4">
-					<!-- Link block -->
-					<div class="col-6 col-md-3">
-						<h5 class="text-white mb-2 mb-md-4">Page</h5>
-						<ul class="nav flex-column text-primary-hover">
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">About us</a></li>
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">Contact us</a></li>
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">News and Blog</a></li>
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">Meet a Team</a></li>
-						</ul>
-					</div>
-
-					<!-- Link block -->
-					<div class="col-6 col-md-3">
-						<h5 class="text-white mb-2 mb-md-4">Link</h5>
-						<ul class="nav flex-column text-primary-hover">
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">Sign up</a></li>
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">Sign in</a></li>
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">Privacy Policy</a></li>
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">Terms</a></li>
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">Cookie</a></li>
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#">Support</a></li>
-						</ul>
-					</div>
-									
-
-
-					<!-- Link block -->
-					<div class="col-6 col-md-3">
-						<h5 class="text-white mb-2 mb-md-4">Booking</h5>
-						<ul class="nav flex-column text-primary-hover">
-							<li class="nav-item"><a class="nav-link text-body-secondary" href="#"><i class="fa-solid fa-hotel me-2"></i>Hotel</a></li>
-
-						</ul>
-					</div>
-				</div>
-			</div>
-			<!-- Widget 2 END -->
-
-		</div><!-- Row END -->
-
-
-
-		<!-- Payment and card -->
-		<div class="row g-4 justify-content-between mt-0 mt-md-2">
-
-
-
-			<!-- Social media icon -->
-			<div class="col-sm-5 col-md-6 col-lg-3 text-sm-end">
-				<h5 class="text-white mb-2">Follow us on</h5>
-				<ul class="list-inline mb-0 mt-3">
-					<li class="list-inline-item"> <a class="btn btn-sm px-2 bg-facebook mb-0" href="#"><i class="fab fa-fw fa-facebook-f"></i></a> </li>
-					<li class="list-inline-item"> <a class="btn btn-sm shadow px-2 bg-instagram mb-0" href="#"><i class="fab fa-fw fa-instagram"></i></a> </li>
-					<li class="list-inline-item"> <a class="btn btn-sm shadow px-2 bg-twitter mb-0" href="#"><i class="fab fa-fw fa-twitter"></i></a> </li>
-					<li class="list-inline-item"> <a class="btn btn-sm shadow px-2 bg-linkedin mb-0" href="#"><i class="fab fa-fw fa-linkedin-in"></i></a> </li>
-				</ul>	
-			</div>
-		</div>
-
-		<!-- Divider -->
-		<hr class="mt-4 mb-0">
-
-		<!-- Bottom footer -->
-		<div class="row">
-			<div class="container">
-				<div class="d-lg-flex justify-content-between align-items-center py-3 text-center text-lg-start">
-					<!-- copyright links-->
-					<div class="nav mt-2 mt-lg-0">
-						<ul class="list-inline text-primary-hover mx-auto mb-0">
-							<li class="list-inline-item me-0"><a class="nav-link text-body-secondary py-1" href="#">Privacy policy</a></li>
-							<li class="list-inline-item me-0"><a class="nav-link text-body-secondary py-1" href="#">Terms and conditions</a></li>
-							<li class="list-inline-item me-0"><a class="nav-link text-body-secondary py-1 pe-0" href="#">Refund policy</a></li>
-						</ul>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-</footer>
-<!-- =======================
-Footer END -->
-
-<!-- Back to top -->
-<div class="back-top"></div>
-
-<!-- Navbar mobile START -->
-<div class="navbar navbar-mobile">
-	<ul class="navbar-nav">
-		<!-- Nav item Home -->
-		<li class="nav-item">
-			<a class="nav-link active" href="index.html"><i class="bi bi-house-door fa-fw"></i>
-				<span class="mb-0 nav-text">Home</span>
-			</a>	
-		</li>
-
-		<!-- Nav item My Trips -->
-		<li class="nav-item"> 
-			<a class="nav-link" href="account-bookings.html"><i class="bi bi-briefcase fa-fw"></i>
-				<span class="mb-0 nav-text">My Trips</span>
-			</a>	
-		</li>
-
-		<!-- Nav item Offer -->
-		<li class="nav-item"> 
-			<a class="nav-link" href="offer-detail.html"><i class="bi bi-percent fa-fw"></i>
-				<span class="mb-0 nav-text">Offer</span> 
-			</a>
-		</li>
-
-		<!-- Nav item Account -->
-		<li class="nav-item"> 
-			<a class="nav-link" href="account-profile.html"><i class="bi bi-person-circle fa-fw"></i>
-				<span class="mb-0 nav-text">Account</span>
-			</a>
-		</li>
-	</ul>
-</div>
-<!-- Navbar mobile END -->
-
-<!-- Bootstrap JS -->
-<script src="assets/vendor/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- Vendors -->
-<script src="assets/vendor/tiny-slider/tiny-slider.js"></script>
-<script src="assets/vendor/glightbox/js/glightbox.js"></script>
-<script src="assets/vendor/flatpickr/js/flatpickr.min.js"></script>
-<script src="assets/vendor/choices/js/choices.min.js"></script>
-
-<!-- ThemeFunctions -->
-<script src="assets/js/functions.js"></script>
-
-</body>
-
-<!-- Mirrored from stackbros.in/bookinga/landing/index.html by HTTrack Website Copier/3.x [XR&CO'2014], Sat, 06 Sep 2025 10:14:43 GMT -->
-</html>
+@endsection

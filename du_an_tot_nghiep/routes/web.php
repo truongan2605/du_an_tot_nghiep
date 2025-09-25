@@ -7,6 +7,5 @@ Route::get('/', function () {
     return view('home');
 });
 
-// Routes for TienNghi CRUD
 Route::resource('tien-nghi', TienNghiController::class);
 Route::patch('tien-nghi/{tienNghi}/toggle-active', [TienNghiController::class, 'toggleActive'])->name('tien-nghi.toggle-active');
