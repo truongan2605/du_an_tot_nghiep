@@ -32,7 +32,7 @@ class DanhGia extends Model
 
     public function nguoiDung()
     {
-        return $this->belongsTo(NguoiDung::class);
+        return $this->belongsTo(User::class);
     }
 
     // Scopes

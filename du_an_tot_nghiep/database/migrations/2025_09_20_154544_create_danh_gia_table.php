@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('dat_phong_id')->constrained('dat_phong');
             $table->foreignId('nguoi_dung_id')->constrained('nguoi_dung');
-            $table->smallInteger('diem')->unsigned(); // 1-5 sao
+            $table->smallInteger('diem')->unsigned(); 
             $table->text('noi_dung')->nullable();
-            $table->json('anh')->nullable(); // Ảnh đính kèm
+            $table->json('anh')->nullable(); 
             $table->enum('trang_thai_kiem_duyet', ['cho_kiem_duyet', 'da_dang', 'bi_tu_choi'])->default('cho_kiem_duyet');
             $table->timestamps();
         });

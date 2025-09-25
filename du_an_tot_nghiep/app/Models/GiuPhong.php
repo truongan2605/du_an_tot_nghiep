@@ -40,7 +40,7 @@ class GiuPhong extends Model
 
     public function releasedBy()
     {
-        return $this->belongsTo(NguoiDung::class, 'released_by');
+        return $this->belongsTo(User::class, 'released_by');
     }
 
     // Scopes
