@@ -62,8 +62,8 @@
                 <h5 class="card-title mb-0">Icon</h5>
             </div>
             <div class="card-body text-center">
-                @if($tienNghi->icon)
-                    <img src="{{ asset('storage/' . $tienNghi->icon) }}" 
+                @if($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon))
+                    <img src="{{ Storage::url($tienNghi->icon) }}" 
                          alt="{{ $tienNghi->ten }}" 
                          class="img-fluid rounded" 
                          style="max-height: 300px;">
@@ -111,3 +111,4 @@
     </div>
 </div>
 @endsection
+

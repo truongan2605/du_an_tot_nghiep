@@ -31,8 +31,8 @@
                         <tr>
                             <td>{{ $tienNghi->id }}</td>
                             <td>
-                                @if($tienNghi->icon)
-                                    <img src="{{ asset('storage/' . $tienNghi->icon) }}" 
+                                @if($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon))
+                                    <img src="{{ Storage::url($tienNghi->icon) }}" 
                                          alt="{{ $tienNghi->ten }}" 
                                          class="img-thumbnail" 
                                          style="width: 40px; height: 40px; object-fit: cover;">
@@ -108,3 +108,4 @@
     </div>
 </div>
 @endsection
+

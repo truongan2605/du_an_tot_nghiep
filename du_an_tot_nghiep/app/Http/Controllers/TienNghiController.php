@@ -130,3 +130,4 @@ class TienNghiController extends Controller
             ->with('success', "Tiện nghi đã được {$status} thành công!");
     }
 }
+
