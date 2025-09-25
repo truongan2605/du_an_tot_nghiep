@@ -2,41 +2,41 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class NguoiDung extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'nguoi_dung';
-
     protected $fillable = [
-        'ten',
+        'name',
         'email',
+        'password',
         'so_dien_thoai',
-        'mat_khau_hash',
-        'vai_tro',
         'phong_ban',
+        'vai_tro',
         'is_active',
     ];
 
     protected $hidden = [
-        'mat_khau_hash',
+        'password',
         'remember_token',
     ];
 
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'is_active' => 'boolean',
+    ];
+
+    public function isAdmin(): bool
     {
-        return [
-            'mat_khau_hash' => 'hashed',
-            'is_active' => 'boolean',
-        ];
+        return $this->vai_tro === 'admin';
     }
 
-    // Relationships
-    public function datPhongs()
+        public function datPhongs()
     {
         return $this->hasMany(DatPhong::class, 'nguoi_dung_id');
     }
@@ -45,5 +45,4 @@ class NguoiDung extends Authenticatable
     {
         return $this->hasMany(DanhGia::class, 'nguoi_dung_id');
     }
-
 }
