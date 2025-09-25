@@ -29,6 +29,6 @@ class ThongBao extends Model
     // Relationships
     public function nguoiNhan()
     {
-        return $this->belongsTo(NguoiDung::class, 'nguoi_nhan_id');
+        return $this->belongsTo(User::class, 'nguoi_nhan_id');
     }
 }
