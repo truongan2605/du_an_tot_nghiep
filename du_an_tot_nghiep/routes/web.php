@@ -31,12 +31,18 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('tang', TangController::class);
 });
 
+// Route::prefix('admin')->name('admin.')->group(function () {
+//     Route::middleware('auth')->group(function () {  // Require login
+//         Route::get('user', [UserController::class, 'index'])->name('user.index');
+//         Route::get('user/{user}', [UserController::class, 'show'])->name('user.show');
+//         Route::patch('user/{user}/toggle', [UserController::class, 'toggleActive'])->name('user.toggle');
+//     });
+// });
+
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::middleware('auth')->group(function () {  // Require login
-        Route::get('user', [UserController::class, 'index'])->name('user.index');
-        Route::get('user/{user}', [UserController::class, 'show'])->name('user.show');
-        Route::patch('user/{user}/toggle', [UserController::class, 'toggleActive'])->name('user.toggle');
-    });
+    Route::get('user', [UserController::class, 'index'])->name('user.index');
+    Route::get('user/{user}', [UserController::class, 'show'])->name('user.show');
+    Route::patch('user/{user}/toggle', [UserController::class, 'toggleActive'])->name('user.toggle');
 });
 
 Route::get('/dashboard', function () {
