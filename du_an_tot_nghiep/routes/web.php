@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\PhongController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TienNghiController;
+use App\Http\Controllers\Admin\PhongController;
 
 Route::get('/', function () {
     return view('home');
