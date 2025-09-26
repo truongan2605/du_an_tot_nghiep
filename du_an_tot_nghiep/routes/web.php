@@ -6,6 +6,7 @@ use App\Http\Controllers\TienNghiController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
+use App\Http\Controllers\Admin\NhanVienController;
 
 Route::get('/', function () {
     return view('home');
@@ -44,6 +45,22 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('user/{user}', [UserController::class, 'show'])->name('user.show');
     Route::patch('user/{user}/toggle', [UserController::class, 'toggleActive'])->name('user.toggle');
 });
+
+// Route::prefix('admin')->name('admin.')->group(function () {
+//     Route::middleware('auth')->group(function () {
+//         Route::resource('nhan-vien', NhanVienController::class);  // Full CRUD routes
+//         Route::patch('nhan-vien/{user}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
+//     });
+// });
+Route::prefix('admin')->name('admin.')->group(function () {
+    // Full CRUD routes cho nhân viên
+    Route::resource('nhan-vien', NhanVienController::class);
+
+    // Route toggle active
+    Route::patch('nhan-vien/{user}/toggle', [NhanVienController::class, 'toggleActive'])
+        ->name('nhan-vien.toggle');
+});
+
 
 Route::get('/dashboard', function () {
     return view('dashboard');
