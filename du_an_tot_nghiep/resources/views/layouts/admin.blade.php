@@ -68,6 +68,10 @@
                         href="{{ route('admin.user.index') }}">
                         <i class="fas fa-users me-2"></i> Quản Lý Khách Hàng
                     </a>
+                    <a class="nav-link {{ request()->routeIs('admin.nhan-vien.*') ? 'active' : '' }}"
+                        href="{{ route('admin.nhan-vien.index') }}">
+                        <i class="fas fa-user-tie me-2"></i> Quản Lý Nhân Viên
+                    </a>
                 </nav>
             </div>
 
