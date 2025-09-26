@@ -1,37 +1,43 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>@yield('title', 'Admin Panel')</title>
-    
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+
     <style>
         .sidebar {
             min-height: 100vh;
             background-color: #343a40;
         }
+
         .sidebar .nav-link {
             color: #adb5bd;
         }
+
         .sidebar .nav-link:hover {
             color: #fff;
         }
+
         .sidebar .nav-link.active {
             color: #fff;
             background-color: #495057;
         }
+
         .main-content {
             background-color: #f8f9fa;
             min-height: 100vh;
         }
     </style>
 </head>
+
 <body>
     <div class="container-fluid">
         <div class="row">
@@ -41,7 +47,8 @@
                     <h4 class="text-white">Admin Panel</h4>
                 </div>
                 <nav class="nav flex-column">
-                    <a class="nav-link {{ request()->routeIs('tien-nghi.*') ? 'active' : '' }}" href="{{ route('tien-nghi.index') }}">
+                    <a class="nav-link {{ request()->routeIs('tien-nghi.*') ? 'active' : '' }}"
+                        href="{{ route('tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Tiện nghi
                     </a>
                     <a class="nav-link" href="#">
@@ -53,9 +60,17 @@
                     <a class="nav-link" href="#">
                         <i class="fas fa-chart-bar me-2"></i> Thống kê
                     </a>
+                    <a class="nav-link {{ request()->routeIs('admin.tang.*') ? 'active' : '' }}"
+                        href="{{ route('admin.tang.index') }}">
+                        <i class="fas fa-layer-group me-2"></i> Quản Lý Tầng
+                    </a>
+                    <a class="nav-link {{ request()->routeIs('admin.user.*') ? 'active' : '' }}"
+                        href="{{ route('admin.user.index') }}">
+                        <i class="fas fa-users me-2"></i> Quản Lý Khách Hàng
+                    </a>
                 </nav>
             </div>
-            
+
             <!-- Main content -->
             <div class="col-md-10 main-content">
                 <div class="p-4">
@@ -83,4 +98,5 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     @yield('scripts')
 </body>
+
 </html>
