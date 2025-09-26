@@ -5,28 +5,36 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Response; // thêm dòng này
 
 class ManageUsers
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // Kiểm tra đăng nhập
-        if (!Auth::check()) {
-            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập!');
+        // Kiểm tra đăng nhập và quyền admin
+        if (!Auth::check() || Auth::user()->vai_tro !== 'admin') {
+            abort(403, 'Bạn không có quyền quản lý!');
         }
 
-        // Chỉ cho phép admin
-        if (Auth::user()->vai_tro !== 'admin') {
-            abort(403, 'Bạn không có quyền quản lý người dùng!');
-        }
+        // Lấy user từ route parameter (ví dụ: admin/nhan-vien/{user})
+        $user = $request->route('user');
 
-        // Không cho toggle chính mình
-        if (
-            $request->route()->getName() === 'admin.user.toggle'
-            && Auth::id() === $request->route('user')->id
-        ) {
-            return redirect()->back()->with('error', 'Không thể thay đổi trạng thái tài khoản của chính bạn!');
+        if ($user && in_array($request->route()->getName(), ['admin.nhan-vien.toggle', 'admin.nhan-vien.destroy'])) {
+            
+            // Không cho thao tác chính mình
+            if ($user->id === Auth::id()) {
+                return redirect()->back()->with('error', 'Không thể thay đổi/xóa chính bạn!');
+            }
+
+            // Không cho thao tác với admin khác
+            if ($user->vai_tro === 'admin') {
+                return redirect()->back()->with('error', 'Không thể thay đổi/xóa admin khác!');
+            }
+
+            // Đảm bảo chỉ áp dụng cho nhân viên
+            if ($user->vai_tro !== 'nhan_vien') {
+                return redirect()->back()->with('error', 'Đây không phải nhân viên hợp lệ!');
+            }
         }
 
         return $next($request);
