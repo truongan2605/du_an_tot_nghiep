@@ -49,7 +49,7 @@
                             </td>
                             <td>{{ $tienNghi->created_at->format('d/m/Y H:i') }}</td>
                             <td>
-                                <div class="btn-group" role="group">
+                                <div class="d-flex flex-wrap gap-2" role="group">
                                     <a href="{{ route('tien-nghi.show', $tienNghi) }}" 
                                        class="btn btn-sm btn-info" 
                                        title="Xem chi tiết">
@@ -60,17 +60,7 @@
                                        title="Chỉnh sửa">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <form action="{{ route('tien-nghi.toggle-active', $tienNghi) }}" 
-                                          method="POST" 
-                                          class="d-inline">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit" 
-                                                class="btn btn-sm {{ $tienNghi->active ? 'btn-secondary' : 'btn-success' }}"
-                                                title="{{ $tienNghi->active ? 'Vô hiệu hóa' : 'Kích hoạt' }}">
-                                            <i class="fas {{ $tienNghi->active ? 'fa-toggle-off' : 'fa-toggle-on' }}"></i>
-                                        </button>
-                                    </form>
+                                    
                                     <form action="{{ route('tien-nghi.destroy', $tienNghi) }}" 
                                           method="POST" 
                                           class="d-inline"
@@ -92,8 +82,13 @@
             </div>
             
             <!-- Pagination -->
-            <div class="d-flex justify-content-center">
-                {{ $tienNghis->links() }}
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="text-muted">
+                    Hiển thị {{ $tienNghis->firstItem() }}–{{ $tienNghis->lastItem() }} trong tổng {{ $tienNghis->total() }} tiện nghi
+                </div>
+                <div>
+                    {{ $tienNghis->onEachSide(1)->links('pagination::bootstrap-5') }}
+                </div>
             </div>
         @else
             <div class="text-center py-5">

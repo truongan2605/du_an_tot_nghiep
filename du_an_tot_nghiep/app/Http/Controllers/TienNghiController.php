@@ -58,7 +58,12 @@ class TienNghiController extends Controller
      */
     public function show(TienNghi $tienNghi)
     {
-        return view('admin.tien-nghi.show', compact('tienNghi'));
+        $rooms = $tienNghi->phongs()
+            ->with(['loaiPhong', 'tang'])
+            ->orderBy('ma_phong')
+            ->paginate(12);
+
+        return view('admin.tien-nghi.show', compact('tienNghi', 'rooms'));
     }
 
     /**
