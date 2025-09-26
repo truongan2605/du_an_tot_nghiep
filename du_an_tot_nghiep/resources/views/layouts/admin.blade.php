@@ -1,85 +1,86 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - @yield('title')</title>
-
-    {{-- Bootstrap CSS --}}
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    {{-- FontAwesome icons --}}
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>@yield('title', 'Admin Panel')</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <style>
-        body {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
         .sidebar {
-            min-width: 220px;
-            max-width: 220px;
-            background: #343a40;
-            color: #fff;
+            min-height: 100vh;
+            background-color: #343a40;
         }
-        .sidebar a {
+        .sidebar .nav-link {
             color: #adb5bd;
-            text-decoration: none;
-            display: block;
-            padding: 10px 15px;
         }
-        .sidebar a:hover {
-            background: #495057;
+        .sidebar .nav-link:hover {
             color: #fff;
         }
-        .content {
-            flex: 1;
-            padding: 20px;
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #495057;
         }
-        select option {
-    color: black; 
-    background-color: white;
-}
-
-select option:checked {
-    color: black !important;
-    background-color: #d6e9ff !important; /* xanh nhạt hơn */
-}
-
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
     </style>
 </head>
 <body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 sidebar p-0">
+                <div class="p-3">
+                    <h4 class="text-white">Admin Panel</h4>
+                </div>
+                <nav class="nav flex-column">
+                    <a class="nav-link {{ request()->routeIs('tien-nghi.*') ? 'active' : '' }}" href="{{ route('tien-nghi.index') }}">
+                        <i class="fas fa-concierge-bell me-2"></i> Tiện nghi
+                    </a>
+                    <a class="nav-link" href="#">
+                        <i class="fas fa-bed me-2"></i> Phòng
+                    </a>
+                    <a class="nav-link" href="#">
+                        <i class="fas fa-users me-2"></i> Người dùng
+                    </a>
+                    <a class="nav-link" href="#">
+                        <i class="fas fa-chart-bar me-2"></i> Thống kê
+                    </a>
+                </nav>
+            </div>
+            
+            <!-- Main content -->
+            <div class="col-md-10 main-content">
+                <div class="p-4">
+                    @if(session('success'))
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            {{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
 
-    {{-- Header --}}
-    <nav class="navbar navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">Admin Panel</a>
-        </div>
-    </nav>
+                    @if(session('error'))
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {{ session('error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
 
-    <div class="d-flex flex-grow-1">
-        {{-- Sidebar --}}
-        <div class="sidebar">
-            <h5 class="p-3 border-bottom">Menu</h5>
-            {{-- <a href="{{ route('admin.rooms.index') }}"><i class="fa fa-bed"></i> Rooms</a> --}}
-            <a href="{{ route('admin.phong.index') }}"><i class="fa fa-bed"></i> Rooms</a>
-            <a href="#"><i class="fa fa-users"></i> Users</a>
-            <a href="#"><i class="fa fa-cog"></i> Settings</a>
-        </div>
-
-        {{-- Content --}}
-        <div class="content w-100">
-            @yield('content')
+                    @yield('content')
+                </div>
+            </div>
         </div>
     </div>
 
-    {{-- Footer --}}
-    <footer class="bg-dark text-white text-center py-2">
-        <small>&copy; 2025 Admin Panel</small>
-    </footer>
-
-    {{-- Bootstrap JS --}}
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    @yield('scripts')
 </body>
 </html>
