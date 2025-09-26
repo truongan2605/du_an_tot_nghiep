@@ -1,13 +1,14 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TienNghiController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\PhongController;
-use App\Http\Controllers\TienNghiController;
+
 
 Route::get('/', function () {
     return view('home');
 });
+
 
 
 
@@ -30,10 +31,13 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+Route::prefix('admin')
+    ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class]) 
+    ->group(function () {
+        Route::resource('tien-nghi', TienNghiController::class);
+        Route::patch('tien-nghi/{tienNghi}/toggle-active', [TienNghiController::class, 'toggleActive'])
+            ->name('tien-nghi.toggle-active');
 });
 
 require __DIR__.'/auth.php';

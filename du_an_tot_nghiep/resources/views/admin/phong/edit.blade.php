@@ -52,6 +52,25 @@
         </div>
 
         <div class="mb-3">
+    <label class="form-label">Tiện nghi</label><br>
+    @foreach($tienNghis as $tn)
+        <div class="form-check form-check-inline">
+            <input 
+                type="checkbox" 
+                name="tien_nghi[]" 
+                value="{{ $tn->id }}" 
+                class="form-check-input"
+                @if(isset($phong) && $phong->tienNghis->contains($tn->id)) checked @endif
+            >
+            <label class="form-check-label">
+                <i class="{{ $tn->icon }}"></i> {{ $tn->ten }}
+            </label>
+        </div>
+    @endforeach
+</div>
+
+
+        <div class="mb-3">
             <label>Thêm ảnh mới (có thể chọn nhiều)</label>
             <input type="file" name="images[]" class="form-control" multiple>
         </div>

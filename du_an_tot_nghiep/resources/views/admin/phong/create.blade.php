@@ -44,6 +44,25 @@
         </div>
 
         <div class="mb-3">
+    <label class="form-label">Tiện nghi</label><br>
+    @foreach($tienNghis as $tn)
+        <div class="form-check form-check-inline">
+            <input 
+                type="checkbox" 
+                name="tien_nghi[]" 
+                value="{{ $tn->id }}" 
+                class="form-check-input"
+                @if(isset($phong) && $phong->tienNghis->contains($tn->id)) checked @endif
+            >
+            <label class="form-check-label">
+                <i class="{{ $tn->icon }}"></i> {{ $tn->ten }}
+            </label>
+        </div>
+    @endforeach
+</div>
+
+
+        <div class="mb-3">
             <form action="{{ route('admin.phong.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
     <!-- ... các input khác ... -->
@@ -58,7 +77,7 @@
 
         </div>
 
-        <button class="btn btn-success">Lưu</button>
+        
         <a href="{{ route('admin.phong.index') }}" class="btn btn-secondary">Hủy</a>
     </form>
 </div>

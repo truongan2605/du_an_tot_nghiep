@@ -34,6 +34,18 @@
                 </div>
             </div>
 
+            <div class="mb-3">
+    <strong>Tiện nghi:</strong>
+    <ul>
+        @forelse($phong->tienNghis as $tn)
+            <li><i class="{{ $tn->icon }}"></i> {{ $tn->ten }}</li>
+        @empty
+            <li>Chưa có tiện nghi</li>
+        @endforelse
+    </ul>
+</div>
+
+
            {{-- Hình ảnh --}}
 <div class="mb-3">
     <h5>Hình ảnh:</h5>
