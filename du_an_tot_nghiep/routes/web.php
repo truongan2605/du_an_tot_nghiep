@@ -9,25 +9,18 @@ Route::get('/', function () {
     return view('home');
 });
 
-// Routes for TienNghi CRUD
-Route::resource('tien-nghi', TienNghiController::class);
-Route::patch('tien-nghi/{tienNghi}/toggle-active', [TienNghiController::class, 'toggleActive'])->name('tien-nghi.toggle-active');
 
-Route::get('/voucher', [VoucherController::class, 'index'])->name('voucher.index');
 
-// Thêm mới
-Route::get('/voucher/create', [VoucherController::class, 'create'])->name('voucher.create');
-Route::post('/voucher', [VoucherController::class, 'store'])->name('voucher.store');
+Route::prefix('admin')
+    ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
+    ->group(function (): void {
+        // Resource cho Voucher
+        Route::resource('voucher', VoucherController::class);
 
-// Sửa
-Route::get('/voucher/{voucher}/edit', [VoucherController::class, 'edit'])->name('voucher.edit');
-Route::put('/voucher/{voucher}', [VoucherController::class, 'update'])->name('voucher.update');
-
-// Xóa
-Route::delete('/voucher/{voucher}', [VoucherController::class, 'destroy'])->name('voucher.destroy');
-
-// Xem chi tiết (nếu cần)
-Route::get('/voucher/{voucher}', [VoucherController::class, 'show'])->name('voucher.show');
+        // Nếu cần route riêng cho toggle-active (trạng thái kích hoạt voucher chẳng hạn)
+        Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
+            ->name('voucher.toggle-active');
+    });
 // Route::get('/dashboard', function () {
 //     return view('dashboard');
 // })->middleware(['auth', 'verified'])->name('dashboard');
