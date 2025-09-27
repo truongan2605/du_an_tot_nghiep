@@ -19,32 +19,32 @@ class HotelSeeder extends Seeder
     public function run(): void
     {
         // Tạo admin
-        // NguoiDung::create([
-        //     'ten' => 'Admin',
-        //     'email' => 'admin@hotel.com',
-        //     'mat_khau_hash' => Hash::make('password'),
-        //     'vai_tro' => 'admin',
-        //     'is_active' => true,
-        // ]);
+        NguoiDung::create([
+            'ten' => 'Admin',
+            'email' => 'admin@hotel.com',
+            'mat_khau_hash' => Hash::make('password'),
+            'vai_tro' => 'admin',
+            'is_active' => true,
+        ]);
 
-        // // Tạo nhân viên
-        // NguoiDung::create([
-        //     'ten' => 'Nhân viên lễ tân',
-        //     'email' => 'staff@hotel.com',
-        //     'mat_khau_hash' => Hash::make('password'),
-        //     'vai_tro' => 'nhan_vien',
-        //     'phong_ban' => 'Lễ tân',
-        //     'is_active' => true,
-        // ]);
+        // Tạo nhân viên
+        NguoiDung::create([
+            'ten' => 'Nhân viên lễ tân',
+            'email' => 'staff@hotel.com',
+            'mat_khau_hash' => Hash::make('password'),
+            'vai_tro' => 'nhan_vien',
+            'phong_ban' => 'Lễ tân',
+            'is_active' => true,
+        ]);
 
-        // // Tạo khách hàng
-        // NguoiDung::create([
-        //     'ten' => 'Khách hàng mẫu',
-        //     'email' => 'customer@example.com',
-        //     'mat_khau_hash' => Hash::make('password'),
-        //     'vai_tro' => 'khach_hang',
-        //     'is_active' => true,
-        // ]);
+        // Tạo khách hàng
+        NguoiDung::create([
+            'ten' => 'Khách hàng mẫu',
+            'email' => 'customer@example.com',
+            'mat_khau_hash' => Hash::make('password'),
+            'vai_tro' => 'khach_hang',
+            'is_active' => true,
+        ]);
 
         // Tạo tầng
         $tang1 = Tang::create([

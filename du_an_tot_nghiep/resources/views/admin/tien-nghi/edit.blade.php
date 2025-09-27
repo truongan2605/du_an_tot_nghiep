@@ -5,14 +5,14 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-edit me-2"></i>Chỉnh sửa tiện nghi</h2>
-    <a href="{{ route('tien-nghi.index') }}" class="btn btn-secondary">
+    <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Quay lại
     </a>
 </div>
 
 <div class="card">
     <div class="card-body">
-        <form action="{{ route('tien-nghi.update', $tienNghi) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('admin.tien-nghi.update', $tienNghi) }}" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             
@@ -95,7 +95,7 @@
             </div>
 
             <div class="d-flex justify-content-end gap-2">
-                <a href="{{ route('tien-nghi.index') }}" class="btn btn-secondary">
+                <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
                     <i class="fas fa-times me-2"></i>Hủy
                 </a>
                 <button type="submit" class="btn btn-primary">

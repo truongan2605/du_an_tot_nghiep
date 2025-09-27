@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Tang;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -15,9 +14,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             HotelSeeder::class,
             TienNghiSeeder::class,
-            TangSeeder::class,
-            LoaiPhongSeeder::class,
-            PhongSeeder::class,
         ]);
     }
 }

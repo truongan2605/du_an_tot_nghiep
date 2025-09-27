@@ -1,30 +1,41 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\TienNghiController;
-use App\Http\Controllers\Client\HotelController;
+use App\Http\Controllers\Admin\PhongController;
+use App\Http\Controllers\Admin\VoucherController;
 
-Route::get('/', [HomeController::class, 'index'])->name('home');
+use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
-// Route::get('/dashboard', function () {
-//     return view('dashboard');
-// })->middleware(['auth', 'verified'])->name('dashboard');
-
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+Route::get('/', function () {
+    return view('home');
 });
+
+
+
+
+
+
+Route::prefix('admin')
+    ->name('admin.')
+    ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
+    ->group(function () {
+        // Tiện nghi
+        Route::resource('tien-nghi', AdminTienNghiController::class);
+        Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])
+            ->name('tien-nghi.toggle-active');
+
+        // Phòng
+        Route::resource('phong', PhongController::class);
+        Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
+            ->name('phong.image.destroy');
+        Route::resource('voucher', VoucherController::class);
+
+        // Nếu cần route riêng cho toggle-active (trạng thái kích hoạt voucher chẳng hạn)
+        Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
+            ->name('voucher.toggle-active');
+    });
+
 
 require __DIR__.'/auth.php';
 
-// Route::get('/home', [HomeController::class, 'index'])->name('home');
-
-Route::get('/hotel', [HotelController::class, 'index'])->name('home');
-
-
-// Routes for TienNghi CRUD
-Route::resource('tien-nghi', TienNghiController::class);
-Route::patch('tien-nghi/{tienNghi}/toggle-active', [TienNghiController::class, 'toggleActive'])->name('tien-nghi.toggle-active');
