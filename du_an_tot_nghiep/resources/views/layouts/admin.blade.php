@@ -53,7 +53,7 @@
                     <a class="nav-link" href="#">
                         <i class="fas fa-chart-bar me-2"></i> Thống kê
                     </a>
-                    <a class="nav-link" href="{{ route('voucher.index') }}">
+                    <a class="nav-link" href="{{ route('admin.voucher.index') }}">
                         <i class="fas fa-chart-bar me-2"></i> Voucher
                     </a>
                 </nav>

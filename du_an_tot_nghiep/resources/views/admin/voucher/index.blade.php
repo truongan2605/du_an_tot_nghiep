@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
     <h1>Danh sách Voucher</h1>
-    <a href="{{ route('voucher.create') }}" class="btn btn-primary mb-3">+ Thêm voucher</a>
+    <a href="{{ route('admin.voucher.create') }}" class="btn btn-primary mb-3">+ Thêm voucher</a>
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -28,9 +28,9 @@
                 <td>{{ $voucher->start_date }}</td>
                 <td>{{ $voucher->end_date }}</td>
                 <td>
-                    <a href="{{ route('voucher.show', $voucher->id) }}" class="btn btn-info btn-sm">Xem</a>
-                    <a href="{{ route('voucher.edit', $voucher->id) }}" class="btn btn-warning btn-sm">Sửa</a>
-                    <form action="{{ route('voucher.destroy', $voucher->id) }}" method="POST" style="display:inline-block;">
+                    <a href="{{ route('admin.voucher.show', $voucher->id) }}" class="btn btn-info btn-sm">Xem</a>
+                    <a href="{{ route('admin.voucher.edit', $voucher->id) }}" class="btn btn-warning btn-sm">Sửa</a>
+                    <form action="{{ route('admin.voucher.destroy', $voucher->id) }}" method="POST" style="display:inline-block;">
                         @csrf
                         @method('DELETE')
                         <button class="btn btn-danger btn-sm" onclick="return confirm('Bạn có chắc muốn xóa voucher này?')">Xóa</button>

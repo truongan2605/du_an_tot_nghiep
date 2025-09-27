@@ -10,6 +10,6 @@
     <p><b>Lượt/Người:</b> {{ $voucher->usage_limit_per_user }}</p>
     <p><b>Ngày bắt đầu:</b> {{ $voucher->start_date }}</p>
     <p><b>Ngày kết thúc:</b> {{ $voucher->end_date }}</p>
-    <a href="{{ route('voucher.index') }}" class="btn btn-secondary">Quay lại</a>
+    <a href="{{ route('admin.voucher.index') }}" class="btn btn-secondary">Quay lại</a>
 </div>
 @endsection
