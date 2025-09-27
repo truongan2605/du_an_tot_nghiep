@@ -6,10 +6,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-eye me-2"></i>Chi tiết tiện nghi</h2>
     <div>
-        <a href="{{ route('tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
+        <a href="{{ route('admin.tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
             <i class="fas fa-edit me-2"></i>Chỉnh sửa
         </a>
-        <a href="{{ route('tien-nghi.index') }}" class="btn btn-secondary">
+        <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left me-2"></i>Quay lại
         </a>
     </div>
@@ -82,11 +82,11 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{{ route('tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
+                    <a href="{{ route('admin.tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
                         <i class="fas fa-edit me-2"></i>Chỉnh sửa
                     </a>
                     
-                    <form action="{{ route('tien-nghi.toggle-active', $tienNghi) }}" method="POST" class="d-grid">
+                    <form action="{{ route('admin.tien-nghi.toggle-active', $tienNghi) }}" method="POST" class="d-grid">
                         @csrf
                         @method('PATCH')
                         <button type="submit" 
@@ -96,7 +96,7 @@
                         </button>
                     </form>
                     
-                    <form action="{{ route('tien-nghi.destroy', $tienNghi) }}" 
+                    <form action="{{ route('admin.tien-nghi.destroy', $tienNghi) }}" 
                           method="POST" 
                           onsubmit="return confirm('Bạn có chắc chắn muốn xóa tiện nghi này?')">
                         @csrf

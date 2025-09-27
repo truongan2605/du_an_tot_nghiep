@@ -5,7 +5,7 @@
 @section('content')
 
     <!-- =======================
-    Main Banner START -->
+        Main Banner START -->
     <section class="pt-3 pt-lg-5">
         <div class="container">
             <!-- Content and Image START -->
@@ -217,10 +217,10 @@
         </div>
     </section>
     <!-- =======================
-    Main Banner END -->
+        Main Banner END -->
 
     <!-- =======================
-    Best deal START -->
+        Best deal START -->
     <section class="pb-2 pb-lg-5">
         <div class="container">
             <!-- Slider START -->
@@ -324,10 +324,10 @@
         </div>
     </section>
     <!-- =======================
-    Best deal END -->
+        Best deal END -->
 
-        <!-- =======================
-    About START -->
+    <!-- =======================
+        About START -->
     <section class="pb-0 pb-xl-5">
         <div class="container">
             <div class="row g-4 justify-content-between align-items-center">
@@ -437,71 +437,72 @@
         </div>
     </section>
     <!-- =======================
-    About END -->
+        About END -->
 
-<!-- =======================
-Featured Hotels START -->
-<div class="row mb-4">
-    <div class="col-12 text-center">
-        <h2 class="mb-0">Featured Hotels</h2>
-    </div>
-</div>
+    <!-- =======================
+        Featured Hotels START -->
+    <section>
+        <div class="container">
 
-<div class="container mt-5">
-    <h2 class="mb-4 text-center">Danh sách phòng</h2>
-    <div class="row g-4">
-        @foreach($phongs as $phong)
-            <div class="col-sm-6 col-xl-3">
-                <!-- Card START -->
-                <div class="card card-img-scale shadow-sm rounded-3 overflow-hidden">
-                    <!-- Image and overlay -->
-                    <div class="card-img-scale-wrapper rounded-3">
-                        <img src="{{ asset('storage/uploads/' . $phong->hinh_anh) }}" class="card-img" alt="hotel image">
-                        <!-- Badge -->
-                        <div class="position-absolute bottom-0 start-0 p-3">
-                            <div class="badge text-bg-dark fs-6 rounded-pill">
-                                <i class="bi bi-geo-alt me-2"></i> Tầng {{ $phong->tang->so_tang }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Card body -->
-                    <div class="card-body px-2">
-                        <!-- Title -->
-                        <h5 class="card-title">{{ $phong->ma_phong }} - {{ $phong->loaiPhong->ten_loai ?? $phong->loaiPhong->ten }}</h5>
-
-                        <!-- Room details -->
-                        <p class="mb-1">Sức chứa: {{ $phong->suc_chua }} người</p>
-                        <p class="mb-1">Giường: {{ $phong->so_giuong }}</p>
-                        <p class="mb-1">Trạng thái: {{ ucfirst($phong->trang_thai) }}</p>
-
-                        <!-- Price and rating -->
-                        <div class="d-flex justify-content-between align-items-center mt-2">
-                            <h6 class="text-success mb-0">
-                                {{ number_format($phong->gia_mac_dinh) }} VND <small class="fw-light">/đêm</small>
-                            </h6>
-                            <h6 class="mb-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
-                        </div>
-                    </div>
+            <!-- Title -->
+            <div class="row mb-4">
+                <div class="col-12 text-center">
+                    <h2 class="mb-0">Featured Hotels</h2>
                 </div>
-                <!-- Card END -->
             </div>
-        @endforeach
-    </div>
-</div>
 
+            <div class="container mt-5">
+                <h2 class="mb-4 text-center">Danh sách phòng</h2>
+                <div class="row g-4">
+                    @foreach ($phongs as $phong)
+                        <div class="col-sm-6 col-xl-3">
+                            <!-- Card START -->
+                            <div class="card card-img-scale shadow-sm rounded-3 overflow-hidden">
+                                <!-- Image and overlay -->
+                                <div class="card-img-scale-wrapper rounded-3">
+                                    <img src="{{ asset('storage/uploads/' . $phong->hinh_anh) }}" class="card-img"
+                                        alt="hotel image">
+                                    <!-- Badge -->
+                                    <div class="position-absolute bottom-0 start-0 p-3">
+                                        <div class="badge text-bg-dark fs-6 rounded-pill">
+                                            <i class="bi bi-geo-alt me-2"></i> Tầng {{ $phong->tang->so_tang }}
+                                        </div>
+                                    </div>
+                                </div>
 
-<!-- =======================
-Featured Hotels END -->
+                                <!-- Card body -->
+                                <div class="card-body px-2">
+                                    <!-- Title -->
+                                    <h5 class="card-title">{{ $phong->ma_phong }} -
+                                        {{ $phong->loaiPhong->ten_loai ?? $phong->loaiPhong->ten }}</h5>
 
-            </div> <!-- Row END -->
-        </div>
+                                    <!-- Room details -->
+                                    <p class="mb-1">Sức chứa: {{ $phong->suc_chua }} người</p>
+                                    <p class="mb-1">Giường: {{ $phong->so_giuong }}</p>
+                                    <p class="mb-1">Trạng thái: {{ ucfirst($phong->trang_thai) }}</p>
+
+                                    <!-- Price and rating -->
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <h6 class="text-success mb-0">
+                                            {{ number_format($phong->gia_mac_dinh) }} VND <small
+                                                class="fw-light">/đêm</small>
+                                        </h6>
+                                        <h6 class="mb-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Card END -->
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+
     </section>
     <!-- =======================
-    Featured Hotels END -->
+        Featured Hotels END -->
 
     <!-- =======================
-    Client START -->
+        Client START -->
     <section class="py-0 py-md-5">
         <div class="container">
             <div class="row g-4 g-lg-7 justify-content-center align-items-center">
@@ -539,10 +540,10 @@ Featured Hotels END -->
         </div>
     </section>
     <!-- =======================
-    Client END -->
+        Client END -->
 
     <!-- =======================
-    Download app START -->
+        Download app START -->
     <section class="bg-light">
         <div class="container">
             <div class="row g-4">
@@ -586,7 +587,7 @@ Featured Hotels END -->
         </div>
     </section>
     <!-- =======================
-    Download app END -->
+        Download app END -->
 
     <!-- **************** MAIN CONTENT END **************** -->
 
