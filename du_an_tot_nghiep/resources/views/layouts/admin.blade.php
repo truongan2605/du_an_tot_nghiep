@@ -41,7 +41,7 @@
                     <h4 class="text-white">Admin Panel</h4>
                 </div>
                 <nav class="nav flex-column">
-                    <a class="nav-link {{ request()->routeIs('tien-nghi.*') ? 'active' : '' }}" href="{{ route('tien-nghi.index') }}">
+                    <a class="nav-link {{ request()->routeIs('tien-nghi.*') ? 'active' : '' }}" href="{{ route('admin.tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Tiện nghi
                     </a>
                     <a class="nav-link" href="#">
