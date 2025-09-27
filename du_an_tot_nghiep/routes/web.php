@@ -3,7 +3,8 @@
 use App\Http\Controllers\TienNghiController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\PhongController;
-use App\Http\Controllers\VoucherController;
+use App\Http\Controllers\Admin\VoucherController;
+
 
 Route::get('/', function () {
     return view('home');
