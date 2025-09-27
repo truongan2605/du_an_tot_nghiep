@@ -48,7 +48,7 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         if ($user->vai_tro === 'admin') {
-            return redirect()->route('tien-nghi.index');
+            return redirect()->route('admin.tien-nghi.index');
         }
 
         return redirect(RouteServiceProvider::HOME);
