@@ -2,23 +2,10 @@
 
 @section('content')
 <div class="container">
-    <h1>Thêm voucher</h1>
-
-    @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
+    <h1>Thêm Voucher</h1>
     <form action="{{ route('voucher.store') }}" method="POST">
-        @csrf
-        @include('admin.voucher.form', ['voucher' => null])
-        <button type="submit" class="btn btn-success">Thêm</button>
-        <a href="{{ route('voucher.index') }}" class="btn btn-secondary">Hủy</a>
+        @include('admin.voucher.form')
+        <button type="submit" class="btn btn-success">Lưu</button>
     </form>
 </div>
 @endsection

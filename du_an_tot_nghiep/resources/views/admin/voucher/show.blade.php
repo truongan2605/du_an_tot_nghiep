@@ -1,20 +1,15 @@
-
 @extends('layouts.admin')
 
 @section('content')
 <div class="container">
-    <h1>Chi tiết voucher</h1>
-
-    <div class="card">
-        <div class="card-body">
-            <p><strong>Mã:</strong> {{ $voucher->code }}</p>
-            <p><strong>Loại:</strong> {{ $voucher->type }}</p>
-            <p><strong>Giá trị:</strong> {{ $voucher->value }}</p>
-            <p><strong>Ngày bắt đầu:</strong> {{ $voucher->start_date }}</p>
-            <p><strong>Ngày kết thúc:</strong> {{ $voucher->end_date }}</p>
-        </div>
-    </div>
-
-    <a href="{{ route('voucher.index') }}" class="btn btn-secondary mt-3">Quay lại</a>
+    <h1>Chi tiết Voucher</h1>
+    <p><b>Mã:</b> {{ $voucher->code }}</p>
+    <p><b>Loại:</b> {{ $voucher->type }}</p>
+    <p><b>Giá trị:</b> {{ $voucher->value }}</p>
+    <p><b>Số lượng:</b> {{ $voucher->qty }}</p>
+    <p><b>Lượt/Người:</b> {{ $voucher->usage_limit_per_user }}</p>
+    <p><b>Ngày bắt đầu:</b> {{ $voucher->start_date }}</p>
+    <p><b>Ngày kết thúc:</b> {{ $voucher->end_date }}</p>
+    <a href="{{ route('voucher.index') }}" class="btn btn-secondary">Quay lại</a>
 </div>
 @endsection

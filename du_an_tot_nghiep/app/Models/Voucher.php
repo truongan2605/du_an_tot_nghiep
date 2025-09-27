@@ -9,7 +9,7 @@ class Voucher extends Model
 {
     use HasFactory;
 
-    protected $table = 'voucher'; // 👈 Chỉ rõ tên bảng trong CSDL
+    protected $table = 'voucher';
 
     protected $fillable = [
         'code',
@@ -22,6 +22,6 @@ class Voucher extends Model
         'applicable_to',
         'note',
         'usage_limit_per_user',
-        'active',
+        'active'
     ];
 }

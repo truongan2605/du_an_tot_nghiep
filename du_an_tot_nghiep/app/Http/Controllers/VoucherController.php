@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Voucher;
 use Illuminate\Http\Request;
 
@@ -24,7 +23,9 @@ class VoucherController extends Controller
         $request->validate([
             'code' => 'required|unique:voucher,code',
             'type' => 'required|in:fixed,percent',
-            'value' => 'required|numeric',
+            'value' => 'required|numeric|min:0',
+            'qty' => 'required|integer|min:1',
+            'usage_limit_per_user' => 'required|integer|min:1',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);
@@ -49,7 +50,9 @@ class VoucherController extends Controller
         $request->validate([
             'code' => 'required|unique:voucher,code,' . $voucher->id,
             'type' => 'required|in:fixed,percent',
-            'value' => 'required|numeric',
+            'value' => 'required|numeric|min:0',
+            'qty' => 'required|integer|min:1',
+            'usage_limit_per_user' => 'required|integer|min:1',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);
