@@ -18,6 +18,7 @@ class Phong extends Model
         'suc_chua',
         'so_giuong',
         'gia_mac_dinh',
+        'img',
         'trang_thai',
         'last_checked_at',
     ];
@@ -47,4 +48,18 @@ class Phong extends Model
     {
         return $this->hasMany(PhongDaDat::class);
     }
+public function images()
+{
+    // lấy theo id tăng dần = thứ tự thêm ảnh
+    return $this->hasMany(PhongImage::class, 'phong_id')->orderBy('id', 'asc');
+}
+
+// tiện helper lấy ảnh đầu tiên
+public function firstImagePath()
+{
+    $img = $this->images->first();
+    return $img ? $img->image_path : null;
+}
+
+
 }
