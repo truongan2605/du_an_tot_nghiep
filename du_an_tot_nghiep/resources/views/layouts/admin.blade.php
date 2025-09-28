@@ -51,7 +51,7 @@
                         href="{{ route('tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Tiện nghi
                     </a>
-                    <a class="nav-link" href="#">
+                    <a class="nav-link {{ request()->routeIs('phong.*') ? 'active' : '' }}" href="{{ route('admin.phong.index') }}">
                         <i class="fas fa-bed me-2"></i> Phòng
                     </a>
                     <a class="nav-link" href="#">

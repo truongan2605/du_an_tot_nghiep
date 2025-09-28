@@ -6,26 +6,25 @@ use App\Http\Controllers\TienNghiController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
+use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
+use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
 Route::get('/', function () {
     return view('home');
 });
 
-
-
-
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('phong', PhongController::class);
+    Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])->name('phong.image.destroy'); });
 
-   Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
-     ->name('phong.image.destroy');
-     
-});
+
+
+
 Route::prefix('admin')->group(function () {
     // Tien Nghi routes under /admin
-    Route::resource('tien-nghi', TienNghiController::class);
-    Route::patch('tien-nghi/{tienNghi}/toggle-active', [TienNghiController::class, 'toggleActive'])
+    Route::resource('tien-nghi', AdminTienNghiController::class);
+    Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])
         ->name('tien-nghi.toggle-active');
 });
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -62,15 +61,26 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::prefix('admin')
+    ->name('admin.')
+    ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
+    ->group(function () {
+        // Tiện nghi
+        Route::resource('tien-nghi', AdminTienNghiController::class);
+        Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])
+            ->name('tien-nghi.toggle-active');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
+        // Phòng
+        Route::resource('phong', PhongController::class);
+        Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
+            ->name('phong.image.destroy');
+        Route::resource('voucher', VoucherController::class);
 
-require __DIR__.'/auth.php';
+        // Nếu cần route riêng cho toggle-active (trạng thái kích hoạt voucher chẳng hạn)
+        Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
+            ->name('voucher.toggle-active');
+    });
+
+
+require __DIR__ . '/auth.php';
 

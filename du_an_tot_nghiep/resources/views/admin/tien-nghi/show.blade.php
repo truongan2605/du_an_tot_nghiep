@@ -6,10 +6,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-eye me-2"></i>Chi tiết tiện nghi</h2>
     <div>
-        <a href="{{ route('tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
+        <a href="{{ route('admin.tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
             <i class="fas fa-edit me-2"></i>Chỉnh sửa
         </a>
-        <a href="{{ route('tien-nghi.index') }}" class="btn btn-secondary">
+        <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left me-2"></i>Quay lại
         </a>
     </div>
@@ -54,6 +54,55 @@
                 </table>
             </div>
         </div>
+
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Phòng có tiện nghi này</h5>
+                <span class="badge bg-primary">{{ $rooms->total() }} phòng</span>
+            </div>
+            <div class="card-body">
+                @if($rooms->count() === 0)
+                    <div class="text-muted">Chưa có phòng nào được gán tiện nghi này.</div>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Mã phòng</th>
+                                    <th>Loại phòng</th>
+                                    <th>Tầng</th>
+                                    <th>Sức chứa</th>
+                                    <th>Số giường</th>
+                                    <th>Giá mặc định</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($rooms as $phong)
+                                    <tr>
+                                        <td>{{ $phong->ma_phong }}</td>
+                                        <td>{{ $phong->loaiPhong?->ten }}</td>
+                                        <td>{{ $phong->tang?->ten }}</td>
+                                        <td>{{ $phong->suc_chua }}</td>
+                                        <td>{{ $phong->so_giuong }}</td>
+                                        <td>{{ number_format($phong->gia_mac_dinh, 0, ',', '.') }} đ</td>
+                                        <td>
+                                            <span class="badge {{ $phong->trang_thai === 'trong' ? 'bg-success' : 'bg-secondary' }}">
+                                                {{ ucfirst($phong->trang_thai) }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3">
+                        {{ $rooms->links() }}
+                    </div>
+                @endif
+            </div>
+        </div>
     </div>
 
     <div class="col-md-4">
@@ -62,8 +111,8 @@
                 <h5 class="card-title mb-0">Icon</h5>
             </div>
             <div class="card-body text-center">
-                @if($tienNghi->icon)
-                    <img src="{{ asset('storage/' . $tienNghi->icon) }}" 
+                @if($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon))
+                    <img src="{{ Storage::url($tienNghi->icon) }}" 
                          alt="{{ $tienNghi->ten }}" 
                          class="img-fluid rounded" 
                          style="max-height: 300px;">
@@ -82,11 +131,11 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{{ route('tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
+                    <a href="{{ route('admin.tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
                         <i class="fas fa-edit me-2"></i>Chỉnh sửa
                     </a>
                     
-                    <form action="{{ route('tien-nghi.toggle-active', $tienNghi) }}" method="POST" class="d-grid">
+                    <form action="{{ route('admin.tien-nghi.toggle-active', $tienNghi) }}" method="POST" class="d-grid">
                         @csrf
                         @method('PATCH')
                         <button type="submit" 
@@ -96,7 +145,7 @@
                         </button>
                     </form>
                     
-                    <form action="{{ route('tien-nghi.destroy', $tienNghi) }}" 
+                    <form action="{{ route('admin.tien-nghi.destroy', $tienNghi) }}" 
                           method="POST" 
                           onsubmit="return confirm('Bạn có chắc chắn muốn xóa tiện nghi này?')">
                         @csrf
@@ -111,3 +160,4 @@
     </div>
 </div>
 @endsection
+

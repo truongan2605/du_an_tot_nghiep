@@ -70,3 +70,6 @@ class TienNghiSeeder extends Seeder
         }
     }
 }
+
+
+

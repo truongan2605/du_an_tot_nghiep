@@ -6,7 +6,6 @@
 			<!-- Logo START -->
 			<a class="navbar-brand" href="{{ url('/') }}">
 				<img class="light-mode-item navbar-brand-item" src="{{ asset('template/stackbros/assets/images/logo.svg') }}" alt="logo">
-				<img class="dark-mode-item navbar-brand-item" src="{{ asset('template/stackbros/assets/images/logo-light.svg') }}" alt="logo">
 			</a>
 			<!-- Logo END -->
 
@@ -244,50 +243,64 @@
 				<!-- Profile dropdown START -->
 				<li class="nav-item ms-3 dropdown">
 					<!-- Avatar -->
-					<a class="avatar avatar-sm p-0" href="#" id="profileDropdown" role="button" data-bs-auto-close="outside" data-bs-display="static" data-bs-toggle="dropdown" aria-expanded="false">
-						<img class="avatar-img rounded-2" src="{{ asset('template/stackbros/assets/images/avatar/01.jpg') }}" alt="avatar">
+					<a class="avatar avatar-sm p-0" href="#" id="profileDropdown" role="button"
+					data-bs-auto-close="outside" data-bs-display="static" data-bs-toggle="dropdown" aria-expanded="false">
+						<img class="avatar-img rounded-2"
+							src="{{ auth()->check() && auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/01.jpg') }}"
+							alt="avatar">
 					</a>
 
 					<ul class="dropdown-menu dropdown-animation dropdown-menu-end shadow pt-3" aria-labelledby="profileDropdown">
+						@auth
 						<!-- Profile info -->
 						<li class="px-3 mb-3">
 							<div class="d-flex align-items-center">
 								<!-- Avatar -->
 								<div class="avatar me-3">
-									<img class="avatar-img rounded-circle shadow" src="{{ asset('template/stackbros/assets/images/avatar/01.jpg') }}" alt="avatar">
+									<img class="avatar-img rounded-circle shadow"
+										src="{{ auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/01.jpg') }}"
+										alt="avatar">
 								</div>
 								<div>
-									<a class="h6 mt-2 mt-sm-0" href="#">Lori Ferguson</a>
-									<p class="small m-0">example@gmail.com</p>
+									<a class="h6 mt-2 mt-sm-0" href="{{ url('/profile') }}">{{ auth()->user()->name }}</a>
+									<p class="small m-0">{{ auth()->user()->email }}</p>
 								</div>
 							</div>
 						</li>
 
 						<!-- Links -->
 						<li> <hr class="dropdown-divider"></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-bookmark-check fa-fw me-2"></i>My Bookings</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-heart fa-fw me-2"></i>My Wishlist</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
-						<li><a class="dropdown-item" href="#"><i class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>
-						<li><a class="dropdown-item bg-danger-soft-hover" href="#"><i class="bi bi-power fa-fw me-2"></i>Sign Out</a></li>
+						<li><a class="dropdown-item" href="{{ url('/account/bookings') }}"><i class="bi bi-bookmark-check fa-fw me-2"></i>My Bookings</a></li>
+						<li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i class="bi bi-heart fa-fw me-2"></i>My Wishlist</a></li>
+						<li><a class="dropdown-item" href="{{ url('/account/settings') }}"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
+						<li><a class="dropdown-item" href="{{ url('/help') }}"><i class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>
+
 						<li> <hr class="dropdown-divider"></li>
 
-						<!-- Dark mode options START -->
-						<li>
-							<div class="nav-pills-primary-soft theme-icon-active d-flex justify-content-between align-items-center p-2 pb-0">
-								<span>Mode:</span>
-								<button type="button" class="btn btn-link nav-link text-primary-hover mb-0 p-0" data-bs-theme-value="light" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Light">
-									<!-- svg... -->
+						<!-- Logout (POST) -->
+						<li class="px-3">
+							<form method="POST" action="{{ route('logout') }}">
+								@csrf
+								<button type="submit" class="dropdown-item bg-danger-soft-hover">
+									<i class="bi bi-power fa-fw me-2"></i>Sign Out
 								</button>
-								<button type="button" class="btn btn-link nav-link text-primary-hover mb-0 p-0" data-bs-theme-value="dark" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Dark">
-									<!-- svg... -->
-								</button>
-								<button type="button" class="btn btn-link nav-link text-primary-hover mb-0 p-0 active" data-bs-theme-value="auto" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Auto">
-									<!-- svg... -->
-								</button>
+							</form>
+						</li>
+						@endauth
+
+						@guest
+						<li class="px-3 mb-2">
+							<div class="d-flex align-items-center">
+								<div>
+									<a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Khách</a>
+									<p class="small m-0">Vui lòng đăng nhập</p>
+								</div>
 							</div>
-						</li> 
-						<!-- Dark mode options END-->
+						</li>
+						<li> <hr class="dropdown-divider"></li>
+						<li><a class="dropdown-item" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i>Sign In</a></li>
+						<li><a class="dropdown-item" href="{{ route('register') }}"><i class="bi bi-person-plus me-2"></i>Sign Up</a></li>
+						@endguest
 					</ul>
 				</li>
 				<!-- Profile dropdown END -->

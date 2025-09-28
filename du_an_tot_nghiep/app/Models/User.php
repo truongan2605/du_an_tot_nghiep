@@ -36,7 +36,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->vai_tro === 'admin';
     }
 
-        public function datPhongs()
+    public function datPhongs()
     {
         return $this->hasMany(DatPhong::class, 'nguoi_dung_id');
     }

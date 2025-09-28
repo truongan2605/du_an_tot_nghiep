@@ -1,10 +1,12 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\TienNghi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+
 
 class TienNghiController extends Controller
 {
@@ -49,7 +51,7 @@ class TienNghiController extends Controller
 
         TienNghi::create($data);
 
-        return redirect()->route('tien-nghi.index')
+        return redirect()->route('admin.tien-nghi.index')
             ->with('success', 'Tiện nghi đã được tạo thành công!');
     }
 
@@ -58,7 +60,12 @@ class TienNghiController extends Controller
      */
     public function show(TienNghi $tienNghi)
     {
-        return view('admin.tien-nghi.show', compact('tienNghi'));
+        $rooms = $tienNghi->phongs()
+            ->with(['loaiPhong', 'tang'])
+            ->orderBy('ma_phong')
+            ->paginate(12);
+
+        return view('admin.tien-nghi.show', compact('tienNghi', 'rooms'));
     }
 
     /**
@@ -98,7 +105,7 @@ class TienNghiController extends Controller
 
         $tienNghi->update($data);
 
-        return redirect()->route('tien-nghi.index')
+        return redirect()->route('admin.tien-nghi.index')
             ->with('success', 'Tiện nghi đã được cập nhật thành công!');
     }
 
@@ -114,7 +121,7 @@ class TienNghiController extends Controller
 
         $tienNghi->delete();
 
-        return redirect()->route('tien-nghi.index')
+        return redirect()->route('admin.tien-nghi.index')
             ->with('success', 'Tiện nghi đã được xóa thành công!');
     }
 
@@ -130,3 +137,4 @@ class TienNghiController extends Controller
             ->with('success', "Tiện nghi đã được {$status} thành công!");
     }
 }
+
