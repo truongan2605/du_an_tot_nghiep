@@ -56,9 +56,6 @@
                         <i class="fas fa-bed me-2"></i> Phòng
                     </a>
                     <a class="nav-link" href="#">
-                        <i class="fas fa-users me-2"></i> Người dùng
-                    </a>
-                    <a class="nav-link" href="#">
                         <i class="fas fa-chart-bar me-2"></i> Thống kê
                     </a>
                     <a class="nav-link {{ request()->routeIs('admin.tang.*') ? 'active' : '' }}"
