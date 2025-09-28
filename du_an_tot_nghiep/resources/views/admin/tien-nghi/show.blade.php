@@ -54,6 +54,55 @@
                 </table>
             </div>
         </div>
+
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Phòng có tiện nghi này</h5>
+                <span class="badge bg-primary">{{ $rooms->total() }} phòng</span>
+            </div>
+            <div class="card-body">
+                @if($rooms->count() === 0)
+                    <div class="text-muted">Chưa có phòng nào được gán tiện nghi này.</div>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Mã phòng</th>
+                                    <th>Loại phòng</th>
+                                    <th>Tầng</th>
+                                    <th>Sức chứa</th>
+                                    <th>Số giường</th>
+                                    <th>Giá mặc định</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($rooms as $phong)
+                                    <tr>
+                                        <td>{{ $phong->ma_phong }}</td>
+                                        <td>{{ $phong->loaiPhong?->ten }}</td>
+                                        <td>{{ $phong->tang?->ten }}</td>
+                                        <td>{{ $phong->suc_chua }}</td>
+                                        <td>{{ $phong->so_giuong }}</td>
+                                        <td>{{ number_format($phong->gia_mac_dinh, 0, ',', '.') }} đ</td>
+                                        <td>
+                                            <span class="badge {{ $phong->trang_thai === 'trong' ? 'bg-success' : 'bg-secondary' }}">
+                                                {{ ucfirst($phong->trang_thai) }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3">
+                        {{ $rooms->links() }}
+                    </div>
+                @endif
+            </div>
+        </div>
     </div>
 
     <div class="col-md-4">
@@ -62,8 +111,8 @@
                 <h5 class="card-title mb-0">Icon</h5>
             </div>
             <div class="card-body text-center">
-                @if($tienNghi->icon)
-                    <img src="{{ asset('storage/' . $tienNghi->icon) }}" 
+                @if($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon))
+                    <img src="{{ Storage::url($tienNghi->icon) }}" 
                          alt="{{ $tienNghi->ten }}" 
                          class="img-fluid rounded" 
                          style="max-height: 300px;">
@@ -111,3 +160,4 @@
     </div>
 </div>
 @endsection
+

@@ -73,11 +73,11 @@
                         </div>
                     </div>
 
-                    @if($tienNghi->icon)
+                    @if($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon))
                         <div class="mb-3">
                             <label class="form-label">Icon hiện tại:</label>
                             <div class="border rounded p-2 text-center">
-                                <img src="{{ asset('storage/' . $tienNghi->icon) }}" 
+                                <img src="{{ Storage::url($tienNghi->icon) }}" 
                                      alt="{{ $tienNghi->ten }}" 
                                      class="img-fluid" 
                                      style="max-height: 200px;">
@@ -124,3 +124,4 @@ document.getElementById('icon').addEventListener('change', function(e) {
 });
 </script>
 @endsection
+

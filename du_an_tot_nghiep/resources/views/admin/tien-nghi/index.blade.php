@@ -31,8 +31,8 @@
                         <tr>
                             <td>{{ $tienNghi->id }}</td>
                             <td>
-                                @if($tienNghi->icon)
-                                    <img src="{{ asset('storage/' . $tienNghi->icon) }}" 
+                                @if($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon))
+                                    <img src="{{ Storage::url($tienNghi->icon) }}" 
                                          alt="{{ $tienNghi->ten }}" 
                                          class="img-thumbnail" 
                                          style="width: 40px; height: 40px; object-fit: cover;">
@@ -92,8 +92,13 @@
             </div>
             
             <!-- Pagination -->
-            <div class="d-flex justify-content-center">
-                {{ $tienNghis->links() }}
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="text-muted">
+                    Hiển thị {{ $tienNghis->firstItem() }}–{{ $tienNghis->lastItem() }} trong tổng {{ $tienNghis->total() }} tiện nghi
+                </div>
+                <div>
+                    {{ $tienNghis->onEachSide(1)->links('pagination::bootstrap-5') }}
+                </div>
             </div>
         @else
             <div class="text-center py-5">
@@ -108,3 +113,4 @@
     </div>
 </div>
 @endsection
+
