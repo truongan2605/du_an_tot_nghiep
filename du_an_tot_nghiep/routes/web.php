@@ -1,25 +1,24 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
+
 use App\Http\Controllers\Admin\TienNghiController;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-*/
 
 // Trang chủ
 Route::get('/', function () {
     return view('home');
 });
 
-// Nhóm route dành cho admin
+Route::get('/', [HomeController::class, 'index'])->name('home');
+
+
 Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
@@ -64,5 +63,5 @@ Route::prefix('admin')
             ->name('voucher.toggle-active');
     });
 
-// Auth routes (Laravel Breeze / Jetstream...)
-require __DIR__ . '/auth.php';
+
+require __DIR__.'/auth.php';
