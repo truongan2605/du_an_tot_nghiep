@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
-use App\Providers\RouteServiceProvider;
+use App\Models\User;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use App\Providers\RouteServiceProvider;
 use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
@@ -17,7 +18,7 @@ class AuthenticatedSessionController extends Controller
         $registerUrl = route('register');
         $forgotUrl = route('password.request');
 
-        if (! $request->session()->has('url.intended')) {
+        if (!$request->session()->has('url.intended')) {
             if ($previous && $previous !== $loginUrl && $previous !== $registerUrl && $previous !== $forgotUrl) {
                 $request->session()->put('url.intended', $previous);
             }
@@ -33,9 +34,10 @@ class AuthenticatedSessionController extends Controller
             'password' => ['required'],
         ]);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        
+        if (!$this->attemptLogin($request)) {
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'email' => 'Thông tin đăng nhập không chính xác hoặc tài khoản đã bị vô hiệu hóa.',
             ]);
         }
 
@@ -58,5 +60,32 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    protected function attemptLogin(Request $request)
+    {
+        $credentials = $request->only('email', 'password');
+        if (Auth::attempt($credentials, $request->filled('remember'))) {
+            $user = Auth::user();
+            if (!$user->is_active) {
+                Auth::logout();  
+                return false;   
+            }
+            return true;
+        }
+        return false;
+    }
+
+    protected function sendFailedLoginResponse(Request $request)
+    {
+        $user = User::where('email', $request->email)->first();
+        if ($user && !$user->is_active) {
+            return back()->withErrors([
+                'email' => 'Tài khoản của bạn đã bị vô hiệu hóa!',
+            ])->withInput($request->only('email', 'remember'));
+        }
+        return back()->withErrors([
+            'email' => 'Thông tin đăng nhập không chính xác.',
+        ])->withInput($request->only('email', 'remember'));
     }
 }

@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
-use App\Models\Phong;
-use App\Models\PhongImage;
-use App\Models\LoaiPhong;
 use App\Models\Tang;
+use App\Models\Phong;
+use App\Models\TienNghi;
+use App\Models\LoaiPhong;
+use App\Models\PhongImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
-use App\Models\TienNghi;
 
 class PhongController extends Controller
 {

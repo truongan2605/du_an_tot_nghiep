@@ -5,13 +5,12 @@ namespace App\Http\Controllers\Admin;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
 
 class NhanVienController extends Controller
 {
-    // public function __construct()
-    // {
-    //     $this->middleware('manage.users');  // Bảo vệ quyền
-    // }
+
 
     public function index()
     {
@@ -61,15 +60,25 @@ class NhanVienController extends Controller
         return redirect()->route('admin.nhan-vien.index')->with('success', 'Nhân viên đã được cập nhật!');
     }
 
-    public function toggleActive(User $user)
-    {
-        $user->is_active = !$user->is_active;
-        $user->save();
-        $message = $user->is_active ? 'Kích hoạt thành công!' : 'Vô hiệu hóa thành công!';
-        return redirect()->route('admin.nhan-vien.index')->with('success', $message);
+public function toggleActive(User $user)
+{
+    $user->is_active = !$user->is_active;
+    $user->save();
+
+    if (!$user->is_active && Auth::check() && Auth::id() === $user->id) {
+        Auth::logout();
+        
+        
+        request()->session()->invalidate(); // Hủy session
+        request()->session()->regenerateToken(); // Tạo token mới
+        
+        return redirect()->route('login')->with('error', 'Tài khoản của bạn đã bị vô hiệu hóa!');
     }
 
-    public function destroy(User $user)
+    $message = $user->is_active ? 'Kích hoạt thành công!' : 'Vô hiệu hóa thành công!';
+    return redirect()->route('admin.nhan-vien.index')->with('success', $message);
+} 
+  public function destroy(User $user)
     {
         $user->delete();
         return redirect()->route('admin.nhan-vien.index')->with('success', 'Nhân viên đã được xóa!');

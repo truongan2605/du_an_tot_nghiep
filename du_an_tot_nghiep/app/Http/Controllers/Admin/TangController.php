@@ -10,7 +10,7 @@ class TangController extends Controller
 {
     public function index()
     {
-        $tangList = Tang::all();  // Read: Lấy tất cả (sau có thể paginate cho performance)
+        $tangList = Tang::all();  
         return view('admin.tang.index', compact('tangList'));
     }
 
