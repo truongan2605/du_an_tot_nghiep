@@ -6,11 +6,7 @@
     <h1 class="mb-4">Chỉnh Sửa Nhân Viên #{{ $user->id }}</h1>
     @if($errors->any())
         <div class="alert alert-danger">
-            <ul>
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
+            <ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
         </div>
     @endif
     <form action="{{ route('admin.nhan-vien.update', $user) }}" method="POST">
@@ -31,7 +27,7 @@
             <label class="form-label">Phòng Ban</label>
             <input type="text" name="phong_ban" class="form-control" required value="{{ old('phong_ban', $user->phong_ban) }}">
         </div>
-        <button type="submit" class="btn btn-success">Cập Nhật</button>
+        <button type="submit" class="btn btn-primary">Cập Nhật</button>
         <a href="{{ route('admin.nhan-vien.index') }}" class="btn btn-secondary">Quay Lại</a>
     </form>
 @endsection

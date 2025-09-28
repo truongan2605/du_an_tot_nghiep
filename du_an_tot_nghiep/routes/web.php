@@ -39,9 +39,8 @@ Route::prefix('admin')
         Route::resource('tang', TangController::class);
 
         // ---- Người dùng ----
-        Route::get('user/create', [UserController::class, 'create'])->name('user.create');  
-        Route::post('user', [UserController::class, 'store'])->name('user.store');       
-    
+        Route::get('user/create', [UserController::class, 'create'])->name('user.create');
+        Route::post('user', [UserController::class, 'store'])->name('user.store');
         Route::get('user', [UserController::class, 'index'])->name('user.index');
         Route::get('user/{user}', [UserController::class, 'show'])->name('user.show');
         Route::get('user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
@@ -50,9 +49,14 @@ Route::prefix('admin')
 
 
         // ---- Nhân viên ----
-        Route::resource('nhan-vien', NhanVienController::class);
-        Route::patch('nhan-vien/{user}/toggle', [NhanVienController::class, 'toggleActive'])
-            ->name('nhan-vien.toggle');
+        Route::get('nhan-vien', [NhanVienController::class, 'index'])->name('nhan-vien.index');
+        Route::get('nhan-vien/create', [NhanVienController::class, 'create'])->name('nhan-vien.create');
+        Route::post('nhan-vien', [NhanVienController::class, 'store'])->name('nhan-vien.store');
+        Route::get('nhan-vien/{user}', [NhanVienController::class, 'show'])->name('nhan-vien.show');
+        Route::get('nhan-vien/{user}/edit', [NhanVienController::class, 'edit'])->name('nhan-vien.edit');
+        Route::put('nhan-vien/{user}', [NhanVienController::class, 'update'])->name('nhan-vien.update');
+        Route::patch('nhan-vien/{user}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
+        Route::delete('nhan-vien/{user}', [NhanVienController::class, 'destroy'])->name('nhan-vien.destroy');
 
         // ---- Voucher ----
         Route::resource('voucher', VoucherController::class);
