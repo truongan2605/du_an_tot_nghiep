@@ -11,6 +11,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
 
     <style>
         .sidebar {
@@ -47,11 +48,11 @@
                     <h4 class="text-white">Admin Panel</h4>
                 </div>
                 <nav class="nav flex-column">
-                    <a class="nav-link {{ request()->routeIs('tien-nghi.*') ? 'active' : '' }}"
-                        href="{{ route('tien-nghi.index') }}">
+                    <a class="nav-link {{ request()->routeIs('admin.tien-nghi.*') ? 'active' : '' }}"
+                        href="{{ route('admin.tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Tiện nghi
                     </a>
-                    <a class="nav-link {{ request()->routeIs('phong.*') ? 'active' : '' }}" href="{{ route('admin.phong.index') }}">
+                    <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}" href="{{ route('admin.phong.index') }}">
                         <i class="fas fa-bed me-2"></i> Phòng
                     </a>
                     <a class="nav-link" href="#">

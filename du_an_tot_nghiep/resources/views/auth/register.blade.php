@@ -1,4 +1,3 @@
-
 @extends('layouts.auth')
 
 @section('title', 'Sign-up')
@@ -10,14 +9,15 @@
                 <div class="col-12">
                     <div class="bg-mode shadow rounded-3 overflow-hidden">
                         <div class="row g-0">
+                            <!-- Hình minh họa -->
                             <div class="col-lg-6 d-md-flex align-items-center order-2 order-lg-1">
                                 <div class="p-3 p-lg-5">
-                                    <img src="{{ asset('template/stackbros/assets/images/element/signin.svg') }}"
-                                        alt="">
+                                    <img src="{{ asset('template/stackbros/assets/images/element/signin.svg') }}" alt="">
                                 </div>
                                 <div class="vr opacity-1 d-none d-lg-block"></div>
                             </div>
 
+                            <!-- Form -->
                             <div class="col-lg-6 order-1">
                                 <div class="p-4 p-sm-6">
                                     <a href="{{ url('/') }}">
@@ -38,8 +38,7 @@
                                         </div>
                                     @endif
 
-                                    <form class="mt-4 text-start" method="POST" action="{{ route('register') }}"
-                                        id="registerForm">
+                                    <form class="mt-4 text-start" method="POST" action="{{ route('register') }}" id="registerForm">
                                         @csrf
 
                                         <!-- Name -->
@@ -63,10 +62,16 @@
                                         </div>
 
                                         <!-- Password -->
-                                        <div class="mb-3 position-relative">
+                                        <div class="mb-3">
                                             <label class="form-label">Enter password</label>
-                                            <input name="password" class="form-control fakepassword" type="password"
-                                                required>
+                                            <div class="input-group">
+                                                <input id="password" name="password"
+                                                    class="form-control @error('password') is-invalid @enderror"
+                                                    type="password" required>
+                                                <button type="button" class="btn btn-outline-secondary" id="togglePassword">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
                                             @error('password')
                                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                             @enderror
@@ -75,19 +80,43 @@
                                         <!-- Confirm Password -->
                                         <div class="mb-3">
                                             <label class="form-label">Confirm Password</label>
-                                            <input type="password" name="password_confirmation" class="form-control"
-                                                required>
+                                            <div class="input-group">
+                                                <input id="password_confirmation" type="password" name="password_confirmation"
+                                                    class="form-control" required>
+                                                <button type="button" class="btn btn-outline-secondary" id="toggleConfirmPassword">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <!-- Button -->
-                                        <div><button type="submit" class="btn btn-primary w-100 mb-0">Sign up</button>
+                                        <div>
+                                            <button type="submit" class="btn btn-primary w-100 mb-0">Sign up</button>
                                         </div>
                                     </form>
 
+                                    <!-- Script -->
                                     <script>
-                                        document.getElementById('registerForm')?.addEventListener('submit', function() {
-                                            console.log('register form submit fired');
-                                        });
+                                        function togglePassword(inputId, buttonId) {
+                                            const input = document.getElementById(inputId);
+                                            const button = document.getElementById(buttonId);
+                                            const icon = button.querySelector("i");
+
+                                            button.addEventListener('click', function() {
+                                                if (input.type === "password") {
+                                                    input.type = "text";
+                                                    icon.classList.remove("bi-eye");
+                                                    icon.classList.add("bi-eye-slash");
+                                                } else {
+                                                    input.type = "password";
+                                                    icon.classList.remove("bi-eye-slash");
+                                                    icon.classList.add("bi-eye");
+                                                }
+                                            });
+                                        }
+
+                                        togglePassword("password", "togglePassword");
+                                        togglePassword("password_confirmation", "toggleConfirmPassword");
                                     </script>
 
                                 </div>
@@ -96,7 +125,6 @@
                     </div>
                 </div>
             </div>
->>>>>>> 86c048d6bedd18fb46d06d6d52884cd1278fe019
         </div>
     </section>
 @endsection

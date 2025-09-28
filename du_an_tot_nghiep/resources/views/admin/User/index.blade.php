@@ -4,12 +4,8 @@
 
 @section('content')
     <h1 class="mb-4">Danh Sách Khách Hàng</h1>
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
+    <a href="{{ route('admin.user.create') }}" class="btn btn-primary mb-3">Thêm Khách Hàng Mới</a>
+   
     <table class="table table-striped">
         <thead>
             <tr><th>ID</th><th>Tên</th><th>Email</th><th>SĐT</th><th>Trạng Thái</th><th>Hành Động</th></tr>
