@@ -96,7 +96,6 @@
                     </div>
                 </div>
             </div>
->>>>>>> 86c048d6bedd18fb46d06d6d52884cd1278fe019
         </div>
     </section>
 @endsection
