@@ -63,16 +63,19 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
-            'so_dien_thoai' => 'nullable|string|max:20',
-            'vai_tro' => 'required|in:khach_hang,nhan_vien',  // Chỉ cho phép đổi sang nhan_vien
-            'phong_ban' => 'required_if:vai_tro,nhan_vien|string|max:255',  // Bắt buộc nếu đổi sang nhan_vien
+            'vai_tro' => 'required|in:khach_hang,nhan_vien',  
+            'phong_ban' => 'required_if:vai_tro,nhan_vien|string|max:255',   
         ]);
 
-        $user->update($validated);
+       
+        $data = [
+            'vai_tro' => $validated['vai_tro'],
+            'phong_ban' => $validated['vai_tro'] === 'nhan_vien' ? $validated['phong_ban'] : null,
+        ];
 
-        // Logout user nếu thay đổi vai_tro để sync permission
+        $user->update($data);
+
+        
         if ($validated['vai_tro'] === 'nhan_vien' && Auth::check() && Auth::id() === $user->id) {
             Auth::logout();
             $request->session()->invalidate();
@@ -80,7 +83,7 @@ class UserController extends Controller
             return redirect()->route('login')->with('success', 'Vai trò đã được thay đổi. Vui lòng đăng nhập lại!');
         }
 
-        return redirect()->route('admin.user.index')->with('success', 'Thông tin khách hàng đã được cập nhật!');
+        return redirect()->route('admin.user.index')->with('success', 'Vai trò đã được cập nhật!');
     }
    
    public function toggleActive(User $user): RedirectResponse 

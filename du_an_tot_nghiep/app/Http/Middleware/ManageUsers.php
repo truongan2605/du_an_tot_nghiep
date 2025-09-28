@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Symfony\Component\HttpFoundation\Response; // thêm dòng này
+use Symfony\Component\HttpFoundation\Response; 
 
 class ManageUsers
 {
@@ -16,7 +16,7 @@ class ManageUsers
             abort(403, 'Bạn không có quyền quản lý!');
         }
 
-        // Lấy user từ route parameter (ví dụ: admin/nhan-vien/{user})
+        
         $user = $request->route('user');
 
         if ($user && in_array($request->route()->getName(), ['admin.nhan-vien.toggle', 'admin.nhan-vien.destroy'])) {

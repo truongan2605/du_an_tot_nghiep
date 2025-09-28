@@ -39,11 +39,13 @@ Route::prefix('admin')
         Route::resource('tang', TangController::class);
 
         // ---- Người dùng ----
-        Route::get('user/create', [UserController::class, 'create'])->name('user.create');  // 👈 ROUTE NÀY PHẢI ĐẶT TRÊN CÙNG
-        Route::post('user', [UserController::class, 'store'])->name('user.store');       // Lưu khách hàng
+        Route::get('user/create', [UserController::class, 'create'])->name('user.create');  
+        Route::post('user', [UserController::class, 'store'])->name('user.store');       
     
         Route::get('user', [UserController::class, 'index'])->name('user.index');
         Route::get('user/{user}', [UserController::class, 'show'])->name('user.show');
+        Route::get('user/{user}/edit', [UserController::class, 'edit'])->name('user.edit');
+        Route::put('user/{user}', [UserController::class, 'update'])->name('user.update');
         Route::patch('user/{user}/toggle', [UserController::class, 'toggleActive'])->name('user.toggle');
 
 
