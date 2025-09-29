@@ -12,8 +12,7 @@
                             <!-- Vector Image -->
                             <div class="col-lg-6 d-flex align-items-center order-2 order-lg-1">
                                 <div class="p-3 p-lg-5">
-                                    <img src="{{ asset('template/stackbros/assets/images/element/signin.svg') }}"
-                                        alt="">
+                                    <img src="{{ asset('template/stackbros/assets/images/element/signin.svg') }}" alt="">
                                 </div>
                                 <div class="vr opacity-1 d-none d-lg-block"></div>
                             </div>
@@ -22,9 +21,7 @@
                             <div class="col-lg-6 order-1">
                                 <div class="p-4 p-sm-7">
                                     <a href="{{ url('/') }}">
-                                        <img class="h-50px mb-4"
-                                            src="{{ asset('template/stackbros/assets/images/logo-icon.svg') }}"
-                                            alt="logo">
+                                        <img class="h-50px mb-4" src="{{ asset('template/stackbros/assets/images/logo-icon.svg') }}" alt="logo">
                                     </a>
                                     <h1 class="mb-2 h3">Welcome back</h1>
                                     <p class="mb-0">New here? <a href="{{ route('register') }}">Create an account</a></p>
@@ -32,6 +29,13 @@
                                     <!-- Form START -->
                                     <form class="mt-4 text-start" method="POST" action="{{ route('login') }}">
                                         @csrf
+
+                                        <!-- Hiển thị lỗi từ session (khi logout từ toggle) -->
+                                        @if (session('error'))
+                                            <div class="alert alert-danger mb-3">
+                                                {{ session('error') }}
+                                            </div>
+                                        @endif
 
                                         <!-- Email -->
                                         <div class="mb-3">
@@ -66,8 +70,6 @@
 
                                         <!-- Button -->
                                         <div><button type="submit" class="btn btn-primary w-100 mb-0">Login</button></div>
-
-
                                     </form>
                                     <!-- Form END -->
                                 </div>
@@ -78,5 +80,4 @@
             </div>
         </div>
     </section>
-
 @endsection

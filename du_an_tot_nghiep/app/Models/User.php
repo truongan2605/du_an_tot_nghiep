@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
+use App\Models\DanhGia;
+use App\Models\DatPhong;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Contracts\Auth\MustVerifyEmail; // Cần dùng cho Accessor/Mutator nếu muốn tùy chỉnh
+use Illuminate\Foundation\Auth\User as Authenticatable; // Thêm dòng này để import Model DatPhong
+use Illuminate\Database\Eloquent\Factories\HasFactory; // Thêm dòng này để import Model DanhGia
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -38,11 +41,21 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function datPhongs()
     {
+        // Bây giờ DatPhong::class đã được định nghĩa
         return $this->hasMany(DatPhong::class, 'nguoi_dung_id');
     }
 
     public function danhGias()
     {
+        // Bây giờ DanhGia::class đã được định nghĩa
         return $this->hasMany(DanhGia::class, 'nguoi_dung_id');
     }
+    
+    // !!! Đảm bảo phương thức setPasswordAttribute đã được xóa/comment để tránh double-hashing !!!
+    /*
+    public function setPasswordAttribute($value)
+    {
+        $this->attributes['password'] = bcrypt($value);
+    }
+    */
 }
