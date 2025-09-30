@@ -8,7 +8,14 @@ use App\Http\Controllers\Controller;
 
 class StaffController extends Controller
 {
- 
+    public function index()
+    {
+        $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
+        $todayCheckins = DatPhong::where('trang_thai', 'da_xac_nhan')
+                                ->whereDate('ngay_nhan_phong', now()->toDateString())
+                                ->count();
+        return view('staff.index', compact('pendingBookings', 'todayCheckins'));
+    }
     public function bookings()
     {
         $bookings = DatPhong::where('trang_thai', 'dang_cho')->get();

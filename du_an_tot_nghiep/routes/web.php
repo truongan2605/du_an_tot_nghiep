@@ -64,10 +64,9 @@ Route::prefix('admin')
             ->name('voucher.toggle-active');
     });
 
-    Route::middleware(['auth', 'role:nhan_vien'])->prefix('staff')->group(function () {
-    Route::get('/', function () {
-        return redirect()->route('staff.bookings');
-    });
+// Nhóm Route cho Staff
+ Route::middleware(['auth', 'role:nhan_vien'])->prefix('staff')->group(function () {
+    Route::get('/', [StaffController::class, 'index'])->name('staff.index');
     Route::get('/bookings', [StaffController::class, 'bookings'])->name('staff.bookings');
     Route::post('/confirm-booking/{id}', [StaffController::class, 'confirm'])->name('staff.confirm');
 });
