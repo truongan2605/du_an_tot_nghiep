@@ -2,14 +2,15 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
+
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
+use App\Http\Controllers\Staff\StaffController;
 use App\Http\Controllers\Admin\VoucherController;
+
 use App\Http\Controllers\Admin\NhanVienController;
-
 use App\Http\Controllers\Admin\TienNghiController;
-
 
 // Trang chủ
 Route::get('/', function () {
@@ -63,5 +64,11 @@ Route::prefix('admin')
             ->name('voucher.toggle-active');
     });
 
-
-require __DIR__.'/auth.php';
+    Route::middleware(['auth', 'role:nhan_vien'])->prefix('staff')->group(function () {
+    Route::get('/', function () {
+        return redirect()->route('staff.bookings');
+    });
+    Route::get('/bookings', [StaffController::class, 'bookings'])->name('staff.bookings');
+    Route::post('/confirm-booking/{id}', [StaffController::class, 'confirm'])->name('staff.confirm');
+});
+require __DIR__ . '/auth.php';
