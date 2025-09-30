@@ -8,13 +8,30 @@ use App\Http\Controllers\Controller;
 
 class StaffController extends Controller
 {
-    public function index()
+public function index()
     {
         $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
         $todayCheckins = DatPhong::where('trang_thai', 'da_xac_nhan')
                                 ->whereDate('ngay_nhan_phong', now()->toDateString())
                                 ->count();
-        return view('staff.index', compact('pendingBookings', 'todayCheckins'));
+        $todayRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
+                              ->whereDate('ngay_nhan_phong', now()->toDateString())
+                              ->sum('tong_tien');
+        $events = DatPhong::where('trang_thai', '!=', 'da_huy')
+                         ->get()
+                         ->map(function ($booking) {
+                             return [
+                                 'title' => "Booking {$booking->ma_tham_chieu}",
+                                 'start' => $booking->ngay_nhan_phong,
+                                 'end' => $booking->ngay_tra_phong,
+                             ];
+                         });
+        $recentActivities = DatPhong::where('trang_thai', '!=', 'dang_cho')
+                                  ->orderBy('updated_at', 'desc')
+                                  ->limit(5)
+                                  ->get();
+
+        return view('staff.index', compact('pendingBookings', 'todayCheckins', 'todayRevenue', 'events', 'recentActivities'));
     }
     public function bookings()
     {
