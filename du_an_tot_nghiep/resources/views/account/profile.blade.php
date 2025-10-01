@@ -204,76 +204,78 @@
                         </div>
 
                         <!-- Update Password -->
-                        <div class="card border">
-                            <div class="card-header border-bottom">
-                                <h4 class="card-header-title">Update Password</h4>
-                                <p class="mb-0">Change your account password</p>
+                        @if (auth()->user()->provider)
+                            
+                        @else
+                            <div class="card border">
+                                <div class="card-header border-bottom">
+                                    <h4 class="card-header-title">Update Password</h4>
+                                    <p class="mb-0">Change your account password</p>
+                                </div>
+
+                                <form class="card-body" method="POST" action="{{ route('password.update') }}">
+                                    @csrf
+                                    @method('PUT')
+
+                                    @if (session('status') === 'password-updated')
+                                        <div class="alert alert-success">Password updated successfully.</div>
+                                    @endif
+
+                                    @if ($errors->updatePassword->any())
+                                        <div class="alert alert-danger">
+                                            <ul class="mb-0">
+                                                @foreach ($errors->updatePassword->all() as $err)
+                                                    <li>{{ $err }}</li>
+                                                @endforeach
+                                            </ul>
+                                        </div>
+                                    @endif
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Current password</label>
+                                        <div class="input-group">
+                                            <input id="current_password" class="form-control" type="password"
+                                                name="current_password" placeholder="Enter current password" required>
+                                            <span class="input-group-text p-0 bg-transparent">
+                                                <i class="fas fa-eye-slash cursor-pointer password-toggle"
+                                                    data-target="current_password" title="Show/Hide"
+                                                    style="padding: 10px"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Enter new password</label>
+                                        <div class="input-group">
+                                            <input id="new_password" class="form-control" type="password"
+                                                name="password" placeholder="Enter new password" required>
+                                            <span class="input-group-text p-0 bg-transparent">
+                                                <i class="fas fa-eye-slash cursor-pointer password-toggle"
+                                                    data-target="new_password" title="Show/Hide"
+                                                    style="padding: 10px"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Confirm new password</label>
+                                        <div class="input-group">
+                                            <input id="new_password_confirmation" class="form-control" type="password"
+                                                name="password_confirmation" placeholder="Confirm new password" required>
+                                            <span class="input-group-text p-0 bg-transparent">
+                                                <i class="fas fa-eye-slash cursor-pointer password-toggle"
+                                                    data-target="new_password_confirmation" title="Show/Hide"
+                                                    style="padding: 10px"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-end">
+                                        <button class="btn btn-primary mb-0">Change Password</button>
+                                    </div>
+                                </form>
                             </div>
-
-                            <form class="card-body" method="POST" action="{{ route('password.update') }}">
-                                @csrf
-                                @method('PUT')
-
-                                @if (session('status') === 'password-updated')
-                                    <div class="alert alert-success">Password updated successfully.</div>
-                                @endif
-
-                                @if ($errors->updatePassword->any())
-                                    <div class="alert alert-danger">
-                                        <ul class="mb-0">
-                                            @foreach ($errors->updatePassword->all() as $err)
-                                                <li>{{ $err }}</li>
-                                            @endforeach
-                                        </ul>
-                                    </div>
-                                @endif
-
-                                <div class="mb-3">
-                                    <label class="form-label">Current password</label>
-                                    <div class="input-group">
-                                        <input id="current_password" class="form-control" type="password"
-                                            name="current_password" placeholder="Enter current password" required>
-                                        <span class="input-group-text p-0 bg-transparent">
-                                            <i class="fas fa-eye-slash cursor-pointer password-toggle"
-                                                data-target="current_password" title="Show/Hide"
-                                                style="padding: 10px"></i>
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Enter new password</label>
-                                    <div class="input-group">
-                                        <input id="new_password" class="form-control" type="password" name="password"
-                                            placeholder="Enter new password" required>
-                                        <span class="input-group-text p-0 bg-transparent">
-                                            <i class="fas fa-eye-slash cursor-pointer password-toggle"
-                                                data-target="new_password" title="Show/Hide" style="padding: 10px"></i>
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Confirm new password</label>
-                                    <div class="input-group">
-                                        <input id="new_password_confirmation" class="form-control" type="password"
-                                            name="password_confirmation" placeholder="Confirm new password" required>
-                                        <span class="input-group-text p-0 bg-transparent">
-                                            <i class="fas fa-eye-slash cursor-pointer password-toggle"
-                                                data-target="new_password_confirmation" title="Show/Hide"
-                                                style="padding: 10px"></i>
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div class="text-end">
-                                    <button class="btn btn-primary mb-0">Change Password</button>
-                                </div>
-                            </form>
-                        </div>
-
-
-
+                        @endif
                     </div>
                 </div>
                 <!-- Main content END -->

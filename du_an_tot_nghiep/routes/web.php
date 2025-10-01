@@ -9,11 +9,14 @@ use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
 
 use App\Http\Controllers\Admin\TienNghiController;
+use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Client\WishlistController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
+Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
 
 Route::prefix('admin')
     ->name('admin.')
