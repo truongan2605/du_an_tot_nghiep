@@ -5,7 +5,7 @@
 @section('content')
 
     <!-- =======================
-            Main Banner START -->
+                    Main Banner START -->
     <section class="pt-3 pt-lg-5">
         <div class="container">
             <!-- Content and Image START -->
@@ -217,10 +217,10 @@
         </div>
     </section>
     <!-- =======================
-            Main Banner END -->
+                    Main Banner END -->
 
     <!-- =======================
-            Best deal START -->
+                    Best deal START -->
     <section class="pb-2 pb-lg-5">
         <div class="container">
             <!-- Slider START -->
@@ -324,10 +324,10 @@
         </div>
     </section>
     <!-- =======================
-            Best deal END -->
+                    Best deal END -->
 
     <!-- =======================
-            About START -->
+                    About START -->
     <section class="pb-0 pb-xl-5">
         <div class="container">
             <div class="row g-4 justify-content-between align-items-center">
@@ -437,10 +437,10 @@
         </div>
     </section>
     <!-- =======================
-            About END -->
+                    About END -->
 
     <!-- =======================
-        Featured Hotels START -->
+                Featured Hotels START -->
     <section>
         <div class="container">
 
@@ -448,8 +448,10 @@
             <div class="row mb-4">
                 <div class="col-12 text-center">
                     <h2 class="mb-0">Featured Hotels</h2>
+                    <img src="public/template/stackbros/assets/images/category/hotel/bnhotel.jpg" alt="Hotel Image">
                 </div>
             </div>
+
 
             <div class="container mt-5">
                 <h2 class="mb-4 text-center">Room list</h2>
@@ -460,12 +462,13 @@
                             <div class="card card-img-scale shadow-sm rounded-3 overflow-hidden">
                                 <!-- Image and overlay -->
                                 <div class="card-img-scale-wrapper rounded-3">
-                                    <img src="{{ asset('storage/uploads/' . $phong->hinh_anh) }}" class="card-img"
-                                        alt="hotel image">
+                                    <img src="{{ asset('template/stackbros/assets/images/' . $phong->img) }}"
+                                        class="card-img" alt="hotel image">
+
                                     <!-- Badge -->
                                     <div class="position-absolute bottom-0 start-0 p-3">
                                         <div class="badge text-bg-dark fs-6 rounded-pill">
-                                            <i class="bi bi-geo-alt me-2"></i> Tầng {{ $phong->tang->so_tang }}
+                                            <i class="bi bi-geo-alt me-2"></i> Floor {{ $phong->tang->so_tang }}
                                         </div>
                                     </div>
                                 </div>
@@ -473,8 +476,12 @@
                                 <!-- Card body -->
                                 <div class="card-body px-2">
                                     <!-- Title -->
-                                    <h5 class="card-title">{{ $phong->ma_phong }} -
-                                        {{ $phong->loaiPhong->ten_loai ?? $phong->loaiPhong->ten }}</h5>
+                                    <h5 class="card-title">
+                                        <a href="{{ route('rooms.show', $phong->id) }}" class="stretched-link">
+                                            {{ $phong->ma_phong }} -
+                                            {{ $phong->loaiPhong->ten_loai ?? $phong->loaiPhong->ten }}
+                                        </a>
+                                    </h5>
 
                                     <!-- Room details -->
                                     <p class="mb-1">Capacity: {{ $phong->suc_chua }} người</p>
@@ -490,6 +497,7 @@
                                         <h6 class="mb-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
                                     </div>
                                 </div>
+
                             </div>
                             <!-- Card END -->
                         </div>
@@ -499,10 +507,10 @@
 
     </section>
     <!-- =======================
-        Featured Hotels END -->
+                Featured Hotels END -->
 
     <!-- =======================
-            Client START -->
+                    Client START -->
     <section class="py-0 py-md-5">
         <div class="container">
             <div class="row g-4 g-lg-7 justify-content-center align-items-center">
@@ -540,10 +548,10 @@
         </div>
     </section>
     <!-- =======================
-            Client END -->
+                    Client END -->
 
     <!-- =======================
-            Download app START -->
+                    Download app START -->
     <section class="bg-light">
         <div class="container">
             <div class="row g-4">
@@ -587,7 +595,7 @@
         </div>
     </section>
     <!-- =======================
-            Download app END -->
+                    Download app END -->
 
     <!-- **************** MAIN CONTENT END **************** -->
 

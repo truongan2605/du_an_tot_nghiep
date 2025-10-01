@@ -10,6 +10,8 @@ use App\Http\Controllers\Admin\NhanVienController;
 
 use App\Http\Controllers\Admin\TienNghiController;
 
+use App\Http\Controllers\Client\RoomController;
+
 
 // Trang chủ
 Route::get('/', function () {
@@ -18,6 +20,7 @@ Route::get('/', function () {
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
+Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.show');
 
 Route::prefix('admin')
     ->name('admin.')
