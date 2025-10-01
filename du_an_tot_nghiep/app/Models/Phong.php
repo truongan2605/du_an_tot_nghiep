@@ -48,18 +48,25 @@ class Phong extends Model
     {
         return $this->hasMany(PhongDaDat::class);
     }
-public function images()
-{
-    // lấy theo id tăng dần = thứ tự thêm ảnh
-    return $this->hasMany(PhongImage::class, 'phong_id')->orderBy('id', 'asc');
-}
 
-// tiện helper lấy ảnh đầu tiên
-public function firstImagePath()
-{
-    $img = $this->images->first();
-    return $img ? $img->image_path : null;
-}
+    public function wishlists()
+    {
+        return $this->hasMany(\App\Models\Wishlist::class, 'phong_id');
+    }
 
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(\App\Models\User::class, 'wishlists', 'phong_id', 'user_id');
+    }
 
+    public function images()
+    {
+        return $this->hasMany(PhongImage::class, 'phong_id')->orderBy('id', 'asc');
+    }
+
+    public function firstImagePath()
+    {
+        $img = $this->images->first();
+        return $img ? $img->image_path : null;
+    }
 }
