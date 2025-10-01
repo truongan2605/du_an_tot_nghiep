@@ -33,7 +33,7 @@ class VoucherController extends Controller
 
         Voucher::create($request->all());
 
-        return redirect()->route('voucher.index')->with('success', 'Thêm voucher thành công!');
+        return redirect()->route('admin.voucher.index')->with('success', 'Thêm voucher thành công!');
     }
 
     public function show(Voucher $voucher)
@@ -60,12 +60,12 @@ class VoucherController extends Controller
 
         $voucher->update($request->all());
 
-        return redirect()->route('voucher.index')->with('success', 'Cập nhật voucher thành công!');
+        return redirect()->route('admin.voucher.index')->with('success', 'Cập nhật voucher thành công!');
     }
 
     public function destroy(Voucher $voucher)
     {
         $voucher->delete();
-        return redirect()->route('voucher.index')->with('success', 'Xóa voucher thành công!');
+        return redirect()->route('admin.voucher.index')->with('success', 'Xóa voucher thành công!');
     }
 }

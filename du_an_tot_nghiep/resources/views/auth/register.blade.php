@@ -3,16 +3,16 @@
 @section('title', 'Sign-up')
 
 @section('content')
-    <section class="vh-xxl-100" style="margin-bottom: 50px">
+    <section class="vh-xxl-100">
         <div class="container h-100 d-flex px-0 px-sm-4">
             <div class="row justify-content-center align-items-center m-auto">
                 <div class="col-12">
                     <div class="bg-mode shadow rounded-3 overflow-hidden">
                         <div class="row g-0">
-                            <!-- Hình minh họa -->
                             <div class="col-lg-6 d-md-flex align-items-center order-2 order-lg-1">
                                 <div class="p-3 p-lg-5">
-                                    <img src="{{ asset('template/stackbros/assets/images/element/signin.svg') }}" alt="">
+                                    <img src="{{ asset('template/stackbros/assets/images/element/signin.svg') }}"
+                                        alt="">
                                 </div>
                                 <div class="vr opacity-1 d-none d-lg-block"></div>
                             </div>
@@ -38,7 +38,8 @@
                                         </div>
                                     @endif
 
-                                    <form class="mt-4 text-start" method="POST" action="{{ route('register') }}" id="registerForm">
+                                    <form class="mt-4 text-start" method="POST" action="{{ route('register') }}"
+                                        id="registerForm">
                                         @csrf
 
                                         <!-- Name -->
@@ -68,7 +69,8 @@
                                                 <input id="password" name="password"
                                                     class="form-control @error('password') is-invalid @enderror"
                                                     type="password" required>
-                                                <button type="button" class="btn btn-outline-secondary" id="togglePassword">
+                                                <button type="button" class="btn btn-outline-secondary"
+                                                    id="togglePassword">
                                                     <i class="bi bi-eye"></i>
                                                 </button>
                                             </div>
@@ -81,9 +83,10 @@
                                         <div class="mb-3">
                                             <label class="form-label">Confirm Password</label>
                                             <div class="input-group">
-                                                <input id="password_confirmation" type="password" name="password_confirmation"
-                                                    class="form-control" required>
-                                                <button type="button" class="btn btn-outline-secondary" id="toggleConfirmPassword">
+                                                <input id="password_confirmation" type="password"
+                                                    name="password_confirmation" class="form-control" required>
+                                                <button type="button" class="btn btn-outline-secondary"
+                                                    id="toggleConfirmPassword">
                                                     <i class="bi bi-eye"></i>
                                                 </button>
                                             </div>
@@ -92,6 +95,20 @@
                                         <!-- Button -->
                                         <div>
                                             <button type="submit" class="btn btn-primary w-100 mb-0">Sign up</button>
+                                        </div>
+
+                                        <div class="position-relative my-4">
+                                            <hr>
+                                            <p
+                                                class="small bg-mode position-absolute top-50 start-50 translate-middle px-2">
+                                                Or sign in with</p>
+                                        </div>
+
+                                        <!-- Google and facebook button -->
+                                        <div class="vstack gap-3">
+                                            <a href="{{ route('auth.google') }}" class="btn btn-light mb-0">
+                                                <i class="fab fa-fw fa-google text-google-icon me-2"></i>Sign in with Google
+                                            </a>
                                         </div>
                                     </form>
 
