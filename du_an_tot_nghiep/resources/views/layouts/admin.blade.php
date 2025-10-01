@@ -11,7 +11,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+
 
     <style>
         .sidebar {
@@ -69,6 +69,10 @@
                     <a class="nav-link {{ request()->routeIs('admin.nhan-vien.*') ? 'active' : '' }}"
                         href="{{ route('admin.nhan-vien.index') }}">
                         <i class="fas fa-user-tie me-2"></i> Quản Lý Nhân Viên
+                    </a>
+                    <a class="nav-link {{ request()->routeIs('admin.voucher.*') ? 'active' : '' }}"
+                        href="{{ route('admin.voucher.index') }}">
+                        <i class="fas fa-gift me-2"></i> Quản Lý Voucher
                     </a>
                 </nav>
             </div>
