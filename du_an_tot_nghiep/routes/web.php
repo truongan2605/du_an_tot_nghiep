@@ -9,12 +9,8 @@ use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
 
 use App\Http\Controllers\Admin\TienNghiController;
-
-
-// Trang chủ
-Route::get('/', function () {
-    return view('home');
-});
+use App\Http\Controllers\Client\ProfileController;
+use App\Http\Controllers\Client\WishlistController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -63,5 +59,20 @@ Route::prefix('admin')
             ->name('voucher.toggle-active');
     });
 
+Route::middleware('auth')->prefix('account')
+    ->name('account.')
+    ->group(function () {
 
-require __DIR__.'/auth.php';
+        Route::get('settings', function () {
+            return view('account.profile');
+        })->name('settings');
+        Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
+
+        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
+        Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+        Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+        Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
+    });
+
+
+require __DIR__ . '/auth.php';

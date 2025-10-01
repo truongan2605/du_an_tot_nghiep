@@ -246,7 +246,7 @@
 					<a class="avatar avatar-sm p-0" href="#" id="profileDropdown" role="button"
 					data-bs-auto-close="outside" data-bs-display="static" data-bs-toggle="dropdown" aria-expanded="false">
 						<img class="avatar-img rounded-2"
-							src="{{ auth()->check() && auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/01.jpg') }}"
+							src="{{ auth()->check() && auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/avt.jpg') }}"
 							alt="avatar">
 					</a>
 
@@ -258,7 +258,7 @@
 								<!-- Avatar -->
 								<div class="avatar me-3">
 									<img class="avatar-img rounded-circle shadow"
-										src="{{ auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/01.jpg') }}"
+										src="{{ auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/avt.jpg') }}"
 										alt="avatar">
 								</div>
 								<div>
@@ -272,7 +272,7 @@
 						<li> <hr class="dropdown-divider"></li>
 						<li><a class="dropdown-item" href="{{ url('/account/bookings') }}"><i class="bi bi-bookmark-check fa-fw me-2"></i>My Bookings</a></li>
 						<li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i class="bi bi-heart fa-fw me-2"></i>My Wishlist</a></li>
-						<li><a class="dropdown-item" href="{{ url('/account/settings') }}"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
+						<li><a class="dropdown-item" href="{{ route('account.settings') }}"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
 						<li><a class="dropdown-item" href="{{ url('/help') }}"><i class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>
 
 						<li> <hr class="dropdown-divider"></li>
@@ -292,8 +292,8 @@
 						<li class="px-3 mb-2">
 							<div class="d-flex align-items-center">
 								<div>
-									<a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Khách</a>
-									<p class="small m-0">Vui lòng đăng nhập</p>
+									<a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Guest</a>
+									<p class="small m-0">Login to use all features</p>
 								</div>
 							</div>
 						</li>
