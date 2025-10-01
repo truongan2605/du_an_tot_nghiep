@@ -1,4 +1,4 @@
-@extends('layouts.detailroom')
+@extends('layouts.app')
 
 @section('title', 'Chi tiet phong - Detail Room')
 
