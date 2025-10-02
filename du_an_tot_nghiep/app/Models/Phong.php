@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Storage;
 
 class Phong extends Model
 {
@@ -13,6 +14,7 @@ class Phong extends Model
 
     protected $fillable = [
         'ma_phong',
+        'name',  
         'loai_phong_id',
         'tang_id',
         'suc_chua',
@@ -68,5 +70,15 @@ class Phong extends Model
     {
         $img = $this->images->first();
         return $img ? $img->image_path : null;
+    }
+
+        public function firstImageUrl()
+    {
+        $path = $this->firstImagePath();
+        if ($path && Storage::disk('public')->exists($path)) {
+            return Storage::url($path); 
+        }
+
+        return asset('template/stackbros/assets/images/category/hotel/01.jpg');
     }
 }

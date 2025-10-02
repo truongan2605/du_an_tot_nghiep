@@ -5,7 +5,7 @@
 @section('content')
 
     <!-- =======================
-                    Main Banner START -->
+    Main Banner START -->
     <section class="pt-3 pt-lg-5">
         <div class="container">
             <!-- Content and Image START -->
@@ -217,10 +217,10 @@
         </div>
     </section>
     <!-- =======================
-                    Main Banner END -->
+    Main Banner END -->
 
     <!-- =======================
-                    Best deal START -->
+    Best deal START -->
     <section class="pb-2 pb-lg-5">
         <div class="container">
             <!-- Slider START -->
@@ -324,10 +324,10 @@
         </div>
     </section>
     <!-- =======================
-                    Best deal END -->
+    Best deal END -->
 
     <!-- =======================
-                    About START -->
+    About START -->
     <section class="pb-0 pb-xl-5">
         <div class="container">
             <div class="row g-4 justify-content-between align-items-center">
@@ -437,80 +437,69 @@
         </div>
     </section>
     <!-- =======================
-                    About END -->
+    About END -->
 
     <!-- =======================
-                Featured Hotels START -->
+    Featured Hotels START -->
     <section>
-        <div class="container">
-
+        <div class="container mt-5">
             <!-- Title -->
             <div class="row mb-4">
                 <div class="col-12 text-center">
                     <h2 class="mb-0">Featured Hotels</h2>
-                    <img src="public/template/stackbros/assets/images/category/hotel/bnhotel.jpg" alt="Hotel Image">
                 </div>
             </div>
 
+            <div class="row g-4">
+                @forelse($phongs as $phong)
+                    <div class="col-sm-6 col-xl-3">
+                        <!-- Card START -->
+                        <div class="card card-img-scale overflow-hidden bg-transparent">
+                            <!-- Image and overlay -->
+                            <div class="card-img-scale-wrapper rounded-3">
+                                <!-- Image: dùng helper trong model -->
+                                <img src="{{ $phong->firstImageUrl() }}" class="card-img" alt="hotel image">
 
-            <div class="container mt-5">
-                <h2 class="mb-4 text-center">Room list</h2>
-                <div class="row g-4">
-                    @foreach ($phongs as $phong)
-                        <div class="col-sm-6 col-xl-3">
-                            <!-- Card START -->
-                            <div class="card card-img-scale shadow-sm rounded-3 overflow-hidden">
-                                <!-- Image and overlay -->
-                                <div class="card-img-scale-wrapper rounded-3">
-                                    <img src="{{ asset('template/stackbros/assets/images/' . $phong->img) }}"
-                                        class="card-img" alt="hotel image">
-
-                                    <!-- Badge -->
-                                    <div class="position-absolute bottom-0 start-0 p-3">
-                                        <div class="badge text-bg-dark fs-6 rounded-pill">
-                                            <i class="bi bi-geo-alt me-2"></i> Floor {{ $phong->tang->so_tang }}
-                                        </div>
+                                <!-- Badge: Hiển thị loại phòng -->
+                                <div class="position-absolute bottom-0 start-0 p-3">
+                                    <div class="badge text-bg-dark fs-6 rounded-pill stretched-link">
+                                        <i class="bi bi-geo-alt me-2"></i>
+                                        {{ $phong->loaiPhong->ten_loai ?? ($phong->loaiPhong->ten ?? '—') }}
                                     </div>
                                 </div>
-
-                                <!-- Card body -->
-                                <div class="card-body px-2">
-                                    <!-- Title -->
-                                    <h5 class="card-title">
-                                        <a href="{{ route('rooms.show', $phong->id) }}" class="stretched-link">
-                                            {{ $phong->ma_phong }} -
-                                            {{ $phong->loaiPhong->ten_loai ?? $phong->loaiPhong->ten }}
-                                        </a>
-                                    </h5>
-
-                                    <!-- Room details -->
-                                    <p class="mb-1">Capacity: {{ $phong->suc_chua }} người</p>
-                                    <p class="mb-1">Bed: {{ $phong->so_giuong }}</p>
-                                    <p class="mb-1">Status: {{ ucfirst($phong->trang_thai) }}</p>
-
-                                    <!-- Price and rating -->
-                                    <div class="d-flex justify-content-between align-items-center mt-2">
-                                        <h6 class="text-success mb-0">
-                                            {{ number_format($phong->gia_mac_dinh) }} VND <small
-                                                class="fw-light">/đêm</small>
-                                        </h6>
-                                        <h6 class="mb-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
-                                    </div>
-                                </div>
-
                             </div>
-                            <!-- Card END -->
-                        </div>
-                    @endforeach
-                </div>
-            </div>
 
+                            <!-- Card body -->
+                            <div class="card-body px-2">
+                                <h5 class="card-title">
+                                    <a href="{{ route('rooms.show', $phong->id) }}"
+                                        class="stretched-link text-decoration-none">
+                                        {{ $phong->name ?? null }}
+                                    </a>
+                                </h5>
+
+                                <!-- Price and rating -->
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="text-success mb-0">
+                                        {{ number_format($phong->gia_mac_dinh, 0, '.', ',') }} VND
+                                    </h6>
+                                    <h6 class="mb-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Card END -->
+                    </div>
+                @empty
+                    <div class="col-12 text-center">There are no rooms available yet.</div>
+                @endforelse
+            </div>
+        </div>
     </section>
     <!-- =======================
-                Featured Hotels END -->
+    Featured Hotels END -->
 
     <!-- =======================
-                    Client START -->
+    Client START -->
     <section class="py-0 py-md-5">
         <div class="container">
             <div class="row g-4 g-lg-7 justify-content-center align-items-center">
@@ -548,10 +537,10 @@
         </div>
     </section>
     <!-- =======================
-                    Client END -->
+    Client END -->
 
     <!-- =======================
-                    Download app START -->
+    Download app START -->
     <section class="bg-light">
         <div class="container">
             <div class="row g-4">
@@ -580,23 +569,38 @@
 
                 <div class="col-md-6 col-xxl-4">
                     <div class="bg-body d-flex rounded-3 h-100 p-4">
-                        <h3><i class="fa-solid fa-hand-holding-heart"></i></h3>
+                        <h3><i class="fa-solid fa-shield"></i></i></h3>
                         <div class="ms-3">
-                            <h5>24x7 Help</h5>
-                            <p class="mb-0">If we fall short of your expectation in any way, let us know</p>
+                            <h5>Privacy policy</h5>
+                            <p class="mb-0">Clear privacy policy ensures customer information security</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Download app -->
 
-
             </div>
         </div>
     </section>
     <!-- =======================
-                    Download app END -->
+    Download app END -->
 
-    <!-- **************** MAIN CONTENT END **************** -->
+<!-- **************** MAIN CONTENT END **************** -->
 
 @endsection
+
+@push('styles')
+<style>
+.card-img-scale-wrapper {
+  aspect-ratio: 3 / 4; 
+  overflow: hidden;
+}
+.card-img-scale-wrapper img.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+</style>
+@endpush
