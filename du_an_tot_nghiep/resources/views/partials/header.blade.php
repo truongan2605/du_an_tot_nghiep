@@ -133,7 +133,11 @@
 								</ul>
 							</li>
 							
-							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/admin-dashboard.html') }}">Master Admin</a> </li>
+							@auth
+								@if(auth()->user()->isAdmin())
+									<li> <a class="dropdown-item" href="{{ route('admin.tien-nghi.index') }}">Master Admin</a> </li>
+								@endif
+							@endauth
 						</ul>
 					</li>
 
@@ -197,35 +201,53 @@
 						<i class="bi bi-bell fa-fw"></i>
 					</a>
 					<!-- Notification dote -->
+					@auth
+					@php
+						$__unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', auth()->id())
+							->where('trang_thai', '!=', 'read')
+							->count();
+					@endphp
+					@if($__unreadCount > 0)
 					<span class="notif-badge animation-blink"></span>
+					@endif
+					@endauth
 
 					<!-- Notification dropdown menu START -->
 					<div class="dropdown-menu dropdown-animation dropdown-menu-end dropdown-menu-size-md shadow-lg p-0">
 						<div class="card bg-transparent">
 							<!-- Card header -->
 							<div class="card-header bg-transparent d-flex justify-content-between align-items-center border-bottom">
-								<h6 class="m-0">Notifications <span class="badge bg-danger bg-opacity-10 text-danger ms-2">4 new</span></h6>
-								<a class="small" href="#">Clear all</a>
+								<h6 class="m-0">Thông báo @auth @if($__unreadCount>0)<span class="badge bg-danger bg-opacity-10 text-danger ms-2">{{ $__unreadCount }} mới</span>@endif @endauth</h6>
+								@auth
+								<form method="POST" action="{{ route('admin.thong-bao.index') }}" class="d-none"></form>
+								@endauth
 							</div>
 
 							<!-- Card body START -->
 							<div class="card-body p-0">
 								<ul class="list-group list-group-flush list-unstyled p-2">
-									<!-- Notification item -->
+									@auth
+									@php
+										$__notifications = \App\Models\ThongBao::where('nguoi_nhan_id', auth()->id())
+											->latest('id')
+											->limit(10)
+											->get();
+									@endphp
+									@forelse($__notifications as $__n)
 									<li>
-										<a href="#" class="list-group-item list-group-item-action rounded notif-unread border-0 mb-1 p-3">
-											<h6 class="mb-2">New! Booking flights from New York ✈️</h6>
-											<p class="mb-0 small">Find the flexible ticket on flights around the world. Start searching today</p>
-											<span>Wednesday</span>
-										</a>
+										<form method="POST" action="{{ route('thong-bao.mark-read', $__n) }}" class="d-inline">
+											@csrf
+											<button class="list-group-item list-group-item-action rounded border-0 mb-1 p-3 w-100 text-start {{ $__n->trang_thai !== 'read' ? 'notif-unread' : '' }}">
+												<h6 class="mb-1">{{ $__n->payload['title'] ?? $__n->ten_template }}</h6>
+												<p class="mb-0 small">{{ $__n->payload['message'] ?? '' }}</p>
+												<span class="small text-muted">{{ $__n->created_at?->diffForHumans() }}</span>
+											</button>
+										</form>
 									</li>
-									<!-- Notification item -->
-									<li>
-										<a href="#" class="list-group-item list-group-item-action rounded border-0 mb-1 p-3">
-											<h6 class="mb-2">Sunshine saving are here 🌞 save 30% or more on a stay</h6>
-											<span>15 Nov 2022</span>
-										</a>
-									</li>
+									@empty
+									<li class="text-center text-muted py-3">Không có thông báo</li>
+									@endforelse
+									@endauth
 								</ul>
 							</div>
 							<!-- Card body END -->

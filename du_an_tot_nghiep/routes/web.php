@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
 use App\Http\Controllers\Admin\VoucherController;
+use App\Http\Controllers\Admin\ThongBaoController;
 use App\Http\Controllers\Admin\NhanVienController;
 
 use App\Http\Controllers\Admin\TienNghiController;
@@ -61,7 +62,15 @@ Route::prefix('admin')
         Route::resource('voucher', VoucherController::class);
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
             ->name('voucher.toggle-active');
+
+        // ---- Thông báo ----
+        Route::resource('thong-bao', ThongBaoController::class);
+        Route::patch('thong-bao/{thong_bao}/toggle-active', [ThongBaoController::class, 'toggleActive'])
+            ->name('thong-bao.toggle-active');
     });
 
 
 require __DIR__.'/auth.php';
+
+// In-app notification: mark as read
+Route::middleware('auth')->post('thong-bao/{thong_bao}/read', [ThongBaoController::class, 'markRead'])->name('thong-bao.mark-read');
