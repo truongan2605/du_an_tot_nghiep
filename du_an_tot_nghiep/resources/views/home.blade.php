@@ -94,24 +94,33 @@
                     <!-- Title -->
                     <h6 class="d-none d-xl-block mb-3">Check Availability</h6>
 
-                    <!-- Booking from START -->
-                    <form class="card shadow rounded-3 position-relative p-4 pe-md-5 pb-5 pb-md-4">
+                    <!-- Booking form START -->
+                    <form action="{{ url('/phong/tim-kiem') }}" method="GET" class="card shadow rounded-3 position-relative p-4 pe-md-5 pb-5 pb-md-4">
                         <div class="row g-4 align-items-center">
-                            <!-- Location -->
+
+                            <!-- ROOM TYPE (thay Location cũ) -->
+                            @php
+                                $chonLoaiPhong = null;
+                                if (request()->filled('loai_phong_id')) {
+                                    $chonLoaiPhong = \App\Models\LoaiPhong::where('id', request('loai_phong_id'))->value('ten');
+                                }
+                            @endphp
                             <div class="col-lg-4">
-                                <div class="form-control-border form-control-transparent form-fs-md d-flex">
-                                    <!-- Icon -->
-                                    <i class="bi bi-geo-alt fs-3 me-2 mt-2"></i>
-                                    <!-- Select input -->
-                                    <div class="flex-grow-1">
-                                        <label class="form-label">Location</label>
-                                        <select class="form-select js-choice" data-search-enabled="true">
-                                            <option value="">Select location</option>
-                                            <option>San Jacinto, USA</option>
-                                            <option>North Dakota, Canada</option>
-                                            <option>West Virginia, Paris</option>
-                                        </select>
+                                <div class="rt-field" id="rt-box">
+                                    <label class="rt-label">Room type</label>
+                                    <div class="rt-inputwrap">
+                                        <input
+                                            type="text"
+                                            id="rt-input"
+                                            class="rt-control"
+                                            name="loai_phong_text" 
+                                            placeholder="Tìm loại phòng (VD: Phòng đơn, Phòng đôi)"
+                                            autocomplete="off"
+                                            value="{{ old('loai_phong_text', $chonLoaiPhong) }}"
+                                        >
+                                        <input type="hidden" name="loai_phong_id" id="rt-id" value="{{ request('loai_phong_id') }}">
                                     </div>
+                                    <div id="rt-panel" class="rt-panel" hidden></div>
                                 </div>
                             </div>
 
@@ -121,10 +130,13 @@
                                     <!-- Icon -->
                                     <i class="bi bi-calendar fs-3 me-2 mt-2"></i>
                                     <!-- Date input -->
-                                    <div class="form-control-border form-control-transparent form-fs-md">
+                                    <div class="form-control-border form-control-transparent form-fs-md w-100">
                                         <label class="form-label">Check in - out</label>
-                                        <input type="text" class="form-control flatpickr" data-mode="range"
-                                            placeholder="Select date" value="19 Sep to 28 Sep">
+                                        <input id="date-range" type="text" class="form-control flatpickr" data-mode="range"
+                                            placeholder="Select date" value="{{ request('tu_ngay') && request('den_ngay') ? (request('tu_ngay').' to '.request('den_ngay')) : '' }}">
+                                        <!-- Hidden inputs cho backend -->
+                                        <input type="hidden" name="tu_ngay" id="tu_ngay" value="{{ request('tu_ngay') }}">
+                                        <input type="hidden" name="den_ngay" id="den_ngay" value="{{ request('den_ngay') }}">
                                     </div>
                                 </div>
                             </div>
@@ -204,13 +216,15 @@
                                 </div>
                             </div>
                         </div>
+
                         <!-- Button -->
                         <div class="btn-position-md-middle">
-                            <a class="icon-lg btn btn-round btn-primary mb-0" href="#"><i
-                                    class="bi bi-search fa-fw"></i></a>
+                            <button class="icon-lg btn btn-round btn-primary mb-0" type="submit">
+                                <i class="bi bi-search fa-fw"></i>
+                            </button>
                         </div>
                     </form>
-                    <!-- Booking from END -->
+                    <!-- Booking form END -->
                 </div>
             </div>
             <!-- Search END -->
@@ -592,3 +606,116 @@
     <!-- **************** MAIN CONTENT END **************** -->
 
 @endsection
+
+
+@push('styles')
+<style>
+/* Cho phép dropdown tràn ra ngoài container form nếu cần */
+.card.rounded-3.position-relative { overflow: visible; }
+
+/* Chỉ style cho Room type */
+.rt-field{ position:relative; min-width:0; }
+.rt-label{ font-size:12px; color:#6b7280; line-height:1; padding:0 4px; display:block; margin-bottom:6px; }
+.rt-inputwrap{
+  display:flex; align-items:center; gap:8px;
+  border:1px solid #e5e7eb; border-radius:12px; padding:10px 12px; height:52px; background:#fff;
+}
+.rt-control{ border:0; outline:0; width:100%; background:transparent; font-size:14px; }
+
+/* Dropdown gợi ý nằm ngay dưới ô Room type */
+.rt-panel{
+  position:absolute; top:calc(100% + 6px); left:0; right:0;
+  background:#fff; border:1px solid #e5e7eb; border-radius:12px;
+  box-shadow:0 20px 40px rgba(0,0,0,.12); max-height:280px; overflow-y:auto;
+  z-index:1000;
+}
+.rt-item{ padding:10px 12px; cursor:pointer; }
+.rt-item:hover,.rt-item.active{ background:#f5f6ff; }
+.rt-empty{ padding:10px 12px; color:#9ca3af; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function(){
+  // ====== Room type autosuggest ======
+  const input  = document.getElementById('rt-input');
+  const hidden = document.getElementById('rt-id');
+  const panel  = document.getElementById('rt-panel');
+  const box    = document.getElementById('rt-box');
+  if(input && hidden && panel && box){
+    let items=[], active=-1, timer=null;
+    const open = ()=> panel.hidden=false;
+    const close= ()=> { panel.hidden=true; active=-1; };
+    const render=()=>{
+      if(!items.length){ panel.innerHTML='<div class="rt-empty">Không có gợi ý</div>'; open(); return; }
+      panel.innerHTML = items.map((it,i)=>`<div class="rt-item${i===active?' active':''}" data-id="${it.id}" data-ten="${it.ten}">${it.ten}</div>`).join('');
+      open();
+    };
+    const choose=i=>{ if(i<0||i>=items.length) return; input.value=items[i].ten; hidden.value=items[i].id; close(); };
+    const fetchSuggest=q=>{
+      fetch(`{{ route('goi_y.loai_phong') }}?q=${encodeURIComponent(q||'')}`, { headers:{'X-Requested-With':'XMLHttpRequest'} })
+        .then(r=>r.json()).then(d=>{ items=(d&&d.data)||[]; render(); }).catch(()=>{ items=[]; render(); });
+    };
+    const debounce=q=>{ clearTimeout(timer); timer=setTimeout(()=>fetchSuggest(q),200); };
+
+    input.addEventListener('focus', ()=>debounce(input.value));
+    input.addEventListener('input', e=>{ hidden.value=''; debounce(e.target.value); });
+
+    input.addEventListener('keydown', e=>{
+      if(panel.hidden) return;
+      if(e.key==='ArrowDown'){ e.preventDefault(); active=(active+1)%items.length; render(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); active=(active-1+items.length)%items.length; render(); }
+      else if(e.key==='Enter'){ e.preventDefault(); choose(active===-1?0:active); }
+      else if(e.key==='Escape'){ close(); }
+    });
+
+    panel.addEventListener('click', e=>{
+      const el=e.target.closest('.rt-item'); if(!el) return;
+      input.value = el.dataset.ten; hidden.value = el.dataset.id; close();
+    });
+
+    document.addEventListener('click', e=>{ if(!box.contains(e.target)) close(); });
+
+    // Chặn submit nếu có text nhưng chưa chọn từ gợi ý
+    document.querySelector('form[action="{{ url('/phong/tim-kiem') }}"]')?.addEventListener('submit', function(e){
+      if (input.value.trim() && !hidden.value.trim()){
+        e.preventDefault();
+        alert('Vui lòng chọn loại phòng từ danh sách gợi ý.');
+      }
+    });
+  }
+
+  // ====== Flatpickr → hidden inputs tu_ngay / den_ngay ======
+  const el = document.getElementById('date-range');
+  const tu = document.getElementById('tu_ngay');
+  const den= document.getElementById('den_ngay');
+  if (el && window.flatpickr) {
+    // Khởi tạo nếu chưa được init bởi theme
+    if (!el._flatpickr) {
+      flatpickr(el, {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        defaultDate: (tu.value && den.value) ? [tu.value, den.value] : null,
+        onChange: function(selectedDates, dateStr, instance){
+          if (selectedDates.length === 2) {
+            const [start, end] = selectedDates;
+            tu.value  = instance.formatDate(start, "Y-m-d");
+            den.value = instance.formatDate(end,   "Y-m-d");
+          }
+        }
+      });
+    }
+    // Nếu đã được init sẵn bởi template, ta vẫn bắt sự kiện change của input:
+    el.addEventListener('change', function(){
+      const parts = this.value.split(/\s+to\s+/i);
+      if (parts.length === 2) {
+        const isYmd = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+        tu.value = isYmd(parts[0]) ? parts[0] : '';
+        den.value = isYmd(parts[1]) ? parts[1] : '';
+      }
+    });
+  }
+})();
+</script>
+@endpush

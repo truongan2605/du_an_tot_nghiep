@@ -10,6 +10,7 @@ use App\Models\PhongImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\TimKiemPhongRequest;
 use Illuminate\Support\Facades\Storage;
 
 class PhongController extends Controller
@@ -169,4 +170,61 @@ class PhongController extends Controller
         // trở về trang trước (hoặc trả JSON nếu ajax)
         return back()->with('success','Xóa ảnh thành công');
     }
+public function timKiem(\App\Http\Requests\TimKiemPhongRequest $request)
+{
+    $tuNgay       = $request->input('tu_ngay');
+    $denNgay      = $request->input('den_ngay');
+    $soKhach      = $request->input('so_khach');
+    $loaiPhongId  = $request->input('loai_phong_id');         // có thể rỗng
+    $loaiPhongTxt = trim((string) $request->input('loai_phong_text')); // <- TEXT người dùng gõ
+    $giaTu        = $request->input('gia_tu');
+    $giaDen       = $request->input('gia_den');
+    $sapXep       = $request->input('sap_xep', 'gia_tang');
+    $perPage      = (int) $request->input('per_page', 15);
+
+    $query = \App\Models\Phong::query()
+        ->with('loaiPhong:id,ten_loai') // đổi đúng cột của bạn
+        ->select(['id','ten','mo_ta','so_nguoi_toi_da','loai_phong_id','gia_theo_dem','created_at'])
+        ->trongKhoangThoiGian($tuNgay, $denNgay)
+        // lọc theo số khách, id loại phòng, giá...
+        ->phuHopBoLoc($soKhach, $loaiPhongId, $giaTu, $giaDen)
+        // 🔥 luôn lọc theo text người dùng gõ (nếu có)
+        ->tuKhoa($loaiPhongTxt);
+
+    switch ($sapXep) {
+        case 'gia_giam': $query->orderByDesc('gia_theo_dem'); break;
+        case 'moi_nhat': $query->orderByDesc('id'); break;
+        case 'cu_nhat' : $query->orderBy('id'); break;
+        default        : $query->orderBy('gia_theo_dem'); break;
+    }
+
+    $paginator = $query->paginate($perPage);
+
+    $items = collect($paginator->items())->map(function ($p) {
+        return [
+            'id'              => $p->id,
+            'ten'             => $p->ten,
+            'mo_ta'           => $p->mo_ta,
+            'so_nguoi_toi_da' => $p->so_nguoi_toi_da,
+            'gia_theo_dem'    => $p->gia_theo_dem,
+            'loai_phong'      => $p->relationLoaded('loaiPhong') && $p->loaiPhong
+                                  ? ['id' => $p->loai_phong_id, 'ten' => $p->loaiPhong->ten_loai]
+                                  : null,
+            'created_at'      => optional($p->created_at)->toDateTimeString(),
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'data'    => $items,
+        'meta'    => [
+            'current_page' => $paginator->currentPage(),
+            'per_page'     => $paginator->perPage(),
+            'total'        => $paginator->total(),
+            'last_page'    => $paginator->lastPage(),
+        ],
+    ]);
+}
+
+
 }

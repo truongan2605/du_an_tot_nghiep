@@ -12,12 +12,14 @@ use App\Http\Controllers\Admin\TienNghiController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Client\WishlistController;
+use App\Http\Controllers\LoaiPhongGoiYController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
-
+Route::get('/phong/tim-kiem', [PhongController::class, 'timKiem'])->name('phong.tim_kiem');
+Route::get('/goi-y/loai-phong', LoaiPhongGoiYController::class)->name('goi_y.loai_phong');
 Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
