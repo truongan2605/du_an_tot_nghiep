@@ -14,38 +14,54 @@ use App\Http\Controllers\Controller;
 
 class StaffController extends Controller
 {
-    public function index()
-    {
-        $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
-        $todayCheckins = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereDate('ngay_nhan_phong', now()->toDateString())
-            ->count();
-        $todayRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereDate('ngay_nhan_phong', now()->toDateString())
-            ->sum('tong_tien');
-        $events = DatPhong::where('trang_thai', '!=', 'da_huy')
-            ->get()
-            ->map(function ($booking) {
-                return [
-                    'title' => "Booking {$booking->ma_tham_chieu}",
-                    'start' => $booking->ngay_nhan_phong,
-                    'end' => $booking->ngay_tra_phong,
-                ];
-            });
-        $recentActivities = DatPhong::where('trang_thai', '!=', 'dang_cho')
-            ->orderBy('updated_at', 'desc')
-            ->limit(5)
-            ->get();
+ public function index()
+{
+    $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
 
-        return view('staff.index', compact('pendingBookings', 'todayCheckins', 'todayRevenue', 'events', 'recentActivities'));
-    }
+    $todayCheckins = DatPhong::where('trang_thai', 'da_xac_nhan')
+        ->whereDate('ngay_nhan_phong', now()->toDateString())
+        ->count();
+
+    $todayRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
+        ->whereDate('ngay_nhan_phong', now()->toDateString())
+        ->sum('tong_tien');
+
+   
+    $events = DatPhong::where('trang_thai', '!=', 'da_huy')
+    
+        ->with('user') 
+        ->get()
+        ->map(function ($booking) {
+            return [
+                
+                'title' => $booking->ma_tham_chieu . ' - ' . ($booking->user->name ?? 'Khách ẩn danh'),
+                'start' => $booking->ngay_nhan_phong,
+                'end'   => $booking->ngay_tra_phong,
+            ];
+        });
+
+    $recentActivities = DatPhong::where('trang_thai', '!=', 'dang_cho')
+        ->orderBy('updated_at', 'desc')
+        ->limit(5)
+        ->get();
+
+    return view('staff.index', compact(
+        'pendingBookings',
+        'todayCheckins',
+        'todayRevenue',
+        'events',
+        'recentActivities'
+    ));
+}
+
     public function bookings()
     {
-        $bookings = DatPhong::where('trang_thai', 'dang_cho')->get();
+        $bookings = DatPhong::where('trang_thai', 'dang_cho')
+            ->with(['user', 'datPhongItems.loaiPhong'])
+             ->paginate(10);
         $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
         return view('staff.bookings', compact('bookings', 'availableRooms'));
     }
-
     public function confirm(Request $request, $id)
     {
         $request->validate(['phong_id' => 'nullable|exists:phong,id']);
@@ -82,13 +98,13 @@ class StaffController extends Controller
     protected function checkAvailability($phong_id, $start, $end)
     {
         $overlappingBookings = PhongDaDat::where('phong_id', $phong_id)
-                                        ->where('trang_thai', '!=', 'da_huy')
-                                        ->where('checkin_datetime', '<', $end)
-                                        ->where('checkout_datetime', '>', $start)
-                                        ->count();
+            ->where('trang_thai', '!=', 'da_huy')
+            ->where('checkin_datetime', '<', $end)
+            ->where('checkout_datetime', '>', $start)
+            ->count();
         $holds = GiuPhong::where('phong_id', $phong_id)
-                         ->where('het_han_luc', '>', now())
-                         ->count();
+            ->where('het_han_luc', '>', now())
+            ->count();
         return ($overlappingBookings + $holds) == 0;
     }
 

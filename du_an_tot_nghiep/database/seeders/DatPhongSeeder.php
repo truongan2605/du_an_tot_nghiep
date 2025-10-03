@@ -34,7 +34,7 @@ class DatPhongSeeder extends Seeder
         
         // 2. Đặt phòng Đã Xác Nhận (trong tương lai) - Thanh toán Chuyển khoản
         DatPhong::firstOrCreate(
-            ['ma_tham_chieu' => 'BOOK25092025A'],
+            ['ma_tham_chieu' => 'BOO025A'],
             [
                 'nguoi_dung_id' => $khachHangId,
                 'trang_thai' => 'da_xac_nhan',
@@ -55,7 +55,7 @@ class DatPhongSeeder extends Seeder
 
         // 3. Đặt phòng Hoàn Thành (trong quá khứ) - Thanh toán Tiền mặt
         DatPhong::firstOrCreate(
-            ['ma_tham_chieu' => 'BOOK15092025B'],
+            ['ma_tham_chieu' => 'BOOK2025B'],
             [
                 'nguoi_dung_id' => $khachHangId,
                 'trang_thai' => 'hoan_thanh',
@@ -77,6 +77,106 @@ class DatPhongSeeder extends Seeder
 
         // 4. Đặt phòng Đang Chờ (chờ xác nhận) - Thanh toán VNPay
         DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK002025C'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+        DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK051021'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+         DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK0510'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+        DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK0510'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+        DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK0510'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+         DatPhong::firstOrCreate(
             ['ma_tham_chieu' => 'BOOK05102025C'],
             [
                 'nguoi_dung_id' => $khachHangId,
@@ -97,7 +197,187 @@ class DatPhongSeeder extends Seeder
             ]
         );
         DatPhong::firstOrCreate(
-            ['ma_tham_chieu' => 'BOOK05102025C1'],
+            ['ma_tham_chieu' => 'BOO'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+        DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK05'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+         DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BO'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+        DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK051020'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+        DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK05'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+         DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK05102'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+         DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK05'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+         DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOOK05102'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+         DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOK05'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+         DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOO5102'],
             [
                 'nguoi_dung_id' => $khachHangId,
                 'trang_thai' => 'dang_cho',

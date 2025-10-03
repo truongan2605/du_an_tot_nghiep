@@ -41,6 +41,10 @@ class DatPhong extends Model
     ];
 
     // Relationships
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'nguoi_dung_id');
+    }
     public function nguoiDung()
     {
         return $this->belongsTo(User::class, 'nguoi_dung_id');
