@@ -4,13 +4,12 @@
 
 @section('content')
     @php
-        $gallery = $phong->images->values(); // all images
+        $gallery = $phong->images->values();
         $total = $gallery->count();
-        $main = $gallery->get(0); // main big image (may be null)
+        $main = $gallery->get(0); 
 
-        // images after main, then take up to 4 and reindex to 0..3
         $thumbsAll = $gallery->slice(1);
-        $thumbs = $thumbsAll->take(4)->values(); // <-- important: values() để reindex
+        $thumbs = $thumbsAll->take(4)->values();
         $thumbCount = $thumbs->count();
         $remaining = max(0, $total - 1 - $thumbCount);
     @endphp
@@ -105,7 +104,6 @@
                                         </div>
                                     </div>
 
-                                    {{-- hidden links so GLightbox includes the rest of images --}}
                                     @foreach ($gallery->slice(1 + $thumbCount) as $more)
                                         <a href="{{ Storage::url($more->image_path) }}" class="d-none glightbox"
                                             data-gallery="room-{{ $phong->id }}"></a>
@@ -256,7 +254,7 @@
                         </div>
                     </div>
 
-                    <!-- Customer Review (dynamic) -->
+                    <!-- Customer Review  -->
                     <div class="card bg-transparent">
                         <div class="card-header border-bottom bg-transparent px-0 pt-0">
                             <h3 class="card-title mb-0">Customer Review</h3>
@@ -267,7 +265,6 @@
                                 <div class="row g-4 align-items-center">
                                     <div class="col-md-4">
                                         <div class="text-center">
-                                            {{-- avgRating passed from controller; default to 0 --}}
                                             @php
                                                 $avg = isset($avgRating) ? floatval($avgRating) : 0.0;
                                                 $reviewCount = isset($reviews) ? $reviews->count() : 0;
