@@ -27,22 +27,23 @@ class StaffController extends Controller
         ->sum('tong_tien');
 
    
-    $events = DatPhong::where('trang_thai', '!=', 'da_huy')
-    
-        ->with('user') 
-        ->get()
-        ->map(function ($booking) {
-            return [
-                
-                'title' => $booking->ma_tham_chieu . ' - ' . ($booking->user->name ?? 'Khách ẩn danh'),
-                'start' => $booking->ngay_nhan_phong,
-                'end'   => $booking->ngay_tra_phong,
-            ];
-        });
+  $events = DatPhong::where('trang_thai', '!=', 'da_huy')
+    ->with('user')
+    ->get()
+    ->map(function ($booking) {
+        return [
+            'title' => 'BK-' . $booking->ma_tham_chieu, 
+            'start' => $booking->ngay_nhan_phong,
+            'end'   => $booking->ngay_tra_phong,
+            'description' => "Khách: " . ($booking->user->name ?? 'Ẩn danh') .
+                             " | Trạng thái: " . $booking->trang_thai
+        ];
+    });
+
 
     $recentActivities = DatPhong::where('trang_thai', '!=', 'dang_cho')
         ->orderBy('updated_at', 'desc')
-        ->limit(5)
+        ->limit(20)
         ->get();
 
     return view('staff.index', compact(
