@@ -13,15 +13,15 @@
 
 <body class="bg-light">
     @if (session('success'))
-            <div class="alert alert-success">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if (session('error'))
-            <div class="alert alert-danger">
-                {{ session('error') }}
-            </div>
-        @endif
+        <div class="alert alert-success">
+            {{ session('success') }}
+        </div>
+    @endif
+    @if (session('error'))
+        <div class="alert alert-danger">
+            {{ session('error') }}
+        </div>
+    @endif
     <div class="d-flex">
         <aside class="bg-dark shadow-sm p-3" style="width: 250px; min-height: 100vh;">
             <h4 class="text-white fw-bold">🏨 Hotel Manager</h4>
@@ -32,7 +32,9 @@
                     <a href="{{ route('staff.bookings') }}"
                         class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}">📋 Quản lý đặt
                         phòng</a>
+                        
                 @endif
+              
             </nav>
         </aside>
 

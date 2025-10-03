@@ -6,63 +6,62 @@ use App\Models\Phong;
 use App\Models\DatPhong;
 use App\Models\GiuPhong;
 use App\Models\PhongDaDat;
+use App\Models\DatPhongItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 
-
-
 class StaffController extends Controller
 {
- public function index()
-{
-    $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
+    public function index()
+    {
+        $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
 
-    $todayCheckins = DatPhong::where('trang_thai', 'da_xac_nhan')
-        ->whereDate('ngay_nhan_phong', now()->toDateString())
-        ->count();
+        $todayCheckins = DatPhong::where('trang_thai', 'da_xac_nhan')
+            ->whereDate('ngay_nhan_phong', now()->toDateString())
+            ->count();
 
-    $todayRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
-        ->whereDate('ngay_nhan_phong', now()->toDateString())
-        ->sum('tong_tien');
-
-   
-  $events = DatPhong::where('trang_thai', '!=', 'da_huy')
-    ->with('user')
-    ->get()
-    ->map(function ($booking) {
-        return [
-            'title' => 'BK-' . $booking->ma_tham_chieu, 
-            'start' => $booking->ngay_nhan_phong,
-            'end'   => $booking->ngay_tra_phong,
-            'description' => "Khách: " . ($booking->user->name ?? 'Ẩn danh') .
-                             " | Trạng thái: " . $booking->trang_thai
-        ];
-    });
+        $todayRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
+            ->whereDate('ngay_nhan_phong', now()->toDateString())
+            ->sum('tong_tien');
 
 
-    $recentActivities = DatPhong::where('trang_thai', '!=', 'dang_cho')
-        ->orderBy('updated_at', 'desc')
-        ->limit(20)
-        ->get();
+        $events = DatPhong::where('trang_thai', '!=', 'da_huy')
+            ->with('user')
+            ->get()
+            ->map(function ($booking) {
+                return [
+                    'title' => 'BK-' . $booking->ma_tham_chieu,
+                    'start' => $booking->ngay_nhan_phong,
+                    'end' => $booking->ngay_tra_phong,
+                    'description' => "Khách: " . ($booking->user->name ?? 'Ẩn danh') .
+                        " | Trạng thái: " . $booking->trang_thai
+                ];
+            });
 
-    return view('staff.index', compact(
-        'pendingBookings',
-        'todayCheckins',
-        'todayRevenue',
-        'events',
-        'recentActivities'
-    ));
-}
+
+        $recentActivities = DatPhong::where('trang_thai', '!=', 'dang_cho')
+            ->orderBy('updated_at', 'desc')
+            ->limit(20)
+            ->get();
+
+        return view('staff.index', compact(
+            'pendingBookings',
+            'todayCheckins',
+            'todayRevenue',
+            'events',
+            'recentActivities'
+        ));
+    }
 
     public function bookings()
-    {
-        $bookings = DatPhong::where('trang_thai', 'dang_cho')
-            ->with(['user', 'datPhongItems.loaiPhong'])
-             ->paginate(10);
-        $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
-        return view('staff.bookings', compact('bookings', 'availableRooms'));
-    }
+{
+    $bookings = DatPhong::whereIn('trang_thai', ['dang_cho', 'da_xac_nhan'])
+                        ->with(['user', 'datPhongItems.loaiPhong'])
+                        ->paginate(10);
+    $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
+    return view('staff.bookings', compact('bookings', 'availableRooms'));
+}
     public function confirm(Request $request, $id)
     {
         $request->validate(['phong_id' => 'nullable|exists:phong,id']);
@@ -71,7 +70,7 @@ class StaffController extends Controller
         if ($booking->trang_thai !== 'dang_cho') {
             return redirect()->back()->with('error', 'Booking không thể xác nhận.');
         }
-
+        
         DB::transaction(function () use ($booking, $request) {
             $booking->trang_thai = 'da_xac_nhan';
             $booking->save();
@@ -109,4 +108,58 @@ class StaffController extends Controller
         return ($overlappingBookings + $holds) == 0;
     }
 
+    public function assignRoomsForm($dat_phong_id)
+    {
+        $booking = DatPhong::findOrFail($dat_phong_id);
+        if ($booking->trang_thai !== 'da_xac_nhan') {
+            return redirect()->back()->with('error', 'Booking chưa được xác nhận.');
+        }
+
+        $items = DatPhongItem::where('dat_phong_id', $dat_phong_id)->with('loaiPhong')->get();
+        $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
+
+        return view('staff.assign-rooms', compact('booking', 'items', 'availableRooms'));
+    }
+    public function assignRooms(Request $request, $dat_phong_id)
+    {
+        $request->validate([
+            'assignments' => 'required|array|min:1',
+            'assignments.*.dat_phong_item_id' => 'required|exists:dat_phong_item,id',
+            'assignments.*.phong_id' => 'required|exists:phong,id',
+        ]);
+
+        $booking = DatPhong::findOrFail($dat_phong_id);
+        if ($booking->trang_thai !== 'da_xac_nhan') {
+            return redirect()->back()->with('error', 'Booking chưa được xác nhận.');
+        }
+
+        $assigned = [];
+        $conflicts = [];
+        DB::transaction(function () use ($request, $booking, &$assigned, &$conflicts) {
+            foreach ($request->assignments as $assign) {
+                $item = DatPhongItem::findOrFail($assign['dat_phong_item_id']);
+                if ($item->dat_phong_id !== $booking->id) {
+                    $conflicts[] = "Item ID {$assign['dat_phong_item_id']} không thuộc booking.";
+                    continue;
+                }
+
+                if ($this->checkAvailability($assign['phong_id'], $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
+                    PhongDaDat::create([
+                        'dat_phong_item_id' => $assign['dat_phong_item_id'],
+                        'phong_id' => $assign['phong_id'],
+                        'trang_thai' => 'da_dat',
+                        'checkin_datetime' => $booking->ngay_nhan_phong,
+                        'checkout_datetime' => $booking->ngay_tra_phong,
+                    ]);
+                    Phong::find($assign['phong_id'])->update(['trang_thai' => 'da_dat']);
+                    $assigned[] = "Item {$assign['dat_phong_item_id']} assigned to room {$assign['phong_id']}.";
+                } else {
+                    $conflicts[] = "Phòng {$assign['phong_id']} không khả dụng.";
+                }
+            }
+        });
+
+        $message = count($conflicts) > 0 ? 'Partial success: ' . implode(', ', $conflicts) : 'Tất cả đã được gán thành công.';
+        return redirect()->back()->with('success', $message)->with('conflicts', $conflicts);
+    }
 }

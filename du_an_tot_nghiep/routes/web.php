@@ -90,5 +90,9 @@ Route::middleware('auth')->prefix('account')
         Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
     });
 
+    Route::middleware(['auth', 'role:nhan_vien'])->prefix('staff')->group(function () {
+    Route::get('/assign-rooms-form/{dat_phong_id}', [StaffController::class, 'assignRoomsForm'])->name('staff.assign-rooms.form');
+    Route::post('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRooms'])->name('staff.assign-rooms');
+});
 
 require __DIR__ . '/auth.php';
