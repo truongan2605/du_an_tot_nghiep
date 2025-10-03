@@ -48,16 +48,18 @@
                     <h4 class="text-white">Admin Panel</h4>
                 </div>
                 <nav class="nav flex-column">
+                    <a class="nav-link" href="#">
+                        <i class="fas fa-chart-bar me-2"></i> Thống kê
+                    </a>
                     <a class="nav-link {{ request()->routeIs('admin.tien-nghi.*') ? 'active' : '' }}"
                         href="{{ route('admin.tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Tiện nghi
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}" href="{{ route('admin.phong.index') }}">
+                    <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}"
+                        href="{{ route('admin.phong.index') }}">
                         <i class="fas fa-bed me-2"></i> Phòng
                     </a>
-                    <a class="nav-link" href="#">
-                        <i class="fas fa-chart-bar me-2"></i> Thống kê
-                    </a>
+
                     <a class="nav-link {{ request()->routeIs('admin.tang.*') ? 'active' : '' }}"
                         href="{{ route('admin.tang.index') }}">
                         <i class="fas fa-layer-group me-2"></i> Quản Lý Tầng
@@ -80,14 +82,14 @@
             <!-- Main content -->
             <div class="col-md-10 main-content">
                 <div class="p-4">
-                    @if(session('success'))
+                    @if (session('success'))
                         <div class="alert alert-success alert-dismissible fade show" role="alert">
                             {{ session('success') }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
 
-                    @if(session('error'))
+                    @if (session('error'))
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             {{ session('error') }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>

@@ -6,19 +6,24 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
+use App\Http\Controllers\Client\RoomController;
 use App\Http\Controllers\Staff\StaffController;
 use App\Http\Controllers\Admin\VoucherController;
-
 use App\Http\Controllers\Admin\NhanVienController;
 use App\Http\Controllers\Admin\TienNghiController;
+use App\Http\Controllers\Client\ProfileController;
+use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\Client\WishlistController;
 
-// Trang chủ
-Route::get('/', function () {
-    return view('home');
-});
+
+
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
+Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.show');
+
+Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
 
 Route::prefix('admin')
     ->name('admin.')
@@ -70,4 +75,20 @@ Route::prefix('admin')
     Route::get('/bookings', [StaffController::class, 'bookings'])->name('staff.bookings');
     Route::post('/confirm-booking/{id}', [StaffController::class, 'confirm'])->name('staff.confirm');
 });
+Route::middleware('auth')->prefix('account')
+    ->name('account.')
+    ->group(function () {
+
+        Route::get('settings', function () {
+            return view('account.profile');
+        })->name('settings');
+        Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
+
+        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
+        Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+        Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+        Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
+    });
+
+
 require __DIR__ . '/auth.php';

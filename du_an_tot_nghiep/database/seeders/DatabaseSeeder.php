@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
             HotelSeeder::class,
             TienNghiSeeder::class,
             DatPhongSeeder::class, 
+            TangSeeder::class,
+            LoaiPhongSeeder::class,
+            PhongSeeder::class,
         ]);
     }
 }

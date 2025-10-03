@@ -15,6 +15,10 @@ class PasswordController extends Controller
      */
     public function update(Request $request): RedirectResponse
     {
+        if ($request->user()->provider) {
+            return back()->withErrors(['password' => 'Account used to log in ' . ucfirst($request->user()->provider) . '. Password cannot be changed here.']);
+        }
+
         $validated = $request->validateWithBag('updatePassword', [
             'current_password' => ['required', 'current_password'],
             'password' => ['required', Password::defaults(), 'confirmed'],
