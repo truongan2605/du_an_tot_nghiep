@@ -237,13 +237,16 @@ class StaffController extends Controller
         return redirect()->route('staff.rooms')->with('success', $message)->with('conflicts', $conflicts);
     }
 
-    public function rooms()
-    {
-        $rooms = PhongDaDat::where('trang_thai', 'da_dat')
-            ->with(['phong.tang', 'datPhongItem.datPhong.user', 'datPhongItem.loaiPhong'])
-            ->paginate(10);
-        return view('staff.rooms', compact('rooms'));
-    }
+   public function rooms()
+{
+  
+    $roomsQuery = PhongDaDat::where('trang_thai', 'da_dat')
+        ->with(['phong.tang', 'datPhongItem.datPhong.user', 'datPhongItem.loaiPhong']);
+    $rooms = $roomsQuery->orderBy('updated_at', 'desc')->paginate(10); 
+    $latestRoom = $roomsQuery->orderBy('updated_at', 'desc')->first();
+    return view('staff.rooms', compact('rooms', 'latestRoom'));
+}
+    
 
     public function cancel($id)
     {

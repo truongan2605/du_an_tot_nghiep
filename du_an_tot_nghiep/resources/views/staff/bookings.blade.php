@@ -10,6 +10,7 @@
                     <th>Mã Phòng Đã Gán</th>
                     <th>Khách Hàng</th>
                     <th>Trạng Thái</th>
+                    <th>Mã Tham Chiếu</th> {{-- thêm cột mới --}}
                     <th>Ngày Nhận</th>
                     <th class="text-center">Thao Tác</th>
                 </tr>
@@ -18,6 +19,8 @@
                 @foreach ($bookings as $booking)
                     <tr>
                         <td>{{ $booking->id }}</td>
+
+                        {{-- Mã phòng đã gán --}}
                         <td>
                             @php
                                 $roomCodes = [];
@@ -44,7 +47,11 @@
                                 <span class="text-muted">Chưa gán</span>
                             @endif
                         </td>
+
+                        {{-- Khách hàng --}}
                         <td>{{ $booking->nguoiDung->name ?? 'Ẩn danh' }}</td>
+
+                        {{-- Trạng thái --}}
                         <td>
                             @switch($booking->trang_thai)
                                 @case('dang_cho')
@@ -60,7 +67,14 @@
                                     <span class="badge bg-secondary">{{ $booking->trang_thai }}</span>
                             @endswitch
                         </td>
+
+                        {{-- Mã tham chiếu --}}
+                        <td>{{ $booking->ma_tham_chieu ?? 'Chưa có' }}</td>
+
+                        {{-- Ngày nhận --}}
                         <td>{{ $booking->ngay_nhan_phong }}</td>
+
+                        {{-- Thao tác --}}
                         <td class="text-center">
                             @if ($booking->trang_thai === 'dang_cho')
                                 <a href="{{ route('staff.pending-bookings') }}" class="btn btn-info btn-sm">Chi Tiết</a>
@@ -96,6 +110,7 @@
         </table>
     </div>
 
+    {{-- Pagination --}}
     <div class="d-flex justify-content-center mt-3">
         {{ $bookings->onEachSide(1)->links('pagination::bootstrap-5') }}
     </div>
