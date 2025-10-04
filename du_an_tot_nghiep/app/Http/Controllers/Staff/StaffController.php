@@ -55,13 +55,15 @@ class StaffController extends Controller
     }
 
     public function bookings()
-{
-    $bookings = DatPhong::whereIn('trang_thai', ['dang_cho', 'da_xac_nhan'])
-                        ->with(['user', 'datPhongItems.loaiPhong'])
-                        ->paginate(10);
-    $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
-    return view('staff.bookings', compact('bookings', 'availableRooms'));
-}
+    {
+        $bookings = DatPhong::whereIn('trang_thai', ['dang_cho', 'da_xac_nhan'])
+            ->with(['user', 'datPhongItems.loaiPhong'])
+            ->paginate(10);
+        $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
+        return view('staff.bookings', compact('bookings', 'availableRooms'));
+    }
+    
+    
     public function confirm(Request $request, $id)
     {
         $request->validate(['phong_id' => 'nullable|exists:phong,id']);
@@ -70,7 +72,7 @@ class StaffController extends Controller
         if ($booking->trang_thai !== 'dang_cho') {
             return redirect()->back()->with('error', 'Booking không thể xác nhận.');
         }
-        
+
         DB::transaction(function () use ($booking, $request) {
             $booking->trang_thai = 'da_xac_nhan';
             $booking->save();
@@ -79,7 +81,7 @@ class StaffController extends Controller
                 $phong_id = $request->phong_id;
                 if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
                     PhongDaDat::create([
-                        'dat_phong_item_id' => $booking->dat_phong_item_id, // Giả sử bạn có dat_phong_item_id, điều chỉnh nếu cần
+                        'dat_phong_item_id' => $booking->dat_phong_item_id, 
                         'phong_id' => $phong_id,
                         'trang_thai' => 'da_dat',
                         'checkin_datetime' => $booking->ngay_nhan_phong,
@@ -95,18 +97,20 @@ class StaffController extends Controller
         return redirect()->back()->with('success', 'Booking đã được xác nhận.');
     }
 
-    protected function checkAvailability($phong_id, $start, $end)
-    {
-        $overlappingBookings = PhongDaDat::where('phong_id', $phong_id)
-            ->where('trang_thai', '!=', 'da_huy')
-            ->where('checkin_datetime', '<', $end)
-            ->where('checkout_datetime', '>', $start)
-            ->count();
-        $holds = GiuPhong::where('phong_id', $phong_id)
-            ->where('het_han_luc', '>', now())
-            ->count();
-        return ($overlappingBookings + $holds) == 0;
-    }
+ protected function checkAvailability($phong_id, $start, $end)
+{
+    $currentTime = now();
+    $overlappingBookings = PhongDaDat::where('phong_id', $phong_id)
+        ->where('trang_thai', '!=', 'da_huy')
+        ->where('checkin_datetime', '<', $end)
+        ->where('checkout_datetime', '>', $start)
+        ->count();
+    $holds = GiuPhong::where('phong_id', $phong_id) 
+        ->where('het_han_luc', '>', $currentTime)
+        ->where('released', false) 
+        ->count();
+    return ($overlappingBookings + $holds) == 0;
+}
 
     public function assignRoomsForm($dat_phong_id)
     {
@@ -116,6 +120,9 @@ class StaffController extends Controller
         }
 
         $items = DatPhongItem::where('dat_phong_id', $dat_phong_id)->with('loaiPhong')->get();
+        if ($items->isEmpty()) {
+            return redirect()->back()->with('error', 'Không có item nào trong booking để gán phòng.');
+        }
         $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
 
         return view('staff.assign-rooms', compact('booking', 'items', 'availableRooms'));

@@ -14,6 +14,7 @@ class GiuPhong extends Model
     protected $fillable = [
         'dat_phong_id',
         'loai_phong_id',
+        'phong_id',
         'so_luong',
         'het_han_luc',
         'released',
@@ -37,7 +38,12 @@ class GiuPhong extends Model
     {
         return $this->belongsTo(LoaiPhong::class);
     }
-
+    
+    public function phong()
+    {
+        return $this->belongsTo(Phong::class, 'phong_id');
+    }
+    
     public function releasedBy()
     {
         return $this->belongsTo(User::class, 'released_by');

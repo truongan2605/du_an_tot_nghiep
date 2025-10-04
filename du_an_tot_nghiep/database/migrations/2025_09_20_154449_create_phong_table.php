@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
@@ -19,7 +19,7 @@ return new class extends Migration
             $table->integer('suc_chua');
             $table->integer('so_giuong');
             $table->decimal('gia_mac_dinh', 12, 2);
-            $table->enum('trang_thai', ['trong', 'dang_o', 'bao_tri', 'khong_su_dung'])->default('trong');
+            $table->enum('trang_thai', ['trong','da_dat', 'dang_o', 'bao_tri', 'khong_su_dung'])->default('trong');
             $table->timestamp('last_checked_at')->nullable();
             $table->timestamps();
         });
