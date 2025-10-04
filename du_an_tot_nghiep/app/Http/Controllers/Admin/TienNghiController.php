@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
 use App\Models\TienNghi;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -61,7 +61,12 @@ class TienNghiController extends Controller
      */
     public function show(TienNghi $tienNghi)
     {
-        return view('admin.tien-nghi.show', compact('tienNghi'));
+        $rooms = $tienNghi->phongs()
+            ->with(['loaiPhong', 'tang'])
+            ->orderBy('ma_phong')
+            ->paginate(12);
+
+        return view('admin.tien-nghi.show', compact('tienNghi', 'rooms'));
     }
 
     /**
@@ -134,3 +139,4 @@ class TienNghiController extends Controller
             ->with('success', "Tiện nghi đã được {$status} thành công!");
     }
 }
+

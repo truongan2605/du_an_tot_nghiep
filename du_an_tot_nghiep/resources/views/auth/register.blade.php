@@ -1,10 +1,9 @@
-
 @extends('layouts.auth')
 
 @section('title', 'Sign-up')
 
 @section('content')
-    <section class="vh-xxl-100" style="margin-bottom: 50px">
+    <section class="vh-xxl-100">
         <div class="container h-100 d-flex px-0 px-sm-4">
             <div class="row justify-content-center align-items-center m-auto">
                 <div class="col-12">
@@ -18,6 +17,7 @@
                                 <div class="vr opacity-1 d-none d-lg-block"></div>
                             </div>
 
+                            <!-- Form -->
                             <div class="col-lg-6 order-1">
                                 <div class="p-4 p-sm-6">
                                     <a href="{{ url('/') }}">
@@ -63,10 +63,17 @@
                                         </div>
 
                                         <!-- Password -->
-                                        <div class="mb-3 position-relative">
+                                        <div class="mb-3">
                                             <label class="form-label">Enter password</label>
-                                            <input name="password" class="form-control fakepassword" type="password"
-                                                required>
+                                            <div class="input-group">
+                                                <input id="password" name="password"
+                                                    class="form-control @error('password') is-invalid @enderror"
+                                                    type="password" required>
+                                                <button type="button" class="btn btn-outline-secondary"
+                                                    id="togglePassword">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
                                             @error('password')
                                                 <div class="invalid-feedback d-block">{{ $message }}</div>
                                             @enderror
@@ -75,19 +82,58 @@
                                         <!-- Confirm Password -->
                                         <div class="mb-3">
                                             <label class="form-label">Confirm Password</label>
-                                            <input type="password" name="password_confirmation" class="form-control"
-                                                required>
+                                            <div class="input-group">
+                                                <input id="password_confirmation" type="password"
+                                                    name="password_confirmation" class="form-control" required>
+                                                <button type="button" class="btn btn-outline-secondary"
+                                                    id="toggleConfirmPassword">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <!-- Button -->
-                                        <div><button type="submit" class="btn btn-primary w-100 mb-0">Sign up</button>
+                                        <div>
+                                            <button type="submit" class="btn btn-primary w-100 mb-0">Sign up</button>
+                                        </div>
+
+                                        <div class="position-relative my-4">
+                                            <hr>
+                                            <p
+                                                class="small bg-mode position-absolute top-50 start-50 translate-middle px-2">
+                                                Or sign in with</p>
+                                        </div>
+
+                                        <!-- Google and facebook button -->
+                                        <div class="vstack gap-3">
+                                            <a href="{{ route('auth.google') }}" class="btn btn-light mb-0">
+                                                <i class="fab fa-fw fa-google text-google-icon me-2"></i>Sign in with Google
+                                            </a>
                                         </div>
                                     </form>
 
+                                    <!-- Script -->
                                     <script>
-                                        document.getElementById('registerForm')?.addEventListener('submit', function() {
-                                            console.log('register form submit fired');
-                                        });
+                                        function togglePassword(inputId, buttonId) {
+                                            const input = document.getElementById(inputId);
+                                            const button = document.getElementById(buttonId);
+                                            const icon = button.querySelector("i");
+
+                                            button.addEventListener('click', function() {
+                                                if (input.type === "password") {
+                                                    input.type = "text";
+                                                    icon.classList.remove("bi-eye");
+                                                    icon.classList.add("bi-eye-slash");
+                                                } else {
+                                                    input.type = "password";
+                                                    icon.classList.remove("bi-eye-slash");
+                                                    icon.classList.add("bi-eye");
+                                                }
+                                            });
+                                        }
+
+                                        togglePassword("password", "togglePassword");
+                                        togglePassword("password_confirmation", "toggleConfirmPassword");
                                     </script>
 
                                 </div>
@@ -96,7 +142,6 @@
                     </div>
                 </div>
             </div>
->>>>>>> 86c048d6bedd18fb46d06d6d52884cd1278fe019
         </div>
     </section>
 @endsection

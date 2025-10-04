@@ -2,14 +2,15 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\NguoiDung;
 use App\Models\Tang;
-use App\Models\LoaiPhong;
+use App\Models\User;
 use App\Models\Phong;
 use App\Models\TienNghi;
+use App\Models\LoaiPhong;
+
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
 class HotelSeeder extends Seeder
 {
@@ -19,29 +20,31 @@ class HotelSeeder extends Seeder
     public function run(): void
     {
         // Tạo admin
-        NguoiDung::create([
-            'ten' => 'Admin',
+        User::create([
+            'name' => 'Admin',
             'email' => 'admin@hotel.com',
-            'mat_khau_hash' => Hash::make('password'),
+            'password' => Hash::make('password'),
             'vai_tro' => 'admin',
             'is_active' => true,
         ]);
 
         // Tạo nhân viên
-        NguoiDung::create([
-            'ten' => 'Nhân viên lễ tân',
+        User::create([
+            'name' => 'Nhân viên lễ tân',
             'email' => 'staff@hotel.com',
-            'mat_khau_hash' => Hash::make('password'),
+            'password' => Hash::make('password'),
             'vai_tro' => 'nhan_vien',
             'phong_ban' => 'Lễ tân',
             'is_active' => true,
         ]);
 
+
+
         // Tạo khách hàng
-        NguoiDung::create([
-            'ten' => 'Khách hàng mẫu',
+        User::create([
+            'name' => 'Khách hàng mẫu',
             'email' => 'customer@example.com',
-            'mat_khau_hash' => Hash::make('password'),
+            'password' => Hash::make('password'),
             'vai_tro' => 'khach_hang',
             'is_active' => true,
         ]);
@@ -126,8 +129,9 @@ class HotelSeeder extends Seeder
         ]);
 
         // Tạo phòng
+        $phongStd = [];
         for ($i = 1; $i <= 5; $i++) {
-            Phong::create([
+            $phongStd[] = Phong::create([
                 'ma_phong' => '20' . $i,
                 'loai_phong_id' => $loaiPhong1->id,
                 'tang_id' => $tang2->id,
@@ -138,8 +142,9 @@ class HotelSeeder extends Seeder
             ]);
         }
 
+        $phongDlx = [];
         for ($i = 1; $i <= 4; $i++) {
-            Phong::create([
+            $phongDlx[] = Phong::create([
                 'ma_phong' => '30' . $i,
                 'loai_phong_id' => $loaiPhong2->id,
                 'tang_id' => $tang3->id,
@@ -150,8 +155,9 @@ class HotelSeeder extends Seeder
             ]);
         }
 
+        $phongSuite = [];
         for ($i = 1; $i <= 2; $i++) {
-            Phong::create([
+            $phongSuite[] = Phong::create([
                 'ma_phong' => '40' . $i,
                 'loai_phong_id' => $loaiPhong3->id,
                 'tang_id' => $tang3->id,
@@ -160,6 +166,24 @@ class HotelSeeder extends Seeder
                 'gia_mac_dinh' => 1500000,
                 'trang_thai' => 'trong',
             ]);
+        }
+
+        // Gán tiện nghi cho phòng
+        $wifi = $tienNghi1; // WiFi miễn phí
+        $ac = $tienNghi2;   // Điều hòa
+        $tv = $tienNghi3;   // TV
+        $fridge = $tienNghi4; // Tủ lạnh mini
+
+        foreach ($phongStd as $phong) {
+            $phong->tienNghis()->syncWithoutDetaching([$wifi->id, $ac->id, $tv->id]);
+        }
+
+        foreach ($phongDlx as $phong) {
+            $phong->tienNghis()->syncWithoutDetaching([$wifi->id, $ac->id, $tv->id, $fridge->id]);
+        }
+
+        foreach ($phongSuite as $phong) {
+            $phong->tienNghis()->syncWithoutDetaching([$wifi->id, $ac->id, $tv->id, $fridge->id]);
         }
     }
 }

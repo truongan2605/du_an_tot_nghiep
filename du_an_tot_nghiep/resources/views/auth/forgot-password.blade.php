@@ -27,6 +27,12 @@
                                     <h1 class="mb-2 h3">Forgot password?</h1>
                                     <p class="mb-sm-0">Enter the email address associated with an account.</p>
 
+                                    @if (session('status'))
+                                        <div class="alert alert-success">
+                                            {{ session('status') }}
+                                        </div>
+                                    @endif
+
                                     <!-- Form START -->
                                     <form class="mt-sm-4 text-start" method="POST" action="{{ route('password.email') }}">
                                         @csrf

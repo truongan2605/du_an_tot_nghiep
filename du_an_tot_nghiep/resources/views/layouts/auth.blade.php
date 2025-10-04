@@ -41,22 +41,37 @@
     <link rel="stylesheet" href="{{ asset('template/stackbros/assets/css/style.css') }}">
 
     <style>
+        /* Topbar */
         .auth-topbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem .75rem;
+            padding: 0.75rem 1rem;
+            background: transparent;
+            position: relative;
+            z-index: 10;
+            border-bottom: 1px solid rgba(0,0,0,0.04);
         }
-        .auth-home-btn {
-            min-width: 140px;
+
+        .auth-main {
+            padding-top: 1.5rem;
+            padding-bottom: 2.5rem;
+            min-height: calc(100vh - 72px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
         }
-        .auth-home-fab {
-            position: fixed;
-            left: 1rem;
-            top: 1rem;
-            z-index: 1050;
-            border-radius: 999px;
-            padding: .5rem .65rem;
+
+        .auth-card {
+            width: 100%;
+            max-width: 560px;
+            box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        @media (max-width: 576px) {
+            .auth-topbar { padding: .5rem .5rem; }
+            .auth-main { padding-top: .75rem; padding-bottom: 1.5rem; }
         }
     </style>
 
@@ -79,7 +94,7 @@
         </div>
     </div>
 
-    <main>
+    <main class="auth-main">
         @yield('content')
     </main>
 

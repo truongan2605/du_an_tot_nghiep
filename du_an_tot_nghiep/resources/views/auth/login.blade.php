@@ -4,7 +4,7 @@
 
 @section('content')
     <section class="vh-xxl-100">
-        <div class="container h-100 d-flex px-0 px-sm-4" style="padding-bottom: 500px">
+        <div class="container h-100 d-flex px-0 px-sm-4">
             <div class="row justify-content-center align-items-center m-auto">
                 <div class="col-12">
                     <div class="bg-mode shadow rounded-3 overflow-hidden">
@@ -32,6 +32,13 @@
                                     <!-- Form START -->
                                     <form class="mt-4 text-start" method="POST" action="{{ route('login') }}">
                                         @csrf
+
+                                        <!-- Hiển thị lỗi từ session (khi logout từ toggle) -->
+                                        @if (session('error'))
+                                            <div class="alert alert-danger mb-3">
+                                                {{ session('error') }}
+                                            </div>
+                                        @endif
 
                                         <!-- Email -->
                                         <div class="mb-3">
@@ -67,7 +74,19 @@
                                         <!-- Button -->
                                         <div><button type="submit" class="btn btn-primary w-100 mb-0">Login</button></div>
 
+                                        <div class="position-relative my-4">
+                                            <hr>
+                                            <p
+                                                class="small bg-mode position-absolute top-50 start-50 translate-middle px-2">
+                                                Or sign in with</p>
+                                        </div>
 
+                                        <!-- Google and facebook button -->
+                                        <div class="vstack gap-3" >
+                                            <a href="{{ route('auth.google') }}" class="btn btn-light mb-0">
+                                                <i class="fab fa-fw fa-google text-google-icon me-2"></i>Sign in with Google
+                                            </a>
+                                        </div>
                                     </form>
                                     <!-- Form END -->
                                 </div>
@@ -78,5 +97,4 @@
             </div>
         </div>
     </section>
-
 @endsection
