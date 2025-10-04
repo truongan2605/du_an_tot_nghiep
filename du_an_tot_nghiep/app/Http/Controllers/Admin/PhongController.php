@@ -41,8 +41,7 @@ class PhongController extends Controller
         'gia_mac_dinh' => 'required|numeric|min:0',
         'images' => 'nullable|array',
         'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
-        'tien_nghi' => 'nullable|array',
-        'tien_nghi.*' => 'exists:tien_nghi,id'
+        
     ]);
 
     DB::beginTransaction();
@@ -77,20 +76,20 @@ class PhongController extends Controller
     }
 }
 
-    public function edit(Phong $phong)
+   public function edit($id)
 {
+    $phong = Phong::with(['images','tienNghis','loaiPhong','tang'])->findOrFail($id);
     $loaiPhongs = LoaiPhong::all();
     $tangs = Tang::all();
     $tienNghis = TienNghi::where('active', true)->get();
-    $phong->load(['images','tienNghis']);
 
     return view('admin.phong.edit', compact('phong','loaiPhongs','tangs','tienNghis'));
 }
 
- public function update(Request $request, Phong $phong)
+public function update(Request $request, $id)
 {
     $request->validate([
-        'ma_phong' => 'required|unique:phong,ma_phong,' . $phong->id,
+        'ma_phong' => 'required|unique:phong,ma_phong,'.$id,
         'loai_phong_id' => 'required|integer',
         'tang_id' => 'required|integer',
         'suc_chua' => 'required|integer|min:1',
@@ -104,6 +103,8 @@ class PhongController extends Controller
 
     DB::beginTransaction();
     try {
+        $phong = Phong::findOrFail($id);
+
         $data = $request->only([
             'ma_phong','loai_phong_id','tang_id',
             'suc_chua','so_giuong','gia_mac_dinh','trang_thai'
@@ -111,7 +112,7 @@ class PhongController extends Controller
 
         $phong->update($data);
 
-        // Nếu có ảnh mới: thêm vào bảng phong_images (không xóa ảnh cũ)
+        // upload ảnh mới (nếu có)
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $file) {
                 $path = $file->store('uploads/phong', 'public');
@@ -119,32 +120,45 @@ class PhongController extends Controller
             }
         }
 
-        // Cập nhật tiện nghi (ghi đè các tiện nghi cũ)
+        // update tiện nghi
         if ($request->has('tien_nghi')) {
             $phong->tienNghis()->sync($request->tien_nghi);
-        } else {
-            $phong->tienNghis()->sync([]); // nếu không chọn gì thì clear hết
         }
 
         DB::commit();
-        return redirect()->route('admin.phong.index')->with('success','Cập nhật phòng thành công');
+        return redirect()->route('admin.phong.index')
+                         ->with('success','Cập nhật phòng thành công');
     } catch (\Throwable $e) {
         DB::rollBack();
-        return back()->withInput()->withErrors(['error' => 'Lỗi cập nhật: '.$e->getMessage()]);
+        return back()->withInput()
+                     ->withErrors(['error' => 'Lỗi cập nhật phòng: '.$e->getMessage()]);
     }
 }
 
- public function show($id)
+
+public function show($id)
 {
-    $phong = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis'])->findOrFail($id);
-    return view('admin.phong.show', compact('phong'));
+    $phong = Phong::with(['loaiPhong.tiennghis', 'tiennghis'])->findOrFail($id);
+
+    // Tiện nghi mặc định từ loại phòng
+    $tienNghiLoaiPhong = $phong->loaiPhong->tiennghis ?? collect();
+
+    // Tiện nghi riêng của phòng
+    $tienNghiPhong = $phong->tiennghis ?? collect();
+
+    return view('admin.phong.show', compact('phong', 'tienNghiLoaiPhong', 'tienNghiPhong'));
 }
 
 
 
-    public function destroy(Phong $phong)
-    {
-        // xóa file ảnh trên disk + record ảnh
+   public function destroy(Phong $phong)
+{
+    DB::beginTransaction();
+    try {
+        // Xóa quan hệ tiện nghi trước
+        $phong->tienNghis()->detach();
+
+        // Xóa ảnh
         foreach ($phong->images as $img) {
             if (Storage::disk('public')->exists($img->image_path)) {
                 Storage::disk('public')->delete($img->image_path);
@@ -152,9 +166,17 @@ class PhongController extends Controller
             $img->delete();
         }
 
+        // Xóa phòng
         $phong->delete();
-        return redirect()->route('admin.phong.index')->with('success','Xóa phòng thành công');
+
+        DB::commit();
+        return redirect()->route('admin.phong.index')
+                         ->with('success','Xóa phòng thành công');
+    } catch (\Throwable $e) {
+        DB::rollBack();
+        return back()->withErrors(['error' => 'Lỗi xóa: '.$e->getMessage()]);
     }
+}
 
     // Xóa 1 ảnh riêng biệt (không xóa phòng)
     public function destroyImage(PhongImage $image)

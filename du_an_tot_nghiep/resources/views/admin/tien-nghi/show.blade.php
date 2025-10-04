@@ -97,7 +97,7 @@
                     </form>
                     
                     <form action="{{ route('admin.tien-nghi.destroy', $tienNghi) }}" 
-                          method="POST" 
+                           method="POST" 
                           onsubmit="return confirm('Bạn có chắc chắn muốn xóa tiện nghi này?')">
                         @csrf
                         @method('DELETE')

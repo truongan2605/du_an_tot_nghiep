@@ -30,6 +30,25 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
+{{-- <div class="mb-3">
+    <label for="gia" class="form-label">Giá tiện nghi</label>
+    <input type="number" step="0.01" name="gia" id="gia" class="form-control"
+           value="{{ old('gia', isset($tiennghi) ? $tiennghi->gia : '') }}"required>
+</div> --}}
+ 
+                 <div class="mb-3">
+    <label for="gia" class="form-label">Giá <span class="text-danger">*</span></label>
+    <input type="text" 
+           class="form-control @error('gia') is-invalid @enderror" 
+           id="gia" 
+           name="gia" 
+           value="{{ old('gia', number_format($tienNghi->gia, 0, ',', '.')) }}"
+           required>
+    @error('gia')
+        <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+</div>
+
 
                     <div class="mb-3">
                         <label for="mo_ta" class="form-label">Mô tả</label>

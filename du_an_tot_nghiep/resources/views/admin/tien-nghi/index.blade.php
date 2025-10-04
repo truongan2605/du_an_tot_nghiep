@@ -20,6 +20,7 @@
                             <th>ID</th>
                             <th>Icon</th>
                             <th>Tên tiện nghi</th>
+                            <th>giá</th>
                             <th>Mô tả</th>
                             <th>Trạng thái</th>
                             <th>Ngày tạo</th>
@@ -41,6 +42,7 @@
                                 @endif
                             </td>
                             <td>{{ $tienNghi->ten }}</td>
+                            <td>{{ number_format($tienNghi->gia, 0, ',', '.') }}</td>
                             <td>{{ Str::limit($tienNghi->mo_ta, 50) }}</td>
                             <td>
                                 <span class="badge {{ $tienNghi->active ? 'bg-success' : 'bg-secondary' }}">

@@ -21,6 +21,8 @@
                 <th>Tầng</th>
                 <th>Giá</th>
                 <th>Ảnh</th>
+                
+                <th>Tổng giá phòng</th>
                 <th>Hành động</th>
             </tr>
         </thead>
@@ -39,6 +41,7 @@
                         <span class="text-muted">Chưa có ảnh</span>
                     @endif
                 </td>
+                 <td>{{ number_format($p->tong_gia, 0, ',', '.') }} VNĐ</td>
                 <td> 
                     <a href="{{ route('admin.phong.show', $p->id) }}" class="btn btn-info btn-sm">Xem</a>
                     <a href="{{ route('admin.phong.edit', $p->id) }}" class="btn btn-sm btn-warning">Sửa</a>

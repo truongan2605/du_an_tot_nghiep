@@ -29,6 +29,12 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
+<div class="mb-3">
+    <label for="gia" class="form-label">Giá tiện nghi</label>
+    <input type="number" step="0.01" name="gia" id="gia" 
+           value="{{ old('gia', $tiennghi->gia ?? '') }}" 
+           class="form-control">
+</div>
 
                     <div class="mb-3">
                         <label for="mo_ta" class="form-label">Mô tả</label>

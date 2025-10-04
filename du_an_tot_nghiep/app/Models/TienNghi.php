@@ -11,12 +11,14 @@ class TienNghi extends Model
 
     protected $table = 'tien_nghi';
 
-    protected $fillable = [
-        'ten',
-        'mo_ta',
-        'icon',
-        'active',
-    ];
+protected $fillable = [
+    'ten',
+    'mo_ta',
+    'icon',
+    'active',
+    'gia',   // thêm dòng này
+];
+
 
     protected $casts = [
         'active' => 'boolean',

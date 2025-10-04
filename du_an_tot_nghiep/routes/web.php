@@ -3,6 +3,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\PhongController;
+use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
 Route::get('/', function () {
@@ -22,7 +23,12 @@ Route::prefix('admin')
         Route::resource('phong', PhongController::class);
         Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
             ->name('phong.image.destroy');
+
+        // loai phong 
+        Route::resource('loai_phong', LoaiPhongController::class);
+        
     });
+    Route::get('/admin/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
 
 
 require __DIR__.'/auth.php';

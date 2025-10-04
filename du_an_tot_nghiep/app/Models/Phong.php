@@ -61,5 +61,30 @@ public function firstImagePath()
     return $img ? $img->image_path : null;
 }
 
+public function getTongGiaAttribute()
+{
+    $tong = 0;
+
+    // Giá mặc định của phòng
+    $tong += $this->gia_mac_dinh ?? 0;
+
+    // Giá loại phòng (nếu có cột 'gia')
+    if ($this->loaiPhong && isset($this->loaiPhong->gia)) {
+        $tong += $this->loaiPhong->gia;
+    }
+
+    // Tiện nghi của phòng (bổ sung)
+    if ($this->tienNghis) {
+        $tong += $this->tienNghis->sum('gia');
+    }
+
+    // Nếu loại phòng cũng có tiện nghi riêng → cộng thêm
+    if ($this->loaiPhong && method_exists($this->loaiPhong, 'tienNghis')) {
+        $tong += $this->loaiPhong->tienNghis->sum('gia');
+    }
+
+    return $tong;
+}
+
 
 }
