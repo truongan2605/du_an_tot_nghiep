@@ -1,85 +1,61 @@
 @extends('layouts.staff')
-
-@section('title', 'Danh Sách Booking Chờ Xác Nhận')
-
 @section('content')
-    <div class="p-4">
-        <div class="card shadow border-0">
-            <div class="card-header bg-primary text-white fw-bold">
-                Danh Sách Booking Chờ Xác Nhận
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Tên Khách Hàng</th>
-                                <th>SĐT</th>
-                                <th>Loại Phòng</th>
-                                <th>Ngày Nhận</th>
-                                <th>Ngày Trả</th>
-                                <th>Trạng Thái</th>
-                                <th>Mã Tham Chiếu</th>
-                                <th>Tổng Tiền</th>
-                                <th>Assign Phòng</th>
-                                <th class="text-center">Thao Tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($bookings as $booking)
-                                <tr>
-                                    <td>{{ $booking->user->name ?? 'Khách ẩn danh' }}</td>
-                                    <td>{{ $booking->user->so_dien_thoai ?? 'N/A' }}</td>
-                                    <td>
-                                        @foreach ($booking->datPhongItems as $item)
-                                            <span
-                                                class="badge bg-info text-dark mb-1">{{ $item->loaiPhong->ten ?? 'N/A' }}</span><br>
-                                        @endforeach
-                                    </td>
-                                    <td>{{ $booking->ngay_nhan_phong }}</td>
-                                    <td>{{ $booking->ngay_tra_phong }}</td>
-                                    <td>
-                                        <span class="badge bg-warning text-dark">
-                                            {{ $booking->trang_thai }}
-                                        </span>
-                                    </td>
-                                    <td><span class="fw-bold">{{ $booking->ma_tham_chieu }}</span></td>
-                                    <td class="text-success fw-bold">{{ number_format($booking->tong_tien, 0) }} VND</td>
-                                    <td>
-                                        <select name="phong_id" class="form-select form-select-sm">
-                                            <option value="">Không assign</option>
-                                            @foreach ($availableRooms as $room)
-                                                <option value="{{ $room->id }}">
-                                                    Phòng {{ $room->ma_phong }} (Tầng {{ $room->tang->ten }} - Loại
-                                                    {{ $room->loaiPhong->ten }})
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="btn-group" role="group" aria-label="Thao tác">
-                                            @if ($booking->trang_thai === 'dang_cho')
-                                                <form action="{{ route('staff.confirm', $booking->id) }}" method="POST">
-                                                    @csrf
-                                                    <button type="submit" class="btn btn-primary">Xác Nhận</button>
-                                                </form>
-                                            @elseif ($booking->trang_thai === 'da_xac_nhan')
-                                                <a href="{{ route('staff.assign-rooms.form', $booking->id) }}"
-                                                    class="btn btn-secondary">Gán Phòng</a>
-                                            @endif
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+    <h2 class="text-center mb-4">Tổng Quan Booking</h2>
 
+    <div class="table-responsive">
+        <table class="table table-striped table-hover table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Khách Hàng</th>
+                    <th>Trạng Thái</th>
+                    <th>Ngày Nhận</th>
+                    <th class="text-center">Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($bookings as $booking)
+                    <tr>
+                        <td>{{ $booking->id }}</td>
+                        <td>{{ $booking->user->name ?? 'Ẩn danh' }}</td>
+                        <td>
+                            @switch($booking->trang_thai)
+                                @case('dang_cho')
+                                    <span class="badge bg-warning text-dark">Chờ XN</span>
+                                    @break
+                                @case('da_xac_nhan')
+                                    <span class="badge bg-primary">Đã XN</span>
+                                    @break
+                                @case('da_gan_phong')
+                                    <span class="badge bg-success">Đã Gán Phòng</span>
+                                    @break
+                                @default
+                                    <span class="badge bg-secondary">{{ $booking->trang_thai }}</span>
+                            @endswitch
+                        </td>
+                        <td>{{ $booking->ngay_nhan_phong }}</td>
+                        <td class="text-center">
+                            @if ($booking->trang_thai === 'dang_cho')
+                                <a href="{{ route('staff.pending-bookings') }}" class="btn btn-info btn-sm">Danh Sách</a>
+                                <form action="{{ route('staff.confirm', $booking->id) }}" method="POST" style="display:inline;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-primary btn-sm ms-2">Xác Nhận</button>
+                                </form>
+                            @elseif ($booking->trang_thai === 'da_xac_nhan')
+                                <a href="{{ route('staff.assign-rooms', $booking->id) }}" class="btn btn-warning btn-sm">Gán Phòng</a>
+                            @elseif ($booking->trang_thai === 'da_gan_phong')
+                                <a href="{{ route('staff.rooms') }}" class="btn btn-success btn-sm">Xem Tình Trạng</a>
+                            @else
+                                <span class="text-muted">Không có hành động</span>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
 
-                <div class="d-flex justify-content-center mt-3">
-                    {{ $bookings->links('pagination::bootstrap-5') }}
-                </div>
-            </div>
-        </div>
+    <div class="d-flex justify-content-center mt-3">
+        {{ $bookings->onEachSide(1)->links('pagination::bootstrap-5') }}
     </div>
 @endsection

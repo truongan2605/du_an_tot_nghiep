@@ -28,13 +28,16 @@
             <nav class="nav flex-column mt-4">
                 @if (Auth::check() && Auth::user()->vai_tro === 'nhan_vien')
                     <a href="{{ route('staff.index') }}"
-                        class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}">📊 Dashboard</a>
+                        class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}">Dashboard</a>
                     <a href="{{ route('staff.bookings') }}"
-                        class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}">📋 Quản lý đặt
+                        class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}"> Tổng quan booking</a>
+                    <a href="{{ route('staff.pending-bookings') }}"
+                        class="nav-link {{ request()->routeIs('staff.pending-bookings') ? 'active' : '' }}"> Quản lý đặt
                         phòng</a>
-                        
+                    <a href="{{ route('staff.rooms') }}"
+                        class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"> Danh sách trạng thái phòng</a>
                 @endif
-              
+
             </nav>
         </aside>
 

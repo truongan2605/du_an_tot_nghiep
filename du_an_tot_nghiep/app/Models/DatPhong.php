@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Foundation\Auth\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class DatPhong extends Model
 {
@@ -32,8 +35,8 @@ class DatPhong extends Model
     ];
 
     protected $casts = [
-        'ngay_nhan_phong' => 'date',
-        'ngay_tra_phong' => 'date',
+        'ngay_nhan_phong' => 'datetime',
+        'ngay_tra_phong' => 'datetime',
         'tong_tien' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'snapshot_total' => 'decimal:2',
@@ -41,53 +44,66 @@ class DatPhong extends Model
     ];
 
     // Relationships
-    public function user()
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'nguoi_dung_id');
-    }
-    public function nguoiDung()
-    {
-        return $this->belongsTo(User::class, 'nguoi_dung_id');
+        return $this->belongsTo(Authenticatable::class, 'nguoi_dung_id');
     }
 
-    public function createdBy()
+    public function nguoiDung(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(Authenticatable::class, 'nguoi_dung_id');
     }
 
-    public function datPhongItems()
+    public function createdBy(): BelongsTo
     {
-        return $this->hasMany(DatPhongItem::class);
+        return $this->belongsTo(Authenticatable::class, 'created_by');
     }
 
-    public function datPhongAddons()
+    public function datPhongItems(): HasMany
     {
-        return $this->hasMany(DatPhongAddon::class);
+        return $this->hasMany(DatPhongItem::class, 'dat_phong_id');
     }
 
-    public function giaoDichs()
+    public function datPhongAddons(): HasMany
     {
-        return $this->hasMany(GiaoDich::class);
+        return $this->hasMany(DatPhongAddon::class, 'dat_phong_id');
     }
 
-    public function danhGias()
+    public function giaoDichs(): HasMany
     {
-        return $this->hasMany(DanhGia::class);
+        return $this->hasMany(GiaoDich::class, 'dat_phong_id');
     }
 
-    public function giuPhongs()
+    public function danhGias(): HasMany
     {
-        return $this->hasMany(GiuPhong::class);
+        return $this->hasMany(DanhGia::class, 'dat_phong_id');
     }
 
-    public function hoaDons()
+    public function giuPhongs(): HasMany
     {
-        return $this->hasMany(HoaDon::class);
+        return $this->hasMany(GiuPhong::class, 'dat_phong_id');
     }
 
-    public function voucherUsages()
+    public function hoaDons(): HasMany
     {
-        return $this->hasMany(VoucherUsage::class);
+        return $this->hasMany(HoaDon::class, 'dat_phong_id');
+    }
+
+    public function voucherUsages(): HasMany
+    {
+        return $this->hasMany(VoucherUsage::class, 'dat_phong_id');
+    }
+
+    public function phongDaDats(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            PhongDaDat::class,
+            DatPhongItem::class,
+            'dat_phong_id', 
+            'dat_phong_item_id', 
+            'id', 
+            'id' 
+        )->with('phong'); 
     }
 
     // Scopes
@@ -99,6 +115,11 @@ class DatPhong extends Model
     public function scopeDaXacNhan($query)
     {
         return $query->where('trang_thai', 'da_xac_nhan');
+    }
+
+    public function scopeDaGanPhong($query)
+    {
+        return $query->where('trang_thai', 'da_gan_phong');
     }
 
     public function scopeDaNhanPhong($query)

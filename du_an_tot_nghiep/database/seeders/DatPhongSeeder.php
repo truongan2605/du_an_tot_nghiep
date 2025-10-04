@@ -456,5 +456,45 @@ class DatPhongSeeder extends Seeder
                 'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
             ]
         );
+          DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOO5110001TA'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
+          DatPhong::firstOrCreate(
+            ['ma_tham_chieu' => 'BOO510001TA'],
+            [
+                'nguoi_dung_id' => $khachHangId,
+                'trang_thai' => 'dang_cho',
+                'ngay_nhan_phong' => Carbon::now()->addDays(15),
+                'ngay_tra_phong' => Carbon::now()->addDays(17),
+                'so_khach' => 3,
+                'tong_tien' => 3200000.00,
+                'don_vi_tien' => 'VND',
+                'can_thanh_toan' => true,
+                'created_by' => $khachHangId,
+                'phuong_thuc' => 'vnpay', // Hợp lệ theo ENUM
+                'ma_voucher' => null,
+                'discount_amount' => 0.00,
+                'snapshot_total' => 3200000.00,
+                'source' => 'web',
+                'ghi_chu' => 'Khách yêu cầu xác nhận gấp.',
+            ]
+        );
     }
 }

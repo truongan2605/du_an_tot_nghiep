@@ -56,17 +56,31 @@ class StaffController extends Controller
 
     public function bookings()
     {
-        $bookings = DatPhong::whereIn('trang_thai', ['dang_cho', 'da_xac_nhan'])
-            ->with(['user', 'datPhongItems.loaiPhong'])
+        $bookings = DatPhong::with(['nguoiDung', 'datPhongItems.loaiPhong', 'phongDaDats.phong'])
+            ->orderBy('created_at', 'desc')
             ->paginate(10);
-        $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
-        return view('staff.bookings', compact('bookings', 'availableRooms'));
+
+        return view('staff.bookings', compact('bookings'));
     }
-    
-    
-    public function confirm(Request $request, $id)
+    public function pendingBookings()
     {
-        $request->validate(['phong_id' => 'nullable|exists:phong,id']);
+        $bookings = DatPhong::where('trang_thai', 'dang_cho')
+            ->with(['user', 'datPhongItems.loaiPhong', 'phongDaDats.phong'])
+            ->paginate(10);
+
+        $availableRooms = Phong::where('trang_thai', 'trong')
+            ->with(['tang', 'loaiPhong'])
+            ->get();
+
+        return view('staff.pending-bookings', compact('bookings', 'availableRooms'));
+    }
+
+
+   public function confirm(Request $request, $id)
+    {
+        $request->validate([
+            'phong_id' => 'nullable|exists:phong,id',
+        ]);
 
         $booking = DatPhong::findOrFail($id);
         if ($booking->trang_thai !== 'dang_cho') {
@@ -81,23 +95,27 @@ class StaffController extends Controller
                 $phong_id = $request->phong_id;
                 if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
                     PhongDaDat::create([
-                        'dat_phong_item_id' => $booking->dat_phong_item_id, 
+                        'dat_phong_item_id' => $booking->datPhongItems->first()->id,
                         'phong_id' => $phong_id,
                         'trang_thai' => 'da_dat',
                         'checkin_datetime' => $booking->ngay_nhan_phong,
                         'checkout_datetime' => $booking->ngay_tra_phong,
                     ]);
                     Phong::find($phong_id)->update(['trang_thai' => 'da_dat']);
+                    $booking->update(['trang_thai' => 'da_gan_phong']);
                 } else {
                     throw new \Exception('Phòng không khả dụng.');
                 }
             }
         });
 
-        return redirect()->back()->with('success', 'Booking đã được xác nhận.');
+        $redirectTo = $request->filled('phong_id') && $this->checkAvailability($request->phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)
+            ? route('staff.rooms')
+            : route('staff.assign-rooms', $booking->id);
+        return redirect($redirectTo)->with('success', 'Booking đã được xác nhận' . ($request->filled('phong_id') ? ' và gán phòng' : '') . '.');
     }
 
- protected function checkAvailability($phong_id, $start, $end)
+   protected function checkAvailability($phong_id, $start, $end)
 {
     $currentTime = now();
     $overlappingBookings = PhongDaDat::where('phong_id', $phong_id)
@@ -105,13 +123,12 @@ class StaffController extends Controller
         ->where('checkin_datetime', '<', $end)
         ->where('checkout_datetime', '>', $start)
         ->count();
-    $holds = GiuPhong::where('phong_id', $phong_id) 
+    $holds = GiuPhong::where('phong_id', $phong_id)
         ->where('het_han_luc', '>', $currentTime)
-        ->where('released', false) 
+        ->where('released', false)
         ->count();
     return ($overlappingBookings + $holds) == 0;
 }
-
     public function assignRoomsForm($dat_phong_id)
     {
         $booking = DatPhong::findOrFail($dat_phong_id);
@@ -123,7 +140,11 @@ class StaffController extends Controller
         if ($items->isEmpty()) {
             return redirect()->back()->with('error', 'Không có item nào trong booking để gán phòng.');
         }
-        $availableRooms = Phong::where('trang_thai', 'trong')->with(['tang', 'loaiPhong'])->get();
+
+        $availableRooms = Phong::with(['tang', 'loaiPhong'])
+            ->whereIn('trang_thai', ['trong', 'da_dat'])
+            ->orderByRaw("CASE WHEN trang_thai = 'da_dat' THEN 0 ELSE 1 END")
+            ->get();
 
         return view('staff.assign-rooms', compact('booking', 'items', 'availableRooms'));
     }
@@ -166,7 +187,19 @@ class StaffController extends Controller
             }
         });
 
+        if (empty($conflicts)) {
+            $booking->update(['trang_thai' => 'da_gan_phong']);
+        }
+
         $message = count($conflicts) > 0 ? 'Partial success: ' . implode(', ', $conflicts) : 'Tất cả đã được gán thành công.';
-        return redirect()->back()->with('success', $message)->with('conflicts', $conflicts);
+        return redirect()->route('staff.rooms')->with('success', $message)->with('conflicts', $conflicts);
+    }
+
+    public function rooms()
+    {
+        $rooms = PhongDaDat::where('trang_thai', 'da_dat')
+            ->with(['phong.tang', 'datPhongItem.datPhong.user', 'datPhongItem.loaiPhong'])
+            ->paginate(10);
+        return view('staff.rooms', compact('rooms'));
     }
 }

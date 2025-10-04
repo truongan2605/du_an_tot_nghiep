@@ -89,10 +89,14 @@ Route::middleware('auth')->prefix('account')
         Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
         Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
     });
-
-    Route::middleware(['auth', 'role:nhan_vien'])->prefix('staff')->group(function () {
-    Route::get('/assign-rooms-form/{dat_phong_id}', [StaffController::class, 'assignRoomsForm'])->name('staff.assign-rooms.form');
-    Route::post('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRooms'])->name('staff.assign-rooms');
+Route::prefix('staff')->group(function () {
+    Route::get('/pending-bookings', [StaffController::class, 'pendingBookings'])->name('staff.pending-bookings');
+    Route::get('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRoomsForm'])->name('staff.assign-rooms');
+    Route::post('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRooms'])->name('staff.assign-rooms.post');
+    Route::get('/rooms', [StaffController::class, 'rooms'])->name('staff.rooms');
+    Route::post('/confirm/{id}', [StaffController::class, 'confirm'])->name('staff.confirm');
+    Route::get('/bookings', [StaffController::class, 'bookings'])->name('staff.bookings');
 });
+   
 
 require __DIR__ . '/auth.php';
