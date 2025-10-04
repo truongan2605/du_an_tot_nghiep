@@ -96,6 +96,7 @@ Route::prefix('staff')->group(function () {
     Route::get('/rooms', [StaffController::class, 'rooms'])->name('staff.rooms');
     Route::post('/confirm/{id}', [StaffController::class, 'confirm'])->name('staff.confirm');
     Route::get('/bookings', [StaffController::class, 'bookings'])->name('staff.bookings');
+    Route::delete('/cancel/{id}', [StaffController::class, 'cancel'])->name('staff.cancel');
 });
    
 

@@ -43,9 +43,7 @@
 
         <div class="flex-grow-1 ms-3">
             <header class="bg-white shadow-sm p-3 d-flex justify-content-between align-items-center">
-                <div>
-                    <input type="text" class="form-control" placeholder="Tìm kiếm...">
-                </div>
+               
                 <div class="d-flex align-items-center gap-3">
                     <button class="btn btn-light">🔔</button>
                     <div class="d-flex align-items-center gap-2">

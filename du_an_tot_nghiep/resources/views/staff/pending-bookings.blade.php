@@ -23,21 +23,21 @@
                 @forelse ($bookings as $booking)
                     <tr>
                         <td class="text-center">{{ $booking->id }}</td>
-                        <td>{{ $booking->nguoiDung->name ?? $booking->customer_name ?? 'Ẩn danh' }}</td>
+                        <td>{{ $booking->nguoiDung?->name ?? $booking->customer_name ?? 'Ẩn danh' }}</td>
                         <td>
                             @if ($booking->datPhongItems->isNotEmpty())
-                                {{ $booking->datPhongItems->first()->loaiPhong->ten ?? 'N/A' }}
+                                {{ $booking->datPhongItems->first()?->loaiPhong?->ten ?? 'N/A' }}
                             @else
                                 N/A
                             @endif
                         </td>
-                        <td>{{ $booking->ngay_nhan_phong ? $booking->ngay_nhan_phong->format('d-m-Y H:i') : 'N/A' }}</td>
-                        <td>{{ $booking->ngay_tra_phong ? $booking->ngay_tra_phong->format('d-m-Y H:i') : 'N/A' }}</td>
-                        <td class="text-center">{{ $booking->datPhongItems->sum('so_luong') ?? 1 }}</td>
+                        <td>{{ $booking->ngay_nhan_phong?->format('d-m-Y H:i') ?? 'N/A' }}</td>
+                        <td>{{ $booking->ngay_tra_phong?->format('d-m-Y H:i') ?? 'N/A' }}</td>
+                        <td class="text-center">{{ $booking->datPhongItems->isNotEmpty() ? $booking->datPhongItems->sum('so_luong') : 1 }}</td>
                         <td class="text-center fw-bold">
-                            @if ($booking->trang_thai === 'da_gan_phong' && $booking->phongDaDats->count() > 0)
+                            @if ($booking->trang_thai === 'da_gan_phong' && $booking->phongDaDats->isNotEmpty())
                                 @foreach ($booking->phongDaDats as $room)
-                                    <span class="badge bg-success me-1">{{ $room->phong->ma_phong }}</span>
+                                    <span class="badge bg-success me-1">{{ $room->phong?->ma_phong ?? 'N/A' }}</span>
                                 @endforeach
                             @elseif ($booking->trang_thai === 'da_xac_nhan')
                                 <span class="text-muted">Chưa gán</span>
@@ -71,8 +71,15 @@
                                             </option>
                                         @endforeach
                                     </select>
-                                    <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Xác nhận Booking và gán phòng?');">
+                                    <button type="submit" class="btn btn-primary btn-sm me-1" onclick="return confirm('Xác nhận Booking và gán phòng?');">
                                         Xác Nhận
+                                    </button>
+                                </form>
+                                <form action="{{ route('staff.cancel', $booking->id) }}" method="POST" style="display:inline;">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Bạn có chắc muốn hủy booking này?');">
+                                        Hủy
                                     </button>
                                 </form>
                             @elseif ($booking->trang_thai === 'da_xac_nhan')

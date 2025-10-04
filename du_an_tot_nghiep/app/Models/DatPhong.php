@@ -59,7 +59,7 @@ class DatPhong extends Model
         return $this->belongsTo(Authenticatable::class, 'created_by');
     }
 
-    public function datPhongItems(): HasMany
+    public function datPhongItems()
     {
         return $this->hasMany(DatPhongItem::class, 'dat_phong_id');
     }
@@ -94,16 +94,16 @@ class DatPhong extends Model
         return $this->hasMany(VoucherUsage::class, 'dat_phong_id');
     }
 
-    public function phongDaDats(): HasManyThrough
+        public function phongDaDats()
     {
         return $this->hasManyThrough(
             PhongDaDat::class,
             DatPhongItem::class,
-            'dat_phong_id', 
-            'dat_phong_item_id', 
-            'id', 
-            'id' 
-        )->with('phong'); 
+            'dat_phong_id',       
+            'dat_phong_item_id',  
+            'id',                 
+            'id'                  
+        );
     }
 
     // Scopes

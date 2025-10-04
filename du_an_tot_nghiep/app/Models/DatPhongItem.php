@@ -26,19 +26,19 @@ class DatPhongItem extends Model
     ];
 
     // Relationships
-    public function datPhong()
+   public function datPhong()
     {
-        return $this->belongsTo(DatPhong::class);
+        return $this->belongsTo(DatPhong::class, 'dat_phong_id');
     }
 
     public function loaiPhong()
     {
-        return $this->belongsTo(LoaiPhong::class);
+        return $this->belongsTo(LoaiPhong::class, 'loai_phong_id');
     }
 
     public function phongDaDats()
     {
-        return $this->hasMany(PhongDaDat::class);
+        return $this->hasMany(PhongDaDat::class, 'dat_phong_item_id');
     }
 
     // Accessors
