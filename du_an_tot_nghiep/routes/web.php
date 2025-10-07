@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
-
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
@@ -15,16 +14,14 @@ use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
 
-
-
-
 Route::get('/', [HomeController::class, 'index'])->name('home');
-
 Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.show');
 
+// Google login
 Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
 
+// ==================== ADMIN ====================
 Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
@@ -52,16 +49,9 @@ Route::prefix('admin')
         Route::put('user/{user}', [UserController::class, 'update'])->name('user.update');
         Route::patch('user/{user}/toggle', [UserController::class, 'toggleActive'])->name('user.toggle');
 
-
         // ---- Nhân viên ----
-        Route::get('nhan-vien', [NhanVienController::class, 'index'])->name('nhan-vien.index');
-        Route::get('nhan-vien/create', [NhanVienController::class, 'create'])->name('nhan-vien.create');
-        Route::post('nhan-vien', [NhanVienController::class, 'store'])->name('nhan-vien.store');
-        Route::get('nhan-vien/{user}', [NhanVienController::class, 'show'])->name('nhan-vien.show');
-        Route::get('nhan-vien/{user}/edit', [NhanVienController::class, 'edit'])->name('nhan-vien.edit');
-        Route::put('nhan-vien/{user}', [NhanVienController::class, 'update'])->name('nhan-vien.update');
+        Route::resource('nhan-vien', NhanVienController::class);
         Route::patch('nhan-vien/{user}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
-        Route::delete('nhan-vien/{user}', [NhanVienController::class, 'destroy'])->name('nhan-vien.destroy');
 
         // ---- Voucher ----
         Route::resource('voucher', VoucherController::class);
@@ -69,35 +59,30 @@ Route::prefix('admin')
             ->name('voucher.toggle-active');
     });
 
-// Nhóm Route cho Staff
- Route::middleware(['auth', 'role:nhan_vien'])->prefix('staff')->group(function () {
-    Route::get('/', [StaffController::class, 'index'])->name('staff.index');
-    Route::get('/bookings', [StaffController::class, 'bookings'])->name('staff.bookings');
-    Route::post('/confirm-booking/{id}', [StaffController::class, 'confirm'])->name('staff.confirm');
-});
-Route::middleware('auth')->prefix('account')
-    ->name('account.')
+// ==================== STAFF  ====================
+Route::middleware(['auth', 'role:nhan_vien|admin'])
+    ->prefix('staff')
+    ->name('staff.')
     ->group(function () {
-
-        Route::get('settings', function () {
-            return view('account.profile');
-        })->name('settings');
-        Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
-
-        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
-        Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
-        Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
-        Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
+        Route::get('/', [StaffController::class, 'index'])->name('index');
+        Route::get('/pending-bookings', [StaffController::class, 'pendingBookings'])->name('pending-bookings');
+        Route::get('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRoomsForm'])->name('assign-rooms');
+        Route::post('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRooms'])->name('assign-rooms.post');
+        Route::get('/rooms', [StaffController::class, 'rooms'])->name('rooms');
+        Route::post('/confirm/{id}', [StaffController::class, 'confirm'])->name('confirm');
+        Route::get('/bookings', [StaffController::class, 'bookings'])->name('bookings');
+        Route::delete('/cancel/{id}', [StaffController::class, 'cancel'])->name('cancel');
     });
-Route::prefix('staff')->group(function () {
-    Route::get('/pending-bookings', [StaffController::class, 'pendingBookings'])->name('staff.pending-bookings');
-    Route::get('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRoomsForm'])->name('staff.assign-rooms');
-    Route::post('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRooms'])->name('staff.assign-rooms.post');
-    Route::get('/rooms', [StaffController::class, 'rooms'])->name('staff.rooms');
-    Route::post('/confirm/{id}', [StaffController::class, 'confirm'])->name('staff.confirm');
-    Route::get('/bookings', [StaffController::class, 'bookings'])->name('staff.bookings');
-    Route::delete('/cancel/{id}', [StaffController::class, 'cancel'])->name('staff.cancel');
+
+// ==================== ACCOUNT ====================
+Route::middleware('auth')->prefix('account')->name('account.')->group(function () {
+    Route::view('settings', 'account.profile')->name('settings');
+    Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
+
+    Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
+    Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+    Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+    Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
 });
-   
 
 require __DIR__ . '/auth.php';

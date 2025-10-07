@@ -26,7 +26,7 @@
         <aside class="bg-dark shadow-sm p-3" style="width: 250px; min-height: 100vh;">
             <h4 class="text-white fw-bold">🏨 Hotel Manager</h4>
             <nav class="nav flex-column mt-4">
-                @if (Auth::check() && Auth::user()->vai_tro === 'nhan_vien')
+                @if (Auth::check() && in_array(Auth::user()->vai_tro, ['nhan_vien', 'admin']))
                     <a href="{{ route('staff.index') }}"
                         class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}">Dashboard</a>
                     <a href="{{ route('staff.bookings') }}"
