@@ -14,7 +14,8 @@ class Phong extends Model
 
     protected $fillable = [
         'ma_phong',
-        'name',  
+        'name',
+        'mo_ta', 
         'loai_phong_id',
         'tang_id',
         'suc_chua',
@@ -56,30 +57,31 @@ class Phong extends Model
         return $this->hasMany(\App\Models\Wishlist::class, 'phong_id');
     }
 
-public function getTongGiaAttribute()
-{
-    $tong = 0;
+    public function getTongGiaAttribute()
+    {
+        if (!is_null($this->gia_mac_dinh) && $this->gia_mac_dinh > 0) {
+            return (float) $this->gia_mac_dinh;
+        }
 
-    // Giá mặc định của phòng
-    $tong += $this->gia_mac_dinh ?? 0;
+        $base = 0;
+        if ($this->loaiPhong) {
+            $base = (float) ($this->loaiPhong->gia_mac_dinh ?? 0);
+        }
 
-    // Giá loại phòng (nếu có cột 'gia')
-    if ($this->loaiPhong && isset($this->loaiPhong->gia)) {
-        $tong += $this->loaiPhong->gia;
+        $typeAmenityIds = $this->loaiPhong ? $this->loaiPhong->tienNghis->pluck('id')->toArray() : [];
+
+        $roomAmenityIds = $this->tienNghis ? $this->tienNghis->pluck('id')->toArray() : [];
+
+        $allAmenityIds = array_values(array_unique(array_merge($typeAmenityIds, $roomAmenityIds)));
+
+        $amenitiesSum = 0;
+        if (!empty($allAmenityIds)) {
+            $amenitiesSum = (float) TienNghi::whereIn('id', $allAmenityIds)->sum('gia');
+        }
+
+        return $base + $amenitiesSum;
     }
 
-    // Tiện nghi của phòng (bổ sung)
-    if ($this->tienNghis) {
-        $tong += $this->tienNghis->sum('gia');
-    }
-
-    // Nếu loại phòng cũng có tiện nghi riêng → cộng thêm
-    if ($this->loaiPhong && method_exists($this->loaiPhong, 'tienNghis')) {
-        $tong += $this->loaiPhong->tienNghis->sum('gia');
-    }
-
-    return $tong;
-}
 
     public function favoritedBy()
     {
@@ -97,11 +99,11 @@ public function getTongGiaAttribute()
         return $img ? $img->image_path : null;
     }
 
-        public function firstImageUrl()
+    public function firstImageUrl()
     {
         $path = $this->firstImagePath();
         if ($path && Storage::disk('public')->exists($path)) {
-            return Storage::url($path); 
+            return Storage::url($path);
         }
 
         return asset('template/stackbros/assets/images/category/hotel/01.jpg');

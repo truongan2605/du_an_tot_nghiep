@@ -1,10 +1,10 @@
 @extends('layouts.admin')
 
-@section('title', 'Chỉnh sửa tiện nghi')
+@section('title', 'Chỉnh sửa dịch vụ')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-edit me-2"></i>Chỉnh sửa tiện nghi</h2>
+    <h2><i class="fas fa-edit me-2"></i>Chỉnh sửa dịch vụ</h2>
     <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Quay lại
     </a>
@@ -19,7 +19,7 @@
             <div class="row">
                 <div class="col-md-8">
                     <div class="mb-3">
-                        <label for="ten" class="form-label">Tên tiện nghi <span class="text-danger">*</span></label>
+                        <label for="ten" class="form-label">Tên dịch vụ <span class="text-danger">*</span></label>
                         <input type="text" 
                                class="form-control @error('ten') is-invalid @enderror" 
                                id="ten" 
@@ -31,7 +31,7 @@
                         @enderror
                     </div>
 {{-- <div class="mb-3">
-    <label for="gia" class="form-label">Giá tiện nghi</label>
+    <label for="gia" class="form-label">Giá dịch vụ</label>
     <input type="number" step="0.01" name="gia" id="gia" class="form-control"
            value="{{ old('gia', isset($tiennghi) ? $tiennghi->gia : '') }}"required>
 </div> --}}
@@ -70,7 +70,7 @@
                                    value="1" 
                                    {{ old('active', $tienNghi->active) ? 'checked' : '' }}>
                             <label class="form-check-label" for="active">
-                                Kích hoạt tiện nghi
+                                Kích hoạt dịch vụ
                             </label>
                         </div>
                     </div>
@@ -118,7 +118,7 @@
                     <i class="fas fa-times me-2"></i>Hủy
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Cập nhật tiện nghi
+                    <i class="fas fa-save me-2"></i>Cập nhật dịch vụ
                 </button>
             </div>
         </form>

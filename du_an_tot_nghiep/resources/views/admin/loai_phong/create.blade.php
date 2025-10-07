@@ -29,10 +29,8 @@
             <label>Giá mặc định</label>
             <input type="number" name="gia_mac_dinh" class="form-control" required>
         </div>
-        <div class="mb-3">
-            <label>Số lượng thực tế</label>
-            <input type="number" name="so_luong_thuc_te" class="form-control" required>
-        </div>
+        
+        <input type="hidden" name="so_luong_thuc_te" value="0">
 
         <div class="mb-3">
             <label>Tiện nghi</label><br>
@@ -41,7 +39,7 @@
             @endforeach
         </div>
 
-        <button class="btn btn-success">Lưu</button>
+        <button class="btn btn-success" type="submit">Lưu</button>
         <a href="{{ route('admin.loai_phong.index') }}" class="btn btn-secondary">Hủy</a>
     </form>
 </div>

@@ -1,10 +1,10 @@
 @extends('layouts.admin')
 
-@section('title', 'Chi tiết tiện nghi')
+@section('title', 'Chi tiết dịch vụ')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-eye me-2"></i>Chi tiết tiện nghi</h2>
+    <h2><i class="fas fa-eye me-2"></i>Chi tiết dịch vụ</h2>
     <div>
         <a href="{{ route('admin.tien-nghi.edit', $tienNghi) }}" class="btn btn-warning">
             <i class="fas fa-edit me-2"></i>Chỉnh sửa
@@ -19,7 +19,7 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Thông tin tiện nghi</h5>
+                <h5 class="card-title mb-0">Thông tin dịch vụ</h5>
             </div>
             <div class="card-body">
                 <table class="table table-borderless">
@@ -28,12 +28,16 @@
                         <td>{{ $tienNghi->id }}</td>
                     </tr>
                     <tr>
-                        <td><strong>Tên tiện nghi:</strong></td>
+                        <td><strong>Tên dịch vụ:</strong></td>
                         <td>{{ $tienNghi->ten }}</td>
                     </tr>
                     <tr>
                         <td><strong>Mô tả:</strong></td>
                         <td>{{ $tienNghi->mo_ta ?: 'Không có mô tả' }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Giá tiền:</strong></td>
+                        <td>{{ number_format($tienNghi->gia, 0, ',', '.') }} VND</td>
                     </tr>
                     <tr>
                         <td><strong>Trạng thái:</strong></td>
@@ -57,12 +61,12 @@
 
         <div class="card mt-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Phòng có tiện nghi này</h5>
+                <h5 class="card-title mb-0">Phòng có dịch vụ này</h5>
                 <span class="badge bg-primary">{{ $rooms->total() }} phòng</span>
             </div>
             <div class="card-body">
                 @if($rooms->count() === 0)
-                    <div class="text-muted">Chưa có phòng nào được gán tiện nghi này.</div>
+                    <div class="text-muted">Chưa có phòng nào được gán dịch vụ này.</div>
                 @else
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -147,7 +151,7 @@
                     
                     <form action="{{ route('admin.tien-nghi.destroy', $tienNghi) }}" 
                            method="POST" 
-                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa tiện nghi này?')">
+                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa dịch vụ này?')">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-danger w-100">

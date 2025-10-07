@@ -11,18 +11,20 @@ class TienNghi extends Model
 
     protected $table = 'tien_nghi';
 
-protected $fillable = [
-    'ten',
-    'mo_ta',
-    'icon',
-    'active',
-    'gia',   // thêm dòng này
-];
+    protected $fillable = [
+        'ten',
+        'mo_ta',
+        'icon',
+        'active',
+        'gia',  
+    ];
 
 
     protected $casts = [
         'active' => 'boolean',
+        'gia' => 'decimal:2',
     ];
+
 
     // Relationships
     public function phongs()

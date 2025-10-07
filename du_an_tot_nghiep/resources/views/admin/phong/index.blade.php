@@ -17,6 +17,8 @@
             <tr>
                 <th>#</th>
                 <th>Mã phòng</th>
+                <th>Tên phòng</th>
+                <th>Mô tả</th>
                 <th>Loại</th>
                 <th>Tầng</th>
                 <th>Giá</th>
@@ -31,6 +33,8 @@
             <tr>
                 <td>{{ $p->id }}</td>
                 <td>{{ $p->ma_phong }}</td>
+                <td>{{ $p->name }}</td>
+                <td>{{ $p->mo_ta }}</td>
                 <td>{{ $p->loaiPhong->ten ?? '-' }}</td>
                 <td>{{ $p->tang->ten ?? '-' }}</td>
                 <td>{{ number_format($p->gia_mac_dinh,0,',','.') }} đ</td>

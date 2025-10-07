@@ -1,12 +1,12 @@
 @extends('layouts.admin')
 
-@section('title', 'Quản lý tiện nghi')
+@section('title', 'Quản lý dịch vụ')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-concierge-bell me-2"></i>Quản lý tiện nghi</h2>
+    <h2><i class="fas fa-concierge-bell me-2"></i>Quản lý dịch vụ</h2>
     <a href="{{ route('admin.tien-nghi.create') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-2"></i>Thêm tiện nghi mới
+        <i class="fas fa-plus me-2"></i>Thêm dịch vụ mới
     </a>
 </div>
 
@@ -19,7 +19,7 @@
                         <tr>
                             <th>ID</th>
                             <th>Icon</th>
-                            <th>Tên tiện nghi</th>
+                            <th>Tên dịch vụ</th>
                             <th>giá</th>
                             <th>Mô tả</th>
                             <th>Trạng thái</th>
@@ -76,7 +76,7 @@
                                     <form action="{{ route('admin.tien-nghi.destroy', $tienNghi) }}" 
                                           method="POST" 
                                           class="d-inline"
-                                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa tiện nghi này?')">
+                                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa dịch vụ này?')">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" 
@@ -96,7 +96,7 @@
             <!-- Pagination -->
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="text-muted">
-                    Hiển thị {{ $tienNghis->firstItem() }}–{{ $tienNghis->lastItem() }} trong tổng {{ $tienNghis->total() }} tiện nghi
+                    Hiển thị {{ $tienNghis->firstItem() }}–{{ $tienNghis->lastItem() }} trong tổng {{ $tienNghis->total() }} dịch vụ
                 </div>
                 <div>
                     {{ $tienNghis->onEachSide(1)->links('pagination::bootstrap-5') }}
@@ -105,10 +105,10 @@
         @else
             <div class="text-center py-5">
                 <i class="fas fa-concierge-bell fa-3x text-muted mb-3"></i>
-                <h4 class="text-muted">Chưa có tiện nghi nào</h4>
-                <p class="text-muted">Hãy thêm tiện nghi đầu tiên để bắt đầu quản lý.</p>
+                <h4 class="text-muted">Chưa có dịch vụ nào</h4>
+                <p class="text-muted">Hãy thêm dịch vụ đầu tiên để bắt đầu quản lý.</p>
                 <a href="{{ route('admin.tien-nghi.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>Thêm tiện nghi mới
+                    <i class="fas fa-plus me-2"></i>Thêm dịch vụ mới
                 </a>
             </div>
         @endif

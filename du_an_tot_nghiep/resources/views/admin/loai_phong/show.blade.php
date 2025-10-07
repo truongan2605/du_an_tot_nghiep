@@ -36,7 +36,7 @@
             <td>{{ $loaiphong->so_luong_thuc_te }}</td>
         </tr>
         <tr>
-            <th>Tiện nghi:</th>
+            <th>Dịch vụ:</th>
             <td>
                 @if($loaiphong->tienNghis->isNotEmpty())
                     <ul>

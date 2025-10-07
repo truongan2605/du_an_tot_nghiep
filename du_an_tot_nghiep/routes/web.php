@@ -24,21 +24,25 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class]) 
+    ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
     ->group(function () {
         // Tiện nghi
         Route::resource('tien-nghi', AdminTienNghiController::class);
         Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])
             ->name('tien-nghi.toggle-active');
-
-            Route::get('/admin/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
-
+            
+        // Loại phòng
+        Route::get('/admin/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
+        Route::post('loai-phong/{id}/disable', [\App\Http\Controllers\Admin\LoaiPhongController::class, 'disable'])
+            ->name('loai_phong.disable');
+        Route::post('loai-phong/{id}/enable', [\App\Http\Controllers\Admin\LoaiPhongController::class, 'enable'])
+            ->name('loai_phong.enable');
 
         // Phòng
         Route::resource('phong', PhongController::class);
         Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
             ->name('phong.image.destroy');
-             // loai phong 
+        // loai phong 
         Route::resource('loai_phong', LoaiPhongController::class);
 
         // ---- Tầng ----
@@ -83,17 +87,14 @@ Route::middleware('auth')->prefix('account')
         Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
         Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
         Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
-
-
     });
 
 
 
 
-       
-        
-  
-    
 
-require __DIR__.'/auth.php';
 
+
+
+
+require __DIR__ . '/auth.php';
