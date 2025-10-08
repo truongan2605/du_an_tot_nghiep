@@ -95,21 +95,22 @@
                     <h6 class="d-none d-xl-block mb-3">Check Availability</h6>
 
                     <!-- Booking from START -->
-                    <form class="card shadow rounded-3 position-relative p-4 pe-md-5 pb-5 pb-md-4">
+                    <form action="{{ route('list-room.index') }}" method="GET" class="card shadow rounded-3 position-relative p-4 pe-md-5 pb-5 pb-md-4">
                         <div class="row g-4 align-items-center">
-                            <!-- Location -->
+                            <!-- Loại phòng -->
                             <div class="col-lg-4">
                                 <div class="form-control-border form-control-transparent form-fs-md d-flex">
-                                    <!-- Icon -->
-                                    <i class="bi bi-geo-alt fs-3 me-2 mt-2"></i>
-                                    <!-- Select input -->
+                                    <i class="bi bi-door-open fs-3 me-2 mt-2"></i>
                                     <div class="flex-grow-1">
-                                        <label class="form-label">Location</label>
-                                        <select class="form-select js-choice" data-search-enabled="true">
-                                            <option value="">Select location</option>
-                                            <option>San Jacinto, USA</option>
-                                            <option>North Dakota, Canada</option>
-                                            <option>West Virginia, Paris</option>
+                                        <label class="form-label">Room Type</label>
+                                        <select class="form-select js-choice" name="loai_phong_id" data-search-enabled="true">
+                                            <option value="">-- ALL Room Type --</option>
+                                            @foreach($loaiPhongs as $loaiPhong)
+                                                <option value="{{ $loaiPhong->id }}"
+                                                    {{ request('loai_phong_id') == $loaiPhong->id ? 'selected' : '' }}>
+                                                    {{ $loaiPhong->ten_loai_phong ?? $loaiPhong->ten }}
+                                                </option>
+                                            @endforeach
                                         </select>
                                     </div>
                                 </div>
@@ -204,10 +205,28 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- Khoảng giá -->
+                                <div class="col-lg-4">
+                                    <div class="form-control-border form-control-transparent form-fs-md d-flex">
+                                        <i class="bi bi-cash-stack fs-3 me-2 mt-2"></i>
+                                        <div class="flex-grow-1">
+                                            <label class="form-label">Price</label>
+                                            <select class="form-select js-choice" name="gia_khoang">
+                                                <option value="">-- All Price --</option>
+                                                <option value="1" {{ request('gia_khoang') == '1' ? 'selected' : '' }}>Dưới 500.000đ</option>
+                                                <option value="2" {{ request('gia_khoang') == '2' ? 'selected' : '' }}>500.000đ - 1.000.000đ</option>
+                                                <option value="3" {{ request('gia_khoang') == '3' ? 'selected' : '' }}>1.000.000đ - 1.500.000đ</option>
+                                                <option value="4" {{ request('gia_khoang') == '4' ? 'selected' : '' }}>Trên 1.500.000đ</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
                         <!-- Button -->
                         <div class="btn-position-md-middle">
-                            <a class="icon-lg btn btn-round btn-primary mb-0" href="#"><i
-                                    class="bi bi-search fa-fw"></i></a>
+                            {{-- <a class="icon-lg btn btn-round btn-primary mb-0" href="#"><i
+                                    class="bi bi-search fa-fw"></i></a> --}}
+                            <button type="submit" class="icon-lg btn btn-round btn-primary mb-0"><i
+                                    class="bi bi-search fa-fw"></i></button>
                         </div>
                     </form>
                     <!-- Booking from END -->
@@ -592,7 +611,7 @@
 @push('styles')
 <style>
 .card-img-scale-wrapper {
-  aspect-ratio: 3 / 4; 
+  aspect-ratio: 3 / 4;
   overflow: hidden;
 }
 .card-img-scale-wrapper img.card-img {

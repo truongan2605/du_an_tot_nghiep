@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LoaiPhong;
 use App\Models\Phong;
 
 class HomeController extends Controller
@@ -9,10 +10,10 @@ class HomeController extends Controller
     public function index()
     {
         $phongs = Phong::with(['loaiPhong','tang','images'])
-            ->orderByDesc('created_at') 
+            ->orderByDesc('created_at')
             ->take(8)
             ->get();
-
-        return view('home', compact('phongs'));
+        $loaiPhongs = LoaiPhong::all();
+        return view('home', compact('loaiPhongs','phongs'));
     }
 }

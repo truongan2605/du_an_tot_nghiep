@@ -1,13 +1,46 @@
 <?php
 namespace App\Http\Controllers\Client;
 
+use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\Phong;
 use App\Models\DanhGia;
+use App\Models\LoaiPhong;
 use Illuminate\Support\Facades\Schema;
 
 class RoomController extends Controller
 {
+    public function index(Request $request)
+    {
+        $query = Phong::with(['loaiPhong', 'tang', 'images'])
+        ->orderByDesc('created_at');
+
+    if ($request->filled('loai_phong_id')) {
+        $query->where('loai_phong_id', $request->loai_phong_id);
+    }
+     // Lọc theo khoảng giá
+        if ($request->filled('gia_khoang')) {
+            switch ($request->gia_khoang) {
+                case '1':
+                    $query->where('gia_mac_dinh', '<', 500000);
+                    break;
+                case '2':
+                    $query->whereBetween('gia_mac_dinh', [500000, 1000000]);
+                    break;
+                case '3':
+                    $query->whereBetween('gia_mac_dinh', [1000000, 1500000]);
+                    break;
+                case '4':
+                    $query->where('gia_mac_dinh', '>', 1500000);
+                    break;
+            }
+        }
+        
+    $phongs = $query->paginate(9);
+    $loaiPhongs = LoaiPhong::all();
+
+    return view('list-room', compact('phongs', 'loaiPhongs'));
+    }
     public function show($id)
     {
         $phong = Phong::with(['loaiPhong','tang','images','tienNghis'])->findOrFail($id);
