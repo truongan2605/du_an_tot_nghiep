@@ -17,7 +17,7 @@ class BookingController extends Controller
 
     public function create(Phong $phong)
     {
-        $phong->load(['loaiPhong','tienNghis','images','bedTypes']);
+        $phong->load(['loaiPhong', 'tienNghis', 'images', 'bedTypes']);
         $user = Auth::user();
 
         return view('account.booking.create', compact('phong', 'user'));
@@ -35,17 +35,15 @@ class BookingController extends Controller
             'ngay_nhan_phong' => 'required|date',
             'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
             'adults' => 'required|integer|min:1',
-            'children' => 'nullable|integer|min:0|max:2', // enforce max 2 children
+            'children' => 'nullable|integer|min:0|max:2',
             'children_ages' => 'nullable|array',
             'children_ages.*' => 'nullable|integer|min:0|max:120',
-            'extra_beds' => 'nullable|array',
-            'extra_beds.*' => 'nullable|integer|min:0',
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:1000',
             'phone' => 'nullable|string|max:50',
         ]);
 
-        $phong = Phong::with(['loaiPhong','tienNghis','bedTypes'])->findOrFail($request->input('phong_id'));
+        $phong = Phong::with(['loaiPhong', 'tienNghis', 'bedTypes'])->findOrFail($request->input('phong_id'));
 
         $from = Carbon::parse($request->input('ngay_nhan_phong'))->startOfDay();
         $to = Carbon::parse($request->input('ngay_tra_phong'))->startOfDay();
@@ -58,9 +56,8 @@ class BookingController extends Controller
         $children = (int)$request->input('children', 0);
         $childrenAges = $request->input('children_ages', []);
 
-        // convert children>=13 => adult for charging + capacity calculation
         $computedAdults = $adults;
-        $chargeableChildren = 0; // counts children between 7 and 12 (inclusive)
+        $chargeableChildren = 0;
         foreach ($childrenAges as $age) {
             $age = (int) $age;
             if ($age >= 13) {
@@ -68,11 +65,10 @@ class BookingController extends Controller
             } elseif ($age >= 7) {
                 $chargeableChildren++;
             } else {
-                // < 7 free; doesn't affect charge nor capacity
+                // <7 free
             }
         }
 
-        // === compute room capacity from bedTypes pivot ===
         $roomCapacity = 0;
         foreach ($phong->bedTypes as $bt) {
             $qty = (int) ($bt->pivot->quantity ?? 0);
@@ -80,104 +76,20 @@ class BookingController extends Controller
             $roomCapacity += $qty * $cap;
         }
 
-        // Enforce adult capacity: computedAdults (adults + children>=13) must be <= roomCapacity
         if ($computedAdults > $roomCapacity) {
-            return back()->withInput()->withErrors(['adults' => 'Number of adults (including children aged 13+) exceeds room capacity of '.$roomCapacity.'.']);
+            return back()->withInput()->withErrors(['adults' => 'Number of adults (including children aged 13+) exceeds room capacity of ' . $roomCapacity . '.']);
         }
 
-        // Children limit already validated via request rule max:2, but extra safeguard:
         if ($children > 2) {
             return back()->withInput()->withErrors(['children' => 'Maximum 2 children allowed per room.']);
         }
 
-        // Validate selected extra beds (if you keep extra bed selection on form)
-        $selectedBeds = $request->input('extra_beds', []);
-        $bedTypesMap = [];
-        foreach ($phong->bedTypes as $bt) {
-            $bedTypesMap[$bt->id] = [
-                'model' => $bt,
-                'available' => (int)($bt->pivot->quantity ?? 0),
-                'capacity' => (int)($bt->capacity ?? 1),
-                'price' => (float)($bt->price ?? 0),
-            ];
-        }
-
-        $selectedTotalExtraCapacity = 0;
-        $selectedBedPricePerNight = 0.0;
-        $selectedBedsSnapshot = [];
-
-        foreach ($selectedBeds as $bedTypeId => $qty) {
-            $qty = (int)$qty;
-            if ($qty <= 0) continue;
-            if (!isset($bedTypesMap[$bedTypeId])) {
-                return back()->withInput()->withErrors(['extra_beds' => 'Invalid bed selection.']);
-            }
-            // IMPORTANT: pivot.quantity currently treated as "number of that bed in the room".
-            // If you want separate "extra-available" pool, you will need a separate table/field.
-            if ($qty > $bedTypesMap[$bedTypeId]['available']) {
-                return back()->withInput()->withErrors(['extra_beds' => 'Selected bed quantity exceeds available count for bed type: '.$bedTypesMap[$bedTypeId]['model']->name]);
-            }
-
-            $cap = $bedTypesMap[$bedTypeId]['capacity'];
-            $price = $bedTypesMap[$bedTypeId]['price'];
-
-            $selectedTotalExtraCapacity += $qty * $cap;
-            $selectedBedPricePerNight += $qty * $price;
-
-            $selectedBedsSnapshot[] = [
-                'bed_type_id' => $bedTypeId,
-                'name' => $bedTypesMap[$bedTypeId]['model']->name,
-                'qty' => $qty,
-                'capacity' => $cap,
-                'price' => $price,
-            ];
-        }
-
-        // Effective capacity (base beds + selected extra capacity)
-        $effectiveCapacity = $roomCapacity + $selectedTotalExtraCapacity;
-
-        // we DO NOT count children toward capacity, only adults (including children>=13)
-        if ($computedAdults > $effectiveCapacity) {
-            return back()->withInput()->withErrors(['error' => 'Adults (including children 13+) exceed effective room capacity (including extra beds).']);
-        }
-
-        // Basic availability checks (holds/assigned bookings)
-        $existingHold = DB::table('giu_phong')
-            ->where('phong_id', $phong->id)
-            ->where('released', false)
-            ->where('het_han_luc', '>', now())
-            ->exists();
-        if ($existingHold) {
-            return back()->withInput()->withErrors(['error' => 'This room is temporarily held by another customer. Please try again later.']);
-        }
-
-        // optional: check overlapping bookings if phong_da_dat exists (adjust column names if needed)
-        $alreadyBooked = false;
-        try {
-            $alreadyBooked = DB::table('phong_da_dat')
-                ->where('phong_id', $phong->id)
-                ->where(function ($q) use ($from, $to) {
-                    $q->where(function ($qq) use ($from, $to) {
-                        $qq->where('from_date', '<', $to)->where('to_date', '>', $from);
-                    });
-                })
-                ->exists();
-        } catch (\Throwable $e) {
-            $alreadyBooked = false;
-        }
-        if ($alreadyBooked) {
-            return back()->withInput()->withErrors(['error' => 'This room is already booked in the selected period.']);
-        }
-
-        // Pricing
         $basePerNight = (float) ($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
 
-        // adults for charge: computedAdults (adults + children >=13)
         $adultsChargePerNight = $computedAdults * self::ADULT_PRICE;
         $childrenChargePerNight = $chargeableChildren * self::CHILD_PRICE;
-        $bedsChargePerNight = $selectedBedPricePerNight;
 
-        $finalPerNight = $basePerNight + $bedsChargePerNight + $adultsChargePerNight + $childrenChargePerNight;
+        $finalPerNight = $basePerNight + $adultsChargePerNight + $childrenChargePerNight;
         $snapshotTotal = $finalPerNight * $nights;
 
         DB::beginTransaction();
@@ -186,7 +98,7 @@ class BookingController extends Controller
                 'nguoi_dung_id' => $user->id,
                 'ngay_nhan_phong' => $from->toDateString(),
                 'ngay_tra_phong' => $to->toDateString(),
-                'so_khach' => $adults + $children, // keep total guests for record
+                'so_khach' => $adults + $children,
                 'trang_thai' => 'dang_cho',
                 'snapshot_total' => $snapshotTotal,
                 'created_at' => now(),
@@ -201,9 +113,7 @@ class BookingController extends Controller
                     'computed_adults' => $computedAdults,
                     'chargeable_children' => $chargeableChildren,
                     'room_capacity' => $roomCapacity,
-                    'selected_extra_beds' => $selectedBedsSnapshot,
                     'room_base_per_night' => $basePerNight,
-                    'beds_charge_per_night' => $bedsChargePerNight,
                     'adults_charge_per_night' => $adultsChargePerNight,
                     'children_charge_per_night' => $childrenChargePerNight,
                     'final_per_night' => $finalPerNight,

@@ -34,7 +34,7 @@
 
                         <div class="col-sm-3 text-end d-none d-sm-block">
                             <img src="{{ $phong->firstImageUrl() }}" class="mb-n4"
-                                alt="{{ $phong->name ?? $phong->ma_phong }}">
+                                alt="{{ $phong->name ?? $phong->ma_phong }}" style="max-width:100px;">
                         </div>
                     </div>
                 </div>
@@ -82,10 +82,10 @@
                                                 </div>
                                             </div>
 
-                                            <!-- Guests & Beds -->
+                                            <!-- Guests (no extra bed selection) -->
                                             <div class="col-lg-6">
                                                 <div class="bg-light py-3 px-4 rounded-3">
-                                                    <h6 class="fw-light small mb-1">Guests & Beds</h6>
+                                                    <h6 class="fw-light small mb-1">Guests</h6>
 
                                                     <div class="row g-2 mb-2">
                                                         <div class="col-6">
@@ -115,7 +115,7 @@
                                                     </div>
 
                                                     <div class="mt-3">
-                                                        <strong>Room beds (available):</strong>
+                                                        <strong>Room beds (configured):</strong>
                                                         <ul class="list-unstyled mb-2">
                                                             @forelse ($phong->bedTypes as $bt)
                                                                 <li class="mb-1">
@@ -123,41 +123,29 @@
                                                                         class="d-flex justify-content-between align-items-center">
                                                                         <div>
                                                                             <strong>{{ $bt->name }}</strong>
-                                                                            <div class="small text-muted">
+                                                                            <div class="small text">
                                                                                 {{ $bt->description ?? '' }} — capacity:
-                                                                                {{ $bt->capacity }} person(s) / bed</div>
-                                                                            <div class="small text-muted">Extra price per
-                                                                                bed:
+                                                                                {{ $bt->capacity }} person(s) / bed
+                                                                            </div>
+                                                                            <div class="small text">Quantity:
+                                                                                {{ $bt->pivot->quantity }}</div>
+                                                                            <div class="small text">Price/bed:
                                                                                 {{ number_format($bt->price, 0, ',', '.') }}
                                                                                 đ/night</div>
                                                                         </div>
-                                                                        <div class="text-end">
-                                                                            <label class="small mb-1">Select
-                                                                                quantity</label>
-                                                                            <select name="extra_beds[{{ $bt->id }}]"
-                                                                                class="form-select form-select-sm extra-bed-select"
-                                                                                data-bed-id="{{ $bt->id }}"
-                                                                                data-available="{{ $bt->pivot->quantity }}">
-                                                                                <option value="0">0</option>
-                                                                                @for ($i = 1; $i <= $bt->pivot->quantity; $i++)
-                                                                                    <option value="{{ $i }}">
-                                                                                        {{ $i }}</option>
-                                                                                @endfor
-                                                                            </select>
-                                                                            <div class="small text-muted">Available:
-                                                                                {{ $bt->pivot->quantity }}</div>
-                                                                        </div>
+
                                                                     </div>
                                                                 </li>
                                                             @empty
-                                                                <li><em>No extra beds available for this room.</em></li>
+                                                                <li><em>No beds configured for this room.</em></li>
                                                             @endforelse
                                                         </ul>
                                                     </div>
+
                                                     <input type="hidden" name="so_khach" id="so_khach"
                                                         value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
-                                                    <div class="small text-muted">Room capacity (without extra beds):
-                                                        {{ $phong->suc_chua ?? '-' }} persons</div>
+                                                    <div class="small text">Room capacity (without extras):
+                                                        {{ $phong->suc_chua ?? ($roomCapacity ?? '-') }} persons</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -229,7 +217,7 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label">Phone</label>
                                                         <input type="text" name="phone" class="form-control"
-                                                            value="{{ old('phone', $u->so_dien_thoai ?? '') }}">
+                                                            value="{{ old('phone', $u->so_dien_thoai ?? '') }}" required>
                                                     </div>
                                                 </div>
 
@@ -266,10 +254,7 @@
                                                     đ</span>
                                             </li>
 
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Beds extra / night</span>
-                                                <span class="fs-6" id="price_beds_display">-</span>
-                                            </li>
+                                            {{-- Beds extra removed --}}
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Adults extra / night</span>
@@ -329,100 +314,20 @@
             const adultsInput = document.getElementById('adults');
             const childrenInput = document.getElementById('children');
             const childrenAgesContainer = document.getElementById('children_ages_container');
-            const extraBedSelects = document.querySelectorAll('.extra-bed-select');
 
             const nightsDisplay = document.getElementById('nights_count_display');
             const priceBaseDisplay = document.getElementById('price_base_display');
-            const priceBedsDisplay = document.getElementById('price_beds_display');
             const priceAdultsDisplay = document.getElementById('price_adults_display');
             const priceChildrenDisplay = document.getElementById('price_children_display');
             const finalPerNightDisplay = document.getElementById('final_per_night_display');
             const totalDisplay = document.getElementById('total_snapshot_display');
             const payableDisplay = document.getElementById('payable_now_display');
 
-
-            const adultsHelp = document.getElementById('adults_help');
-            const childrenHelp = document.getElementById('children_help');
             const roomCapacityDisplay = document.getElementById('room_capacity_display');
 
-            function clampInputToMaxMin(inputEl) {
-                const min = Number(inputEl.getAttribute('min') || 0);
-                const max = Number(inputEl.getAttribute('max') || Infinity);
-                let val = Number(inputEl.value || 0);
-
-                if (isNaN(val)) val = min;
-                if (val < min) val = min;
-                if (val > max) val = max;
-
-                if (Number(inputEl.value) !== val) {
-                    inputEl.value = val;
-                    // small flash message
-                    const sm = document.createElement('div');
-                    sm.className = 'small text-danger mt-1';
-                    sm.innerText = `Value adjusted to allowed range (${min} - ${max}).`;
-                    // remove any previous helper message under this input
-                    const parent = inputEl.parentElement;
-                    const prev = parent.querySelector('.value-adjust-msg');
-                    if (prev) prev.remove();
-                    sm.classList.add('value-adjust-msg');
-                    parent.appendChild(sm);
-                    setTimeout(() => {
-                        sm.remove();
-                    }, 2500);
-                }
-            }
-
-            // Attach input listeners
-            adultsInput.addEventListener('input', function() {
-                clampInputToMaxMin(adultsInput);
-                updateSummary();
-            });
-            childrenInput.addEventListener('input', function() {
-                clampInputToMaxMin(childrenInput);
-                // re-render children ages UI if count changed
-                renderChildrenAges();
-                updateSummary();
-            });
-
-            // When extra beds change (which affects effectiveCapacity), update adults.max and UI
-            extraBedSelects.forEach(sel => sel.addEventListener('change', function() {
-                const bedExtras = computeBedExtra();
-                const effectiveCapacity = roomCapacity + bedExtras.extraCapacity;
-                // update displayed capacity
-                if (roomCapacityDisplay) roomCapacityDisplay.innerText = effectiveCapacity;
-                // update adults max attr
-                adultsInput.setAttribute('max', Math.max(1, effectiveCapacity));
-                // clamp current adults value if too big
-                clampInputToMaxMin(adultsInput);
-                updateSummary();
-            }));
-
-            // ensure initial clamp (in case default values > max)
-            clampInputToMaxMin(adultsInput);
-            clampInputToMaxMin(childrenInput);
-
-            // data from server
             const pricePerNight = Number({!! json_encode((float) ($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0))) !!});
-            const bedTypes = {!! json_encode(
-                $phong->bedTypes->map(function ($b) {
-                    return [
-                        'id' => $b->id,
-                        'name' => $b->name,
-                        'capacity' => (int) $b->capacity,
-                        'price' => (float) $b->price,
-                        'available' => (int) $b->pivot->quantity,
-                    ];
-                }),
-            ) !!};
 
-            // compute room capacity (sum pivot.quantity * capacity)
-            let roomCapacity = 0;
-            bedTypes.forEach(b => {
-                roomCapacity += (b.available || 0) * (b.capacity || 1);
-            });
-
-            // show roomCapacity somewhere if you want (for debugging)
-            // e.g. console.log('roomCapacity', roomCapacity);
+            let roomCapacity = Number({{ $roomCapacity ?? 0 }});
 
             const ADULT_PRICE = {{ \App\Http\Controllers\Client\BookingController::ADULT_PRICE }};
             const CHILD_PRICE = {{ \App\Http\Controllers\Client\BookingController::CHILD_PRICE }};
@@ -432,7 +337,7 @@
                 return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
             }
 
-            // date range / flatpickr init
+            // date-range / flatpickr init
             function setHiddenDates(arr) {
                 if (!arr || arr.length === 0) return;
                 const from = arr[0];
@@ -454,8 +359,7 @@
                     mode: "range",
                     minDate: "today",
                     dateFormat: "Y-m-d",
-                    defaultDate: [
-                        fromInput.value || new Date().toISOString().slice(0, 10),
+                    defaultDate: [fromInput.value || new Date().toISOString().slice(0, 10),
                         toInput.value || (() => {
                             let d = new Date();
                             d.setDate(d.getDate() + 1);
@@ -475,45 +379,90 @@
                 childrenAgesContainer.innerHTML = '';
                 for (let i = 0; i < count; i++) {
                     const wrapper = document.createElement('div');
-                    wrapper.className = 'mb-2';
+                    wrapper.className = 'mb-2 child-age-wrapper';
                     wrapper.innerHTML = `
-                <label class="form-label">Child ${i+1} age</label>
-                <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="120" value="0">
-            `;
+                        <label class="form-label">Child ${i+1} age</label>
+                        <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="0" />
+                        <div class="small text-danger mt-1 age-error" style="display:none;"></div>
+                    `;
                     childrenAgesContainer.appendChild(wrapper);
                 }
+
+                document.querySelectorAll('.child-age-input').forEach((el) => {
+                    el.addEventListener('input', function() {
+                        const min = 0;
+                        const max = 12;
+                        let v = Number(this.value);
+                        if (isNaN(v)) v = min;
+                        if (v < min) {
+                            this.value = min;
+                            showAgeError(this, `Minimum age is ${min}.`);
+                        } else if (v > max) {
+                            this.value = max;
+                            showAgeError(this, `The maximum age for children is ${max}.`);
+                        } else {
+                            hideAgeError(this);
+                        }
+                        updateSummary();
+                    });
+
+                    // also sanitize on blur
+                    el.addEventListener('blur', function() {
+                        const min = 0;
+                        const max = 12;
+                        let v = Number(this.value);
+                        if (isNaN(v) || v < min) this.value = min;
+                        if (v > max) this.value = max;
+                    });
+                });
+
+                // helper functions
+                function showAgeError(inputEl, msg) {
+                    const wr = inputEl.closest('.child-age-wrapper');
+                    if (!wr) return;
+                    const err = wr.querySelector('.age-error');
+                    if (err) {
+                        err.innerText = msg;
+                        err.style.display = 'block';
+                        // hide after 2.5s
+                        setTimeout(() => {
+                            err.style.display = 'none';
+                        }, 2500);
+                    }
+                }
+
+                function hideAgeError(inputEl) {
+                    const wr = inputEl.closest('.child-age-wrapper');
+                    if (!wr) return;
+                    const err = wr.querySelector('.age-error');
+                    if (err) {
+                        err.style.display = 'none';
+                    }
+                }
+
+                // update bindings + summary
                 document.querySelectorAll('.child-age-input').forEach(el => el.addEventListener('change',
                     updateSummary));
                 updateSummary();
             }
 
-            function computeBedExtra() {
-                let extraCapacity = 0;
-                let bedExtraPricePerNight = 0;
-                extraBedSelects.forEach(sel => {
-                    const id = Number(sel.dataset.bedId);
-                    const qty = Number(sel.value || 0);
-                    if (qty <= 0) return;
-                    const bt = bedTypes.find(b => b.id === id);
-                    if (!bt) return;
-                    extraCapacity += qty * bt.capacity;
-                    bedExtraPricePerNight += qty * bt.price;
-                });
-                return {
-                    extraCapacity,
-                    bedExtraPricePerNight
-                };
-            }
-
             function computePersonCharges() {
                 const adults = Number(adultsInput.value || 0);
-                const ages = Array.from(document.querySelectorAll('.child-age-input')).map(x => Number(x.value || 0));
+                const ages = Array.from(document.querySelectorAll('.child-age-input')).map(x => {
+                    let a = Number(x.value || 0);
+                    if (isNaN(a)) a = 0;
+                    if (a < 0) a = 0;
+                    if (a > 12) a = 12;
+                    return a;
+                });
+
                 let computedAdults = adults;
                 let chargeableChildren = 0;
                 ages.forEach(a => {
                     if (a >= 13) computedAdults++;
                     else if (a >= 7) chargeableChildren++;
                 });
+
                 const adultsChargePerNight = computedAdults * ADULT_PRICE;
                 const childrenChargePerNight = chargeableChildren * CHILD_PRICE;
                 return {
@@ -525,7 +474,6 @@
             }
 
             function updateSummary() {
-                // dates -> nights
                 const fromVal = fromInput.value;
                 const toVal = toInput.value;
                 if (!fromVal || !toVal) {
@@ -541,39 +489,31 @@
                 const nights = Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
                 nightsDisplay.innerText = nights;
 
-                // compute extras
-                const bedExtras = computeBedExtra();
                 const persons = computePersonCharges();
 
                 const base = pricePerNight;
-                const bedsPrice = bedExtras.bedExtraPricePerNight;
+                const bedsPrice = 0;
                 const adultsPrice = persons.adultsChargePerNight;
                 const childrenPrice = persons.childrenChargePerNight;
 
                 const finalPerNight = base + bedsPrice + adultsPrice + childrenPrice;
                 const total = finalPerNight * nights;
 
-                // update displays
-                priceBedsDisplay.innerText = bedsPrice > 0 ? fmtVnd(bedsPrice) : '0 đ';
+                priceBaseDisplay.innerText = fmtVnd(base);
                 priceAdultsDisplay.innerText = adultsPrice > 0 ? fmtVnd(adultsPrice) : '0 đ';
                 priceChildrenDisplay.innerText = childrenPrice > 0 ? fmtVnd(childrenPrice) : '0 đ';
                 finalPerNightDisplay.innerText = fmtVnd(finalPerNight);
                 totalDisplay.innerText = fmtVnd(total);
                 payableDisplay.innerText = fmtVnd(total);
 
-                // validation messages & submit enable/disable
                 validateGuestLimits(persons.computedAdults);
             }
 
-            // validation: adults (computedAdults) <= effectiveCapacity; children <= 2
             function validateGuestLimits(computedAdults) {
                 const childrenCount = Number(childrenInput.value || 0);
-                const bedExtras = computeBedExtra();
-                const effectiveCapacity = roomCapacity + bedExtras.extraCapacity;
-
+                const effectiveCapacity = roomCapacity;
                 const form = document.getElementById('bookingForm');
 
-                // clear previous errors
                 let existing = document.getElementById('guest_limit_error');
                 if (existing) existing.remove();
 
@@ -584,7 +524,7 @@
                     err.id = 'guest_limit_error';
                     err.className = 'alert alert-danger mt-3';
                     err.innerText =
-                        `Number of adults (including children aged 13+) exceeds effective room capacity. Please reduce adults or add extra beds.`;
+                        `Number of adults (including children aged 13+) exceeds effective room capacity (${effectiveCapacity}). Please reduce adults.`;
                     form.querySelector('.card-body').prepend(err);
                 } else if (childrenCount > 2) {
                     ok = false;
@@ -599,14 +539,13 @@
                 if (submitBtn) submitBtn.disabled = !ok;
             }
 
-            adultsInput.addEventListener('change', updateSummary);
-            childrenInput.addEventListener('change', function() {
+            adultsInput.addEventListener('input', updateSummary);
+            childrenInput.addEventListener('input', function() {
                 renderChildrenAges();
             });
-            extraBedSelects.forEach(sel => sel.addEventListener('change', updateSummary));
+
             renderChildrenAges();
             updateSummary();
-
         })();
     </script>
 @endpush
