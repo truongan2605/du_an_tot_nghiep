@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
+
+
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\Staff\StaffController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
 use App\Http\Controllers\Admin\TienNghiController;
+use App\Http\Controllers\Client\PaymentController;
 use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
@@ -85,4 +88,8 @@ Route::middleware('auth')->prefix('account')->name('account.')->group(function (
     Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
 });
 
+// ================== Thanh toán ================
+Route::middleware('auth:sanctum')->post('/payment/initiate', [PaymentController::class, 'initiateVNPay']);
+Route::post('/payment/initiate', [PaymentController::class, 'initiate'])->name('payment.initiate');
+Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
 require __DIR__ . '/auth.php';

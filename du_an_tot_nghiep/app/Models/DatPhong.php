@@ -44,10 +44,6 @@ class DatPhong extends Model
     ];
 
     // Relationships
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(Authenticatable::class, 'nguoi_dung_id');
-    }
 
     public function nguoiDung(): BelongsTo
     {
