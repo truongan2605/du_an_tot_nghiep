@@ -51,6 +51,38 @@
         </tr>
     </table>
 
+    <h5>Bed types cấu hình</h5>
+    @if($loaiphong->bedTypes->isEmpty())
+        <p class="text-muted"><em>Chưa cấu hình giường cho loại phòng này.</em></p>
+    @else
+        <table class="table">
+            <thead class="table-light">
+                <tr>
+                    <th>Giường</th>
+                    <th class="text-center">Số lượng</th>
+                    <th class="text-end">Giá / bed (nếu override)</th>
+                    <th class="text-center">Capacity / bed</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($loaiphong->bedTypes as $bt)
+                    <tr>
+                        <td>{{ $bt->name }}</td>
+                        <td class="text-center">{{ $bt->pivot->quantity ?? 0 }}</td>
+                        <td class="text-end">
+                            @if(!is_null($bt->pivot->price))
+                                {{ number_format($bt->pivot->price,0,',','.') }} đ
+                            @else
+                                <span class="text-muted"><em>use default {{ number_format($bt->price,0,',','.') }} đ</em></span>
+                            @endif
+                        </td>
+                        <td class="text-center">{{ $bt->capacity }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+
     <a href="{{ route('admin.loai_phong.index') }}" class="btn btn-secondary">Quay lại</a>
 </div>
 @endsection

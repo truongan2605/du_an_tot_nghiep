@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\Tang;
-use App\Models\Phong;
-use App\Models\TienNghi;
+use App\Http\Controllers\Controller;
+use App\Models\BedType;
 use App\Models\LoaiPhong;
+use App\Models\Phong;
 use App\Models\PhongImage;
+use App\Models\Tang;
+use App\Models\TienNghi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 
 class PhongController extends Controller
@@ -22,60 +23,117 @@ class PhongController extends Controller
 
     public function create()
     {
-        $loaiPhongs = LoaiPhong::with('tienNghis')->get();
+        $loaiPhongs = LoaiPhong::with('tienNghis', 'bedTypes')->get();
         $tangs = Tang::all();
         $tienNghis = TienNghi::where('active', true)->get();
+        $bedTypes = BedType::orderBy('name')->get();
 
-        return view('admin.phong.create', compact('loaiPhongs', 'tangs', 'tienNghis'));
+        return view('admin.phong.create', compact('loaiPhongs', 'tangs', 'tienNghis', 'bedTypes'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'ma_phong' => 'required|unique:phong,ma_phong',
+            'name' => 'nullable|string|max:255',
+            'mo_ta' => 'nullable|string',
             'loai_phong_id' => 'required|exists:loai_phong,id',
             'tang_id' => 'required|exists:tang,id',
-            'suc_chua' => 'required|integer|min:1',
-            'so_giuong' => 'required|integer|min:1',
+            'suc_chua' => 'nullable|integer|min:1',
+            'so_giuong' => 'nullable|integer|min:1',
             'gia_mac_dinh' => 'nullable|numeric|min:0',
+            'override_price' => 'nullable|boolean',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'integer|exists:tien_nghi,id',
+            'bed_types' => 'nullable|array',
             'trang_thai' => 'nullable|in:trong,dang_o,bao_tri,khong_su_dung'
         ]);
 
         DB::beginTransaction();
         try {
-            $loaiPhong = LoaiPhong::findOrFail($request->loai_phong_id);
-            $basePrice = (float) ($loaiPhong->gia_mac_dinh ?? 0);
+            $selectedLoai = LoaiPhong::findOrFail($request->loai_phong_id);
+
+            $basePrice = (float) ($selectedLoai->gia_mac_dinh ?? 0);
 
             $selectedAmenityIds = $request->input('tien_nghi', []);
+            $amenitiesSum = !empty($selectedAmenityIds)
+                ? (float) TienNghi::whereIn('id', $selectedAmenityIds)->sum('gia')
+                : 0.0;
 
-            $amenitiesSum = 0;
-            if (!empty($selectedAmenityIds)) {
-                $amenitiesSum = (float) TienNghi::whereIn('id', $selectedAmenityIds)->sum('gia');
-            }
+            $bedTotal = 0.0;
+            $roomBedData = $request->input('bed_types', null);
 
-            if ($request->filled('gia_mac_dinh') && $request->input('gia_mac_dinh') > 0) {
-                $finalPrice = (float) $request->input('gia_mac_dinh');
+            if (is_array($roomBedData) && count($roomBedData) > 0) {
+                foreach ($roomBedData as $bedTypeId => $vals) {
+                    $qty = isset($vals['quantity']) ? (int) $vals['quantity'] : 0;
+                    if ($qty <= 0) continue;
+                    $price = isset($vals['price']) && $vals['price'] !== '' ? (float) $vals['price'] : null;
+                    if ($price === null) {
+                        $bt = BedType::find($bedTypeId);
+                        $price = $bt ? (float) ($bt->price ?? 0) : 0;
+                    }
+                    $bedTotal += $qty * $price;
+                }
             } else {
-                $finalPrice = $basePrice + $amenitiesSum;
+                $selectedLoai->load('bedTypes');
+                foreach ($selectedLoai->bedTypes as $bt) {
+                    $qty = (int) ($bt->pivot->quantity ?? 0);
+                    if ($qty <= 0) continue;
+                    $pricePer = $bt->pivot->price !== null ? (float) $bt->pivot->price : (float) ($bt->price ?? 0);
+                    $bedTotal += $qty * $pricePer;
+                }
             }
 
-            $data = $request->only([
-                'ma_phong',
-                'loai_phong_id',
-                'tang_id',
-                'suc_chua',
-                'so_giuong'
-            ]);
-            $data['gia_mac_dinh'] = $finalPrice;
-            $data['trang_thai'] = $request->input('trang_thai', 'khong_su_dung');
+            $inputBase = $request->filled('gia_mac_dinh') && $request->input('gia_mac_dinh') >= 0
+                ? (float) $request->input('gia_mac_dinh')
+                : $basePrice;
+
+            $finalTotal = $inputBase + $amenitiesSum + $bedTotal;
+
+            $data = [
+                'ma_phong' => $request->input('ma_phong'),
+                'name' => $request->input('name'),
+                'mo_ta' => $request->input('mo_ta'),
+                'loai_phong_id' => $selectedLoai->id,
+                'tang_id' => $request->input('tang_id'),
+                'suc_chua' => (int) $selectedLoai->suc_chua,
+                'so_giuong' => (int) $selectedLoai->so_giuong,
+                'gia_mac_dinh' => $inputBase,
+                'gia_cuoi_cung' => $finalTotal,
+                'trang_thai' => $request->input('trang_thai', 'khong_su_dung'),
+            ];
 
             $phong = Phong::create($data);
 
-            // lưu ảnh nếu có
+            // attach bed types (if provided) or copy from LoaiPhong pivots
+            if (is_array($roomBedData) && count($roomBedData) > 0) {
+                $attach = [];
+                foreach ($roomBedData as $bedTypeId => $vals) {
+                    $qty = isset($vals['quantity']) ? (int) $vals['quantity'] : 0;
+                    if ($qty <= 0) continue;
+                    $price = isset($vals['price']) && $vals['price'] !== '' ? (float) $vals['price'] : null;
+                    $attach[$bedTypeId] = ['quantity' => $qty, 'price' => $price];
+                }
+                if (!empty($attach)) {
+                    $phong->bedTypes()->sync($attach);
+                }
+            } else {
+                $attach = [];
+                $selectedLoai->load('bedTypes');
+                foreach ($selectedLoai->bedTypes as $bt) {
+                    $attach[$bt->id] = [
+                        'quantity' => $bt->pivot->quantity ?? 0,
+                        'price' => $bt->pivot->price ?? null,
+                    ];
+                }
+                if (!empty($attach)) {
+                    $phong->bedTypes()->sync($attach);
+                }
+            }
+
+            // images
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $file) {
                     $path = $file->store('uploads/phong', 'public');
@@ -83,28 +141,33 @@ class PhongController extends Controller
                 }
             }
 
+            // amenities
             if (!empty($selectedAmenityIds)) {
                 $phong->tienNghis()->sync($selectedAmenityIds);
+            } else {
+                $phong->tienNghis()->detach();
             }
 
+            $phong->loadMissing(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes']);
+            $phong->recalcAndSave(true);
+
             DB::commit();
-            return redirect()->route('admin.phong.index')
-                ->with('success', 'Thêm phòng thành công');
+            return redirect()->route('admin.phong.index')->with('success', 'Thêm phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->withInput()
-                ->withErrors(['error' => 'Lỗi lưu phòng: ' . $e->getMessage()]);
+            return back()->withInput()->withErrors(['error' => 'Lỗi lưu phòng: ' . $e->getMessage()]);
         }
     }
 
     public function edit($id)
     {
-        $phong = Phong::with(['images', 'tienNghis', 'loaiPhong', 'tang'])->findOrFail($id);
-        $loaiPhongs = LoaiPhong::with('tienNghis')->get();
+        $phong = Phong::with(['images', 'tienNghis', 'loaiPhong', 'tang', 'bedTypes'])->findOrFail($id);
+        $loaiPhongs = LoaiPhong::with('tienNghis', 'bedTypes')->get();
         $tangs = Tang::all();
         $tienNghis = TienNghi::where('active', true)->get();
+        $bedTypes = BedType::orderBy('name')->get();
 
-        return view('admin.phong.edit', compact('phong', 'loaiPhongs', 'tangs', 'tienNghis'));
+        return view('admin.phong.edit', compact('phong', 'loaiPhongs', 'tangs', 'tienNghis', 'bedTypes'));
     }
 
     public function update(Request $request, $id)
@@ -115,66 +178,109 @@ class PhongController extends Controller
             'mo_ta' => 'nullable|string',
             'loai_phong_id' => 'required|exists:loai_phong,id',
             'tang_id' => 'required|exists:tang,id',
-            'suc_chua' => 'required|integer|min:1',
-            'so_giuong' => 'required|integer|min:1',
+            'suc_chua' => 'nullable|integer|min:1',
+            'so_giuong' => 'nullable|integer|min:1',
             'gia_mac_dinh' => 'nullable|numeric|min:0',
             'override_price' => 'nullable|boolean',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'integer|exists:tien_nghi,id',
+            'bed_types' => 'nullable|array',
             'trang_thai' => 'nullable|in:khong_su_dung,trong,dang_o,bao_tri',
         ]);
 
         DB::beginTransaction();
         try {
             $phong = Phong::findOrFail($id);
-
-            $selectedLoaiId = (int) $request->input('loai_phong_id');
-            $selectedLoai = LoaiPhong::find($selectedLoaiId);
-
-            if (!$selectedLoai) {
-                return back()->withInput()->withErrors(['loai_phong_id' => 'Loại phòng không tồn tại.']);
-            }
+            $selectedLoai = LoaiPhong::findOrFail((int)$request->input('loai_phong_id'));
 
             $requestedStatus = $request->input('trang_thai', $phong->trang_thai);
-
-            if ($selectedLoai->active == false) {
-                if ($requestedStatus !== $phong->trang_thai) {
-                    return back()->withInput()->withErrors(['trang_thai' => 'Không được thay đổi trạng thái phòng khi loại phòng đang bị vô hiệu hoá.']);
-                }
+            if ($selectedLoai->active == false && $requestedStatus !== $phong->trang_thai) {
+                return back()->withInput()->withErrors(['trang_thai' => 'Không được thay đổi trạng thái phòng khi loại phòng đang bị vô hiệu hoá.']);
             }
 
             $basePrice = (float) ($selectedLoai->gia_mac_dinh ?? 0);
-
             $selectedAmenityIds = $request->input('tien_nghi', []);
-            $amenitiesSum = 0;
-            if (!empty($selectedAmenityIds)) {
-                $amenitiesSum = (float) TienNghi::whereIn('id', $selectedAmenityIds)->sum('gia');
+            $amenitiesSum = !empty($selectedAmenityIds)
+                ? (float) TienNghi::whereIn('id', $selectedAmenityIds)->sum('gia')
+                : 0.0;
+
+            $bedTotal = 0.0;
+            $roomBedData = $request->input('bed_types', null);
+
+            if (is_array($roomBedData) && count($roomBedData) > 0) {
+                foreach ($roomBedData as $bedTypeId => $vals) {
+                    $qty = isset($vals['quantity']) ? (int)$vals['quantity'] : 0;
+                    if ($qty <= 0) continue;
+                    $price = isset($vals['price']) && $vals['price'] !== '' ? (float)$vals['price'] : null;
+                    if ($price === null) {
+                        $bt = BedType::find($bedTypeId);
+                        $price = $bt ? (float) ($bt->price ?? 0) : 0;
+                    }
+                    $bedTotal += $qty * $price;
+                }
+            } else {
+                $selectedLoai->load('bedTypes');
+                foreach ($selectedLoai->bedTypes as $bt) {
+                    $qty = (int) ($bt->pivot->quantity ?? 0);
+                    if ($qty <= 0) continue;
+                    $pricePer = $bt->pivot->price !== null ? (float) $bt->pivot->price : (float) ($bt->price ?? 0);
+                    $bedTotal += $qty * $pricePer;
+                }
             }
 
             $override = (bool) $request->input('override_price', false);
-            if ($override && $request->filled('gia_mac_dinh') && $request->input('gia_mac_dinh') >= 0) {
-                $finalPrice = (float) $request->input('gia_mac_dinh');
-            } else {
-                $finalPrice = $basePrice + $amenitiesSum;
-            }
+            $inputBase = $override && $request->filled('gia_mac_dinh') && $request->input('gia_mac_dinh') >= 0
+                ? (float) $request->input('gia_mac_dinh')
+                : $basePrice;
 
-            $data = $request->only([
-                'ma_phong',
-                'name',
-                'mo_ta',
-                'loai_phong_id',
-                'tang_id',
-                'suc_chua',
-                'so_giuong',
-            ]);
+            $finalTotal = $inputBase + $amenitiesSum + $bedTotal;
 
-            $data['trang_thai'] = $requestedStatus;
-            $data['gia_mac_dinh'] = $finalPrice;
+            $data = [
+                'ma_phong' => $request->input('ma_phong'),
+                'name' => $request->input('name'),
+                'mo_ta' => $request->input('mo_ta'),
+                'loai_phong_id' => $selectedLoai->id,
+                'tang_id' => $request->input('tang_id'),
+                'suc_chua' => (int)$selectedLoai->suc_chua,
+                'so_giuong' => (int)$selectedLoai->so_giuong,
+                'trang_thai' => $requestedStatus,
+                'gia_mac_dinh' => $inputBase,
+                'gia_cuoi_cung' => $finalTotal,
+            ];
 
             $phong->update($data);
 
+            if (is_array($roomBedData) && count($roomBedData) > 0) {
+                $attach = [];
+                foreach ($roomBedData as $bedTypeId => $vals) {
+                    $qty = isset($vals['quantity']) ? (int)$vals['quantity'] : 0;
+                    if ($qty <= 0) continue;
+                    $price = isset($vals['price']) && $vals['price'] !== '' ? (float)$vals['price'] : null;
+                    $attach[$bedTypeId] = ['quantity' => $qty, 'price' => $price];
+                }
+                if (!empty($attach)) {
+                    $phong->bedTypes()->sync($attach);
+                } else {
+                    $phong->bedTypes()->detach();
+                    $selectedLoai->load('bedTypes');
+                    $attach = [];
+                    foreach ($selectedLoai->bedTypes as $bt) {
+                        $attach[$bt->id] = ['quantity' => $bt->pivot->quantity ?? 0, 'price' => $bt->pivot->price ?? null];
+                    }
+                    if (!empty($attach)) $phong->bedTypes()->sync($attach);
+                }
+            } else {
+                $selectedLoai->load('bedTypes');
+                $attach = [];
+                foreach ($selectedLoai->bedTypes as $bt) {
+                    $attach[$bt->id] = ['quantity' => $bt->pivot->quantity ?? 0, 'price' => $bt->pivot->price ?? null];
+                }
+                if (!empty($attach)) $phong->bedTypes()->sync($attach);
+            }
+
+            // images
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $file) {
                     $path = $file->store('uploads/phong', 'public');
@@ -182,11 +288,15 @@ class PhongController extends Controller
                 }
             }
 
+            // amenities sync
             if (!empty($selectedAmenityIds)) {
                 $phong->tienNghis()->sync($selectedAmenityIds);
             } else {
                 $phong->tienNghis()->detach();
             }
+
+            $phong->loadMissing(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes']);
+            $phong->recalcAndSave(true);
 
             DB::commit();
             return redirect()->route('admin.phong.index')->with('success', 'Cập nhật phòng thành công');
@@ -196,13 +306,11 @@ class PhongController extends Controller
         }
     }
 
-
     public function show($id)
     {
-        $phong = Phong::with(['loaiPhong.tienNghis', 'tienNghis'])->findOrFail($id);
+        $phong = Phong::with(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes'])->findOrFail($id);
 
         $tienNghiLoaiPhong = $phong->loaiPhong->tienNghis ?? collect();
-
         $tienNghiPhong = $phong->tienNghis ?? collect();
 
         return view('admin.phong.show', compact('phong', 'tienNghiLoaiPhong', 'tienNghiPhong'));

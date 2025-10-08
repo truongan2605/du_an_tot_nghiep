@@ -33,8 +33,11 @@
                                 <th>Loại phòng</th>
                                 <td>
                                     {{ $phong->loaiPhong?->ten ?? '-' }}
-                                    @if($phong->loaiPhong)
-                                        <div class="small text-muted">Giá loại: <strong>{{ number_format($phong->loaiPhong->gia_mac_dinh ?? 0, 0, ',', '.') }} đ</strong></div>
+                                    @if ($phong->loaiPhong)
+                                        <div class="small text-muted">Giá loại:
+                                            <strong>{{ number_format($phong->loaiPhong->gia_mac_dinh ?? 0, 0, ',', '.') }}
+                                                đ</strong>
+                                        </div>
                                     @endif
                                 </td>
                             </tr>
@@ -82,19 +85,69 @@
 
                             $typeAmenitiesSum = $typeAmenities->sum('gia');
 
-                            $boSung = $roomAmenitiesAll->reject(function($item) use ($typeAmenities) {
+                            $boSung = $roomAmenitiesAll->reject(function ($item) use ($typeAmenities) {
                                 return $typeAmenities->contains('id', $item->id);
                             });
                             $boSungSum = $boSung->sum('gia');
 
-                            $allIds = array_values(array_unique(array_merge(
-                                $typeAmenities->pluck('id')->toArray(),
-                                $roomAmenitiesAll->pluck('id')->toArray()
-                            )));
+                            $allIds = array_values(
+                                array_unique(
+                                    array_merge(
+                                        $typeAmenities->pluck('id')->toArray(),
+                                        $roomAmenitiesAll->pluck('id')->toArray(),
+                                    ),
+                                ),
+                            );
                             $allAmenitiesSum = \App\Models\TienNghi::whereIn('id', $allIds)->sum('gia');
+
+                            $bedTotal = 0;
+                            if ($phong->relationLoaded('bedTypes') || $phong->bedTypes()->exists()) {
+                                $bts = $phong->bedTypes()->get();
+                                foreach ($bts as $bt) {
+                                    $qty = (int) ($bt->pivot->quantity ?? 0);
+                                    $pricePer =
+                                        $bt->pivot->price !== null
+                                            ? (float) $bt->pivot->price
+                                            : (float) ($bt->price ?? 0);
+                                    $bedTotal += $qty * $pricePer;
+                                }
+                            }
 
                             $totalDisplay = $phong->tong_gia;
                         @endphp
+
+
+                        <div class="mt-3">
+                            <h5 class="fw-bold">Cấu hình giường</h5>
+                            @if ($phong->bedTypes->count())
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Loại giường</th>
+                                            <th class="text-center">Số lượng</th>
+                                            <th class="text-center">Sức chứa/giường</th>
+                                            <th class="text-end">Giá/giường</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($phong->bedTypes as $bt)
+                                            <tr>
+                                                <td>{{ $bt->name }}</td>
+                                                <td class="text-center">{{ $bt->pivot->quantity ?? 0 }}</td>
+                                                <td class="text-center">{{ $bt->capacity }}</td>
+                                                <td class="text-end">
+                                                    {{ number_format($bt->pivot->price ?? ($bt->price ?? 0), 0, ',', '.') }}
+                                                    đ
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            @else
+                                <p><em>Không có cấu hình giường</em></p>
+                            @endif
+                        </div>
+
 
                         <div class="card mt-3">
                             <div class="card-header">Phân tích giá</div>
@@ -102,23 +155,31 @@
                                 <table class="table table-sm mb-0">
                                     <tr>
                                         <td>Giá loại phòng</td>
-                                        <td class="text-end"><strong>{{ number_format($typePrice,0,',','.') }} đ</strong></td>
+                                        <td class="text-end"><strong>{{ number_format($typePrice, 0, ',', '.') }}
+                                                đ</strong>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td>Tổng tiện nghi mặc định</td>
-                                        <td class="text-end">{{ number_format($typeAmenitiesSum,0,',','.') }} đ</td>
+                                        <td class="text-end">{{ number_format($typeAmenitiesSum, 0, ',', '.') }} đ</td>
                                     </tr>
                                     <tr>
                                         <td>Tổng tiện nghi bổ sung</td>
-                                        <td class="text-end">{{ number_format($boSungSum,0,',','.') }} đ</td>
+                                        <td class="text-end">{{ number_format($boSungSum, 0, ',', '.') }} đ</td>
                                     </tr>
                                     <tr class="table-active">
                                         <td>Tổng tiện nghi</td>
-                                        <td class="text-end">{{ number_format($allAmenitiesSum,0,',','.') }} đ</td>
+                                        <td class="text-end">{{ number_format($allAmenitiesSum, 0, ',', '.') }} đ</td>
                                     </tr>
+                                    <tr class="table-active">
+                                        <td>Tổng giá giường</td>
+                                        <td class="text-end">{{ number_format($bedTotal, 0, ',', '.') }} đ</td>
+                                    </tr>
+
                                     <tr>
                                         <th>Tổng giá phòng (hiện tại)</th>
-                                        <th class="text-end text-success">{{ number_format($totalDisplay,0,',','.') }} đ</th>
+                                        <th class="text-end text-success">{{ number_format($totalDisplay, 0, ',', '.') }} đ
+                                        </th>
                                     </tr>
                                 </table>
                             </div>
@@ -168,7 +229,8 @@
                                             @foreach ($tienMacDinh as $tn)
                                                 <li>
                                                     ✔ {{ $tn->ten }}
-                                                    <small class="text-muted"> — {{ number_format($tn->gia ?? 0,0,',','.') }} đ</small>
+                                                    <small class="text-muted"> —
+                                                        {{ number_format($tn->gia ?? 0, 0, ',', '.') }} đ</small>
                                                 </li>
                                             @endforeach
                                         </ul>
@@ -189,7 +251,8 @@
                                             @foreach ($tienBoSung as $tn)
                                                 <li>
                                                     ➕ {{ $tn->ten }}
-                                                    <small class="text-muted"> — {{ number_format($tn->gia ?? 0,0,',','.') }} đ</small>
+                                                    <small class="text-muted"> —
+                                                        {{ number_format($tn->gia ?? 0, 0, ',', '.') }} đ</small>
                                                 </li>
                                             @endforeach
                                         </ul>

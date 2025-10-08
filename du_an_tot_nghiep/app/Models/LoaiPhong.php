@@ -38,6 +38,14 @@ class LoaiPhong extends Model
         return $this->belongsToMany(TienNghi::class, 'loai_phong_tien_nghi');
     }
 
+    public function bedTypes()
+    {
+        return $this->belongsToMany(BedType::class, 'loai_phong_bed_type')
+            ->withPivot(['quantity', 'price'])
+            ->withTimestamps();
+    }
+
+
     public static function refreshSoLuongThucTe(int $loaiPhongId): int
     {
         $count = \App\Models\Phong::where('loai_phong_id', $loaiPhongId)->count();
