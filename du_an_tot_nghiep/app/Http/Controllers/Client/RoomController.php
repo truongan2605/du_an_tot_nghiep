@@ -22,7 +22,6 @@ class RoomController extends Controller
         $avgRating = 0;
         $reviews = collect();
 
-        // 1) nếu dat_phong có cột phong_id (booking trực tiếp gắn phong_id)
         if (Schema::hasTable('dat_phong') && Schema::hasColumn('dat_phong', 'phong_id')) {
             $avgRating = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
                 ->where('dat_phong.phong_id', $phong->id)
@@ -36,7 +35,6 @@ class RoomController extends Controller
                 ->orderByDesc('danh_gia.created_at')
                 ->get();
         }
-        // 2) nếu dat_phong_items tồn tại và chứa phong_id (booking có nhiều item, mỗi item gắn phong_id)
         elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
             $avgRating = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
                 ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
@@ -52,7 +50,6 @@ class RoomController extends Controller
                 ->orderByDesc('danh_gia.created_at')
                 ->get();
         }
-        // 3) nếu danh_gia trực tiếp có cột phong_id (không qua booking)
         elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
             $avgRating = DanhGia::where('phong_id', $phong->id)
                 ->where('trang_thai_kiem_duyet', 'da_dang')
@@ -63,7 +60,6 @@ class RoomController extends Controller
                 ->orderByDesc('created_at')
                 ->get();
         }
-        // 4) fallback: không có cấu trúc phù hợp -> trả về rỗng (không throw)
         else {
             $avgRating = 0;
             $reviews = collect();

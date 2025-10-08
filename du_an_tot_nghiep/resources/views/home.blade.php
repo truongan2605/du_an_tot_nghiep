@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Trang chủ - Booking')
+@section('title', 'Home - Booking')
 
 @section('content')
 

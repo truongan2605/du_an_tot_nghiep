@@ -6,7 +6,7 @@
     @php
         $gallery = $phong->images->values();
         $total = $gallery->count();
-        $main = $gallery->get(0); 
+        $main = $gallery->get(0);
 
         $thumbsAll = $gallery->slice(1);
         $thumbs = $thumbsAll->take(4)->values();
@@ -50,9 +50,7 @@
                 </div>
 
                 @if ($thumbCount > 0)
-                    {{-- Side grid: exactly 4 tiles (2x2), show only DB images, no fake placeholders --}}
                     @php
-                        // prepare exactly 4 tiles from $thumbs (which are images after main)
                         $tiles = [];
                         for ($i = 0; $i < 4; $i++) {
                             $tiles[$i] = $thumbs->get($i) ?? null;
@@ -75,14 +73,10 @@
                                             loading="lazy">
                                     </a>
                                 @else
-                                    {{-- empty tile (no placeholder image) --}}
                                     <div class="thumb-empty" aria-hidden="true"></div>
                                 @endif
 
-                                {{-- If this is the 4th tile and there are more images -> overlay + hidden links --}}
                                 @if ($isFourth && $remaining > 0)
-                                    {{-- Overlay anchor: clickable and opens lightbox --}}
-                                    {{-- Prefer to open the 4th tile image if exists, otherwise open first remaining image --}}
                                     @php
                                         $overlayTarget =
                                             $url ??
@@ -133,29 +127,32 @@
                             </div>
                             <div class="card-body pt-4 p-0">
                                 <h5 class="fw-light mb-4">Main Highlights</h5>
-                                <p class="mb-3">Demesne far-hearted suppose venture excited see had has. Dependent on so
-                                    extremely delivered by. Yet no jokes worse her why. <b>Bed one supposing breakfast day
-                                        fulfilled off depending questions.</b></p>
-                                <p class="mb-0">Delivered dejection necessary objection do Mr prevailed. Mr feeling does
-                                    chiefly cordial in do. Water timed folly right aware if oh truth. Large above be to
-                                    means. Dashwood does provide stronger is.</p>
-                                <div class="collapse" id="collapseContent">
-                                    <p class="my-3">We focus a great deal on the understanding of behavioral psychology
-                                        and influence triggers which are crucial for becoming a well rounded Digital
-                                        Marketer...</p>
-                                    <p class="mb-0">Behavioral psychology and influence triggers which are crucial for
-                                        becoming a well rounded Digital Marketer...</p>
-                                </div>
-                                <a class="p-0 mb-4 mt-2 btn-more d-flex align-items-center collapsed"
-                                    data-bs-toggle="collapse" href="#collapseContent" role="button" aria-expanded="false"
-                                    aria-controls="collapseContent">
-                                    See <span class="see-more ms-1">more</span><span class="see-less ms-1">less</span><i
-                                        class="fa-solid fa-angle-down ms-2"></i>
-                                </a>
+
+                                @php
+                                    $desc = $phong->mo_ta ?? '';
+                                    $limit = 400;
+                                @endphp
+
+                                @if (strlen($desc) <= $limit)
+                                    <p class="mb-0">{!! nl2br(e($desc ?: 'Không có mô tả cho phòng này.')) !!}</p>
+                                @else
+                                    <p class="mb-0">{!! nl2br(e(\Illuminate\Support\Str::limit($desc, $limit))) !!}</p>
+
+                                    <div class="collapse" id="collapseContent">
+                                        <p class="my-3">{!! nl2br(e(\Illuminate\Support\Str::substr($desc, $limit))) !!}</p>
+                                    </div>
+
+                                    <a class="p-0 mb-4 mt-2 btn-more d-flex align-items-center collapsed"
+                                        data-bs-toggle="collapse" href="#collapseContent" role="button"
+                                        aria-expanded="false" aria-controls="collapseContent">
+                                        See <span class="see-more ms-1">more</span><span class="see-less ms-1">less</span><i
+                                            class="fa-solid fa-angle-down ms-2"></i>
+                                    </a>
+                                @endif
+
                             </div>
                         </div>
 
-                        <!-- Amenities (dynamic from relation tienNghis) -->
                         <div class="card bg-transparent">
                             <div class="card-header border-bottom bg-transparent px-0 pt-0">
                                 <h3 class="card-title mb-0">Amenities</h3>
@@ -191,7 +188,6 @@
                                         <div class="card shadow p-3">
                                             <div class="row g-4">
                                                 <div class="col-md-5 position-relative">
-                                                    {{-- slider with up to 4 images (uses the same class styling as template) --}}
                                                     <div
                                                         class="tiny-slider arrow-round arrow-xs arrow-dark overflow-hidden rounded-2">
                                                         <div class="tiny-slider-inner" data-autoplay="true"
@@ -298,7 +294,6 @@
                                     </div>
 
                                     <div class="col-md-8">
-                                        {{-- Simple progress bars breakdown (optional): compute percentages --}}
                                         @php
                                             $counts = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
                                             if ($reviewCount && $reviewCount > 0) {
@@ -487,7 +482,8 @@
                             </ul>
 
                             <div class="d-grid">
-                                <a href="#room-options" class="btn btn-lg btn-primary-soft mb-0">View Room Options</a>
+                                <a href="{{ route('account.booking.create', $phong) }}" 
+                                class="btn btn-lg btn-primary-soft mb-0">Booking now</a>
                             </div>
                         </div>
                     </div>
@@ -536,7 +532,7 @@
             grid-template-rows: repeat(2, 1fr);
             gap: 0.8rem;
             align-items: stretch;
-			margin-bottom: 15px;
+            margin-bottom: 15px;
         }
 
         .thumb-tile {

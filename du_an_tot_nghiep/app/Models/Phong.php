@@ -15,7 +15,7 @@ class Phong extends Model
     protected $fillable = [
         'ma_phong',
         'name',
-        'mo_ta', 
+        'mo_ta',
         'loai_phong_id',
         'tang_id',
         'suc_chua',
@@ -82,6 +82,12 @@ class Phong extends Model
         return $base + $amenitiesSum;
     }
 
+    public function bedTypes()
+    {
+        return $this->belongsToMany(\App\Models\BedType::class, 'phong_bed')
+            ->withPivot('quantity')
+            ->withTimestamps();
+    }
 
     public function favoritedBy()
     {
