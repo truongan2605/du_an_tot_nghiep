@@ -92,4 +92,5 @@ Route::middleware('auth')->prefix('account')->name('account.')->group(function (
 Route::middleware('auth:sanctum')->post('/payment/initiate', [PaymentController::class, 'initiateVNPay']);
 Route::post('/payment/initiate', [PaymentController::class, 'initiate'])->name('payment.initiate');
 Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
+Route::get('/payment/pending-payments', [StaffController::class, 'pendingPayments'])->name('payment.pending_payments');
 require __DIR__ . '/auth.php';

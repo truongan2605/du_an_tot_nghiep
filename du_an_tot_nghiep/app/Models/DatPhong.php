@@ -32,6 +32,7 @@ class DatPhong extends Model
         'snapshot_total',
         'source',
         'ghi_chu',
+        'can_xac_nhan',
     ];
 
     protected $casts = [
@@ -41,10 +42,15 @@ class DatPhong extends Model
         'discount_amount' => 'decimal:2',
         'snapshot_total' => 'decimal:2',
         'can_thanh_toan' => 'boolean',
+        'can_xac_nhan' => 'boolean',
     ];
 
     // Relationships
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'nguoi_dung_id');
+    }
     public function nguoiDung(): BelongsTo
     {
         return $this->belongsTo(Authenticatable::class, 'nguoi_dung_id');

@@ -36,7 +36,10 @@
                         phòng</a>
                     <a href="{{ route('staff.rooms') }}"
                         class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"> Danh sách trạng thái phòng</a>
+                     <a href="{{ route('payment.pending_payments') }}"
+                        class="nav-link {{ request()->routeIs('payment.pending-payments') ? 'active' : '' }}"> Danh sách chờ thanh toán</a>
                 @endif
+               
 
             </nav>
         </aside>

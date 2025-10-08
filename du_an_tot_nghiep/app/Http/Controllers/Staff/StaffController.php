@@ -53,6 +53,11 @@ class StaffController extends Controller
         ));
     }
 
+    public function pendingPayments()
+{
+    $pendingPayments = DatPhong::where('can_xac_nhan', true)->get();
+    return view('payment.pending_payments', compact('pendingPayments'));
+}
     public function bookings()
     {
         $bookings = DatPhong::with(['nguoiDung', 'datPhongItems.loaiPhong', 'phongDaDats.phong'])
@@ -64,7 +69,7 @@ class StaffController extends Controller
 
     public function pendingBookings()
     {
-        $bookings = DatPhong::where('trang_thai', 'dang_cho')
+        $bookings = DatPhong::whereIn('trang_thai', ['dang_cho', 'dang_cho_xac_nhan'])
             ->with(['nguoiDung', 'datPhongItems.loaiPhong', 'phongDaDats.phong'])
             ->paginate(10);
 
@@ -79,23 +84,29 @@ class StaffController extends Controller
     {
         $request->validate([
             'phong_id' => 'nullable|exists:phong,id',
+            'dat_phong_id' => 'required|exists:dat_phong,id',
+            'staff_id' => 'required|exists:users,id'
         ]);
+
+        $dat_phong = DatPhong::findOrFail($request->dat_phong_id);
+        // Chỉ cho phép xác nhận nếu đang chờ xác nhận thủ công
+        if ($dat_phong->trang_thai !== 'dang_cho_xac_nhan') {
+            return response()->json(['error' => 'Booking không thể xác nhận ở trạng thái hiện tại'], 400);
+        }
 
         $booking = DatPhong::with('datPhongItems.loaiPhong')->findOrFail($id);
 
-        if ($booking->trang_thai !== 'dang_cho') {
+        if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
             return redirect()->back()->with('error', 'Booking không thể xác nhận.');
         }
 
         DB::transaction(function () use ($booking, $request) {
-
             $booking->trang_thai = 'da_xac_nhan';
             $booking->save();
 
-            
             $datPhongItem = $booking->datPhongItems->first();
             if (!$datPhongItem) {
-                $loaiPhong = LoaiPhong::first(); 
+                $loaiPhong = LoaiPhong::first();
                 if (!$loaiPhong) {
                     throw new \Exception('Chưa có loại phòng nào trong hệ thống.');
                 }
@@ -111,7 +122,6 @@ class StaffController extends Controller
             if ($request->filled('phong_id')) {
                 $phong_id = $request->phong_id;
                 if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
-
                     PhongDaDat::create([
                         'dat_phong_item_id' => $datPhongItem->id,
                         'phong_id' => $phong_id,
@@ -153,13 +163,12 @@ class StaffController extends Controller
         return ($overlappingBookings + $holds) == 0;
     }
 
-    // --- Assign Rooms Form ---
     public function assignRoomsForm($dat_phong_id)
     {
         $booking = DatPhong::with('datPhongItems.loaiPhong')->findOrFail($dat_phong_id);
 
-        if ($booking->trang_thai !== 'da_xac_nhan') {
-            return redirect()->back()->with('error', 'Booking chưa được xác nhận.');
+        if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
+            return redirect()->back()->with('error', 'Booking chưa được xác nhận hoặc không thể gán phòng.');
         }
 
         if ($booking->datPhongItems->isEmpty()) {
@@ -188,7 +197,6 @@ class StaffController extends Controller
         ]);
     }
 
-    // --- Assign Rooms Save ---
     public function assignRooms(Request $request, $dat_phong_id)
     {
         $request->validate([
@@ -198,8 +206,8 @@ class StaffController extends Controller
         ]);
 
         $booking = DatPhong::findOrFail($dat_phong_id);
-        if ($booking->trang_thai !== 'da_xac_nhan') {
-            return redirect()->back()->with('error', 'Booking chưa được xác nhận.');
+        if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
+            return redirect()->back()->with('error', 'Booking chưa được xác nhận hoặc không thể gán phòng.');
         }
 
         $assigned = [];
@@ -237,21 +245,19 @@ class StaffController extends Controller
         return redirect()->route('staff.rooms')->with('success', $message)->with('conflicts', $conflicts);
     }
 
-   public function rooms()
-{
-  
-    $roomsQuery = PhongDaDat::where('trang_thai', 'da_dat')
-        ->with(['phong.tang', 'datPhongItem.datPhong.user', 'datPhongItem.loaiPhong']);
-    $rooms = $roomsQuery->orderBy('updated_at', 'desc')->paginate(10); 
-    $latestRoom = $roomsQuery->orderBy('updated_at', 'desc')->first();
-    return view('staff.rooms', compact('rooms', 'latestRoom'));
-}
-    
+    public function rooms()
+    {
+        $roomsQuery = PhongDaDat::where('trang_thai', 'da_dat')
+            ->with(['phong.tang', 'datPhongItem.datPhong.user', 'datPhongItem.loaiPhong']);
+        $rooms = $roomsQuery->orderBy('updated_at', 'desc')->paginate(10);
+        $latestRoom = $roomsQuery->orderBy('updated_at', 'desc')->first();
+        return view('staff.rooms', compact('rooms', 'latestRoom'));
+    }
 
     public function cancel($id)
     {
         $booking = DatPhong::findOrFail($id);
-        if ($booking->trang_thai !== 'dang_cho') {
+        if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
             return redirect()->back()->with('error', 'Chỉ có thể hủy booking chờ xác nhận.');
         }
 

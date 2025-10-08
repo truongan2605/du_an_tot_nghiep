@@ -152,7 +152,8 @@ class PaymentController extends Controller
                 if (!$dat_phong) {
                     throw new \Exception('DatPhong not found for GiaoDich');
                 }
-                $dat_phong->trang_thai = 'da_xac_nhan';
+                $dat_phong->trang_thai = 'dang_cho_xac_nhan';
+                $dat_phong->can_xac_nhan = true;
                 $dat_phong->save();
 
                 $user = $dat_phong->nguoiDung; 
