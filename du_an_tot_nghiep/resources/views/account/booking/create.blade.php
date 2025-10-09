@@ -144,7 +144,7 @@
 
                                                     <input type="hidden" name="so_khach" id="so_khach"
                                                         value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
-                                                    <div class="small text">Room capacity (without extras):
+                                                    <div class="small text">Room capacity:
                                                         {{ $phong->suc_chua ?? ($roomCapacity ?? '-') }} persons</div>
                                                 </div>
                                             </div>

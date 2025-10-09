@@ -54,6 +54,10 @@ class PhongController extends Controller
         DB::beginTransaction();
         try {
             $selectedLoai = LoaiPhong::findOrFail($request->loai_phong_id);
+            $override = (bool) $request->input('override_price', false);
+            $inputBase = $override && $request->filled('gia_mac_dinh') && $request->input('gia_mac_dinh') >= 0
+                ? (float) $request->input('gia_mac_dinh')
+                : (float) ($selectedLoai->gia_mac_dinh ?? 0);
 
             $basePrice = (float) ($selectedLoai->gia_mac_dinh ?? 0);
 
@@ -107,7 +111,6 @@ class PhongController extends Controller
 
             $phong = Phong::create($data);
 
-            // attach bed types (if provided) or copy from LoaiPhong pivots
             if (is_array($roomBedData) && count($roomBedData) > 0) {
                 $attach = [];
                 foreach ($roomBedData as $bedTypeId => $vals) {
@@ -320,7 +323,15 @@ class PhongController extends Controller
     {
         DB::beginTransaction();
         try {
+            $hasBookings = $phong->phongDaDats()->exists();
+            if ($hasBookings) {
+                return back()->withErrors(['error' => 'Không thể xóa phòng vì đã có booking liên quan.']);
+            }
+
             $phong->tienNghis()->detach();
+            $phong->bedTypes()->detach();
+
+            $phong->wishlists()->delete();
 
             foreach ($phong->images as $img) {
                 if (Storage::disk('public')->exists($img->image_path)) {
@@ -331,6 +342,10 @@ class PhongController extends Controller
 
             $phong->delete();
 
+            if ($phong->loai_phong_id) {
+                LoaiPhong::refreshSoLuongThucTe($phong->loai_phong_id);
+            }
+
             DB::commit();
             return redirect()->route('admin.phong.index')
                 ->with('success', 'Xóa phòng thành công');
@@ -339,6 +354,7 @@ class PhongController extends Controller
             return back()->withErrors(['error' => 'Lỗi xóa: ' . $e->getMessage()]);
         }
     }
+
 
     public function destroyImage(PhongImage $image)
     {
