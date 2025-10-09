@@ -17,10 +17,7 @@
                                 action="{{ route('account.wishlist.clear') }}">
                                 @csrf
                                 <div class="col-6 col-xl-3">
-                                    <select class="form-select form-select-sm js-choice border-0">
-                                        <option value="">Sort by</option>
-                                        <option>Recently added</option>
-                                    </select>
+                                    
                                 </div>
                                 <button class="btn btn-danger-soft mb-0" type="submit"><i
                                         class="fas fa-trash me-2"></i>Remove all</button>
