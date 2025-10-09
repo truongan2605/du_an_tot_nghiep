@@ -60,8 +60,8 @@
                 <tr>
                     <th>Giường</th>
                     <th class="text-center">Số lượng</th>
-                    <th class="text-end">Giá / bed (nếu override)</th>
-                    <th class="text-center">Capacity / bed</th>
+                    <th class="text-end">Giá / giường</th>
+                    <th class="text-center">Sức chứa</th>
                 </tr>
             </thead>
             <tbody>
