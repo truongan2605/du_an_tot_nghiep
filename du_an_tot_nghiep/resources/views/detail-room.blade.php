@@ -213,7 +213,8 @@
                                                                 @endif
                                                             </div>
                                                             <div class="text-end">
-                                                                <div class="fw-bold">Number of beds: {{ $b['quantity'] }} </div>
+                                                                <div class="fw-bold">Number of beds: {{ $b['quantity'] }}
+                                                                </div>
                                                                 @if (!empty($b['price']))
                                                                     <small
                                                                         class="text-muted">{{ number_format($b['price'], 0, ',', '.') }}
@@ -231,7 +232,6 @@
                                 @endif
                             </div>
                         </div>
-
 
                         <div class="card-body pt-4 p-0">
                             <div class="vstack gap-4">
@@ -539,6 +539,25 @@
                                 <a href="{{ route('account.booking.create', $phong) }}"
                                     class="btn btn-lg btn-primary-soft mb-0">Booking now</a>
                             </div>
+
+                            @auth
+                                <div class="d-grid mb-2">
+                                    <button id="detail-wishlist-btn" type="button" class="btn btn-outline-danger btn-lg"
+                                        data-phong-id="{{ $phong->id }}"
+                                        aria-pressed="{{ $isWished ? 'true' : 'false' }}"
+                                        aria-label="{{ $isWished ? 'Remove from wishlist' : 'Add to wishlist' }}">
+                                        <i
+                                            class="{{ $isWished ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' }}"></i>
+                                        <span class="wl-label ms-2">{{ $isWished ? 'Saved' : 'Add to wishlist' }}</span>
+                                    </button>
+                                </div>
+                            @else
+                                <div class="d-grid">
+                                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-lg">Login to
+                                        wishlist</a>
+                                </div>
+                            @endauth
+
                         </div>
                     </div>
                 </aside>
@@ -608,14 +627,12 @@
             display: block;
         }
 
-        /* empty tile (no image) shows subtle background only */
         .thumb-empty {
             width: 100%;
             height: 100%;
             background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
         }
 
-        /* overlay visual (non-clickable) */
         .overlay {
             position: absolute;
             inset: 0;
@@ -624,7 +641,6 @@
             justify-content: center;
             color: #fff;
             pointer-events: none;
-            /* let overlay-anchor handle clicks */
             background: linear-gradient(0deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.15));
             text-align: center;
             border-radius: 0.5rem;

@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Phong;
 use App\Models\DanhGia;
+use App\Models\Wishlist;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Auth;
 
 class RoomController extends Controller
 {
@@ -90,6 +92,13 @@ class RoomController extends Controller
             $totalBeds = (int) ($phong->so_giuong ?? $phong->loaiPhong->so_giuong ?? 0);
         }
 
-        return view('detail-room', compact('phong', 'related', 'avgRating', 'reviews', 'bedSummary', 'totalBeds'));
+        $isWished = false;
+        if (Auth::check()) {
+            $isWished = Wishlist::where('user_id', Auth::id())
+                ->where('phong_id', $phong->id)
+                ->exists();
+        }
+
+        return view('detail-room', compact('phong', 'related', 'avgRating', 'reviews', 'bedSummary', 'totalBeds', 'isWished'));
     }
 }

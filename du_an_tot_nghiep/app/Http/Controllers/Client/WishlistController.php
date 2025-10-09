@@ -19,10 +19,14 @@ class WishlistController extends Controller
     {
         $user = Auth::user();
 
-        $wishlists = Wishlist::with('phong')->where('user_id', $user->id)->orderBy('created_at', 'desc')->get();
+        $wishlists = Wishlist::with('phong.images')
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->get();
 
         return view('account.wishlist', compact('wishlists'));
     }
+
 
     public function toggle(Request $request, $phongId)
     {

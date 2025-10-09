@@ -4,8 +4,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Booking')</title>
-    
+
     <script>
         const storedTheme = localStorage.getItem('theme')
 
@@ -98,4 +99,145 @@
     <script src="{{ asset('template/stackbros/assets/js/functions.js') }}"></script>
 
     @stack('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const CSRF_TOKEN = csrfMeta ? csrfMeta.getAttribute('content') : null;
+            const TOGGLE_BASE = "{{ url('account/wishlist/toggle') }}";
+            const LOGIN_URL = "{{ route('login') }}";
+
+            function updateButtonUI(btn, status) {
+                if (!btn) return;
+                const icon = btn.querySelector('i');
+                const label = btn.querySelector('.wl-label');
+                const isDetail = !!label || btn.id === 'detail-wishlist-btn';
+
+                if (status === 'added') {
+                    btn.setAttribute('aria-pressed', 'true');
+                    btn.setAttribute('title', 'Remove from wishlist');
+                    if (icon) {
+                        icon.className = 'fa-solid fa-heart';
+                        icon.classList.add('text-danger');
+                    }
+                    if (isDetail && label) label.textContent = 'Saved';
+                } else if (status === 'removed') {
+                    btn.setAttribute('aria-pressed', 'false');
+                    btn.setAttribute('title', 'Add to wishlist');
+                    if (icon) {
+                        icon.className = 'fa-regular fa-heart';
+                        icon.classList.remove('text-danger');
+                    }
+                    if (isDetail && label) label.textContent = 'Add to wishlist';
+                }
+            }
+
+            function showToast(msg, isError = false) {
+                const d = document.createElement('div');
+                d.className = 'alert ' + (isError ? 'alert-danger' : 'alert-success') + ' position-fixed';
+                d.style.right = '20px';
+                d.style.bottom = '20px';
+                d.style.zIndex = 1150;
+                d.innerText = msg;
+                document.body.appendChild(d);
+                setTimeout(() => d.remove(), 2200);
+            }
+
+            async function toggleWishlist(phongId, btn) {
+                if (!CSRF_TOKEN) {
+                    window.location.href = LOGIN_URL;
+                    return;
+                }
+
+                const url = TOGGLE_BASE + '/' + phongId;
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': CSRF_TOKEN,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({})
+                    });
+
+                    const ctype = res.headers.get('content-type') || '';
+
+                    if (!ctype.includes('application/json')) {
+                        window.location.href = LOGIN_URL;
+                        return;
+                    }
+
+                    const data = await res.json();
+
+                    if (res.ok) {
+                        if (data.status === 'added' || data.status === 'removed') {
+                            updateButtonUI(btn, data.status);
+                            showToast(data.status === 'added' ? 'Added to wishlist' : 'Removed from wishlist');
+                            if (btn.classList.contains('wishlist-toggle')) {
+                                setTimeout(() => window.location.reload(), 400);
+                            }
+                        } else {
+                            console.warn('Unknown wishlist payload', data);
+                            showToast('Action completed', false);
+                        }
+                    } else {
+                        console.error('Wishlist error', data);
+                        showToast(data.message || 'An error occurred', true);
+                    }
+                } catch (err) {
+                    console.error('Network/JSON error', err);
+                    showToast('Network error', true);
+                }
+            }
+
+            document.body.addEventListener('click', function(e) {
+                const btn = e.target.closest('.btn-wishlist, #detail-wishlist-btn, .wishlist-toggle');
+                if (!btn) return;
+                e.preventDefault();
+                const phongId = btn.getAttribute('data-phong-id') || btn.getAttribute('data-phong');
+                if (!phongId) return;
+                toggleWishlist(phongId, btn);
+            });
+        });
+    </script>
+
 </body>
+
+@push('styles')
+    <style>
+        .stretched-link::after {
+            z-index: 1;
+        }
+
+        .btn-wishlist {
+            z-index: 9999;
+            pointer-events: auto;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.35);
+            border: none;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .btn-wishlist i {
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .btn-wishlist i.text-danger {
+            color: #dc3545 !important;
+        }
+
+        #detail-wishlist-btn {
+            margin-top: .75rem;
+        }
+
+        #detail-wishlist-btn .wl-label {
+            font-weight: 600;
+        }
+    </style>
+@endpush

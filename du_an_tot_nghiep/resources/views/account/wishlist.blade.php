@@ -32,37 +32,27 @@
                                     <div class="card shadow p-2">
                                         <div class="row g-0">
                                             <div class="col-md-3">
-                                                <img src="{{ $p->thumb_url ?? asset('template/stackbros/assets/images/category/hotel/4by3/10.jpg') }}"
-                                                    class="card-img rounded-2" alt="...">
+                                                <img src="{{ $p->firstImageUrl() ?? ($p->thumb_url ?? asset('template/stackbros/assets/images/category/hotel/4by3/10.jpg')) }}"
+                                                    class="card-img rounded-2"
+                                                    alt="{{ $p->ten_phong ?? ($p->name ?? 'Phong') }}">
+
+
                                             </div>
                                             <div class="col-md-9">
                                                 <div class="card-body py-md-2 d-flex flex-column h-100">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <ul class="list-inline small mb-0">
-                                                            {{-- rating nếu có --}}
-                                                            <li class="list-inline-item">⭐️</li>
-                                                        </ul>
-
-                                                        <ul class="list-inline mb-0">
-                                                            <li class="list-inline-item">
-                                                                {{-- toggle heart (AJAX) --}}
-                                                                <button
-                                                                    class="btn btn-sm btn-round btn-danger mb-0 wishlist-toggle"
-                                                                    data-phong="{{ $p->id }}"><i
-                                                                        class="fa-solid fa-fw fa-heart"></i></button>
-                                                            </li>
-                                                        </ul>
-                                                    </div>
-
-                                                    <h5 class="card-title mb-1"><a
-                                                            href="{{ route('phong.show', $p->id) }}">{{ $p->ten_phong ?? ($p->name ?? 'Phong') }}</a>
+                                                    <h5 class="card-title mb-1">
+                                                        <a href="{{ route('rooms.show', $p->id) }}">{{ $p->ten_phong ?? ($p->name ?? 'Phong') }}
+                                                        </a>
                                                     </h5>
-                                                    <small><i class="bi bi-geo-alt me-2"></i>{{ $p->dia_chi ?? '' }}</small>
+
+                                                    <small><i
+                                                            class="bi bi-geo-alt me-2"></i>{{ $p->ma_phong ?? '' }}</small>
 
                                                     <div
                                                         class="d-sm-flex justify-content-sm-between align-items-center mt-3 mt-md-auto">
                                                         <div class="d-flex align-items-center">
-                                                            <h5 class="fw-bold mb-0 me-1">${{ $p->gia ?? 0 }}</h5>
+                                                            <h5 class="fw-bold mb-0 me-1">
+                                                                ${{ number_format($p->gia_cuoi_cung ?? 0) }}</h5>
                                                             <span class="mb-0 me-2">/day</span>
                                                         </div>
 
