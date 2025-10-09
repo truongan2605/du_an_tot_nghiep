@@ -552,7 +552,7 @@
                                     </button>
                                 </div>
                             @else
-                                <div class="d-grid">
+                                <div class="d-grid" style="margin-top: 15px">
                                     <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-lg">Login to
                                         wishlist</a>
                                 </div>
