@@ -95,8 +95,9 @@
                                                                 max="{{ max(1, $roomCapacity) }}"
                                                                 value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
                                                             <small id="adults_help" class="text-muted d-block">Max adults
-                                                                (current capacity): <strong
-                                                                    id="room_capacity_display">{{ $roomCapacity }}</strong></small>
+                                                                : <strong
+                                                                    id="room_capacity_display">{{ $roomCapacity }}</strong>
+                                                            </small>
                                                         </div>
 
                                                         <div class="col-6">
@@ -111,7 +112,7 @@
                                                     </div>
 
                                                     <div id="children_ages_container" class="mb-2">
-                                                        {{-- JS will render child age inputs here --}}
+                                                        {{-- JS will render child age inputs here Do not delete this div --}}
                                                     </div>
 
                                                     <div class="mt-3">
