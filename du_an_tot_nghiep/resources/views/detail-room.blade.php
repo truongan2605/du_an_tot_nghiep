@@ -541,7 +541,7 @@
                             </div>
 
                             @auth
-                                <div class="d-grid mb-2">
+                                <div class="d-grid mb-2" style="margin-top: 12px ">
                                     <button id="detail-wishlist-btn" type="button" class="btn btn-outline-danger btn-lg"
                                         data-phong-id="{{ $phong->id }}"
                                         aria-pressed="{{ $isWished ? 'true' : 'false' }}"
