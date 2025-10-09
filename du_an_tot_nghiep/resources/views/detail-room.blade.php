@@ -181,6 +181,58 @@
                             </div>
                         </div>
 
+                        <!-- Beds & Bedding -->
+                        <div class="card bg-transparent">
+                            <div class="card-header border-bottom bg-transparent px-0 pt-0">
+                                <h3 class="card-title mb-0">Beds & Bedding</h3>
+                            </div>
+                            <div class="card-body pt-4 p-0">
+                                <div class="mb-3">
+                                    <strong>Total beds:</strong>
+                                    <span>{{ $totalBeds }}</span>
+
+                                </div>
+
+                                @if ($bedSummary && $bedSummary->count())
+                                    <div class="row g-3">
+                                        @foreach ($bedSummary as $b)
+                                            <div class="col-12">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    @if (!empty($b['icon']))
+                                                        <div class="me-2">
+                                                            <i class="{{ $b['icon'] }} fs-4"></i>
+                                                        </div>
+                                                    @endif
+                                                    <div class="flex-grow-1">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <h6 class="mb-0">{{ $b['name'] }}</h6>
+                                                                @if (!empty($b['capacity']))
+                                                                    <small class="text-muted">Capacity:
+                                                                        {{ $b['capacity'] }}</small>
+                                                                @endif
+                                                            </div>
+                                                            <div class="text-end">
+                                                                <div class="fw-bold">{{ $b['quantity'] }} pcs</div>
+                                                                @if (!empty($b['price']))
+                                                                    <small
+                                                                        class="text-muted">{{ number_format($b['price'], 0, ',', '.') }}
+                                                                        VND / each</small>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="mb-0">This room uses default bedding configuration.</p>
+                                @endif
+                            </div>
+                        </div>
+
+
                         <div class="card-body pt-4 p-0">
                             <div class="vstack gap-4">
                                 @if ($related && $related->count())
@@ -200,7 +252,8 @@
                                                                             alt="{{ $r->name ?? $r->ma_phong }}"></div>
                                                                 @endforeach
                                                             @else
-                                                                <div><img src="{{ $r->firstImageUrl() }}" class="rounded-2"
+                                                                <div><img src="{{ $r->firstImageUrl() }}"
+                                                                        class="rounded-2"
                                                                         alt="{{ $r->name ?? $r->ma_phong }}"></div>
                                                             @endif
                                                         </div>
@@ -447,7 +500,8 @@
                             <div class="d-sm-flex justify-content-sm-between align-items-center mb-3">
                                 <div>
                                     <span>Price Start at</span>
-                                    <h4 class="card-title mb-0">{{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }} VND
+                                    <h4 class="card-title mb-0">{{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }}
+                                        VND
                                     </h4>
                                 </div>
 
@@ -482,8 +536,8 @@
                             </ul>
 
                             <div class="d-grid">
-                                <a href="{{ route('account.booking.create', $phong) }}" 
-                                class="btn btn-lg btn-primary-soft mb-0">Booking now</a>
+                                <a href="{{ route('account.booking.create', $phong) }}"
+                                    class="btn btn-lg btn-primary-soft mb-0">Booking now</a>
                             </div>
                         </div>
                     </div>
