@@ -447,7 +447,7 @@
                             <div class="d-sm-flex justify-content-sm-between align-items-center mb-3">
                                 <div>
                                     <span>Price Start at</span>
-                                    <h4 class="card-title mb-0">{{ number_format($phong->gia_mac_dinh, 0, ',', '.') }} VND
+                                    <h4 class="card-title mb-0">{{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }} VND
                                     </h4>
                                 </div>
 

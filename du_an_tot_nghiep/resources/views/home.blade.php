@@ -481,7 +481,7 @@
                                 <!-- Price and rating -->
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="text-success mb-0">
-                                        {{ number_format($phong->gia_mac_dinh, 0, '.', ',') }} VND
+                                        {{ number_format($phong->gia_cuoi_cung, 0, '.', ',') }} VND
                                     </h6>
                                     <h6 class="mb-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
                                 </div>
