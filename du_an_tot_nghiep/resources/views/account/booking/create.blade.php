@@ -311,17 +311,17 @@
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Adults extra / night</span>
-                                                <span class="fs-5" id="price_adults_display">-</span>
+                                                <span class="fs-6" id="price_adults_display">-</span>
                                             </li>
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Children extra / night</span>
-                                                <span class="fs-5" id="price_children_display">-</span>
+                                                <span class="fs-6" id="price_children_display">-</span>
                                             </li>
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Final price / night</span>
-                                                <span class="fs-5" id="final_per_night_display">-</span>
+                                                <span class="fs-6" id="final_per_night_display">-</span>
                                             </li>
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -331,7 +331,7 @@
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Additional services</span>
-                                                <span class="fs-5" id="price_addons_display">-</span>
+                                                <span class="fs-6" id="price_addons_display">-</span>
                                             </li>
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
