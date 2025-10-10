@@ -49,7 +49,7 @@
                                                         class="d-sm-flex justify-content-sm-between align-items-center mt-3 mt-md-auto">
                                                         <div class="d-flex align-items-center">
                                                             <h5 class="fw-bold mb-0 me-1">
-                                                                ${{ number_format($p->gia_cuoi_cung ?? 0) }}</h5>
+                                                                {{ number_format($p->gia_cuoi_cung ?? 0) }} VND</h5>
                                                             <span class="mb-0 me-2">/day</span>
                                                         </div>
 
