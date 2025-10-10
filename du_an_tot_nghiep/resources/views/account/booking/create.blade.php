@@ -10,6 +10,7 @@
             $cap = (int) ($bt->capacity ?? 1);
             $roomCapacity += $qty * $cap;
         }
+        $baseCapacity = (int) ($phong->suc_chua ?? ($phong->loaiPhong->suc_chua ?? ($roomCapacity ?: 1)));
     @endphp
 
     <main>
@@ -92,11 +93,11 @@
                                                             <label class="form-label">Adults</label>
                                                             <input type="number" name="adults" id="adults"
                                                                 class="form-control" min="1"
-                                                                max="{{ max(1, $roomCapacity) }}"
+                                                                max="{{ max(1, $roomCapacity + 2) }}"
                                                                 value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
                                                             <small id="adults_help" class="text-muted d-block">Max adults
                                                                 : <strong
-                                                                    id="room_capacity_display">{{ $roomCapacity }}</strong>
+                                                                    id="room_capacity_display">{{ $roomCapacity + 2 }}</strong>
                                                             </small>
                                                         </div>
 
@@ -145,7 +146,7 @@
 
                                                     <input type="hidden" name="so_khach" id="so_khach"
                                                         value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
-                                                    <div class="small text">Room capacity:
+                                                    <div class="small text">Room for:
                                                         {{ $phong->suc_chua ?? ($roomCapacity ?? '-') }} persons</div>
                                                 </div>
                                             </div>
@@ -158,7 +159,7 @@
                                             </div>
 
                                             <div class="card-body">
-                                                <h6>Amenities</h6>
+                                                <h6>Services</h6>
                                                 @if ($phong->tienNghis && $phong->tienNghis->count())
                                                     <ul class="list-unstyled">
                                                         @foreach ($phong->tienNghis as $tn)
@@ -174,8 +175,36 @@
                                                             </li>
                                                         @endforeach
                                                     </ul>
+                                                    <hr class="my-3" />
+                                                    <h6 class="mb-2">Additional services</h6>
+                                                    @if (isset($availableAddons) && $availableAddons->count())
+                                                        <ul class="list-unstyled">
+                                                            @foreach ($availableAddons as $addon)
+                                                                <li class="mb-2">
+                                                                    <label class="d-flex align-items-center">
+                                                                        <input type="checkbox" name="addons[]"
+                                                                            value="{{ $addon->id }}"
+                                                                            data-price="{{ $addon->gia }}"
+                                                                            class="me-2 addon-checkbox">
+                                                                        <span>
+                                                                            <strong>{{ $addon->ten }}</strong>
+                                                                            <div class="small text-muted">
+                                                                                {{ \Illuminate\Support\Str::limit($addon->mo_ta ?? '', 100) }}
+                                                                            </div>
+                                                                            <div class="small text">+
+                                                                                {{ number_format($addon->gia ?? 0, 0, ',', '.') }}
+                                                                                đ / night</div>
+                                                                        </span>
+                                                                    </label>
+                                                                </li>
+                                                            @endforeach
+                                                        </ul>
+                                                    @else
+                                                        <p class="mb-0"><em>No additional payable services
+                                                                available.</em></p>
+                                                    @endif
                                                 @else
-                                                    <p class="mb-0"><em>No amenities listed for this room.</em></p>
+                                                    <p class="mb-0"><em>No services listed for this room.</em></p>
                                                 @endif
                                             </div>
                                         </div>
@@ -222,6 +251,29 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="mb-3">
+                                                    <label class="form-label">Notes</label>
+                                                    <textarea name="ghi_chu" class="form-control" rows="3" placeholder="Special notes for the hotel">{{ old('ghi_chu') }}</textarea>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label">Payment method</label>
+                                                    <select name="phuong_thuc" class="form-select">
+                                                        <option value=""
+                                                            {{ old('phuong_thuc') == '' ? 'selected' : '' }}>Select method
+                                                        </option>
+                                                        <option value="tien_mat"
+                                                            {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>Pay at
+                                                            the hotel (Cash)</option>
+                                                        <option value="vnpay"
+                                                            {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>VNPAY QR
+                                                        </option>
+                                                        <option value="chuyen_khoan"
+                                                            {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
+                                                            Bank transfer</option>
+                                                    </select>
+                                                </div>
+
                                                 <div class="mt-3">
                                                     <button type="submit" class="btn btn-lg btn-primary">Confirm</button>
                                                     <a href="{{ route('rooms.show', $phong->id) }}"
@@ -259,12 +311,12 @@
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Adults extra / night</span>
-                                                <span class="fs-6" id="price_adults_display">-</span>
+                                                <span class="fs-5" id="price_adults_display">-</span>
                                             </li>
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Children extra / night</span>
-                                                <span class="fs-6" id="price_children_display">-</span>
+                                                <span class="fs-5" id="price_children_display">-</span>
                                             </li>
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -275,6 +327,11 @@
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Nights</span>
                                                 <span class="fs-5" id="nights_count_display">-</span>
+                                            </li>
+
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span class="h6 fw-light mb-0">Additional services</span>
+                                                <span class="fs-5" id="price_addons_display">-</span>
                                             </li>
 
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -324,15 +381,27 @@
             const totalDisplay = document.getElementById('total_snapshot_display');
             const payableDisplay = document.getElementById('payable_now_display');
 
+            const addonCheckboxes = document.querySelectorAll('.addon-checkbox');
+
             const roomCapacityDisplay = document.getElementById('room_capacity_display');
 
             const pricePerNight = Number({!! json_encode((float) ($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0))) !!});
 
-            let roomCapacity = Number({{ $roomCapacity ?? 0 }});
+            const baseCapacity = Number({{ $baseCapacity }});
+            let roomCapacity = baseCapacity;
 
             const ADULT_PRICE = {{ \App\Http\Controllers\Client\BookingController::ADULT_PRICE }};
             const CHILD_PRICE = {{ \App\Http\Controllers\Client\BookingController::CHILD_PRICE }};
             const CHILD_FREE_AGE = {{ \App\Http\Controllers\Client\BookingController::CHILD_FREE_AGE }};
+
+            function computeAddonsPerNight() {
+                let sum = 0;
+                document.querySelectorAll('input[name="addons[]"]:checked').forEach(chk => {
+                    const p = Number(chk.dataset.price || 0);
+                    if (!isNaN(p)) sum += p;
+                });
+                return sum;
+            }
 
             function fmtVnd(num) {
                 return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
@@ -382,10 +451,10 @@
                     const wrapper = document.createElement('div');
                     wrapper.className = 'mb-2 child-age-wrapper';
                     wrapper.innerHTML = `
-                        <label class="form-label">Child ${i+1} age</label>
-                        <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="0" />
-                        <div class="small text-danger mt-1 age-error" style="display:none;"></div>
-                    `;
+                    <label class="form-label">Child ${i+1} age</label>
+                    <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="0" />
+                    <div class="small text-danger mt-1 age-error" style="display:none;"></div>
+                `;
                     childrenAgesContainer.appendChild(wrapper);
                 }
 
@@ -407,7 +476,6 @@
                         updateSummary();
                     });
 
-                    // also sanitize on blur
                     el.addEventListener('blur', function() {
                         const min = 0;
                         const max = 12;
@@ -417,7 +485,6 @@
                     });
                 });
 
-                // helper functions
                 function showAgeError(inputEl, msg) {
                     const wr = inputEl.closest('.child-age-wrapper');
                     if (!wr) return;
@@ -425,7 +492,6 @@
                     if (err) {
                         err.innerText = msg;
                         err.style.display = 'block';
-                        // hide after 2.5s
                         setTimeout(() => {
                             err.style.display = 'none';
                         }, 2500);
@@ -441,7 +507,6 @@
                     }
                 }
 
-                // update bindings + summary
                 document.querySelectorAll('.child-age-input').forEach(el => el.addEventListener('change',
                     updateSummary));
                 updateSummary();
@@ -464,13 +529,9 @@
                     else if (a >= 7) chargeableChildren++;
                 });
 
-                const adultsChargePerNight = computedAdults * ADULT_PRICE;
-                const childrenChargePerNight = chargeableChildren * CHILD_PRICE;
                 return {
                     computedAdults,
-                    chargeableChildren,
-                    adultsChargePerNight,
-                    childrenChargePerNight
+                    chargeableChildren
                 };
             }
 
@@ -491,54 +552,76 @@
                 nightsDisplay.innerText = nights;
 
                 const persons = computePersonCharges();
+                const computedAdults = persons.computedAdults;
+                const chargeableChildren = persons.chargeableChildren;
+                const countedPersons = computedAdults + chargeableChildren;
+
+                const maxAllowed = baseCapacity + 2;
+                const extraCount = Math.max(0, countedPersons - baseCapacity);
+
+                const adultBeyondBase = Math.max(0, computedAdults - baseCapacity);
+                const adultExtra = Math.min(adultBeyondBase, extraCount);
+                let childrenExtra = Math.max(0, extraCount - adultExtra);
+                childrenExtra = Math.min(childrenExtra, chargeableChildren);
+
+                const adultsChargePerNight = adultExtra * ADULT_PRICE;
+                const childrenChargePerNight = childrenExtra * CHILD_PRICE;
+
+                const addonsPerNight = computeAddonsPerNight();
 
                 const base = pricePerNight;
-                const bedsPrice = 0;
-                const adultsPrice = persons.adultsChargePerNight;
-                const childrenPrice = persons.childrenChargePerNight;
-
-                const finalPerNight = base + bedsPrice + adultsPrice + childrenPrice;
+                const finalPerNight = base + adultsChargePerNight + childrenChargePerNight + addonsPerNight;
                 const total = finalPerNight * nights;
 
                 priceBaseDisplay.innerText = fmtVnd(base);
-                priceAdultsDisplay.innerText = adultsPrice > 0 ? fmtVnd(adultsPrice) : '0 đ';
-                priceChildrenDisplay.innerText = childrenPrice > 0 ? fmtVnd(childrenPrice) : '0 đ';
+                priceAdultsDisplay.innerText = adultsChargePerNight > 0 ? fmtVnd(adultsChargePerNight) : '0 đ';
+                priceChildrenDisplay.innerText = childrenChargePerNight > 0 ? fmtVnd(childrenChargePerNight) : '0 đ';
+
+                const existingAddonsEl = document.getElementById('price_addons_display');
+                if (existingAddonsEl) {
+                    existingAddonsEl.innerText = addonsPerNight > 0 ? fmtVnd(addonsPerNight) : '0 đ';
+                }
+
                 finalPerNightDisplay.innerText = fmtVnd(finalPerNight);
                 totalDisplay.innerText = fmtVnd(total);
                 payableDisplay.innerText = fmtVnd(total);
 
-                validateGuestLimits(persons.computedAdults);
+                validateGuestLimits(computedAdults, chargeableChildren, countedPersons, maxAllowed);
             }
 
-            function validateGuestLimits(computedAdults) {
+            function validateGuestLimits(computedAdults, chargeableChildren, countedPersons, maxAllowed) {
                 const childrenCount = Number(childrenInput.value || 0);
-                const effectiveCapacity = roomCapacity;
                 const form = document.getElementById('bookingForm');
 
                 let existing = document.getElementById('guest_limit_error');
                 if (existing) existing.remove();
 
                 let ok = true;
-                if (computedAdults > effectiveCapacity) {
+                if (countedPersons > maxAllowed) {
                     ok = false;
                     const err = document.createElement('div');
                     err.id = 'guest_limit_error';
                     err.className = 'alert alert-danger mt-3';
                     err.innerText =
-                        `Number of adults (including children aged 13+) exceeds effective room capacity (${effectiveCapacity}). Please reduce adults.`;
+                        `The number of guests exceeds the maximum limit (${maxAllowed}). Please reduce the number of guests or choose another room.
+                        Note: Children under 7 years old will not be counted in the number of guests`;
                     form.querySelector('.card-body').prepend(err);
                 } else if (childrenCount > 2) {
                     ok = false;
                     const err = document.createElement('div');
                     err.id = 'guest_limit_error';
                     err.className = 'alert alert-danger mt-3';
-                    err.innerText = `Maximum 2 children allowed per room.`;
+                    err.innerText = `Tối đa 2 trẻ em cho mỗi phòng.`;
                     form.querySelector('.card-body').prepend(err);
                 }
 
                 const submitBtn = form.querySelector('button[type="submit"]');
                 if (submitBtn) submitBtn.disabled = !ok;
             }
+
+            document.querySelectorAll('.addon-checkbox').forEach(chk => {
+                chk.addEventListener('change', updateSummary);
+            });
 
             adultsInput.addEventListener('input', updateSummary);
             childrenInput.addEventListener('input', function() {
