@@ -110,6 +110,18 @@
                                                                 children per room.</small>
                                                         </div>
 
+                                                        <div class="col-6">
+                                                            <label class="form-label">Rooms</label>
+                                                            <input type="number" name="rooms_count" id="rooms_count"
+                                                                class="form-control" min="1"
+                                                                max="{{ $availableRoomsDefault ?? 1 }}"
+                                                                value="{{ old('rooms_count', 1) }}">
+                                                            <small class="text-muted d-block">Available for selected dates:
+                                                                <strong
+                                                                    id="available_rooms_display">{{ $availableRoomsDefault ?? 0 }}</strong>
+                                                                room(s)</small>
+                                                        </div>
+
                                                     </div>
 
                                                     <div id="children_ages_container" class="mb-2">
@@ -422,6 +434,7 @@
                 fromInput.value = fmt(from);
                 toInput.value = fmt(to);
                 updateSummary();
+                updateRoomsAvailability();
             }
 
             if (typeof flatpickr !== 'undefined') {
@@ -441,6 +454,36 @@
                     }
                 });
                 setHiddenDates([new Date(fromInput.value), new Date(toInput.value)]);
+            }
+
+            // update rooms availability via AJAX
+            async function updateRoomsAvailability() {
+                try {
+                    const from = fromInput.value;
+                    const to = toInput.value;
+                    if (!from || !to) return;
+                    const loaiId = {{ $phong->loai_phong_id }};
+                    const url =
+                        `{{ route('booking.availability') }}?loai_phong_id=${loaiId}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+                    const res = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const avail = Number(data.available || 0);
+                    const roomsInput = document.getElementById('rooms_count');
+                    const availDisplay = document.getElementById('available_rooms_display');
+                    if (roomsInput) {
+                        roomsInput.max = avail;
+                        if (Number(roomsInput.value || 0) > avail) roomsInput.value = Math.max(1, avail);
+                    }
+                    if (availDisplay) availDisplay.innerText = avail;
+                } catch (err) {
+                    console.error('Availability check error', err);
+                }
             }
 
             // children ages UI
