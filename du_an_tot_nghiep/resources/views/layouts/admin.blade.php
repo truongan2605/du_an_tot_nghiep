@@ -49,13 +49,25 @@
                     <h4 class="text-white">Admin Panel</h4>
                 </div>
                 <nav class="nav flex-column">
+
+                    <a class="nav-link {{ request()->routeIs('loai_phong.*') ? 'active' : '' }}"
+                        href="{{ route('admin.loai_phong.index') }}">
+                        <i class="fas fa-bed me-2"></i>Loại Phòng
+                    </a>
+                    <a class="nav-link" href="#">
+                        <i class="fas fa-chart-bar me-2"></i> Thống kê
+                    </a>
                     <a class="nav-link {{ request()->routeIs('admin.tien-nghi.*') ? 'active' : '' }}"
                         href="{{ route('admin.tien-nghi.index') }}">
-                        <i class="fas fa-concierge-bell me-2"></i> Tiện nghi
+                        <i class="fas fa-concierge-bell me-2"></i> Dịch vụ
                     </a>
                     <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}"
                         href="{{ route('admin.phong.index') }}">
                         <i class="fas fa-bed me-2"></i> Phòng
+                    </a>
+                    <a class="nav-link {{ request()->routeIs('admin.bed-types.*') ? 'active' : '' }}"
+                        href="{{ route('admin.bed-types.index') }}">
+                        <i class="fas fa-layer-group me-2"></i> Loại giường
                     </a>
 
                     <a class="nav-link {{ request()->routeIs('admin.tang.*') ? 'active' : '' }}"

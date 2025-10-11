@@ -101,45 +101,6 @@
 						</ul>
 					</li>
 
-					<!-- Nav item Account -->
-					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" id="accounntMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Accounts</a>
-						<ul class="dropdown-menu" aria-labelledby="accounntMenu">
-							<!-- Dropdown submenu -->
-							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">User Profile</a>
-								<ul class="dropdown-menu" data-bs-popper="none">
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/account-profile.html') }}">My Profile</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/account-bookings.html') }}">My Bookings</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/account-travelers.html') }}">Travelers</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/account-payment-details.html') }}">Payment Details</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/account-wishlist.html') }}">Wishlist</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/account-settings.html') }}">Settings</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/account-delete.html') }}">Delete Profile</a> </li>
-								</ul>
-							</li>
-
-							<!-- Dropdown submenu -->
-							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Agent Dashboard</a>
-								<ul class="dropdown-menu" data-bs-popper="none">
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/agent-dashboard.html') }}">Dashboard</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/agent-listings.html') }}">Listings</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/agent-bookings.html') }}">Bookings</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/agent-activities.html') }}">Activities</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/agent-earnings.html') }}">Earnings</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/agent-reviews.html') }}">Reviews</a> </li>
-									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/agent-settings.html') }}">Settings</a> </li>
-								</ul>
-							</li>
-							
-							@auth
-								@if(auth()->user()->isAdmin())
-									<li> <a class="dropdown-item" href="{{ route('admin.tien-nghi.index') }}">Master Admin</a> </li>
-								@endif
-							@endauth
-						</ul>
-					</li>
 
           <!-- Nav item link-->
 					<li class="nav-item dropdown d-none">
@@ -179,17 +140,6 @@
 				</ul>
 			</div>
 			<!-- Main navbar END -->
-
-			<!-- Nav category menu START -->
-			<div class="navbar-collapse collapse" id="navbarCategoryCollapse">
-				<ul class="navbar-nav navbar-nav-scroll nav-pills-primary-soft text-center ms-auto p-2 p-xl-0">
-					<!-- Nav item Hotel -->
-					<li class="nav-item"> <a class="nav-link active" href="{{ asset('template/stackbros/index.html') }}"><i class="fa-solid fa-hotel me-2"></i>Hotel</a>	</li>
-
-					
-				</ul>
-			</div>
-			<!-- Nav category menu END -->
 
 			<!-- Profile and Notification START -->
 			<ul class="nav flex-row align-items-center list-unstyled ms-xl-auto">

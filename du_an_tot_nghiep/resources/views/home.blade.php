@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Trang chủ - Booking')
+@section('title', 'Home - Booking')
 
 @section('content')
 
@@ -460,6 +460,19 @@
                                 <!-- Image: dùng helper trong model -->
                                 <img src="{{ $phong->firstImageUrl() }}" class="card-img" alt="hotel image">
 
+                                <!-- Wishlist button -->
+                                @php
+                                    $isFav = in_array($phong->id, $favoriteIds ?? []);
+                                @endphp
+                                <button type="button" class="btn btn-sm btn-wishlist position-absolute top-0 end-0 m-2"
+                                    data-phong-id="{{ $phong->id }}" aria-pressed="{{ $isFav ? 'true' : 'false' }}"
+                                    aria-label="{{ $isFav ? 'Remove from wishlist' : 'Add to wishlist' }}"
+                                    title="{{ $isFav ? 'Remove from wishlist' : 'Add to wishlist' }}">
+                                    <i
+                                        class="{{ $isFav ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart text-white' }}">
+                                    </i>
+                                </button>
+
                                 <!-- Badge: Hiển thị loại phòng -->
                                 <div class="position-absolute bottom-0 start-0 p-3">
                                     <div class="badge text-bg-dark fs-6 rounded-pill stretched-link">
@@ -481,7 +494,7 @@
                                 <!-- Price and rating -->
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="text-success mb-0">
-                                        {{ number_format($phong->gia_mac_dinh, 0, '.', ',') }} VND
+                                        {{ number_format($phong->gia_cuoi_cung, 0, '.', ',') }} VND
                                     </h6>
                                     <h6 class="mb-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
                                 </div>
@@ -590,17 +603,41 @@
 @endsection
 
 @push('styles')
-<style>
-.card-img-scale-wrapper {
-  aspect-ratio: 3 / 4; 
-  overflow: hidden;
-}
-.card-img-scale-wrapper img.card-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  display: block;
-}
-</style>
+    <style>
+        .card-img-scale-wrapper {
+            aspect-ratio: 3 / 4;
+            overflow: hidden;
+        }
+
+        .card-img-scale-wrapper img.card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            display: block;
+        }
+
+        .btn-wishlist {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.35);
+            border: none;
+            z-index: 1200;
+            pointer-events: auto;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-wishlist i {
+            font-size: 14px;
+            color: #fff;
+        }
+
+        .btn-wishlist i.text-danger {
+            color: #dc3545 !important;
+        }
+    </style>
 @endpush

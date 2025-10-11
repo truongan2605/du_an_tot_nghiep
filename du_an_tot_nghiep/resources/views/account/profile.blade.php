@@ -79,6 +79,30 @@
                             <div class="card-header border-bottom">
                                 <h4 class="card-header-title">Personal Information</h4>
                             </div>
+                            {{-- Hiển thị alert nếu có session status --}}
+                            @if (session('status') === 'verification-link-sent')
+                                <div class="alert alert-success">
+                                    Verification link has been sent to your email. Please check your inbox (or Mailtrap).
+                                </div>
+                            @elseif (session('status') === 'already-verified')
+                                <div class="alert alert-info">
+                                    Your email is already verified.
+                                </div>
+                            @endif
+
+                            @if (!auth()->user()->is_active)
+                                <form method="POST" action="{{ route('verification.send') }}" style="margin-top: 15px; margin-left: 15px">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-primary mb-3">
+                                        Sent verification email
+                                    </button>
+                                </form>
+
+                                <p class="small text" style="margin-left: 15px">
+                                    You need to verify your email to unlock all features. Check your inbox or click above to
+                                    resend.
+                                </p>
+                            @endif
 
                             <div class="card-body">
                                 <form class="row g-3" method="POST" action="{{ route('account.settings.update') }}"
@@ -205,7 +229,6 @@
 
                         <!-- Update Password -->
                         @if (auth()->user()->provider)
-                            
                         @else
                             <div class="card border">
                                 <div class="card-header border-bottom">

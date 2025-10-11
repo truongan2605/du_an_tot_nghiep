@@ -2,21 +2,20 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
+
+use App\Http\Middleware\AdminMiddleware;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
-use App\Http\Controllers\Admin\VoucherController;
-use App\Http\Controllers\Admin\ThongBaoController;
-use App\Http\Controllers\Admin\AdminNotificationController;
-use App\Http\Controllers\Admin\BatchNotificationController;
-use App\Http\Controllers\Admin\NhanVienController;
-use App\Http\Controllers\Admin\TienNghiController;
 use App\Http\Controllers\Client\RoomController;
-use App\Http\Controllers\Auth\SocialAuthController;
+use App\Http\Controllers\Admin\BedTypeController;
+use App\Http\Controllers\Admin\VoucherController;
+use App\Http\Controllers\Admin\NhanVienController;
+use App\Http\Controllers\Admin\ThongBaoController;
+use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\Client\ProfileController;
-use App\Http\Controllers\Client\WishlistController;
 
-Route::get('/', [HomeController::class, 'index'])->name('home');
+
 
 // Simple notification route - placed at the top
 Route::middleware('auth')->get('notifications/{id}', [ThongBaoController::class, 'clientShow'])->name('notifications.show');
@@ -31,6 +30,24 @@ Route::get('test-route-exists', function() {
     return 'Route exists: ' . (Route::has('notifications.show') ? 'YES' : 'NO');
 });
 
+use App\Http\Controllers\Admin\LoaiPhongController;
+use App\Http\Controllers\Auth\SocialAuthController;
+
+
+
+
+use App\Http\Controllers\Client\WishlistController;
+
+
+use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\CustomerNotificationController;
+use App\Http\Controllers\InternalNotificationController;
+use App\Http\Controllers\Admin\AdminNotificationController;
+use App\Http\Controllers\Admin\BatchNotificationController;
+use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
+
+Route::get('/', [HomeController::class, 'index'])->name('home');
+
 Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.show');
 
 Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
@@ -40,16 +57,24 @@ Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
     ->group(function () {
-
-        // ---- Tiện nghi ----
-        Route::resource('tien-nghi', TienNghiController::class);
-        Route::patch('tien-nghi/{tienNghi}/toggle-active', [TienNghiController::class, 'toggleActive'])
+        // Tiện nghi
+        Route::resource('tien-nghi', AdminTienNghiController::class);
+        Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])
             ->name('tien-nghi.toggle-active');
 
-        // ---- Phòng ----
+        // Loại phòng
+        Route::get('/admin/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
+        Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])
+            ->name('loai_phong.disable');
+        Route::post('loai-phong/{id}/enable', [LoaiPhongController::class, 'enable'])
+            ->name('loai_phong.enable');
+
+        // Phòng
         Route::resource('phong', PhongController::class);
         Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
             ->name('phong.image.destroy');
+        // loai phong 
+        Route::resource('loai_phong', LoaiPhongController::class);
 
         // ---- Tầng ----
         Route::resource('tang', TangController::class);
@@ -190,7 +215,11 @@ Route::middleware(['auth', 'admin'])->prefix('api/notifications')->group(functio
         Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
         Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
         Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
+
+        Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
+        Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
     });
+
 
 
 require __DIR__ . '/auth.php';
