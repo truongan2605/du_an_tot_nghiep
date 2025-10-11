@@ -4,7 +4,7 @@
 
 @section('content')
     <section class="vh-xxl-100">
-        <div class="container h-100 d-flex px-0 px-sm-4" style="padding-bottom: 500px">
+        <div class="container h-100 d-flex px-0 px-sm-4">
             <div class="row justify-content-center align-items-center m-auto">
                 <div class="col-12">
                     <div class="bg-mode shadow rounded-3 overflow-hidden">
@@ -12,7 +12,8 @@
                             <!-- Vector Image -->
                             <div class="col-lg-6 d-flex align-items-center order-2 order-lg-1">
                                 <div class="p-3 p-lg-5">
-                                    <img src="{{ asset('template/stackbros/assets/images/element/signin.svg') }}" alt="">
+                                    <img src="{{ asset('template/stackbros/assets/images/element/signin.svg') }}"
+                                        alt="">
                                 </div>
                                 <div class="vr opacity-1 d-none d-lg-block"></div>
                             </div>
@@ -21,7 +22,9 @@
                             <div class="col-lg-6 order-1">
                                 <div class="p-4 p-sm-7">
                                     <a href="{{ url('/') }}">
-                                        <img class="h-50px mb-4" src="{{ asset('template/stackbros/assets/images/logo-icon.svg') }}" alt="logo">
+                                        <img class="h-50px mb-4"
+                                            src="{{ asset('template/stackbros/assets/images/logo-icon.svg') }}"
+                                            alt="logo">
                                     </a>
                                     <h1 class="mb-2 h3">Welcome back</h1>
                                     <p class="mb-0">New here? <a href="{{ route('register') }}">Create an account</a></p>
@@ -70,6 +73,20 @@
 
                                         <!-- Button -->
                                         <div><button type="submit" class="btn btn-primary w-100 mb-0">Login</button></div>
+
+                                        <div class="position-relative my-4">
+                                            <hr>
+                                            <p
+                                                class="small bg-mode position-absolute top-50 start-50 translate-middle px-2">
+                                                Or sign in with</p>
+                                        </div>
+
+                                        <!-- Google and facebook button -->
+                                        <div class="vstack gap-3" >
+                                            <a href="{{ route('auth.google') }}" class="btn btn-light mb-0">
+                                                <i class="fab fa-fw fa-google text-google-icon me-2"></i>Sign in with Google
+                                            </a>
+                                        </div>
                                     </form>
                                     <!-- Form END -->
                                 </div>

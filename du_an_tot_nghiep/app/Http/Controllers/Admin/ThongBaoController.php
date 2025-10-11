@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ThongBao;
 use App\Models\User;
+use App\Jobs\SendNotificationJob;
+use App\Jobs\SendBatchNotificationJob;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ThongBaoEmail;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ThongBaoController extends Controller
 {
@@ -35,8 +38,7 @@ class ThongBaoController extends Controller
     {
         $users = User::orderBy('name')->get(['id', 'name', 'email']);
         $channels = ['email', 'sms', 'in_app'];
-        $statuses = ['pending', 'sent', 'failed', 'read'];
-        return view('admin.thong-bao.create', compact('users', 'channels', 'statuses'));
+        return view('admin.thong-bao.create', compact('users', 'channels'));
     }
 
     public function store(Request $request)
@@ -54,75 +56,72 @@ class ThongBaoController extends Controller
         }
 
         $data = $request->validate([
-            'nguoi_nhan_id' => ['required', Rule::exists('users', 'id')],
+            'nguoi_nhan_id' => ['nullable', Rule::exists('users', 'id')],
             'kenh' => ['required', Rule::in(['email', 'sms', 'in_app'])],
             'ten_template' => ['required', 'string', 'max:255'],
             'payload' => ['nullable', 'array'],
-            'trang_thai' => ['required', Rule::in(['pending', 'sent', 'failed', 'read'])],
-            'so_lan_thu' => ['nullable', 'integer', 'min:0'],
-            'lan_thu_cuoi' => ['nullable', 'date'],
             'vai_tro_broadcast' => ['sometimes', 'array'],
             'vai_tro_broadcast.*' => ['in:admin,nhan_vien'],
         ]);
 
-        // If broadcast by role is provided, create multiple notifications
+        // Validate that either nguoi_nhan_id or vai_tro_broadcast is provided
+        if (empty($data['nguoi_nhan_id']) && empty($data['vai_tro_broadcast'])) {
+            return back()->withErrors(['nguoi_nhan_id' => 'Vui lòng chọn người nhận hoặc vai trò để gửi thông báo.'])->withInput();
+        }
+
+        // Set default values - system will handle these automatically
+        $data['trang_thai'] = 'pending';
+        $data['so_lan_thu'] = 0;
+
+        // If broadcast by role is provided, create multiple notifications using batch processing
         $roles = collect($data['vai_tro_broadcast'] ?? [])->unique()->values();
         if ($roles->isNotEmpty()) {
-            $targets = User::whereIn('vai_tro', $roles)->get(['id', 'email']);
-            foreach ($targets as $user) {
-                $item = ThongBao::create([
-                    'nguoi_nhan_id' => $user->id,
+            try {
+                $targets = User::whereIn('vai_tro', $roles)->get(['id', 'email']);
+                $userIds = $targets->pluck('id')->toArray();
+                
+                if (empty($userIds)) {
+                    return back()->withErrors(['vai_tro_broadcast' => 'Không tìm thấy người dùng với vai trò được chọn.'])->withInput();
+                }
+
+                // Prepare notification data for batch processing
+                $notificationData = [
                     'kenh' => $data['kenh'],
                     'ten_template' => $data['ten_template'],
                     'payload' => $data['payload'] ?? null,
-                    'trang_thai' => $data['trang_thai'],
-                    'so_lan_thu' => $data['so_lan_thu'] ?? 0,
-                    'lan_thu_cuoi' => $data['lan_thu_cuoi'] ?? null,
+                ];
+
+                // Dispatch batch notification job
+                SendBatchNotificationJob::dispatch($notificationData, $userIds)
+                    ->onQueue('notifications')
+                    ->delay(now()->addSeconds(5)); // Small delay to ensure proper queue processing
+
+                Log::info("Batch notification dispatched", [
+                    'user_count' => count($userIds),
+                    'roles' => $roles->toArray(),
+                    'channel' => $data['kenh']
                 ]);
 
-                if ($item->kenh === 'email' && $user->email) {
-                    try {
-                        Mail::to($user->email)->send(new ThongBaoEmail($item));
-                        $item->update([
-                            'trang_thai' => 'sent',
-                            'so_lan_thu' => ($item->so_lan_thu ?? 0) + 1,
-                            'lan_thu_cuoi' => now(),
-                        ]);
-                    } catch (\Throwable $e) {
-                        $item->update([
-                            'trang_thai' => 'failed',
-                            'so_lan_thu' => ($item->so_lan_thu ?? 0) + 1,
-                            'lan_thu_cuoi' => now(),
-                        ]);
-                    }
-                }
-            }
+                return redirect()->route('admin.thong-bao.index')
+                    ->with('success', "Đã gửi thông báo hàng loạt cho " . count($userIds) . " người dùng. Thông báo đang được xử lý trong nền.");
 
-            return redirect()->route('admin.thong-bao.index')->with('success', 'Đã tạo thông báo hàng loạt theo vai trò');
+            } catch (\Exception $e) {
+                Log::error("Failed to dispatch batch notification", [
+                    'error' => $e->getMessage(),
+                    'roles' => $roles->toArray()
+                ]);
+                
+                return back()->withErrors(['vai_tro_broadcast' => 'Có lỗi xảy ra khi gửi thông báo hàng loạt: ' . $e->getMessage()])->withInput();
+            }
         }
 
         // Otherwise create single notification for selected user
         $thongBao = ThongBao::create($data);
 
-        if ($thongBao->kenh === 'email') {
-            try {
-                $user = User::find($thongBao->nguoi_nhan_id);
-                if ($user) {
-                    Mail::to($user->email)->send(new ThongBaoEmail($thongBao));
-                    $thongBao->update([
-                        'trang_thai' => 'sent',
-                        'so_lan_thu' => ($thongBao->so_lan_thu ?? 0) + 1,
-                        'lan_thu_cuoi' => now(),
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                $thongBao->update([
-                    'trang_thai' => 'failed',
-                    'so_lan_thu' => ($thongBao->so_lan_thu ?? 0) + 1,
-                    'lan_thu_cuoi' => now(),
-                ]);
-            }
-        }
+        // Dispatch single notification job
+        SendNotificationJob::dispatch($thongBao->id, $thongBao->nguoi_nhan_id)
+            ->onQueue('notifications')
+            ->delay(now()->addSeconds(2));
 
         return redirect()->route('admin.thong-bao.show', $thongBao)->with('success', 'Tạo thông báo thành công');
     }
@@ -137,12 +136,10 @@ class ThongBaoController extends Controller
     {
         $users = User::orderBy('name')->get(['id', 'name', 'email']);
         $channels = ['email', 'sms', 'in_app'];
-        $statuses = ['pending', 'sent', 'failed', 'read'];
         return view('admin.thong-bao.edit', [
             'thongBao' => $thong_bao,
             'users' => $users,
             'channels' => $channels,
-            'statuses' => $statuses,
         ]);
     }
 
@@ -161,14 +158,21 @@ class ThongBaoController extends Controller
         }
 
         $data = $request->validate([
-            'nguoi_nhan_id' => ['required', Rule::exists('users', 'id')],
+            'nguoi_nhan_id' => ['nullable', Rule::exists('users', 'id')],
             'kenh' => ['required', Rule::in(['email', 'sms', 'in_app'])],
             'ten_template' => ['required', 'string', 'max:255'],
             'payload' => ['nullable', 'array'],
-            'trang_thai' => ['required', Rule::in(['pending', 'sent', 'failed', 'read'])],
-            'so_lan_thu' => ['nullable', 'integer', 'min:0'],
-            'lan_thu_cuoi' => ['nullable', 'date'],
         ]);
+
+        // For updates, we don't change the recipient if not provided
+        if (empty($data['nguoi_nhan_id'])) {
+            unset($data['nguoi_nhan_id']);
+        }
+
+        // Don't allow manual changes to system-managed fields
+        unset($data['trang_thai']);
+        unset($data['so_lan_thu']);
+        unset($data['lan_thu_cuoi']);
 
         $thong_bao->update($data);
 
@@ -216,7 +220,168 @@ class ThongBaoController extends Controller
             abort(403);
         }
         $thong_bao->update(['trang_thai' => 'read']);
+        
+        // Return JSON for AJAX requests
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã đánh dấu đã đọc'
+            ]);
+        }
+        
         return back()->with('success', 'Đã đánh dấu đã đọc');
+    }
+
+    public function getUnreadCount()
+    {
+        $count = ThongBao::where('nguoi_nhan_id', Auth::id())
+            ->where('trang_thai', '!=', 'read')
+            ->count();
+            
+        return response()->json(['count' => $count]);
+    }
+
+    public function resend(ThongBao $thong_bao)
+    {
+        // Only allow resending failed notifications
+        if ($thong_bao->trang_thai !== 'failed') {
+            return back()->with('error', 'Chỉ có thể gửi lại thông báo thất bại.');
+        }
+
+        // Reset status to pending and increment retry count
+        $thong_bao->update([
+            'trang_thai' => 'pending',
+            'so_lan_thu' => ($thong_bao->so_lan_thu ?? 0) + 1,
+            'lan_thu_cuoi' => now()
+        ]);
+
+        // Send email if channel is email
+        if ($thong_bao->kenh === 'email') {
+            try {
+                $user = $thong_bao->nguoiNhan;
+                if ($user && $user->email) {
+                    Mail::to($user->email)->send(new ThongBaoEmail($thong_bao));
+                    $thong_bao->update(['trang_thai' => 'sent']);
+                } else {
+                    $thong_bao->update(['trang_thai' => 'failed']);
+                }
+            } catch (\Exception $e) {
+                $thong_bao->update(['trang_thai' => 'failed']);
+                return back()->with('error', 'Gửi lại thất bại: ' . $e->getMessage());
+            }
+        }
+
+        return back()->with('success', 'Đã gửi lại thông báo thành công.');
+    }
+
+    public function modal(ThongBao $thong_bao)
+    {
+        $thong_bao->load('nguoiNhan');
+        
+        $html = view('admin.thong-bao.modal-content', compact('thong_bao'))->render();
+        
+        return response()->json([
+            'success' => true,
+            'html' => $html,
+            'editUrl' => route('admin.thong-bao.edit', $thong_bao),
+            'resendUrl' => route('admin.thong-bao.resend', $thong_bao),
+            'canResend' => $thong_bao->trang_thai === 'failed'
+        ]);
+    }
+
+    public function clientShow($id)
+    {
+        try {
+            $thong_bao = ThongBao::findOrFail($id);
+            
+            // Only allow users to view their own notifications
+            if ($thong_bao->nguoi_nhan_id !== Auth::id()) {
+                abort(403, 'Không có quyền xem thông báo này');
+            }
+            
+            // Mark as read when viewing
+            if ($thong_bao->trang_thai !== 'read') {
+                $thong_bao->update(['trang_thai' => 'read']);
+            }
+            
+            $thong_bao->load('nguoiNhan');
+            
+            return view('client.thong-bao.show', compact('thong_bao'));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404, 'Không tìm thấy thông báo');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error in clientShow: ' . $e->getMessage());
+            abort(500, 'Lỗi server: ' . $e->getMessage());
+        }
+    }
+
+    public function markReadOnView($id)
+    {
+        try {
+            $thong_bao = ThongBao::findOrFail($id);
+            
+            // Only allow users to mark their own notifications as read
+            if ($thong_bao->nguoi_nhan_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không có quyền đánh dấu thông báo này'
+                ], 403);
+            }
+            
+            $thong_bao->update(['trang_thai' => 'read']);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Đã đánh dấu thông báo là đã đọc'
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy thông báo'
+            ], 404);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error in markReadOnView: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi server: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function clientModal($id)
+    {
+        try {
+            $thong_bao = ThongBao::findOrFail($id);
+            
+            // Only allow users to view their own notifications
+            if ($thong_bao->nguoi_nhan_id !== Auth::id()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không có quyền xem thông báo này'
+                ], 403);
+            }
+            
+            $thong_bao->load('nguoiNhan');
+            
+            $html = view('partials.notification-modal-content', compact('thong_bao'))->render();
+            
+            return response()->json([
+                'success' => true,
+                'html' => $html,
+                'isUnread' => $thong_bao->trang_thai !== 'read'
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy thông báo'
+            ], 404);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error in clientModal: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi server: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
 

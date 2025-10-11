@@ -7,10 +7,13 @@ use App\Models\Phong;
 use App\Models\TienNghi;
 use App\Models\LoaiPhong;
 use App\Models\PhongImage;
+use App\Events\RoomCreated;
+use App\Events\RoomUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class PhongController extends Controller
 {
@@ -67,6 +70,9 @@ class PhongController extends Controller
             $phong->tienNghis()->sync($request->tien_nghi);
         }
 
+        // Dispatch room created event
+        event(new RoomCreated($phong, Auth::user()));
+
         DB::commit();
         return redirect()->route('admin.phong.index')
                          ->with('success','Thêm phòng thành công');
@@ -109,6 +115,18 @@ class PhongController extends Controller
             'suc_chua','so_giuong','gia_mac_dinh','trang_thai'
         ]);
 
+        // Track changes for notification
+        $originalData = $phong->toArray();
+        $changes = [];
+        foreach ($data as $key => $value) {
+            if (isset($originalData[$key]) && $originalData[$key] != $value) {
+                $changes[$key] = [
+                    'from' => $originalData[$key],
+                    'to' => $value
+                ];
+            }
+        }
+
         $phong->update($data);
 
         // Nếu có ảnh mới: thêm vào bảng phong_images (không xóa ảnh cũ)
@@ -125,6 +143,9 @@ class PhongController extends Controller
         } else {
             $phong->tienNghis()->sync([]); // nếu không chọn gì thì clear hết
         }
+
+        // Dispatch room updated event
+        event(new RoomUpdated($phong, Auth::user(), $changes));
 
         DB::commit();
         return redirect()->route('admin.phong.index')->with('success','Cập nhật phòng thành công');
