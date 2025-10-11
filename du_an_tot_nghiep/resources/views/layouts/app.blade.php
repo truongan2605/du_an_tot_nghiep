@@ -98,4 +98,26 @@
     <script src="{{ asset('template/stackbros/assets/js/functions.js') }}"></script>
 
     @stack('scripts')
+    @push('styles')
+<style>
+    .room-card {
+        transition: all 0.3s ease;
+        border: 1px solid #f0f0f0;
+    }
+    .room-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+    .hover-shadow {
+        transition: all 0.3s ease;
+    }
+    .hover-shadow:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+    }
+    .transition-all {
+        transition: all 0.25s ease-in-out;
+    }
+</style>
+@endpush
+
 </body>

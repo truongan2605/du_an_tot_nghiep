@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Phong;
 use App\Models\DanhGia;
 use App\Models\LoaiPhong;
+use App\Models\TienNghi;
 use Illuminate\Support\Facades\Schema;
 
 class RoomController extends Controller
@@ -35,11 +36,44 @@ class RoomController extends Controller
                     break;
             }
         }
-        
+    // =============== Lọc theo loại phòng ===============
+        if ($request->filled('loai_phong_id')) {
+            $query->where('loai_phong_id', $request->loai_phong_id);
+        }
+        // =============== Lọc theo giá ===============
+        if ($request->filled('gia_khoang')) {
+            switch ($request->gia_khoang) {
+                case '1':
+                    $query->where('gia_mac_dinh', '<', 500000);
+                    break;
+                case '2':
+                    $query->whereBetween('gia_mac_dinh', [500000, 1000000]);
+                    break;
+                case '3':
+                    $query->whereBetween('gia_mac_dinh', [1000000, 1500000]);
+                    break;
+                case '4':
+                    $query->where('gia_mac_dinh', '>', 1500000);
+                    break;
+            }
+        }
+        // =============== Lọc theo tiện nghi ===============
+        if ($request->filled('amenities')) {
+    $query->whereHas('tienNghis', function ($q) use ($request) {
+        $q->whereIn('tien_nghi.id', $request->amenities);
+    });
+}
+        // =============== Lọc theo trạng thái phòng / ngày ===============
+        if ($request->filled('check_in_out')) {
+            $dates = explode(' to ', $request->check_in_out);
+            if (count($dates) === 2) {
+                $query->where('trang_thai', 'Trống');
+            }
+        }
     $phongs = $query->paginate(9);
     $loaiPhongs = LoaiPhong::all();
-
-    return view('list-room', compact('phongs', 'loaiPhongs'));
+    $tienNghis = TienNghi::where('active', 1)->get();
+    return view('list-room', compact('phongs', 'loaiPhongs','tienNghis'));
     }
     public function show($id)
     {
