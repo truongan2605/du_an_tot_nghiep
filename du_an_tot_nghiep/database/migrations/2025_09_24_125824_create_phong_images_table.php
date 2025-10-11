@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('phong_images', function (Blueprint $table) {
             $table->id();
-            // tham chiếu đến bảng 'phong' (đổi tên nếu DB bạn là 'phongs')
             $table->foreignId('phong_id')->constrained('phong')->cascadeOnDelete();
             $table->string('image_path');
             $table->timestamps();

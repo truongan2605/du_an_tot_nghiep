@@ -6,32 +6,34 @@ use App\Http\Controllers\Controller;
 use App\Models\LoaiPhong;
 use App\Models\TienNghi;
 use App\Models\VatDung;
+use App\Models\BedType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LoaiPhongController extends Controller
 {
-public function index()
-{
-    $loaiPhongs = LoaiPhong::with('tienNghis')
-        ->withCount([
-            'phongs',
-            'phongs as occupied_count' => function ($q) {
-                $q->where('trang_thai', 'dang_o');
-            },
-        ])
-        ->orderByDesc('id')
-        ->get();
+    public function index()
+    {
+        $loaiPhongs = LoaiPhong::with('tienNghis')
+            ->withCount([
+                'phongs',
+                'phongs as occupied_count' => function ($q) {
+                    $q->where('trang_thai', 'dang_o');
+                },
+            ])
+            ->orderByDesc('id')
+            ->get();
 
-    return view('admin.loai_phong.index', compact('loaiPhongs'));
-}
-
+        return view('admin.loai_phong.index', compact('loaiPhongs'));
+    }
 
     public function create()
     {
         $tienNghis = TienNghi::where('active', true)->get();
         $vatDungs = VatDung::where('active', true)->get();
-        return view('admin.loai_phong.create', compact('tienNghis','vatDungs'));
+         $bedTypes = BedType::orderBy('name')->get();
+       
+        return view('admin.loai_phong.create', compact('tienNghis', 'bedTypes','vatDungs'));
     }
 
     public function store(Request $request)
@@ -40,31 +42,80 @@ public function index()
             'ma' => 'required|string|max:50|unique:loai_phong,ma',
             'ten' => 'required|string|max:255',
             'mo_ta' => 'nullable|string',
-            'suc_chua' => 'required|integer|min:1',
-            'so_giuong' => 'required|integer|min:1',
+            'suc_chua' => 'nullable|integer|min:0',
+            'so_giuong' => 'nullable|integer|min:0',
             'gia_mac_dinh' => 'required|numeric|min:0',
             'so_luong_thuc_te' => 'nullable|integer|min:0',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'exists:tien_nghi,id',
              'vat_dung' => 'nullable|array',
     'vat_dung.*' => 'exists:vat_dungs,id',
+            'bed_types' => 'nullable|array',
+            'bed_types.*.quantity' => 'nullable|integer|min:0',
+            'bed_types.*.price' => 'nullable|numeric|min:0',
         ]);
 
-        $data = $request->only([
-            'ma',
-            'ten',
-            'mo_ta',
-            'suc_chua',
-            'so_giuong',
-            'gia_mac_dinh',
-        ]);
+        DB::beginTransaction();
+        try {
+            $data = $request->only(['ma', 'ten', 'mo_ta', 'gia_mac_dinh']);
+            $data['so_luong_thuc_te'] = $request->input('so_luong_thuc_te', 0);
 
-        $data['so_luong_thuc_te'] = $request->input('so_luong_thuc_te', 0);
+            $data['suc_chua'] = (int) $request->input('suc_chua', 0);
+            $data['so_giuong'] = (int) $request->input('so_giuong', 0);
 
-        $loaiPhong = LoaiPhong::create($data);
+            $loaiPhong = LoaiPhong::create($data);
 
-        if ($request->has('tien_nghi')) {
-            $loaiPhong->tienNghis()->sync($request->tien_nghi);
+            if ($request->has('tien_nghi')) {
+                $loaiPhong->tienNghis()->sync($request->input('tien_nghi', []));
+            }
+
+            $bedData = $request->input('bed_types', null);
+
+            if ($request->has('bed_types')) {
+                $hasPositive = false;
+                foreach ($bedData as $btId => $vals) {
+                    $qty = isset($vals['quantity']) ? (int)$vals['quantity'] : 0;
+                    if ($qty > 0) {
+                        $hasPositive = true;
+                        break;
+                    }
+                }
+                if (! $hasPositive) {
+                    DB::rollBack();
+                    return back()->withInput()->withErrors(['bed_types' => 'Bạn phải chọn ít nhất 1 loại giường với số lượng > 0.']);
+                }
+
+                $sync = [];
+                foreach ($bedData as $bedTypeId => $vals) {
+                    $qty = isset($vals['quantity']) ? (int)$vals['quantity'] : 0;
+                    if ($qty <= 0) continue;
+                    $price = isset($vals['price']) && $vals['price'] !== '' ? (float)$vals['price'] : null;
+                    $sync[$bedTypeId] = ['quantity' => $qty, 'price' => $price];
+                }
+
+                $loaiPhong->bedTypes()->sync($sync);
+
+                $totalCapacity = 0;
+                $totalBeds = 0;
+                $bedModels = $loaiPhong->bedTypes()->get();
+                foreach ($bedModels as $b) {
+                    $qty = (int) ($b->pivot->quantity ?? 0);
+                    $cap = (int) ($b->capacity ?? 1);
+                    $totalCapacity += $qty * $cap;
+                    $totalBeds += $qty;
+                }
+
+                $loaiPhong->suc_chua = $totalCapacity;
+                $loaiPhong->so_giuong = $totalBeds;
+                $loaiPhong->save();
+            } else {
+            }
+
+            DB::commit();
+            return redirect()->route('admin.loai_phong.index')->with('success', 'Thêm loại phòng thành công');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withInput()->withErrors(['error' => 'Lỗi lưu loại phòng: ' . $e->getMessage()]);
         }
         if ($request->has('vat_dung')) {
     $loaiPhong->vatDungs()->sync($request->vat_dung);
@@ -73,9 +124,10 @@ public function index()
         return redirect()->route('admin.loai_phong.index')->with('success', 'Thêm loại phòng thành công');
     }
 
+
     public function show($id)
     {
-        $loaiphong = LoaiPhong::with(['tienNghis'])->findOrFail($id);
+        $loaiphong = LoaiPhong::with(['tienNghis', 'bedTypes'])->findOrFail($id);
         return view('admin.loai_phong.show', compact('loaiphong'));
     }
 
@@ -84,8 +136,9 @@ public function index()
         $loaiphong = LoaiPhong::with(['tienNghis', 'vatDungs'])->findOrFail($id);
         $tienNghis = TienNghi::where('active', true)->get();
 $vatDungs = VatDung::where('active', true)->get();
-
-        return view('admin.loai_phong.edit', compact('loaiphong', 'tienNghis' ,'vatDungs'));
+$bedTypes = BedType::orderBy('name')->get();
+       
+        return view('admin.loai_phong.edit', compact('loaiphong', 'tienNghis','vatDungs','bedTypes'));
     }
 
     public function update(Request $request, $id)
@@ -94,29 +147,84 @@ $vatDungs = VatDung::where('active', true)->get();
             'ma' => 'required|string|max:50',
             'ten' => 'required|string|max:255',
             'mo_ta' => 'nullable|string',
-            'suc_chua' => 'required|integer',
-            'so_giuong' => 'required|integer',
+            'suc_chua' => 'nullable|integer|min:0',
+            'so_giuong' => 'nullable|integer|min:0',
             'gia_mac_dinh' => 'required|numeric',
             'so_luong_thuc_te' => 'required|integer',
+            'tien_nghi' => 'nullable|array',
+            'tien_nghi.*' => 'exists:tien_nghi,id',
+            'bed_types' => 'nullable|array',
+            'bed_types.*.quantity' => 'nullable|integer|min:0',
+            'bed_types.*.price' => 'nullable|numeric|min:0',
         ]);
 
-        $loaiphong = LoaiPhong::findOrFail($id);
+        DB::beginTransaction();
+        try {
+            $loaiphong = LoaiPhong::findOrFail($id);
 
-        $loaiphong->update($request->only([
-            'ma',
-            'ten',
-            'mo_ta',
-            'suc_chua',
-            'so_giuong',
-            'gia_mac_dinh',
-            'so_luong_thuc_te'
-        ]));
+            $loaiphong->update($request->only([
+                'ma',
+                'ten',
+                'mo_ta',
+                'gia_mac_dinh',
+                'so_luong_thuc_te'
+            ]));
 
         $loaiphong->tienNghis()->sync($request->input('tien_nghi_ids', []));
         $loaiphong->vatDungs()->sync($request->input('vat_dung_ids', []));
 
-        return redirect()->route('admin.loai_phong.index')
-            ->with('success', 'Cập nhật loại phòng thành công');
+            if ($request->has('bed_types')) {
+                $bedData = $request->input('bed_types', []);
+
+                $hasPositive = false;
+                foreach ($bedData as $vals) {
+                    $qty = isset($vals['quantity']) ? (int)$vals['quantity'] : 0;
+                    if ($qty > 0) {
+                        $hasPositive = true;
+                        break;
+                    }
+                }
+                if (! $hasPositive) {
+                    DB::rollBack();
+                    return back()->withInput()->withErrors(['bed_types' => 'Bạn phải chọn ít nhất 1 loại giường với số lượng > 0.']);
+                }
+
+                $sync = [];
+                foreach ($bedData as $bedTypeId => $vals) {
+                    $qty = isset($vals['quantity']) ? (int)$vals['quantity'] : 0;
+                    if ($qty <= 0) continue;
+                    $price = isset($vals['price']) && $vals['price'] !== '' ? (float)$vals['price'] : null;
+                    $sync[$bedTypeId] = ['quantity' => $qty, 'price' => $price];
+                }
+
+                $loaiphong->bedTypes()->sync($sync);
+
+                $totalCapacity = 0;
+                $totalBeds = 0;
+                $bedModels = $loaiphong->bedTypes()->get();
+                foreach ($bedModels as $b) {
+                    $qty = (int) ($b->pivot->quantity ?? 0);
+                    $cap = (int) ($b->capacity ?? 1);
+                    $totalCapacity += $qty * $cap;
+                    $totalBeds += $qty;
+                }
+
+                $loaiphong->suc_chua = $totalCapacity;
+                $loaiphong->so_giuong = $totalBeds;
+                $loaiphong->save();
+            } else {
+                $loaiphong->suc_chua = (int) $request->input('suc_chua', $loaiphong->suc_chua);
+                $loaiphong->so_giuong = (int) $request->input('so_giuong', $loaiphong->so_giuong);
+                $loaiphong->save();
+            }
+
+            DB::commit();
+            return redirect()->route('admin.loai_phong.index')
+                ->with('success', 'Cập nhật loại phòng thành công');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withInput()->withErrors(['error' => 'Lỗi cập nhật loại phòng: ' . $e->getMessage()]);
+        }
     }
 
     public function disable($id)

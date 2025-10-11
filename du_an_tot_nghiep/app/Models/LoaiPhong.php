@@ -35,13 +35,21 @@ class LoaiPhong extends Model
 
     public function tienNghis()
     {
-        return $this->belongsToMany(TienNghi::class, 'loai_phong_tien_nghi');
+        return $this->belongsToMany(TienNghi::class, 'loai_phong_tien_nghi')
+        ->where('tien_nghi.active', true);
     }
 
 public function vatDungs()
 {
     return $this->belongsToMany(VatDung::class, 'loai_phong_vat_dung', 'loai_phong_id', 'vat_dung_id');
 }
+    public function bedTypes()
+    {
+        return $this->belongsToMany(BedType::class, 'loai_phong_bed_type')
+            ->withPivot(['quantity', 'price'])
+            ->withTimestamps();
+    }
+
 
     public static function refreshSoLuongThucTe(int $loaiPhongId): int
     {

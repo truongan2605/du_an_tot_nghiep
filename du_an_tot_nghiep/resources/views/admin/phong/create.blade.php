@@ -15,7 +15,7 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.phong.store') }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('admin.phong.store') }}" method="POST" enctype="multipart/form-data" id="phongCreateForm">
             @csrf
 
             <div class="mb-3">
@@ -39,16 +39,31 @@
                 <select id="loai_phong_select" name="loai_phong_id" class="form-select" required style="color:black;">
                     <option value="">-- Chọn --</option>
                     @foreach ($loaiPhongs as $lp)
+                        @php
+                            $bedtypes = $lp->bedTypes
+                                ->map(function ($b) {
+                                    return [
+                                        'id' => $b->id,
+                                        'name' => $b->name,
+                                        'capacity' => (int) $b->capacity,
+                                        'price' => $b->pivot->price ?? ($b->price ?? 0),
+                                        'quantity' => (int) ($b->pivot->quantity ?? 0),
+                                    ];
+                                })
+                                ->values();
+                        @endphp
+
                         <option value="{{ $lp->id }}" data-gia="{{ $lp->gia_mac_dinh ?? 0 }}"
                             data-suc_chua="{{ $lp->suc_chua ?? '' }}" data-so_giuong="{{ $lp->so_giuong ?? '' }}"
                             data-amenities='@json($lp->tienNghis->pluck('id'))'
+                            data-bedtypes='{{ json_encode($bedtypes, JSON_UNESCAPED_UNICODE) }}'
                             {{ old('loai_phong_id') == $lp->id ? 'selected' : '' }}>
                             {{ $lp->ten }} — {{ number_format($lp->gia_mac_dinh ?? 0, 0, ',', '.') }} đ
                         </option>
                     @endforeach
-
                 </select>
-                <small class="text-muted">Sức chứa, số giường, giá mặc định sẽ lấy từ loại phòng.</small>
+                <small class="text-muted">Sức chứa, số giường, giá mặc định và cấu hình giường sẽ lấy theo loại
+                    phòng.</small>
             </div>
 
             <div class="mb-3">
@@ -76,12 +91,18 @@
                 </div>
                 <div class="col-md-4 mb-3">
                     <label>Giá mặc định (Loại)</label>
-                    <input type="number" id="gia_input" class="form-control" value="{{ old('gia_mac_dinh') }}" readonly>
-                    <small class="form-text text-muted">Giá loại phòng; tổng thực tế ở dưới.</small>
+                    <input type="number" id="gia_input" name="gia_mac_dinh" class="form-control"
+                        value="{{ old('gia_mac_dinh') }}" readonly>
+                    <small class="form-text text-muted">Giá loại phòng; tổng thực tế hiển thị dưới.</small>
                 </div>
             </div>
 
-            <h6 class="mt-3">Dịch vụ</h6>
+            <h6 class="mt-3">Cấu hình giường</h6>
+            <div id="bed_types_container" class="mb-3">
+                <em>Chọn loại phòng để xem cấu hình giường.</em>
+            </div>
+
+            <h6 class="mt-3">Tiện nghi</h6>
             <div class="d-flex flex-wrap gap-2 mb-3" id="tienNghiList">
                 @foreach ($tienNghis as $tn)
                     <div class="form-check form-check-inline">
@@ -121,10 +142,31 @@
             const so_giuong_input = document.getElementById('so_giuong_input');
             const gia_input = document.getElementById('gia_input');
             const totalDisplay = document.getElementById('total_display');
+            const bedTypesContainer = document.getElementById('bed_types_container');
 
             function parseNumber(v) {
                 if (v === null || v === undefined || v === '') return 0;
                 return Number(v);
+            }
+
+            function renderBedTypes(list) {
+                if (!bedTypesContainer) return;
+                if (!Array.isArray(list) || list.length === 0) {
+                    bedTypesContainer.innerHTML = '<em>Không có cấu hình giường cho loại phòng này.</em>';
+                    return;
+                }
+                let html =
+                    '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Loại giường</th><th class="text-center">Số lượng</th><th class="text-center">Sức chứa/giường</th><th class="text-end">Giá/giường</th></tr></thead><tbody>';
+                list.forEach(b => {
+                    html += `<tr>
+                        <td>${b.name}</td>
+                        <td class="text-center">${b.quantity}</td>
+                        <td class="text-center">${b.capacity}</td>
+                        <td class="text-end">${new Intl.NumberFormat('vi-VN').format(Math.round(b.price || 0))} đ</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                bedTypesContainer.innerHTML = html;
             }
 
             function resetAmenitiesChecks() {
@@ -144,20 +186,49 @@
             function updateTotal() {
                 const opt = select.querySelector('option:checked');
                 const base = opt ? parseNumber(opt.dataset.gia) : 0;
-                let sum = 0;
+                let sumAmenities = 0;
                 document.querySelectorAll('.tienNghiCheckbox:checked').forEach(cb => {
-                    sum += parseNumber(cb.dataset.price || 0);
+                    sumAmenities += parseNumber(cb.dataset.price || 0);
                 });
-                const total = base + sum;
+
+                // tính tiền giường từ option hiện tại (data-bedtypes) nếu có
+                let bedSum = 0;
+                if (opt) {
+                    const bedtypesJson = opt.dataset.bedtypes ?? '[]';
+                    try {
+                        const bedlist = JSON.parse(bedtypesJson);
+                        if (Array.isArray(bedlist)) {
+                            bedlist.forEach(b => {
+                                const qty = parseNumber(b.quantity || 0);
+                                const price = parseNumber(b.price || 0);
+                                bedSum += qty * price;
+                            });
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+
+                const total = parseNumber(base) + sumAmenities + bedSum;
                 totalDisplay.innerText = new Intl.NumberFormat('vi-VN').format(Math.round(total)) + ' đ';
+                if (gia_input) gia_input.value = Math.round(parseNumber(base));
             }
 
             function fillFromSelectedOption(opt) {
-                if (!opt) return;
+                if (!opt) {
+                    suc_chua_input.value = '';
+                    so_giuong_input.value = '';
+                    gia_input.value = '';
+                    renderBedTypes([]);
+                    resetAmenitiesChecks();
+                    updateTotal();
+                    return;
+                }
                 const gia = opt.dataset.gia ?? 0;
                 const suc = opt.dataset.suc_chua ?? '';
                 const giuong = opt.dataset.so_giuong ?? '';
                 const amenitiesJson = opt.dataset.amenities ?? '[]';
+                const bedtypesJson = opt.dataset.bedtypes ?? '[]';
 
                 gia_input.value = parseNumber(gia);
                 suc_chua_input.value = suc !== '' ? parseNumber(suc) : '';
@@ -169,8 +240,17 @@
                 } catch (e) {
                     ids = [];
                 }
-
                 tickAmenitiesByIds(ids);
+
+                let bedlist = [];
+                try {
+                    bedlist = JSON.parse(bedtypesJson);
+                } catch (e) {
+                    bedlist = [];
+                }
+                renderBedTypes(bedlist);
+
+                updateTotal();
             }
 
             document.addEventListener('DOMContentLoaded', function() {
@@ -189,14 +269,6 @@
             select.addEventListener('change', function() {
                 const val = this.value;
                 const opt = this.querySelector('option[value="' + val + '"]');
-                if (!opt) {
-                    gia_input.value = '';
-                    suc_chua_input.value = '';
-                    so_giuong_input.value = '';
-                    resetAmenitiesChecks();
-                    updateTotal();
-                    return;
-                }
                 fillFromSelectedOption(opt);
             });
         })();
