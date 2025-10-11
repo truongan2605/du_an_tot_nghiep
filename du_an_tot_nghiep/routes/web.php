@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\LoaiPhongController;
+use App\Http\Controllers\Admin\BedTypeController;
 use App\Http\Controllers\Admin\NhanVienController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\PhongController;
@@ -12,8 +13,8 @@ use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Client\RoomController;
 use App\Http\Controllers\Client\WishlistController;
+use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\HomeController;
-
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -36,9 +37,9 @@ Route::prefix('admin')
 
         // Loại phòng
         Route::get('/admin/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
-        Route::post('loai-phong/{id}/disable', [\App\Http\Controllers\Admin\LoaiPhongController::class, 'disable'])
+        Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])
             ->name('loai_phong.disable');
-        Route::post('loai-phong/{id}/enable', [\App\Http\Controllers\Admin\LoaiPhongController::class, 'enable'])
+        Route::post('loai-phong/{id}/enable', [LoaiPhongController::class, 'enable'])
             ->name('loai_phong.enable');
 
         // Phòng
@@ -75,6 +76,10 @@ Route::prefix('admin')
         Route::resource('voucher', VoucherController::class);
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
             ->name('voucher.toggle-active');
+
+        // ---- Giường ----
+        Route::resource('bed-types', BedTypeController::class);
+
     });
 
 Route::middleware('auth')->prefix('account')
@@ -90,13 +95,10 @@ Route::middleware('auth')->prefix('account')
         Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
         Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
         Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
+
+        Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
+        Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
     });
-
-
-
-
-
-
 
 
 

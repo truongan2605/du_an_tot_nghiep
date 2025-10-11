@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Client;
 
 use Illuminate\Http\Request;
@@ -7,7 +8,9 @@ use App\Models\Phong;
 use App\Models\DanhGia;
 use App\Models\LoaiPhong;
 use App\Models\TienNghi;
+use App\Models\Wishlist;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Auth;
 
 class RoomController extends Controller
 {
@@ -77,7 +80,7 @@ class RoomController extends Controller
     }
     public function show($id)
     {
-        $phong = Phong::with(['loaiPhong','tang','images','tienNghis'])->findOrFail($id);
+        $phong = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis', 'bedTypes'])->findOrFail($id);
 
         $related = Phong::with('images')
             ->where('loai_phong_id', $phong->loai_phong_id)
@@ -86,10 +89,10 @@ class RoomController extends Controller
             ->take(5)
             ->get();
 
+        // Ratings logic (giữ nguyên)
         $avgRating = 0;
         $reviews = collect();
 
-        // 1) nếu dat_phong có cột phong_id (booking trực tiếp gắn phong_id)
         if (Schema::hasTable('dat_phong') && Schema::hasColumn('dat_phong', 'phong_id')) {
             $avgRating = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
                 ->where('dat_phong.phong_id', $phong->id)
@@ -102,9 +105,7 @@ class RoomController extends Controller
                 ->select('danh_gia.*')
                 ->orderByDesc('danh_gia.created_at')
                 ->get();
-        }
-        // 2) nếu dat_phong_items tồn tại và chứa phong_id (booking có nhiều item, mỗi item gắn phong_id)
-        elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
+        } elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
             $avgRating = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
                 ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
                 ->where('dat_phong_items.phong_id', $phong->id)
@@ -118,9 +119,7 @@ class RoomController extends Controller
                 ->select('danh_gia.*')
                 ->orderByDesc('danh_gia.created_at')
                 ->get();
-        }
-        // 3) nếu danh_gia trực tiếp có cột phong_id (không qua booking)
-        elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
+        } elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
             $avgRating = DanhGia::where('phong_id', $phong->id)
                 ->where('trang_thai_kiem_duyet', 'da_dang')
                 ->avg('diem');
@@ -129,15 +128,44 @@ class RoomController extends Controller
                 ->where('trang_thai_kiem_duyet', 'da_dang')
                 ->orderByDesc('created_at')
                 ->get();
-        }
-        // 4) fallback: không có cấu trúc phù hợp -> trả về rỗng (không throw)
-        else {
+        } else {
             $avgRating = 0;
             $reviews = collect();
         }
 
         $avgRating = $avgRating ? round(floatval($avgRating), 1) : 0.0;
 
-        return view('detail-room', compact('phong','related','avgRating','reviews'));
+        $bedSummary = collect();
+        $totalBeds = 0;
+
+        if ($phong->relationLoaded('bedTypes') && $phong->bedTypes->count()) {
+            foreach ($phong->bedTypes as $bt) {
+                $qty = (int) ($bt->pivot->quantity ?? 0);
+                if ($qty <= 0) continue;
+                $price = $bt->pivot->price !== null ? (float) $bt->pivot->price : (float) ($bt->price ?? 0);
+                $bedSummary->push([
+                    'id' => $bt->id,
+                    'name' => $bt->name ?? ($bt->title ?? 'Bed'),
+                    'quantity' => $qty,
+                    'price' => $price,
+                    'capacity' => $bt->capacity ?? null,
+                    'icon' => $bt->icon ?? null,
+                ]);
+                $totalBeds += $qty;
+            }
+        }
+
+        if ($totalBeds <= 0) {
+            $totalBeds = (int) ($phong->so_giuong ?? $phong->loaiPhong->so_giuong ?? 0);
+        }
+
+        $isWished = false;
+        if (Auth::check()) {
+            $isWished = Wishlist::where('user_id', Auth::id())
+                ->where('phong_id', $phong->id)
+                ->exists();
+        }
+
+        return view('detail-room', compact('phong', 'related', 'avgRating', 'reviews', 'bedSummary', 'totalBeds', 'isWished'));
     }
 }

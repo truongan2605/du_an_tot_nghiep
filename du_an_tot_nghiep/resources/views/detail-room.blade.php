@@ -6,7 +6,7 @@
     @php
         $gallery = $phong->images->values();
         $total = $gallery->count();
-        $main = $gallery->get(0); 
+        $main = $gallery->get(0);
 
         $thumbsAll = $gallery->slice(1);
         $thumbs = $thumbsAll->take(4)->values();
@@ -50,9 +50,7 @@
                 </div>
 
                 @if ($thumbCount > 0)
-                    {{-- Side grid: exactly 4 tiles (2x2), show only DB images, no fake placeholders --}}
                     @php
-                        // prepare exactly 4 tiles from $thumbs (which are images after main)
                         $tiles = [];
                         for ($i = 0; $i < 4; $i++) {
                             $tiles[$i] = $thumbs->get($i) ?? null;
@@ -75,14 +73,10 @@
                                             loading="lazy">
                                     </a>
                                 @else
-                                    {{-- empty tile (no placeholder image) --}}
                                     <div class="thumb-empty" aria-hidden="true"></div>
                                 @endif
 
-                                {{-- If this is the 4th tile and there are more images -> overlay + hidden links --}}
                                 @if ($isFourth && $remaining > 0)
-                                    {{-- Overlay anchor: clickable and opens lightbox --}}
-                                    {{-- Prefer to open the 4th tile image if exists, otherwise open first remaining image --}}
                                     @php
                                         $overlayTarget =
                                             $url ??
@@ -133,29 +127,32 @@
                             </div>
                             <div class="card-body pt-4 p-0">
                                 <h5 class="fw-light mb-4">Main Highlights</h5>
-                                <p class="mb-3">Demesne far-hearted suppose venture excited see had has. Dependent on so
-                                    extremely delivered by. Yet no jokes worse her why. <b>Bed one supposing breakfast day
-                                        fulfilled off depending questions.</b></p>
-                                <p class="mb-0">Delivered dejection necessary objection do Mr prevailed. Mr feeling does
-                                    chiefly cordial in do. Water timed folly right aware if oh truth. Large above be to
-                                    means. Dashwood does provide stronger is.</p>
-                                <div class="collapse" id="collapseContent">
-                                    <p class="my-3">We focus a great deal on the understanding of behavioral psychology
-                                        and influence triggers which are crucial for becoming a well rounded Digital
-                                        Marketer...</p>
-                                    <p class="mb-0">Behavioral psychology and influence triggers which are crucial for
-                                        becoming a well rounded Digital Marketer...</p>
-                                </div>
-                                <a class="p-0 mb-4 mt-2 btn-more d-flex align-items-center collapsed"
-                                    data-bs-toggle="collapse" href="#collapseContent" role="button" aria-expanded="false"
-                                    aria-controls="collapseContent">
-                                    See <span class="see-more ms-1">more</span><span class="see-less ms-1">less</span><i
-                                        class="fa-solid fa-angle-down ms-2"></i>
-                                </a>
+
+                                @php
+                                    $desc = $phong->mo_ta ?? '';
+                                    $limit = 400;
+                                @endphp
+
+                                @if (strlen($desc) <= $limit)
+                                    <p class="mb-0">{!! nl2br(e($desc ?: 'Không có mô tả cho phòng này.')) !!}</p>
+                                @else
+                                    <p class="mb-0">{!! nl2br(e(\Illuminate\Support\Str::limit($desc, $limit))) !!}</p>
+
+                                    <div class="collapse" id="collapseContent">
+                                        <p class="my-3">{!! nl2br(e(\Illuminate\Support\Str::substr($desc, $limit))) !!}</p>
+                                    </div>
+
+                                    <a class="p-0 mb-4 mt-2 btn-more d-flex align-items-center collapsed"
+                                        data-bs-toggle="collapse" href="#collapseContent" role="button"
+                                        aria-expanded="false" aria-controls="collapseContent">
+                                        See <span class="see-more ms-1">more</span><span class="see-less ms-1">less</span><i
+                                            class="fa-solid fa-angle-down ms-2"></i>
+                                    </a>
+                                @endif
+
                             </div>
                         </div>
 
-                        <!-- Amenities (dynamic from relation tienNghis) -->
                         <div class="card bg-transparent">
                             <div class="card-header border-bottom bg-transparent px-0 pt-0">
                                 <h3 class="card-title mb-0">Amenities</h3>
@@ -184,6 +181,58 @@
                             </div>
                         </div>
 
+                        <!-- Beds & Bedding -->
+                        <div class="card bg-transparent">
+                            <div class="card-header border-bottom bg-transparent px-0 pt-0">
+                                <h3 class="card-title mb-0">Beds & Bedding</h3>
+                            </div>
+                            <div class="card-body pt-4 p-0">
+                                <div class="mb-3">
+                                    <strong>Total beds:</strong>
+                                    <span>{{ $totalBeds }}</span>
+
+                                </div>
+
+                                @if ($bedSummary && $bedSummary->count())
+                                    <div class="row g-3">
+                                        @foreach ($bedSummary as $b)
+                                            <div class="col-12">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    @if (!empty($b['icon']))
+                                                        <div class="me-2">
+                                                            <i class="{{ $b['icon'] }} fs-4"></i>
+                                                        </div>
+                                                    @endif
+                                                    <div class="flex-grow-1">
+                                                        <div class="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <h6 class="mb-0">{{ $b['name'] }}</h6>
+                                                                @if (!empty($b['capacity']))
+                                                                    <small class="text-muted">Capacity:
+                                                                        {{ $b['capacity'] }}</small>
+                                                                @endif
+                                                            </div>
+                                                            <div class="text-end">
+                                                                <div class="fw-bold">Number of beds: {{ $b['quantity'] }}
+                                                                </div>
+                                                                @if (!empty($b['price']))
+                                                                    <small
+                                                                        class="text-muted">{{ number_format($b['price'], 0, ',', '.') }}
+                                                                        VND / each</small>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="mb-0">This room uses default bedding configuration.</p>
+                                @endif
+                            </div>
+                        </div>
+
                         <div class="card-body pt-4 p-0">
                             <div class="vstack gap-4">
                                 @if ($related && $related->count())
@@ -191,7 +240,6 @@
                                         <div class="card shadow p-3">
                                             <div class="row g-4">
                                                 <div class="col-md-5 position-relative">
-                                                    {{-- slider with up to 4 images (uses the same class styling as template) --}}
                                                     <div
                                                         class="tiny-slider arrow-round arrow-xs arrow-dark overflow-hidden rounded-2">
                                                         <div class="tiny-slider-inner" data-autoplay="true"
@@ -204,7 +252,8 @@
                                                                             alt="{{ $r->name ?? $r->ma_phong }}"></div>
                                                                 @endforeach
                                                             @else
-                                                                <div><img src="{{ $r->firstImageUrl() }}" class="rounded-2"
+                                                                <div><img src="{{ $r->firstImageUrl() }}"
+                                                                        class="rounded-2"
                                                                         alt="{{ $r->name ?? $r->ma_phong }}"></div>
                                                             @endif
                                                         </div>
@@ -298,7 +347,6 @@
                                     </div>
 
                                     <div class="col-md-8">
-                                        {{-- Simple progress bars breakdown (optional): compute percentages --}}
                                         @php
                                             $counts = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
                                             if ($reviewCount && $reviewCount > 0) {
@@ -452,7 +500,8 @@
                             <div class="d-sm-flex justify-content-sm-between align-items-center mb-3">
                                 <div>
                                     <span>Price Start at</span>
-                                    <h4 class="card-title mb-0">{{ number_format($phong->gia_mac_dinh, 0, ',', '.') }} VND
+                                    <h4 class="card-title mb-0">{{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }}
+                                        VND
                                     </h4>
                                 </div>
 
@@ -487,8 +536,28 @@
                             </ul>
 
                             <div class="d-grid">
-                                <a href="#room-options" class="btn btn-lg btn-primary-soft mb-0">View Room Options</a>
+                                <a href="{{ route('account.booking.create', $phong) }}"
+                                    class="btn btn-lg btn-primary-soft mb-0">Booking now</a>
                             </div>
+
+                            @auth
+                                <div class="d-grid mb-2" style="margin-top: 12px ">
+                                    <button id="detail-wishlist-btn" type="button" class="btn btn-outline-danger btn-lg"
+                                        data-phong-id="{{ $phong->id }}"
+                                        aria-pressed="{{ $isWished ? 'true' : 'false' }}"
+                                        aria-label="{{ $isWished ? 'Remove from wishlist' : 'Add to wishlist' }}">
+                                        <i
+                                            class="{{ $isWished ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' }}"></i>
+                                        <span class="wl-label ms-2">{{ $isWished ? 'Saved' : 'Add to wishlist' }}</span>
+                                    </button>
+                                </div>
+                            @else
+                                <div class="d-grid" style="margin-top: 15px">
+                                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-lg">Login to
+                                        wishlist</a>
+                                </div>
+                            @endauth
+
                         </div>
                     </div>
                 </aside>
@@ -536,7 +605,7 @@
             grid-template-rows: repeat(2, 1fr);
             gap: 0.8rem;
             align-items: stretch;
-			margin-bottom: 15px;
+            margin-bottom: 15px;
         }
 
         .thumb-tile {
@@ -558,14 +627,12 @@
             display: block;
         }
 
-        /* empty tile (no image) shows subtle background only */
         .thumb-empty {
             width: 100%;
             height: 100%;
             background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
         }
 
-        /* overlay visual (non-clickable) */
         .overlay {
             position: absolute;
             inset: 0;
@@ -574,7 +641,6 @@
             justify-content: center;
             color: #fff;
             pointer-events: none;
-            /* let overlay-anchor handle clicks */
             background: linear-gradient(0deg, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.15));
             text-align: center;
             border-radius: 0.5rem;
