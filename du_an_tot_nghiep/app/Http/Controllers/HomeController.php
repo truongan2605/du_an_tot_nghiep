@@ -15,12 +15,12 @@ class HomeController extends Controller
             ->orderByDesc('created_at')
             ->take(8)
             ->get();
-
+        $loaiPhongs = LoaiPhong::all();
         $favoriteIds = [];
         if (Auth::check()) {
             $favoriteIds = Wishlist::where('user_id', Auth::id())->pluck('phong_id')->toArray();
         }
 
-        return view('home', compact('phongs', 'favoriteIds'));
+        return view('home', compact('loaiPhongs','phongs', 'favoriteIds'));
     }
 }
