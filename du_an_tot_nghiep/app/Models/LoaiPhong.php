@@ -38,6 +38,11 @@ class LoaiPhong extends Model
         return $this->belongsToMany(TienNghi::class, 'loai_phong_tien_nghi');
     }
 
+public function vatDungs()
+{
+    return $this->belongsToMany(VatDung::class, 'loai_phong_vat_dung', 'loai_phong_id', 'vat_dung_id');
+}
+
     public static function refreshSoLuongThucTe(int $loaiPhongId): int
     {
         $count = \App\Models\Phong::where('loai_phong_id', $loaiPhongId)->count();

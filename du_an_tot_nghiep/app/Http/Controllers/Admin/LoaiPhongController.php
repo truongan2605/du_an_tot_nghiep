@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LoaiPhong;
 use App\Models\TienNghi;
+use App\Models\VatDung;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +30,8 @@ public function index()
     public function create()
     {
         $tienNghis = TienNghi::where('active', true)->get();
-        return view('admin.loai_phong.create', compact('tienNghis'));
+        $vatDungs = VatDung::where('active', true)->get();
+        return view('admin.loai_phong.create', compact('tienNghis','vatDungs'));
     }
 
     public function store(Request $request)
@@ -44,6 +46,8 @@ public function index()
             'so_luong_thuc_te' => 'nullable|integer|min:0',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'exists:tien_nghi,id',
+             'vat_dung' => 'nullable|array',
+    'vat_dung.*' => 'exists:vat_dungs,id',
         ]);
 
         $data = $request->only([
@@ -62,6 +66,9 @@ public function index()
         if ($request->has('tien_nghi')) {
             $loaiPhong->tienNghis()->sync($request->tien_nghi);
         }
+        if ($request->has('vat_dung')) {
+    $loaiPhong->vatDungs()->sync($request->vat_dung);
+}
 
         return redirect()->route('admin.loai_phong.index')->with('success', 'Thêm loại phòng thành công');
     }
@@ -74,10 +81,11 @@ public function index()
 
     public function edit($id)
     {
-        $loaiphong = LoaiPhong::with('tienNghis')->findOrFail($id);
+        $loaiphong = LoaiPhong::with(['tienNghis', 'vatDungs'])->findOrFail($id);
         $tienNghis = TienNghi::where('active', true)->get();
+$vatDungs = VatDung::where('active', true)->get();
 
-        return view('admin.loai_phong.edit', compact('loaiphong', 'tienNghis'));
+        return view('admin.loai_phong.edit', compact('loaiphong', 'tienNghis' ,'vatDungs'));
     }
 
     public function update(Request $request, $id)
@@ -105,6 +113,7 @@ public function index()
         ]));
 
         $loaiphong->tienNghis()->sync($request->input('tien_nghi_ids', []));
+        $loaiphong->vatDungs()->sync($request->input('vat_dung_ids', []));
 
         return redirect()->route('admin.loai_phong.index')
             ->with('success', 'Cập nhật loại phòng thành công');
@@ -142,4 +151,8 @@ public function index()
         $loaiPhong = LoaiPhong::with('tienNghis')->findOrFail($id);
         return response()->json($loaiPhong->tienNghis);
     }
+    
+ 
 }
+
+

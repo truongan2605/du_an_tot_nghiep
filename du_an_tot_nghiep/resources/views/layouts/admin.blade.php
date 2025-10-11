@@ -59,6 +59,10 @@
                         href="{{ route('admin.tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Dịch vụ
                     </a>
+                     <a class="nav-link {{ request()->routeIs('admin.vat-dung.*') ? 'active' : '' }}"
+                        href="{{ route('admin.vat-dung.index') }}">
+                        <i class="fas fa-concierge-bell me-2"></i> Vật dụng
+                    </a>
                     <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}"
                         href="{{ route('admin.phong.index') }}">
                         <i class="fas fa-bed me-2"></i> Phòng

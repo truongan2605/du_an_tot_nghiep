@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\PhongController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
+use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Auth\SocialAuthController;
@@ -30,6 +31,11 @@ Route::prefix('admin')
         Route::resource('tien-nghi', AdminTienNghiController::class);
         Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])
             ->name('tien-nghi.toggle-active');
+
+             // vatdung
+        Route::resource('vat-dung', AdminVatDungController::class);
+        Route::patch('vat-dung/{vat_dung}/toggle-active', [AdminVatDungController::class, 'toggleActive'])
+        ->name('vat-dung.toggle-active');
             
         // Loại phòng
         Route::get('/admin/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);

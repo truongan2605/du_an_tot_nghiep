@@ -57,6 +57,24 @@
             @endforeach
         </div>
     </div>
+    <div class="mb-3">
+    <label>Vật dụng</label>
+    <div class="d-flex flex-wrap">
+        @foreach($vatDungs as $vd)
+            <div class="form-check me-3">
+                <input 
+                    type="checkbox" 
+                    name="vat_dung_ids[]" 
+                    value="{{ $vd->id }}" 
+                    class="form-check-input"
+                    {{ in_array($vd->id, old('vat_dung_ids', $loaiphong->vatDungs->pluck('id')->toArray() ?? [])) ? 'checked' : '' }}>
+                <label class="form-check-label">{{ $vd->ten }}</label>
+            </div>
+        @endforeach
+    </div>
+</div>
+
+    
 
     <button type="submit" class="btn btn-primary">Cập nhật</button>
 </form>
