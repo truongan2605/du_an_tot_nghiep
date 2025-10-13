@@ -79,6 +79,9 @@ Route::prefix('admin')
         // ---- Tầng ----
         Route::resource('tang', TangController::class);
 
+        // ---- Loại giường ----
+        Route::resource('bed-types', BedTypeController::class);
+
         // ---- Người dùng ----
         Route::get('user/create', [UserController::class, 'create'])->name('user.create');
         Route::post('user', [UserController::class, 'store'])->name('user.store');
