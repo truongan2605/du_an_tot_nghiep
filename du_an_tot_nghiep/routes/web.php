@@ -53,6 +53,9 @@ Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.sh
 Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
 Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
 
+Route::get('/booking/availability', [\App\Http\Controllers\Client\BookingController::class, 'availability'])
+    ->name('booking.availability');
+
 Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])

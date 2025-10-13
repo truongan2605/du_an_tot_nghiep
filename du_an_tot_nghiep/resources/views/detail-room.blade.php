@@ -463,8 +463,6 @@
                         </div>
                         <div class="card-body pt-4 p-0">
                             <ul class="list-group list-group-borderless mb-2">
-                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>This is a
-                                    family farmhouse, hence we request you to not indulge.</li>
                                 <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Drinking
                                     and smoking within controlled limits are permitted at the farmhouse but please do not
                                     create a mess or ruckus at the house.</li>
@@ -484,8 +482,6 @@
                                         class="bi bi-arrow-right me-2"></i>Self-check-in with building staff</li>
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
                                         class="bi bi-arrow-right me-2"></i>No pets</li>
-                                <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>No parties or events</li>
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
                                         class="bi bi-arrow-right me-2"></i>Smoking is allowed</li>
                             </ul>
