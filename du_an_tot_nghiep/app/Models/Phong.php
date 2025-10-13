@@ -21,7 +21,7 @@ class Phong extends Model
         'suc_chua',
         'so_giuong',
         'gia_mac_dinh',
-        'gia_cuoi_cung',  
+        'gia_cuoi_cung',
         'img',
         'trang_thai',
         'last_checked_at',
@@ -184,5 +184,66 @@ class Phong extends Model
         }
 
         return asset('template/stackbros/assets/images/category/hotel/01.jpg');
+    }
+
+    public function activeOverrides()
+    {
+        return $this->hasMany(\App\Models\PhongTienNghiOverride::class, 'phong_id')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            });
+    }
+
+    public function effectiveTienNghiIds(): array
+    {
+        $base = $this->relationLoaded('tienNghis') ? $this->tienNghis->pluck('id')->toArray()
+            : $this->tienNghis()->pluck('id')->toArray();
+
+        $overrideIds = $this->relationLoaded('activeOverrides')
+            ? $this->activeOverrides->pluck('tien_nghi_id')->toArray()
+            : \App\Models\PhongTienNghiOverride::where('phong_id', $this->id)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->pluck('tien_nghi_id')->toArray();
+
+        $merged = array_values(array_unique(array_merge($base, $overrideIds)));
+        sort($merged, SORT_NUMERIC);
+        return $merged;
+    }
+
+    public function effectiveBedSpec(): array
+    {
+        $beds = $this->relationLoaded('bedTypes') ? $this->bedTypes : $this->bedTypes()->get();
+        $arr = [];
+        foreach ($beds as $bt) {
+            $arr[] = [
+                'id' => (int) $bt->id,
+                'quantity' => (int) ($bt->pivot->quantity ?? 0),
+                'price' => $bt->pivot->price !== null ? (float)$bt->pivot->price : ((float)($bt->price ?? 0))
+            ];
+        }
+        usort($arr, function ($a, $b) {
+            return $a['id'] <=> $b['id'];
+        });
+        return $arr;
+    }
+
+    public function specSignatureArray(): array
+    {
+        $sig = [
+            'loai_phong_id' => (int) $this->loai_phong_id,
+            'tien_nghi' => $this->effectiveTienNghiIds(),
+            'beds' => $this->effectiveBedSpec(),
+        ];
+
+        ksort($sig);
+        return $sig;
+    }
+
+    public function specSignatureHash(): string
+    {
+        $sig = $this->specSignatureArray();
+        return md5(json_encode($sig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 }

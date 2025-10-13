@@ -215,11 +215,6 @@
                                                             <div class="text-end">
                                                                 <div class="fw-bold">Number of beds: {{ $b['quantity'] }}
                                                                 </div>
-                                                                @if (!empty($b['price']))
-                                                                    <small
-                                                                        class="text-muted">{{ number_format($b['price'], 0, ',', '.') }}
-                                                                        VND / each</small>
-                                                                @endif
                                                             </div>
                                                         </div>
                                                     </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
 use App\Models\Phong;
+use App\Models\PhongTienNghiOverride;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ class BookingController extends Controller
 
     public function create(Phong $phong)
     {
-        $phong->load(['loaiPhong', 'tienNghis', 'images', 'bedTypes']);
+        $phong->load(['loaiPhong', 'tienNghis', 'images', 'bedTypes', 'activeOverrides']);
         $user = Auth::user();
 
         $typeAmenityIds = $phong->loaiPhong ? $phong->loaiPhong->tienNghis->pluck('id')->toArray() : [];
@@ -33,10 +34,12 @@ class BookingController extends Controller
         $fromDefault = Carbon::today();
         $toDefault = Carbon::tomorrow();
 
+        // Quan trọng: Logic tính phòng giống loại phòng
         $availableRoomsDefault = $this->computeAvailableRoomsCount(
             $phong->loai_phong_id,
             $fromDefault,
-            $toDefault
+            $toDefault,
+            $phong->specSignatureHash()
         );
 
         return view('account.booking.create', compact('phong', 'user', 'availableAddons', 'availableRoomsDefault'));
@@ -48,67 +51,196 @@ class BookingController extends Controller
             'loai_phong_id' => 'required|integer|exists:loai_phong,id',
             'from' => 'required|date',
             'to' => 'required|date|after:from',
+            'phong_id' => 'nullable|integer|exists:phong,id',
         ]);
 
         $loaiId = (int) $request->input('loai_phong_id');
         $from = Carbon::parse($request->input('from'))->startOfDay();
         $to = Carbon::parse($request->input('to'))->startOfDay();
 
-        $available = $this->computeAvailableRoomsCount($loaiId, $from, $to);
+        $requiredSignature = null;
+        if ($request->filled('phong_id')) {
+            $phong = Phong::with(['tienNghis', 'bedTypes', 'activeOverrides'])->find($request->input('phong_id'));
+            if ($phong) {
+                $requiredSignature = $phong->specSignatureHash();
+            }
+        }
+
+        $available = $this->computeAvailableRoomsCount($loaiId, $from, $to, $requiredSignature);
+
+        if ($request->boolean('debug')) {
+            $candidates = Phong::with(['tienNghis', 'bedTypes', 'activeOverrides'])
+                ->where('loai_phong_id', $loaiId)
+                ->where('trang_thai', 'trong')
+                ->get();
+
+            $roomSignatures = $candidates->mapWithKeys(function ($r) {
+                return [$r->id => $r->specSignatureHash()];
+            });
+
+            return response()->json([
+                'available' => (int)$available,
+                'required_signature' => $requiredSignature,
+                'room_signatures' => $roomSignatures,
+            ]);
+        }
 
         return response()->json(['available' => (int)$available]);
     }
 
-    private function computeAvailableRoomsCount(int $loaiPhongId, Carbon $fromDate, Carbon $toDate): int
+
+    private function computeAvailableRoomsCount(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, ?string $requiredSignature = null): int
     {
         $requestedStart = $fromDate->copy()->setTime(14, 0, 0)->toDateTimeString();
         $requestedEnd = $toDate->copy()->setTime(12, 0, 0)->toDateTimeString();
 
-        $totalRooms = Phong::where('loai_phong_id', $loaiPhongId)
+        $candidates = Phong::with(['tienNghis', 'bedTypes', 'activeOverrides'])
+            ->where('loai_phong_id', $loaiPhongId)
             ->where('trang_thai', 'trong')
-            ->count();
+            ->get();
 
-        $bookedCount = 0;
+        if ($candidates->isEmpty()) {
+            return 0;
+        }
 
+        if ($requiredSignature === null) {
+            $requiredSignature = $candidates->first()->specSignatureHash();
+        }
+
+        $matchingRooms = $candidates->filter(function ($r) use ($requiredSignature) {
+            return $r->specSignatureHash() === $requiredSignature;
+        })->values();
+
+        if ($matchingRooms->isEmpty()) {
+            return 0;
+        }
+
+        $matchingRoomIds = $matchingRooms->pluck('id')->toArray();
+        $matchingCount = count($matchingRoomIds);
+
+        $bookedRoomIds = [];
+        if (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
+            $bookedRoomIds = DB::table('dat_phong_items')
+                ->join('dat_phong', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
+                ->where('dat_phong_items.loai_phong_id', $loaiPhongId)
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$requestedStart, $requestedEnd])
+                ->pluck('phong_id')
+                ->filter()
+                ->unique()
+                ->toArray();
+        }
+
+        $heldRoomIds = [];
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+            $heldRoomIds = DB::table('giu_phong')
+                ->where('released', false)
+                ->where('loai_phong_id', $loaiPhongId)
+                ->where('het_han_luc', '>', now())
+                ->pluck('phong_id')
+                ->filter()
+                ->unique()
+                ->toArray();
+        }
+
+        $occupiedSpecificIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
+
+        $matchingAvailableIds = array_values(array_diff($matchingRoomIds, $occupiedSpecificIds));
+        $available = count($matchingAvailableIds);
+
+        $aggregateBooked = 0;
         if (Schema::hasTable('dat_phong_item')) {
             $q = DB::table('dat_phong')
                 ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
                 ->where('dat_phong_item.loai_phong_id', $loaiPhongId)
-                ->whereNotIn('dat_phong.trang_thai', ['huy'])
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
                 ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong, ' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong, ' 14:00:00') < ?", [$requestedStart, $requestedEnd]);
 
-            $sum = (int) $q->sum('dat_phong_item.so_luong');
-            $bookedCount += $sum;
-        }
-
-        if (Schema::hasTable('giu_phong')) {
-            $qg = DB::table('giu_phong')
-                ->where('released', false)
-                ->where('het_han_luc', '>', now())
-                ->where('loai_phong_id', $loaiPhongId);
-
-            if (Schema::hasColumn('giu_phong', 'so_luong')) {
-                $holdsSum = (int) $qg->sum('so_luong');
-                $bookedCount += $holdsSum;
+            $aggregateBooked = (int) $q->sum('dat_phong_item.so_luong');
+        } elseif (Schema::hasTable('dat_phong_items')) {
+            if (Schema::hasColumn('dat_phong_items', 'phong_id')) {
             } else {
-                $holds = (int) $qg->count();
-                $bookedCount += $holds;
+                $q = DB::table('dat_phong')
+                    ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
+                    ->where('dat_phong_items.loai_phong_id', $loaiPhongId)
+                    ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                    ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong, ' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong, ' 14:00:00') < ?", [$requestedStart, $requestedEnd]);
+
+                $aggregateBooked = (int)$q->sum('dat_phong_items.so_luong');
             }
         }
 
-        $available = max(0, $totalRooms - $bookedCount);
+        $aggregateHolds = 0;
+        if (Schema::hasTable('giu_phong')) {
+            $qg = DB::table('giu_phong')
+                ->where('released', false)
+                ->where('loai_phong_id', $loaiPhongId)
+                ->where('het_han_luc', '>', now());
+
+            if (Schema::hasColumn('giu_phong', 'so_luong')) {
+                $aggregateHolds = (int) $qg->sum('so_luong');
+            } elseif (!Schema::hasColumn('giu_phong', 'phong_id')) {
+                $aggregateHolds = (int) $qg->count();
+            }
+        }
+
+        $specificBookedCount = count($bookedRoomIds);
+        $specificHeldCount = count($heldRoomIds);
+
+        $aggregateToSubtract = max(0, ($aggregateBooked + $aggregateHolds) - ($specificBookedCount + $specificHeldCount));
+
+        $available = max(0, $available - $aggregateToSubtract);
+
         return (int) $available;
     }
 
-    private function computeAvailableRoomIds(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, int $limit = 1): array
-    {
-        $candidates = Phong::where('loai_phong_id', $loaiPhongId)
-            ->where('trang_thai', 'trong')
-            ->limit($limit)
-            ->pluck('id')
-            ->toArray();
 
-        return $candidates;
+    private function computeAvailableRoomIds(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, int $limit = 1, ?string $requiredSignature = null): array
+    {
+        $requestedStart = $fromDate->copy()->setTime(14, 0, 0)->toDateTimeString();
+        $requestedEnd = $toDate->copy()->setTime(12, 0, 0)->toDateTimeString();
+
+        $candidates = Phong::with(['tienNghis', 'bedTypes', 'activeOverrides'])
+            ->where('loai_phong_id', $loaiPhongId)
+            ->where('trang_thai', 'trong')
+            ->get();
+
+        if ($requiredSignature === null) {
+            if ($candidates->isEmpty()) return [];
+            $requiredSignature = $candidates->first()->specSignatureHash();
+        }
+
+        $bookedRoomIds = [];
+        if (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
+            $bookedRoomIds = DB::table('dat_phong_items')
+                ->join('dat_phong', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
+                ->where('dat_phong_items.loai_phong_id', $loaiPhongId)
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$requestedStart, $requestedEnd])
+                ->pluck('phong_id')->filter()->unique()->toArray();
+        }
+
+        $heldRoomIds = [];
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+            $heldRoomIds = DB::table('giu_phong')
+                ->where('released', false)
+                ->where('het_han_luc', '>', now())
+                ->where('loai_phong_id', $loaiPhongId)
+                ->pluck('phong_id')->filter()->unique()->toArray();
+        }
+
+        $results = [];
+        foreach ($candidates as $room) {
+            if (in_array($room->id, $bookedRoomIds) || in_array($room->id, $heldRoomIds)) {
+                continue;
+            }
+            if ($room->specSignatureHash() === $requiredSignature) {
+                $results[] = $room->id;
+                if (count($results) >= $limit) break;
+            }
+        }
+
+        return $results;
     }
 
     public function store(Request $request)
@@ -136,7 +268,7 @@ class BookingController extends Controller
             'phone' => 'nullable|string|max:50',
         ]);
 
-        $phong = Phong::with(['loaiPhong', 'tienNghis', 'bedTypes'])->findOrFail($request->input('phong_id'));
+        $phong = Phong::with(['loaiPhong', 'tienNghis', 'bedTypes', 'activeOverrides'])->findOrFail($request->input('phong_id'));
 
         $from = Carbon::parse($request->input('ngay_nhan_phong'))->startOfDay();
         $to = Carbon::parse($request->input('ngay_tra_phong'))->startOfDay();
@@ -204,18 +336,22 @@ class BookingController extends Controller
             $addonsPerNight = (float) $selectedAddons->sum('gia');
         }
 
-        $basePerNight = (float) ($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
+        $basePerNight = (float) ($phong->gia_cuoi_cung ?? $phong->gia_mac_dinh ?? 0);
 
         DB::beginTransaction();
         try {
-            $availableRooms = $this->computeAvailableRoomsCount($phong->loai_phong_id, $from, $to);
-            if ($roomsCount > $availableRooms) {
+            $requiredSignature = $phong->specSignatureHash();
+            $availableNow = $this->computeAvailableRoomsCount($phong->loai_phong_id, $from, $to, $requiredSignature);
+            if ($roomsCount > $availableNow) {
                 DB::rollBack();
-                return back()->withInput()->withErrors(['rooms_count' => "Only {$availableRooms} room(s) available for selected dates."]);
+                return back()->withInput()->withErrors(['rooms_count' => "Only {$availableNow} room(s) matching required features are available for selected dates (concurrency check)."]);
             }
 
-            $adultsChargePerNight = $adultExtra * self::ADULT_PRICE;
-            $childrenChargePerNight = $childrenExtra * self::CHILD_PRICE;
+            $adultsChargePerNightPerRoom = $adultExtra * self::ADULT_PRICE;
+            $childrenChargePerNightPerRoom = $childrenExtra * self::CHILD_PRICE;
+
+            $adultsChargePerNight = $adultsChargePerNightPerRoom * $roomsCount;
+            $childrenChargePerNight = $childrenChargePerNightPerRoom * $roomsCount;
 
             $finalPerNight = ($basePerNight * $roomsCount) + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
             $snapshotTotal = $finalPerNight * $nights;
@@ -271,7 +407,13 @@ class BookingController extends Controller
                 ]);
             } elseif (Schema::hasTable('dat_phong_items')) {
                 if (Schema::hasColumn('dat_phong_items', 'phong_id')) {
-                    $selectedIds = $this->computeAvailableRoomIds($phong->loai_phong_id, $from, $to, $roomsCount);
+                    $selectedIds = $this->computeAvailableRoomIds($phong->loai_phong_id, $from, $to, $roomsCount, $requiredSignature);
+
+                    if (count($selectedIds) < $roomsCount) {
+                        DB::rollBack();
+                        return back()->withInput()->withErrors(['rooms_count' => "Only " . count($selectedIds) . " room(s) matching required features are available for the selected dates."]);
+                    }
+
                     foreach ($selectedIds as $rid) {
                         DB::table('dat_phong_items')->insert([
                             'dat_phong_id' => $datPhongId,
@@ -283,6 +425,25 @@ class BookingController extends Controller
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
+                    }
+
+                    if (!empty($selectedAddons) && $selectedAddons->count() > 0) {
+                        $checkoutAt = $to->copy()->setTime(12, 0, 0);
+                        foreach ($selectedIds as $rid) {
+                            $room = Phong::with(['tienNghis', 'activeOverrides'])->find($rid);
+                            $existing = $room ? $room->effectiveTienNghiIds() : [];
+
+                            foreach ($selectedAddons as $addon) {
+                                if (!in_array((int)$addon->id, $existing)) {
+                                    PhongTienNghiOverride::create([
+                                        'phong_id' => $rid,
+                                        'tien_nghi_id' => $addon->id,
+                                        'applies_to_dat_phong_id' => $datPhongId,
+                                        'expires_at' => $checkoutAt,
+                                    ]);
+                                }
+                            }
+                        }
                     }
                 } else {
                     DB::table('dat_phong_items')->insert([
