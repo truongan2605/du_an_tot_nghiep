@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Payment;
 use App\Models\DatPhong;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Mail;
 
@@ -18,7 +19,7 @@ class ConfirmPaymentController extends Controller
         if (!$giao_dich || !$dat_phong->can_xac_nhan) {
             return response()->json(['error' => 'Invalid payment or already confirmed'], 400);
         }
-
+        Log::info('Payment confirmed', ['dat_phong_id' => $dat_phong_id]);
         DB::transaction(function () use ($dat_phong) {
             $dat_phong->trang_thai = 'da_xac_nhan';
             $dat_phong->can_xac_nhan = false;

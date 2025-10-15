@@ -2,20 +2,22 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
-
-
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
 use App\Http\Controllers\Client\RoomController;
 use App\Http\Controllers\Staff\StaffController;
+use App\Http\Controllers\Admin\BedTypeController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
 use App\Http\Controllers\Admin\TienNghiController;
+use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\Client\PaymentController;
 use App\Http\Controllers\Client\ProfileController;
+use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
+use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.show');
@@ -25,20 +27,31 @@ Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->na
 Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCallback']);
 
 // ==================== ADMIN ====================
+Route::get('/booking/availability', [\App\Http\Controllers\Client\BookingController::class, 'availability'])
+    ->name('booking.availability');
+
 Route::prefix('admin')
     ->name('admin.')
     ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
     ->group(function () {
-
-        // ---- Tiện nghi ----
-        Route::resource('tien-nghi', TienNghiController::class);
-        Route::patch('tien-nghi/{tienNghi}/toggle-active', [TienNghiController::class, 'toggleActive'])
+        // Tiện nghi
+        Route::resource('tien-nghi', AdminTienNghiController::class);
+        Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])
             ->name('tien-nghi.toggle-active');
 
-        // ---- Phòng ----
+        // Loại phòng
+        Route::get('/admin/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
+        Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])
+            ->name('loai_phong.disable');
+        Route::post('loai-phong/{id}/enable', [LoaiPhongController::class, 'enable'])
+            ->name('loai_phong.enable');
+
+        // Phòng
         Route::resource('phong', PhongController::class);
         Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
             ->name('phong.image.destroy');
+        // loai phong 
+        Route::resource('loai_phong', LoaiPhongController::class);
 
         // ---- Tầng ----
         Route::resource('tang', TangController::class);
@@ -60,6 +73,10 @@ Route::prefix('admin')
         Route::resource('voucher', VoucherController::class);
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
             ->name('voucher.toggle-active');
+
+        // ---- Giường ----
+        Route::resource('bed-types', BedTypeController::class);
+
     });
 
 // ==================== STAFF  ====================
@@ -75,22 +92,50 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::post('/confirm/{id}', [StaffController::class, 'confirm'])->name('confirm');
         Route::get('/bookings', [StaffController::class, 'bookings'])->name('bookings');
         Route::delete('/cancel/{id}', [StaffController::class, 'cancel'])->name('cancel');
+
+        Route::get('settings', function () {
+            return view('account.profile');
+        })->name('settings');
+        Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
+
+        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
+        Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+        Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+        Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
+
+        Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
+        Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
     });
 
 // ==================== ACCOUNT ====================
-Route::middleware('auth')->prefix('account')->name('account.')->group(function () {
-    Route::view('settings', 'account.profile')->name('settings');
-    Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
+Route::middleware('auth')->prefix('account')
+    ->name('account.')
+    ->group(function () {
 
-    Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
-    Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
-    Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
-    Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
-});
+        Route::get('settings', function () {
+            return view('account.profile');
+        })->name('settings');
+        Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
+
+        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
+        Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+        Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+        Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
+
+        Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
+        Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+    });
 
 // ================== Thanh toán ================
 Route::middleware('auth:sanctum')->post('/payment/initiate', [PaymentController::class, 'initiateVNPay']);
-Route::post('/payment/initiate', [PaymentController::class, 'initiate'])->name('payment.initiate');
+Route::match(['get', 'post'], '/payment/initiate', [PaymentController::class, 'initiate'])->name('payment.initiate');
 Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
 Route::get('/payment/pending-payments', [StaffController::class, 'pendingPayments'])->name('payment.pending_payments');
+Route::get('/payment/create', [PaymentController::class, 'createPayment']);
+
+
+
+
 require __DIR__ . '/auth.php';
+
+

@@ -34,7 +34,7 @@ class AuthenticatedSessionController extends Controller
             'password' => ['required'],
         ]);
 
-        
+
         if (!$this->attemptLogin($request)) {
             throw ValidationException::withMessages([
                 'email' => 'Thông tin đăng nhập không chính xác hoặc tài khoản đã bị vô hiệu hóa.',
@@ -65,16 +65,10 @@ class AuthenticatedSessionController extends Controller
     protected function attemptLogin(Request $request)
     {
         $credentials = $request->only('email', 'password');
-        if (Auth::attempt($credentials, $request->filled('remember'))) {
-            $user = Auth::user();
-            if (!$user->is_active) {
-                Auth::logout();  
-                return false;   
-            }
-            return true;
-        }
-        return false;
+
+        return Auth::attempt($credentials, $request->filled('remember'));
     }
+
 
     protected function sendFailedLoginResponse(Request $request)
     {

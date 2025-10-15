@@ -6,15 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class Wishlist extends Model
 {
-    protected $fillable = ['user_id', 'phong_id'];
+    protected $table = 'wishlists';
+
+    protected $fillable = [
+        'user_id',
+        'phong_id',
+    ];
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(\App\Models\User::class, 'user_id', 'id');
     }
 
     public function phong()
     {
-        return $this->belongsTo(Phong::class, 'phong_id');
+        return $this->belongsTo(\App\Models\Phong::class, 'phong_id', 'id');
     }
 }

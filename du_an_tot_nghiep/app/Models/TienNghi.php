@@ -16,11 +16,15 @@ class TienNghi extends Model
         'mo_ta',
         'icon',
         'active',
+        'gia',  
     ];
+
 
     protected $casts = [
         'active' => 'boolean',
+        'gia' => 'decimal:2',
     ];
+
 
     // Relationships
     public function phongs()

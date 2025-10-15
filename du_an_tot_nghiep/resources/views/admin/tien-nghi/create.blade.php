@@ -1,10 +1,10 @@
 @extends('layouts.admin')
 
-@section('title', 'Thêm tiện nghi mới')
+@section('title', 'Thêm dịch vụ mới')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-plus me-2"></i>Thêm tiện nghi mới</h2>
+    <h2><i class="fas fa-plus me-2"></i>Thêm dịch vụ mới</h2>
     <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
         <i class="fas fa-arrow-left me-2"></i>Quay lại
     </a>
@@ -18,7 +18,7 @@
             <div class="row">
                 <div class="col-md-8">
                     <div class="mb-3">
-                        <label for="ten" class="form-label">Tên tiện nghi <span class="text-danger">*</span></label>
+                        <label for="ten" class="form-label">Tên dịch vụ <span class="text-danger">*</span></label>
                         <input type="text" 
                                class="form-control @error('ten') is-invalid @enderror" 
                                id="ten" 
@@ -29,6 +29,12 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
+<div class="mb-3">
+    <label for="gia" class="form-label">Giá dịch vụ</label>
+    <input type="number" step="0.01" name="gia" id="gia" 
+           value="{{ old('gia', $tiennghi->gia ?? '') }}" 
+           class="form-control">
+</div>
 
                     <div class="mb-3">
                         <label for="mo_ta" class="form-label">Mô tả</label>
@@ -50,7 +56,7 @@
                                    value="1" 
                                    {{ old('active', true) ? 'checked' : '' }}>
                             <label class="form-check-label" for="active">
-                                Kích hoạt tiện nghi
+                                Kích hoạt dịch vụ
                             </label>
                         </div>
                     </div>
@@ -86,7 +92,7 @@
                     <i class="fas fa-times me-2"></i>Hủy
                 </a>
                 <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Lưu tiện nghi
+                    <i class="fas fa-save me-2"></i>Lưu dịch vụ
                 </button>
             </div>
         </form>
