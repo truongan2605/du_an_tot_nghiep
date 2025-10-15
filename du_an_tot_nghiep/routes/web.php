@@ -132,6 +132,7 @@ Route::match(['get', 'post'], '/payment/initiate', [PaymentController::class, 'i
 Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
 Route::get('/payment/pending-payments', [StaffController::class, 'pendingPayments'])->name('payment.pending_payments');
 Route::get('/payment/create', [PaymentController::class, 'createPayment']);
+Route::post('/api/payment/ipn', [PaymentController::class, 'handleIpn'])->name('payment.ipn');
 
 
 
