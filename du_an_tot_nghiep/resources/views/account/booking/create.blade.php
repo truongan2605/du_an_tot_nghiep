@@ -57,6 +57,8 @@
                                     <form action="{{ route('account.booking.store') }}" method="POST" id="bookingForm">
                                         @csrf
                                         <input type="hidden" name="phong_id" value="{{ $phong->id }}">
+                                        <input type="hidden" name="spec_signature_hash"
+                                            value="{{ $phong->spec_signature_hash ?? $phong->specSignatureHash() }}">
 
                                         <div class="row g-4">
                                             <div class="col-lg-6">
@@ -83,7 +85,7 @@
                                                 </div>
                                             </div>
 
-                                            <!-- Guests (no extra bed selection) -->
+                                            <!-- Guests  -->
                                             <div class="col-lg-6">
                                                 <div class="bg-light py-3 px-4 rounded-3">
                                                     <h6 class="fw-light small mb-1">Guests</h6>
@@ -95,9 +97,9 @@
                                                                 class="form-control" min="1"
                                                                 max="{{ max(1, $roomCapacity + 2) }}"
                                                                 value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
-                                                            <small id="adults_help" class="text-muted d-block">Max adults
+                                                            <small id="adults_help" class="text-muted d-block">Maximum number of people
                                                                 : <strong
-                                                                    id="room_capacity_display">{{ ($roomCapacity + 2)  }}</strong>
+                                                                    id="room_capacity_display">{{ $roomCapacity + 2 }}</strong>
                                                             </small>
                                                         </div>
 
@@ -166,7 +168,7 @@
                                         <div class="card border mt-4">
                                             <div class="card-header border-bottom d-md-flex justify-content-md-between">
                                                 <h5 class="card-title mb-0">
-                                                    {{ $phong->ten ?? ($phong->loaiPhong->ten ?? 'Room') }}</h5>
+                                                    {{ $phong->name ?? ($phong->loaiPhong->ten ?? 'Room') }}</h5>
                                             </div>
 
                                             <div class="card-body">
@@ -196,7 +198,9 @@
                                                                         <input type="checkbox" name="addons[]"
                                                                             value="{{ $addon->id }}"
                                                                             data-price="{{ $addon->gia }}"
-                                                                            class="me-2 addon-checkbox">
+                                                                            class="me-2 addon-checkbox"
+                                                                            {{ in_array($addon->id, old('addons', [])) ? 'checked' : '' }}>
+
                                                                         <span>
                                                                             <strong>{{ $addon->ten }}</strong>
                                                                             <div class="small text-muted">
@@ -375,6 +379,10 @@
 @push('scripts')
     <script>
         (function() {
+            const initialChildrenAges = {!! json_encode(old('children_ages', [])) !!};
+            const initialChildrenCount = Number({{ old('children', 0) }});
+            const initialSelectedAddons = {!! json_encode(old('addons', [])) !!};
+
             // Elements
             const dateRangeInput = document.getElementById('date_range');
             const fromInput = document.getElementById('ngay_nhan_phong');
@@ -393,8 +401,6 @@
             const totalDisplay = document.getElementById('total_snapshot_display');
             const payableDisplay = document.getElementById('payable_now_display');
 
-            const addonCheckboxes = document.querySelectorAll('.addon-checkbox');
-
             const pricePerNight = Number({!! json_encode((float) ($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0))) !!});
             const baseCapacity = Number({{ $baseCapacity }});
 
@@ -402,17 +408,27 @@
             const CHILD_PRICE = {{ \App\Http\Controllers\Client\BookingController::CHILD_PRICE }};
             const CHILD_FREE_AGE = {{ \App\Http\Controllers\Client\BookingController::CHILD_FREE_AGE }};
 
+            function fmtVnd(num) {
+                return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
+            }
+
             function computeAddonsPerNight() {
                 let sum = 0;
                 document.querySelectorAll('input[name="addons[]"]:checked').forEach(chk => {
                     const p = Number(chk.dataset.price || 0);
                     if (!isNaN(p)) sum += p;
                 });
-                return sum;
+                const rooms = Number(roomsInput ? (roomsInput.value || 1) : 1);
+                return sum * Math.max(1, rooms);
             }
 
-            function fmtVnd(num) {
-                return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
+            // clamp helper
+            function clampNumberInput(el, min, max) {
+                if (!el) return;
+                let v = Number(el.value || 0);
+                if (isNaN(v)) v = min;
+                if (v < min) el.value = min;
+                else if (v > max) el.value = max;
             }
 
             // date-range / flatpickr init
@@ -452,7 +468,7 @@
                 setHiddenDates([new Date(fromInput.value), new Date(toInput.value)]);
             }
 
-            // update rooms availability via AJAX
+            // availability AJAX
             async function updateRoomsAvailability() {
                 try {
                     const from = fromInput.value;
@@ -466,9 +482,7 @@
                         from: from,
                         to: to
                     }).toString();
-
                     const url = '{{ route('booking.availability') }}' + '?' + params;
-
                     const res = await fetch(url, {
                         method: 'GET',
                         headers: {
@@ -487,23 +501,24 @@
                         if (Number(roomsInput.value || 0) > avail) roomsInput.value = Math.max(1, avail);
                     }
                     if (availDisplay) availDisplay.innerText = avail;
-
                     updateSummary();
                 } catch (err) {
                     console.error('Availability check error', err);
                 }
             }
 
-            // children ages UI
+            // render children ages
             function renderChildrenAges() {
-                const count = Number(childrenInput.value || 0);
+                const count = Number(childrenInput.value || initialChildrenCount || 0);
                 childrenAgesContainer.innerHTML = '';
                 for (let i = 0; i < count; i++) {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'mb-2 child-age-wrapper';
+                    const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[i] !==
+                        'undefined') ? Number(initialChildrenAges[i]) : 0;
                     wrapper.innerHTML = `
                     <label class="form-label">Child ${i+1} age</label>
-                    <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="0" />
+                    <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
                     <div class="small text-danger mt-1 age-error" style="display:none;"></div>
                 `;
                     childrenAgesContainer.appendChild(wrapper);
@@ -511,8 +526,8 @@
 
                 document.querySelectorAll('.child-age-input').forEach((el) => {
                     el.addEventListener('input', function() {
-                        const min = 0;
-                        const max = 12;
+                        const min = 0,
+                            max = 12;
                         let v = Number(this.value);
                         if (isNaN(v)) v = min;
                         if (v < min) {
@@ -521,15 +536,12 @@
                         } else if (v > max) {
                             this.value = max;
                             showAgeError(this, `The maximum age for children is ${max}.`);
-                        } else {
-                            hideAgeError(this);
-                        }
+                        } else hideAgeError(this);
                         updateSummary();
                     });
-
                     el.addEventListener('blur', function() {
-                        const min = 0;
-                        const max = 12;
+                        const min = 0,
+                            max = 12;
                         let v = Number(this.value);
                         if (isNaN(v) || v < min) this.value = min;
                         if (v > max) this.value = max;
@@ -543,9 +555,7 @@
                     if (err) {
                         err.innerText = msg;
                         err.style.display = 'block';
-                        setTimeout(() => {
-                            err.style.display = 'none';
-                        }, 2500);
+                        setTimeout(() => err.style.display = 'none', 2500);
                     }
                 }
 
@@ -556,9 +566,24 @@
                     if (err) err.style.display = 'none';
                 }
 
-                document.querySelectorAll('.child-age-input').forEach(el => el.addEventListener('change',
-                    updateSummary));
                 updateSummary();
+            }
+
+            function updateInputLimitsByRooms() {
+                const rooms = Number(roomsInput ? (roomsInput.value || 1) : 1);
+                const adultsMax = (baseCapacity + 2) * Math.max(1, rooms);
+                const childrenMax = Math.min(12, 2 * Math.max(1, rooms));
+
+                if (adultsInput) {
+                    adultsInput.max = adultsMax;
+                    clampNumberInput(adultsInput, Number(adultsInput.min || 1), adultsMax);
+                    const roomCapDisplay = document.getElementById('room_capacity_display');
+                    if (roomCapDisplay) roomCapDisplay.innerText = adultsMax;
+                }
+                if (childrenInput) {
+                    childrenInput.max = childrenMax;
+                    clampNumberInput(childrenInput, Number(childrenInput.min || 0), childrenMax);
+                }
             }
 
             function computePersonCharges() {
@@ -570,18 +595,44 @@
                     if (a > 12) a = 12;
                     return a;
                 });
-
                 let computedAdults = adults;
                 let chargeableChildren = 0;
                 ages.forEach(a => {
                     if (a >= 13) computedAdults++;
                     else if (a >= 7) chargeableChildren++;
                 });
-
                 return {
                     computedAdults,
                     chargeableChildren
                 };
+            }
+
+            function validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed) {
+                const childrenCount = Number(childrenInput.value || 0);
+                const form = document.getElementById('bookingForm');
+                let existing = document.getElementById('guest_limit_error');
+                if (existing) existing.remove();
+                let ok = true;
+                if (countedPersons > totalMaxAllowed) {
+                    ok = false;
+                    const err = document.createElement('div');
+                    err.id = 'guest_limit_error';
+                    err.className = 'alert alert-danger mt-3';
+                    err.innerText =
+                        `The number of guests exceeds the maximum allowed (${totalMaxAllowed}). Please reduce the number of guests or increase rooms. Note: Children under 7 years are free and not counted.`;
+                    const cardBody = form.querySelector('.card-body');
+                    if (cardBody) cardBody.prepend(err);
+                } else if (childrenCount > Number(childrenInput.max || 2)) {
+                    ok = false;
+                    const err = document.createElement('div');
+                    err.id = 'guest_limit_error';
+                    err.className = 'alert alert-danger mt-3';
+                    err.innerText = `Tối đa ${childrenInput.max} trẻ em cho ${roomsInput.value || 1} phòng.`;
+                    const cardBody = form.querySelector('.card-body');
+                    if (cardBody) cardBody.prepend(err);
+                }
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.disabled = !ok;
             }
 
             function updateSummary() {
@@ -610,27 +661,25 @@
                     }
                 }
 
+                updateInputLimitsByRooms();
+
                 const persons = computePersonCharges();
                 const computedAdults = persons.computedAdults;
                 const chargeableChildren = persons.chargeableChildren;
                 const countedPersons = computedAdults + chargeableChildren;
 
-                const maxAllowedPerRoom = baseCapacity + 2;
-                const extraCountPerRoom = Math.max(0, countedPersons - baseCapacity);
+                const totalMaxAllowed = (baseCapacity + 2) * roomsCount;
+                const extraCountTotal = Math.max(0, countedPersons - (baseCapacity * roomsCount));
 
-                const adultBeyondBasePerRoom = Math.max(0, computedAdults - baseCapacity);
-                const adultExtraPerRoom = Math.min(adultBeyondBasePerRoom, extraCountPerRoom);
-                let childrenExtraPerRoom = Math.max(0, extraCountPerRoom - adultExtraPerRoom);
-                childrenExtraPerRoom = Math.min(childrenExtraPerRoom, chargeableChildren);
+                const adultsBeyondBaseTotal = Math.max(0, computedAdults - (baseCapacity * roomsCount));
+                const adultExtraTotal = Math.min(adultsBeyondBaseTotal, extraCountTotal);
+                let childrenExtraTotal = Math.max(0, extraCountTotal - adultExtraTotal);
+                childrenExtraTotal = Math.min(childrenExtraTotal, chargeableChildren);
 
-                const adultsChargePerNightPerRoom = adultExtraPerRoom * ADULT_PRICE;
-                const childrenChargePerNightPerRoom = childrenExtraPerRoom * CHILD_PRICE;
+                const adultsChargePerNightTotal = adultExtraTotal * ADULT_PRICE;
+                const childrenChargePerNightTotal = childrenExtraTotal * CHILD_PRICE;
 
-                const adultsChargePerNightTotal = adultsChargePerNightPerRoom * roomsCount;
-                const childrenChargePerNightTotal = childrenChargePerNightPerRoom * roomsCount;
-
-                const addonsPerNight =
-                    computeAddonsPerNight(); // NOTE: currently addons treated as booking-level per night
+                const addonsPerNight = computeAddonsPerNight();
 
                 const basePerRoom = pricePerNight;
                 const baseTotalPerNight = basePerRoom * roomsCount;
@@ -641,54 +690,29 @@
 
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
                 priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :
-                    '0 đ';
+                '0 đ';
                 priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ? fmtVnd(childrenChargePerNightTotal) :
                     '0 đ';
-
                 const existingAddonsEl = document.getElementById('price_addons_display');
                 if (existingAddonsEl) existingAddonsEl.innerText = addonsPerNight > 0 ? fmtVnd(addonsPerNight) : '0 đ';
 
-                // final per night (total for booking per night)
                 finalPerNightDisplay.innerText = fmtVnd(finalPerNight);
                 totalDisplay.innerText = fmtVnd(total);
                 payableDisplay.innerText = fmtVnd(total);
 
-                validateGuestLimits(computedAdults, chargeableChildren, countedPersons, maxAllowedPerRoom);
+                validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed);
             }
 
-            function validateGuestLimits(computedAdults, chargeableChildren, countedPersons, maxAllowedPerRoom) {
-                const childrenCount = Number(childrenInput.value || 0);
-                const form = document.getElementById('bookingForm');
-
-                let existing = document.getElementById('guest_limit_error');
-                if (existing) existing.remove();
-
-                let ok = true;
-                if (countedPersons > maxAllowedPerRoom) {
-                    ok = false;
-                    const err = document.createElement('div');
-                    err.id = 'guest_limit_error';
-                    err.className = 'alert alert-danger mt-3';
-                    err.innerText =
-                        `The number of guests exceeds the maximum limit (${maxAllowedPerRoom}). Please reduce the number of guests or choose another room.
-                Note: Children under 7 years old will not be counted in the number of guests`;
-                    form.querySelector('.card-body').prepend(err);
-                } else if (childrenCount > 2) {
-                    ok = false;
-                    const err = document.createElement('div');
-                    err.id = 'guest_limit_error';
-                    err.className = 'alert alert-danger mt-3';
-                    err.innerText = `Tối đa 2 trẻ em cho mỗi phòng.`;
-                    form.querySelector('.card-body').prepend(err);
-                }
-
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (submitBtn) submitBtn.disabled = !ok;
-            }
-
+            // bind events
             document.querySelectorAll('.addon-checkbox').forEach(chk => chk.addEventListener('change', updateSummary));
-            adultsInput.addEventListener('input', updateSummary);
-            childrenInput.addEventListener('input', function() {
+            if (Array.isArray(initialSelectedAddons) && initialSelectedAddons.length) {
+                document.querySelectorAll('.addon-checkbox').forEach(chk => {
+                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons
+                        .includes(Number(chk.value));
+                });
+            }
+            if (adultsInput) adultsInput.addEventListener('input', updateSummary);
+            if (childrenInput) childrenInput.addEventListener('input', function() {
                 renderChildrenAges();
             });
             if (roomsInput) {
@@ -696,6 +720,8 @@
                 roomsInput.addEventListener('change', updateSummary);
             }
 
+            // init
+            updateInputLimitsByRooms();
             renderChildrenAges();
             updateSummary();
         })();

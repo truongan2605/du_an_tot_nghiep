@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class Phong extends Model
@@ -25,9 +26,12 @@ class Phong extends Model
         'img',
         'trang_thai',
         'last_checked_at',
+        'spec_signature_hash',
     ];
 
     protected $casts = [
+        'suc_chua' => 'integer',
+        'so_giuong' => 'integer',
         'gia_mac_dinh' => 'decimal:2',
         'gia_cuoi_cung' => 'decimal:2',
         'last_checked_at' => 'datetime',
@@ -85,20 +89,29 @@ class Phong extends Model
             $this->loadMissing(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes']);
         }
 
-        $base = 0.0;
-        if ($this->loaiPhong) {
-            $base = (float) ($this->loaiPhong->gia_mac_dinh ?? 0);
-        } else {
-            $base = (float) ($this->gia_mac_dinh ?? 0);
-        }
+        $base = (float) ($this->loaiPhong->gia_mac_dinh ?? $this->gia_mac_dinh ?? 0);
 
-        $typeAmenityIds = $this->loaiPhong ? $this->loaiPhong->tienNghis->pluck('id')->toArray() : [];
-        $roomAmenityIds = $this->tienNghis ? $this->tienNghis->pluck('id')->toArray() : [];
+        $typeAmenityIds = $this->loaiPhong && $this->loaiPhong->relationLoaded('tienNghis')
+            ? $this->loaiPhong->tienNghis->pluck('id')->toArray()
+            : ($this->loaiPhong ? $this->loaiPhong->tienNghis()->pluck('id')->toArray() : []);
+
+        $roomAmenityIds = $this->relationLoaded('tienNghis')
+            ? $this->tienNghis->pluck('id')->toArray()
+            : $this->tienNghis()->pluck('id')->toArray();
+
         $allAmenityIds = array_values(array_unique(array_merge($typeAmenityIds, $roomAmenityIds)));
 
         $amenitiesSum = 0.0;
         if (!empty($allAmenityIds)) {
-            $amenitiesSum = (float) TienNghi::whereIn('id', $allAmenityIds)->sum('gia');
+            $canSumFromCollections = $this->relationLoaded('tienNghis') && $this->loaiPhong && $this->loaiPhong->relationLoaded('tienNghis');
+            if ($canSumFromCollections) {
+                $merged = $this->tienNghis->merge($this->loaiPhong->tienNghis)->unique('id');
+                $amenitiesSum = (float) $merged->sum(function ($a) {
+                    return (float) ($a->gia ?? 0);
+                });
+            } else {
+                $amenitiesSum = (float) TienNghi::whereIn('id', $allAmenityIds)->sum('gia');
+            }
         }
 
         $bedTotal = 0.0;
@@ -111,7 +124,6 @@ class Phong extends Model
         }
 
         $total = $base + $amenitiesSum + $bedTotal;
-
         return max(0.0, (float) $total);
     }
 
@@ -119,8 +131,11 @@ class Phong extends Model
     {
         $new = $this->calculateGiaCuoiCung(true);
 
-        if (!$forceOverwrite && !is_null($this->gia_cuoi_cung) && (float)$this->gia_cuoi_cung === $new) {
-            return $this;
+        if (!$forceOverwrite && !is_null($this->gia_cuoi_cung)) {
+            $current = (float) $this->gia_cuoi_cung;
+            if (abs($current - $new) < 0.01) {
+                return $this;
+            }
         }
 
         $this->gia_cuoi_cung = $new;
@@ -132,7 +147,6 @@ class Phong extends Model
 
         return $this;
     }
-
 
     public function getTotalBedPrice(bool $reloadRelations = true): float
     {
@@ -158,6 +172,14 @@ class Phong extends Model
         $allAmenityIds = array_values(array_unique(array_merge($typeAmenityIds, $roomAmenityIds)));
 
         if (empty($allAmenityIds)) return 0.0;
+
+        $canSumFromCollections = $this->relationLoaded('tienNghis') && $this->loaiPhong && $this->loaiPhong->relationLoaded('tienNghis');
+        if ($canSumFromCollections) {
+            $merged = $this->tienNghis->merge($this->loaiPhong->tienNghis)->unique('id');
+            return (float) $merged->sum(function ($a) {
+                return (float) ($a->gia ?? 0);
+            });
+        }
 
         return (float) TienNghi::whereIn('id', $allAmenityIds)->sum('gia');
     }
@@ -245,5 +267,16 @@ class Phong extends Model
     {
         $sig = $this->specSignatureArray();
         return md5(json_encode($sig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    protected static function booted()
+    {
+        static::saving(function ($phong) {
+            try {
+                $phong->spec_signature_hash = $phong->specSignatureHash();
+            } catch (\Throwable $e) {
+                Log::warning('Could not compute spec_signature_hash for Phong id=' . ($phong->id ?? 'new') . ': ' . $e->getMessage());
+            }
+        });
     }
 }

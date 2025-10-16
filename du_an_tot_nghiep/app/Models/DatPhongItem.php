@@ -21,11 +21,12 @@ class DatPhongItem extends Model
     ];
 
     protected $casts = [
+        'so_luong' => 'integer',
         'gia_tren_dem' => 'decimal:2',
+        'so_dem' => 'integer',
         'taxes_amount' => 'decimal:2',
     ];
 
-    // Relationships
     public function datPhong()
     {
         return $this->belongsTo(DatPhong::class);
@@ -44,6 +45,6 @@ class DatPhongItem extends Model
     // Accessors
     public function getTongTienAttribute()
     {
-        return $this->gia_tren_dem * $this->so_dem * $this->so_luong;
+        return (float) $this->gia_tren_dem * (int)$this->so_dem * (int)$this->so_luong;
     }
 }
