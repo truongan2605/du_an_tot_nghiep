@@ -17,6 +17,7 @@ use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
+use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -134,7 +135,8 @@ Route::middleware(['auth'])->group(function () {
 
     // POST initiate VNPAY từ web (JS)
     Route::post('/payment/initiate', [PaymentController::class, 'initiateVNPay'])->name('payment.initiate');
-
+    // confirm 
+    Route::post('/confirm-payment/{dat_phong_id}', [ConfirmPaymentController::class, 'confirm'])->name('api.confirm-payment');
     // Callback VNPAY
     Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
 });

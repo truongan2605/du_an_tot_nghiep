@@ -79,7 +79,8 @@ public function initiateVNPay(Request $request)
             ];
 
             ksort($inputData);
-            $query = urldecode(http_build_query($inputData));
+            $query = http_build_query($inputData, '', '&', 1);
+
             $vnp_SecureHash = hash_hmac('sha512', $query, $vnp_HashSecret);
             $redirectUrl = $vnp_Url . '?' . http_build_query($inputData) . '&vnp_SecureHash=' . $vnp_SecureHash;
 
@@ -104,7 +105,7 @@ public function handleVNPayCallback(Request $request)
         unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
         ksort($inputData);
 
-        $hashData = urldecode(http_build_query($inputData));
+        $hashData = http_build_query($inputData, '', '&', 1);
         $localHash = strtoupper(hash_hmac('sha512', $hashData, env('VNPAY_HASH_SECRET')));
 
         Log::info('VNPAY Signature Check', [
@@ -167,7 +168,7 @@ public function handleVNPayCallback(Request $request)
         unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
 
         ksort($inputData);
-        $hashData = urldecode(http_build_query($inputData));
+         $hashData = http_build_query($inputData, '', '&', 1);
         $calculatedHash = strtoupper(hash_hmac('sha512', $hashData, env('VNPAY_HASH_SECRET')));
 
         if ($calculatedHash !== strtoupper($receivedSecureHash)) {
@@ -308,20 +309,19 @@ public function createPayment(Request $request)
         "vnp_TxnRef" => $vnp_TxnRef,
     ];
 
-    // ✅ Thêm mã ngân hàng test (NCB)
+   
     $inputData['vnp_BankCode'] = 'NCB';
 
-    // ✅ Sắp xếp theo key
+
     ksort($inputData);
 
-    // ✅ Tạo hash SHA512
+
     $hashData = urldecode(http_build_query($inputData));
     $vnp_SecureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
 
-    // ✅ Ghép URL hoàn chỉnh
     $vnp_Url .= '?' . http_build_query($inputData) . '&vnp_SecureHash=' . $vnp_SecureHash;
 
-    // ✅ Redirect sang VNPay Sandbox
+ 
     return redirect()->away($vnp_Url);
 }
 

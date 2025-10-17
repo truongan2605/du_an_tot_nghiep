@@ -11,8 +11,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // POST initiate payment qua API
     Route::post('/payment/initiate', [PaymentController::class, 'initiateVNPay']);
 
-    // Xác nhận thanh toán từ app
-    Route::post('/confirm-payment/{dat_phong_id}', [ConfirmPaymentController::class, 'confirm'])->name('api.confirm-payment');
+   
 });
 
 // IPN / Return VNPAY
