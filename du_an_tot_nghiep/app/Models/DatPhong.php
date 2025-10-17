@@ -29,6 +29,9 @@ class DatPhong extends Model
         'snapshot_meta',
         'source',
         'ghi_chu',
+        'contact_name',
+        'contact_address',
+        'contact_phone',
     ];
 
     protected $casts = [

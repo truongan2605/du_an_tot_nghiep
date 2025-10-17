@@ -97,7 +97,8 @@
                                                                 class="form-control" min="1"
                                                                 max="{{ max(1, $roomCapacity + 2) }}"
                                                                 value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
-                                                            <small id="adults_help" class="text-muted d-block">Maximum number of people
+                                                            <small id="adults_help" class="text-muted d-block">Maximum
+                                                                number of people
                                                                 : <strong
                                                                     id="room_capacity_display">{{ $roomCapacity + 2 }}</strong>
                                                             </small>
@@ -273,10 +274,7 @@
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Payment method</label>
-                                                    <select name="phuong_thuc" class="form-select">
-                                                        <option value=""
-                                                            {{ old('phuong_thuc') == '' ? 'selected' : '' }}>Select method
-                                                        </option>
+                                                    <select name="phuong_thuc" class="form-select" required>
                                                         <option value="tien_mat"
                                                             {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>Pay at
                                                             the hotel (Cash)</option>
@@ -288,6 +286,11 @@
                                                             Bank transfer</option>
                                                     </select>
                                                 </div>
+                                                
+                                                <input type="hidden" name="final_per_night" id="final_per_night_input"
+                                                    value="">
+                                                <input type="hidden" name="snapshot_total" id="snapshot_total_input"
+                                                    value="">
 
                                                 <div class="mt-3">
                                                     <button type="submit" class="btn btn-lg btn-primary">Confirm</button>
@@ -690,7 +693,7 @@
 
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
                 priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :
-                '0 đ';
+                    '0 đ';
                 priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ? fmtVnd(childrenChargePerNightTotal) :
                     '0 đ';
                 const existingAddonsEl = document.getElementById('price_addons_display');
@@ -701,6 +704,10 @@
                 payableDisplay.innerText = fmtVnd(total);
 
                 validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed);
+                const finalPerNightInput = document.getElementById('final_per_night_input');
+                const snapshotTotalInput = document.getElementById('snapshot_total_input');
+                if (finalPerNightInput) finalPerNightInput.value = finalPerNight;
+                if (snapshotTotalInput) snapshotTotalInput.value = total;
             }
 
             // bind events

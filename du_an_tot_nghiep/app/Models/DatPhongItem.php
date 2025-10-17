@@ -13,11 +13,13 @@ class DatPhongItem extends Model
 
     protected $fillable = [
         'dat_phong_id',
+        'phong_id',
         'loai_phong_id',
         'so_luong',
         'gia_tren_dem',
         'so_dem',
         'taxes_amount',
+        'tong_item'
     ];
 
     protected $casts = [
@@ -25,6 +27,10 @@ class DatPhongItem extends Model
         'gia_tren_dem' => 'decimal:2',
         'so_dem' => 'integer',
         'taxes_amount' => 'decimal:2',
+    ];
+
+    protected $attributes = [
+        'so_dem' => 1,
     ];
 
     public function datPhong()
@@ -43,8 +49,16 @@ class DatPhongItem extends Model
     }
 
     // Accessors
+    public function getTongItemAttribute()
+    {
+        if (!is_null($this->attributes['tong_item'] ?? null)) {
+            return (float) $this->attributes['tong_item'];
+        }
+        return (float) ($this->gia_tren_dem ?? 1) * (int) ($this->so_dem ?? 1) * (int) ($this->so_luong ?? 1);
+    }
+
     public function getTongTienAttribute()
     {
-        return (float) $this->gia_tren_dem * (int)$this->so_dem * (int)$this->so_luong;
+        return $this->getTongItemAttribute();
     }
 }

@@ -13,6 +13,7 @@ class DatPhongAddon extends Model
 
     protected $fillable = [
         'dat_phong_id',
+        'phong_id',
         'name',
         'price',
         'qty',
