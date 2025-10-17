@@ -8,37 +8,64 @@
 
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
     <!-- FullCalendar -->
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.css' rel='stylesheet' />
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js'></script>
 
-    <!-- Custom Styles -->
     <style>
         body {
             font-family: "Inter", sans-serif;
         }
+
         aside {
             width: 250px;
             min-height: 100vh;
             transition: all 0.3s;
+            background-color: #343a40;
         }
+
         aside .nav-link {
             color: #adb5bd;
             font-weight: 500;
             margin-bottom: 4px;
             transition: all 0.2s;
         }
+
         aside .nav-link.active,
         aside .nav-link:hover {
             color: #fff;
             background-color: #495057;
             border-radius: 6px;
         }
+
         header {
             position: sticky;
             top: 0;
             z-index: 1000;
         }
+
+        .sidebar-brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .sidebar-brand span {
+            color: #ffc107;
+        }
+
+        main {
+            min-height: calc(100vh - 80px);
+        }
+
+        .dropdown-toggle::after {
+            margin-left: 0.25rem;
+        }
+
         .alert {
             position: fixed;
             top: 80px;
@@ -46,29 +73,20 @@
             min-width: 250px;
             z-index: 1050;
         }
-        .sidebar-brand {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #fff;
-        }
-        .sidebar-brand span {
-            color: #ffc107;
-        }
-        main {
-            min-height: calc(100vh - 80px);
-        }
+
         @media (max-width: 768px) {
             aside {
                 position: fixed;
                 left: -260px;
                 top: 0;
                 height: 100vh;
-                background: #343a40;
                 z-index: 1100;
             }
+
             aside.show {
                 left: 0;
             }
+
             .sidebar-toggle-btn {
                 display: inline-block;
             }
@@ -77,23 +95,24 @@
 </head>
 
 <body class="bg-light">
+
     <!-- Alerts -->
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
     @if (session('error'))
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             {{ session('error') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
     <div class="d-flex">
         <!-- Sidebar -->
-        <aside class="bg-dark shadow-sm p-3">
+        <aside class="p-3 shadow-sm">
             <div class="sidebar-brand mb-4">
                 🏨 <span>Hotel Manager</span>
             </div>
@@ -130,15 +149,33 @@
             <header class="bg-white shadow-sm p-3 d-flex justify-content-between align-items-center">
                 <button class="btn btn-outline-secondary d-md-none sidebar-toggle-btn" onclick="toggleSidebar()">☰</button>
                 <div class="d-flex align-items-center gap-3">
+                    <!-- Notifications -->
                     <button class="btn btn-light position-relative">
                         🔔
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                             {{ $notificationsCount ?? 0 }}
                         </span>
                     </button>
-                    <div class="d-flex align-items-center gap-2">
-                        <img src="https://i.pravatar.cc/40?{{ Auth::id() }}" alt="avatar" class="rounded-circle" width="40" height="40">
-                        <span class="fw-semibold">{{ Auth::user()->name }}</span>
+
+                    <!-- User dropdown -->
+                    <div class="dropdown">
+                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="https://i.pravatar.cc/40?{{ Auth::id() }}" alt="avatar" class="rounded-circle border border-light shadow-sm" width="40" height="40">
+                            <div class="ms-2 text-dark">
+                                <div class="fw-semibold">{{ Auth::user()->name }}</div>
+                                <small class="text-muted">{{ ucfirst(Auth::user()->vai_tro) }}</small>
+                            </div>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" >Hồ sơ cá nhân</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="" method="POST">
+                                    @csrf
+                                    <button class="dropdown-item text-danger" type="submit">Đăng xuất</button>
+                                </form>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </header>
@@ -150,6 +187,7 @@
         </div>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function toggleSidebar() {
