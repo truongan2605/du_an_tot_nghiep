@@ -157,7 +157,7 @@ public function handleVNPayCallback(Request $request)
             : view('payment.fail', ['code' => $vnp_ResponseCode]);
     }
 
-
+    
     /**
      * ✅ IPN (Server-to-Server)
      */

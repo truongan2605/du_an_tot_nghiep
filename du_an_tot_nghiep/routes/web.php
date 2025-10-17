@@ -77,7 +77,6 @@ Route::prefix('admin')
 
         // ---- Giường ----
         Route::resource('bed-types', BedTypeController::class);
-
     });
 
 // ==================== STAFF  ====================
@@ -106,6 +105,18 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
 
         Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
         Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+        // SEVICES 
+        Route::get('/checkin', [StaffController::class, 'checkinForm'])->name('checkin');
+        Route::post('/checkin', [StaffController::class, 'processCheckin'])->name('checkin.process');
+
+        // Check-out
+        Route::get('/checkout', [StaffController::class, 'checkoutForm'])->name('checkout');
+        Route::post('/checkout', [StaffController::class, 'processCheckout'])->name('checkout.process');
+           // Báo cáo
+         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
+
+         // room-overview
+           Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
     });
 
 // ==================== ACCOUNT ====================
@@ -146,5 +157,3 @@ Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCal
 
 
 require __DIR__ . '/auth.php';
-
-
