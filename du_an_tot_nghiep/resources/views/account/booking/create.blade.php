@@ -156,6 +156,7 @@
                                                         </ul>
                                                     </div>
 
+
                                                     <input type="hidden" name="so_khach" id="so_khach"
                                                         value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
                                                     <div class="small text">Room for:
@@ -269,20 +270,29 @@
                                                 </div>
 
                                                 <div class="mb-3">
+
+                                                    <input type="hidden" name="phong_id" value="{{ $phong->id }}">
+                                                    <input type="hidden" name="tong_tien" id="hidden_tong_tien"
+                                                        value="{{ $phong->tong_gia ?? ($phong->tong_tien ?? ($phong->gia_mac_dinh ?? 0)) }}">
+                                                    <input type="hidden" name="ngay_nhan"
+                                                        value="{{ $ngay_nhan ?? now()->format('Y-m-d') }}">
+                                                    <input type="hidden" name="ngay_tra"
+                                                        value="{{ $ngay_tra ?? now()->addDay()->format('Y-m-d') }}">
+
+
                                                     <label class="form-label">Payment method</label>
+                                                    <div class="mt-3" id="vnpay_button_wrapper" style="display:none;">
+                                                        <button type="button" class="btn btn-lg btn-success"
+                                                            id="pay_vnpay_btn">
+                                                            Pay with VNPAY
+                                                        </button>
+                                                    </div>
+
                                                     <select name="phuong_thuc" class="form-select">
-                                                        <option value=""
-                                                            {{ old('phuong_thuc') == '' ? 'selected' : '' }}>Select method
-                                                        </option>
-                                                        <option value="tien_mat"
-                                                            {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>Pay at
-                                                            the hotel (Cash)</option>
-                                                        <option value="vnpay"
-                                                            {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>VNPAY QR
-                                                        </option>
-                                                        <option value="chuyen_khoan"
-                                                            {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
-                                                            Bank transfer</option>
+                                                        <option value="">Select method</option>
+                                                        <option value="tien_mat">Pay at the hotel (Cash)</option>
+                                                        <option value="vnpay">VNPAY QR</option>
+                                                        <option value="chuyen_khoan">Bank transfer</option>
                                                     </select>
                                                 </div>
 
@@ -674,5 +684,53 @@
             renderChildrenAges();
             updateSummary();
         })();
+
+      document.addEventListener('DOMContentLoaded', function() {
+    const selectMethod = document.querySelector('select[name="phuong_thuc"]');
+    const vnpayWrapper = document.getElementById('vnpay_button_wrapper');
+    const vnpayBtn = document.getElementById('pay_vnpay_btn');
+
+    selectMethod.addEventListener('change', function() {
+        vnpayWrapper.style.display = (this.value === 'vnpay') ? 'block' : 'none';
+    });
+
+    vnpayBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+
+        // 🔹 Lấy thông tin phòng từ form
+        const phongId = document.querySelector('input[name="phong_id"]').value; // id phòng đang xem
+        const ngayNhan = document.querySelector('input[name="ngay_nhan"]').value;
+        const ngayTra = document.querySelector('input[name="ngay_tra"]').value;
+        const tongTien = document.getElementById('hidden_tong_tien').value;
+
+        try {
+            const response = await fetch("{{ route('payment.initiate') }}", {
+                method: "POST",
+                headers: {
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                body: JSON.stringify({
+                    phong_id: phongId,
+                    ngay_nhan: ngayNhan,
+                    ngay_tra: ngayTra,
+                    amount: tongTien,
+                }),
+            });
+
+            const data = await response.json();
+            if (data.redirect_url) {
+                window.location.href = data.redirect_url;
+            } else {
+                alert(data.error || 'Không thể khởi tạo thanh toán.');
+                console.error(data);
+            }
+        } catch (err) {
+            alert('Lỗi khi tạo thanh toán: ' + err.message);
+        }
+    });
+});
+
     </script>
 @endpush

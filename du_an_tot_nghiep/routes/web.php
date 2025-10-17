@@ -127,12 +127,18 @@ Route::middleware('auth')->prefix('account')
     });
 
 // ================== Thanh toán ================
-Route::middleware('auth:sanctum')->post('/payment/initiate', [PaymentController::class, 'initiateVNPay']);
-Route::match(['get', 'post'], '/payment/initiate', [PaymentController::class, 'initiate'])->name('payment.initiate');
-Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
-Route::get('/payment/pending-payments', [StaffController::class, 'pendingPayments'])->name('payment.pending_payments');
-Route::get('/payment/create', [PaymentController::class, 'createPayment']);
-Route::post('/api/payment/ipn', [PaymentController::class, 'handleIpn'])->name('payment.ipn');
+Route::middleware(['auth'])->group(function () {
+    // Hiển thị form pending payments / create
+    Route::get('/payment/pending-payments', [PaymentController::class, 'pendingPayments'])->name('payment.pending_payments');
+    Route::get('/payment/create', [PaymentController::class, 'createPayment'])->name('payment.create');
+
+    // POST initiate VNPAY từ web (JS)
+    Route::post('/payment/initiate', [PaymentController::class, 'initiateVNPay'])->name('payment.initiate');
+
+    // Callback VNPAY
+    Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
+});
+Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
 
 
 
