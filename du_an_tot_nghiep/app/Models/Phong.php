@@ -148,6 +148,11 @@ class Phong extends Model
         return $this;
     }
 
+    public function favoritedBy()
+    {
+        return $this->belongsToMany(\App\Models\User::class, 'wishlists', 'phong_id', 'user_id');
+    }
+
     public function getTotalBedPrice(bool $reloadRelations = true): float
     {
         if ($reloadRelations) $this->loadMissing('bedTypes');

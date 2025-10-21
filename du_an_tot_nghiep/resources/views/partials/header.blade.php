@@ -151,42 +151,60 @@
 						<i class="bi bi-bell fa-fw"></i>
 					</a>
 					<!-- Notification dote -->
+					@auth
+					@php
+						$__unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', auth()->id())
+							->where('trang_thai', '!=', 'read')
+							->count();
+					@endphp
+					@if($__unreadCount > 0)
 					<span class="notif-badge animation-blink"></span>
+					@endif
+					@endauth
 
 					<!-- Notification dropdown menu START -->
 					<div class="dropdown-menu dropdown-animation dropdown-menu-end dropdown-menu-size-md shadow-lg p-0">
 						<div class="card bg-transparent">
 							<!-- Card header -->
 							<div class="card-header bg-transparent d-flex justify-content-between align-items-center border-bottom">
-								<h6 class="m-0">Notifications <span class="badge bg-danger bg-opacity-10 text-danger ms-2">4 new</span></h6>
-								<a class="small" href="#">Clear all</a>
+								<h6 class="m-0">Thông báo @auth @if($__unreadCount>0)<span class="badge bg-danger bg-opacity-10 text-danger ms-2">{{ $__unreadCount }} mới</span>@endif @endauth</h6>
+								@auth
+								<!-- Form removed - no longer needed -->
+								@endauth
 							</div>
 
 							<!-- Card body START -->
 							<div class="card-body p-0">
 								<ul class="list-group list-group-flush list-unstyled p-2">
-									<!-- Notification item -->
+									@auth
+									@php
+										$__notifications = \App\Models\ThongBao::where('nguoi_nhan_id', auth()->id())
+											->latest('id')
+											->limit(10)
+											->get();
+									@endphp
+									@forelse($__notifications as $__n)
 									<li>
-										<a href="#" class="list-group-item list-group-item-action rounded notif-unread border-0 mb-1 p-3">
-											<h6 class="mb-2">New! Booking flights from New York ✈️</h6>
-											<p class="mb-0 small">Find the flexible ticket on flights around the world. Start searching today</p>
-											<span>Wednesday</span>
+										<a href="{{ route('notifications.show', $__n->id) }}" 
+										   class="list-group-item list-group-item-action rounded border-0 mb-1 p-3 w-100 text-start notification-item {{ $__n->trang_thai !== 'read' ? 'notif-unread' : '' }}">
+											<h6 class="mb-1">{{ $__n->payload['title'] ?? $__n->ten_template }}</h6>
+											<p class="mb-0 small">{{ $__n->payload['message'] ?? '' }}</p>
+											<span class="small text-muted">{{ $__n->created_at?->diffForHumans() }}</span>
 										</a>
 									</li>
-									<!-- Notification item -->
-									<li>
-										<a href="#" class="list-group-item list-group-item-action rounded border-0 mb-1 p-3">
-											<h6 class="mb-2">Sunshine saving are here 🌞 save 30% or more on a stay</h6>
-											<span>15 Nov 2022</span>
-										</a>
-									</li>
+									@empty
+									<li class="text-center text-muted py-3">Không có thông báo</li>
+									@endforelse
+									@endauth
 								</ul>
 							</div>
 							<!-- Card body END -->
 
 							<!-- Card footer -->
 							<div class="card-footer bg-transparent text-center border-top">
-								<a href="#" class="btn btn-sm btn-link mb-0 p-0">See all incoming activity</a>
+								<button class="btn btn-sm btn-link mb-0 p-0" onclick="notificationManager.markAllAsRead()">
+									<i class="fas fa-check-double me-1"></i>Đánh dấu tất cả đã đọc
+								</button>
 							</div>
 						</div>
 					</div>
@@ -265,3 +283,217 @@
 	</nav>
 	<!-- Logo Nav END -->
 </header>
+
+<!-- Notification Detail Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notificationModalLabel">
+                    <i class="fas fa-bell me-2"></i>Chi tiết thông báo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="notificationModalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Đang tải thông tin thông báo...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" id="markAsReadBtn" style="display: none;">
+                    <i class="fas fa-check me-1"></i>Đánh dấu đã đọc
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('notificationModal');
+    const modalBody = document.getElementById('notificationModalBody');
+    const markAsReadBtn = document.getElementById('markAsReadBtn');
+    let currentNotificationId = null;
+    
+    // Handle modal show event
+    modal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        currentNotificationId = button.getAttribute('data-notification-id');
+        
+        // Reset modal content
+        modalBody.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Đang tải...</span>
+                </div>
+                <p class="mt-2 text-muted">Đang tải thông tin thông báo...</p>
+            </div>
+        `;
+        
+        // Hide mark as read button initially
+        markAsReadBtn.style.display = 'none';
+        
+        // Fetch notification details via AJAX
+        console.log('Fetching notification:', currentNotificationId);
+        
+        // Add timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+            modalBody.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-clock me-1"></i>
+                    Tải thông báo quá lâu. Vui lòng thử lại.
+                    <br><br>
+                    <button class="btn btn-sm btn-outline-warning" onclick="location.reload()">
+                        <i class="fas fa-refresh me-1"></i>Thử lại
+                    </button>
+                    <button class="btn btn-sm btn-outline-info ms-2" onclick="testRoute(${currentNotificationId})">
+                        <i class="fas fa-bug me-1"></i>Test Route
+                    </button>
+                </div>
+            `;
+        }, 10000); // 10 seconds timeout
+        
+        fetch(`/thong-bao/${currentNotificationId}/modal`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => {
+            clearTimeout(timeoutId); // Clear timeout on successful response
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.success) {
+                modalBody.innerHTML = data.html;
+                
+                // Show mark as read button if notification is unread
+                if (data.isUnread) {
+                    markAsReadBtn.style.display = 'inline-block';
+                }
+            } else {
+                modalBody.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Không thể tải thông tin thông báo: ${data.message || 'Lỗi không xác định'}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            clearTimeout(timeoutId); // Clear timeout on error
+            console.error('Fetch error:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Lỗi khi tải thông tin thông báo. Vui lòng thử lại.<br>
+                    <small>Chi tiết: ${error.message}</small>
+                    <br><br>
+                    <button class="btn btn-sm btn-outline-danger" onclick="location.reload()">
+                        <i class="fas fa-refresh me-1"></i>Thử lại
+                    </button>
+                </div>
+            `;
+        });
+    });
+    
+    // Test route function
+    window.testRoute = function(notificationId) {
+        console.log('Testing route for notification:', notificationId);
+        fetch(`/test-notification/${notificationId}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Test response:', data);
+                document.getElementById('notificationModalBody').innerHTML = data.html;
+            })
+            .catch(error => {
+                console.error('Test route error:', error);
+                document.getElementById('notificationModalBody').innerHTML = `
+                    <div class="alert alert-danger">
+                        Test route failed: ${error.message}
+                    </div>
+                `;
+            });
+    };
+    
+    // Handle mark as read button
+    markAsReadBtn.addEventListener('click', function() {
+        if (currentNotificationId) {
+            // Mark as read via AJAX
+            fetch(`/thong-bao/${currentNotificationId}/read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide mark as read button
+                markAsReadBtn.style.display = 'none';
+                
+                // Remove unread styling from notification item
+                const notificationItem = document.querySelector(`[data-notification-id="${currentNotificationId}"]`);
+                if (notificationItem) {
+                    notificationItem.classList.remove('notif-unread');
+                }
+                
+                // Update badge count
+                updateNotificationBadge();
+                
+                // Show success message
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="fas fa-check me-1"></i>Đã đánh dấu thông báo là đã đọc
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                modalBody.insertBefore(alert, modalBody.firstChild);
+            })
+            .catch(error => {
+                console.error('Error marking notification as read:', error);
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-danger alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-1"></i>Lỗi khi đánh dấu đã đọc
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                modalBody.insertBefore(alert, modalBody.firstChild);
+            });
+        }
+    });
+    
+    // Function to update notification badge
+    function updateNotificationBadge() {
+        fetch('/api/notifications/unread-count')
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.querySelector('.notif-badge');
+                if (badge) {
+                    if (data.count > 0) {
+                        badge.style.display = 'block';
+                        badge.textContent = data.count;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error updating badge:', error);
+            });
+    }
+});
+</script>

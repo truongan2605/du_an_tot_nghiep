@@ -103,7 +103,6 @@
                                 </p>
                             @endif
 
-
                             <div class="card-body">
                                 <form class="row g-3" method="POST" action="{{ route('account.settings.update') }}"
                                     enctype="multipart/form-data" id="profile-form">
