@@ -41,9 +41,9 @@
                                             <a class="nav-link active" href="{{ route('account.settings') }}"><i
                                                     class="bi bi-person fa-fw me-2"></i>My Profile</a>
                                         </li>
-                                        {{-- <li class="nav-item">
-                                            <a class="nav-link" href="{{ route('account.bookings', [], false) ?: url('/account/bookings') }}"><i class="bi bi-ticket-perforated fa-fw me-2"></i>My Bookings</a>
-                                        </li> --}}
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{{ route('account.booking.index')}}" ><i class="bi bi-ticket-perforated fa-fw me-2"></i>My Bookings</a>
+                                        </li>
                                         <li class="nav-item">
                                             <a class="nav-link" href="{{ url('/account/wishlist') }}"><i
                                                     class="bi bi-heart fa-fw me-2"></i>Wishlist</a>
@@ -79,7 +79,6 @@
                             <div class="card-header border-bottom">
                                 <h4 class="card-header-title">Personal Information</h4>
                             </div>
-                            {{-- Hiển thị alert nếu có session status --}}
                             @if (session('status') === 'verification-link-sent')
                                 <div class="alert alert-success">
                                     Verification link has been sent to your email. Please check your inbox (or Mailtrap).

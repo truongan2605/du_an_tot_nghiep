@@ -43,6 +43,11 @@ class DatPhongItem extends Model
         return $this->belongsTo(LoaiPhong::class);
     }
 
+     public function phong()
+    {
+        return $this->belongsTo(Phong::class, 'phong_id');
+    }
+
     public function phongDaDats()
     {
         return $this->hasMany(PhongDaDat::class);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
+use App\Models\DatPhong;
 use App\Models\Phong;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,58 @@ use Illuminate\Support\Str;
 
 class BookingController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $upcoming = DatPhong::where('nguoi_dung_id', $user->id)
+            ->whereIn('trang_thai', ['dang_cho', 'da_xac_nhan'])
+            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->orderBy('ngay_nhan_phong', 'asc')
+            ->get();
+
+        $cancelled = DatPhong::where('nguoi_dung_id', $user->id)
+            ->where('trang_thai', 'da_huy')
+            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        $completed = DatPhong::where('nguoi_dung_id', $user->id)
+            ->where('trang_thai', 'hoan_thanh')
+            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->orderBy('ngay_nhan_phong', 'desc')
+            ->get();
+
+        return view('account.bookings', compact('upcoming', 'cancelled', 'completed', 'user'));
+    }
+
+    public function show(DatPhong $dat_phong, Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        if ($dat_phong->nguoi_dung_id !== $user->id) {
+            abort(403, 'Unauthorized');
+        }
+
+        $dat_phong->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'datPhongAddons', 'voucherUsages']);
+
+        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (json_decode($dat_phong->snapshot_meta, true) ?: []);
+
+        return view('account.booking_show', [
+            'booking' => $dat_phong,
+            'meta' => $meta,
+            'user' => $user,
+        ]);
+    }
+
+    // Giá tiền với mỗi người quá số người mặc định của mỗi phòng
     public const ADULT_PRICE = 150000;
     public const CHILD_PRICE = 60000;
     public const CHILD_FREE_AGE = 6;

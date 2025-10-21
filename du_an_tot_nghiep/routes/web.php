@@ -79,7 +79,6 @@ Route::prefix('admin')
 
         // ---- Giường ----
         Route::resource('bed-types', BedTypeController::class);
-
     });
 
 Route::middleware('auth')->prefix('account')
@@ -98,6 +97,12 @@ Route::middleware('auth')->prefix('account')
 
         Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
         Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+
+        Route::get('bookings', [BookingController::class, 'index'])
+            ->name('booking.index');
+
+        Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])
+            ->name('booking.show');
     });
 
 
