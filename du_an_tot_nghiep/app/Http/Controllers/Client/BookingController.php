@@ -35,12 +35,11 @@ class BookingController extends Controller
         $fromDefault = Carbon::today();
         $toDefault = Carbon::tomorrow();
 
-        // Quan trọng: Logic tính phòng giống loại phòng
         $availableRoomsDefault = $this->computeAvailableRoomsCount(
             $phong->loai_phong_id,
             $fromDefault,
             $toDefault,
-            $phong->specSignatureHash()
+            $phong->spec_signature_hash ?? $phong->specSignatureHash()
         );
 
         return view('account.booking.create', compact('phong', 'user', 'availableAddons', 'availableRoomsDefault'));
@@ -63,7 +62,7 @@ class BookingController extends Controller
         if ($request->filled('phong_id')) {
             $phong = Phong::with(['tienNghis', 'bedTypes', 'activeOverrides'])->find($request->input('phong_id'));
             if ($phong) {
-                $requiredSignature = $phong->specSignatureHash();
+                $requiredSignature = $phong->spec_signature_hash ?? $phong->specSignatureHash();
             }
         }
 
@@ -100,17 +99,15 @@ class BookingController extends Controller
             $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
         }
 
-        // Các phòng thuộc loại này & có cùng signature (và đang 'trong')
         $matchingRoomIds = Phong::where('loai_phong_id', $loaiPhongId)
             ->where('trang_thai', 'trong')
             ->where('spec_signature_hash', $requiredSignature)
             ->pluck('id')->toArray();
 
-        if (empty($matchingRoomIds)) return 0;
+        if (empty($matchingRoomIds)) {
+            return 0;
+        }
 
-        // -------------------------------
-        // 1) Specific occupied (phong_id) — booked & held for this signature
-        // -------------------------------
         $bookedRoomIds = [];
         if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
             $bookedRoomIds = DB::table('dat_phong_item')
@@ -118,26 +115,54 @@ class BookingController extends Controller
                 ->where('dat_phong_item.loai_phong_id', $loaiPhongId)
                 ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
                 ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$requestedStart, $requestedEnd])
-                ->pluck('phong_id')->filter()->unique()->toArray();
+                ->pluck('dat_phong_item.phong_id')
+                ->filter()
+                ->unique()
+                ->toArray();
         }
 
         $heldRoomIds = [];
-        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
-            $heldRoomIds = DB::table('giu_phong')
-                ->where('released', false)
-                ->where('loai_phong_id', $loaiPhongId)
-                ->where('het_han_luc', '>', now())
-                ->pluck('phong_id')->filter()->unique()->toArray();
+        if (Schema::hasTable('giu_phong')) {
+            if (Schema::hasColumn('giu_phong', 'phong_id')) {
+                $heldRoomIds = DB::table('giu_phong')
+                    ->where('released', false)
+                    ->where('loai_phong_id', $loaiPhongId)
+                    ->where('het_han_luc', '>', now())
+                    ->pluck('phong_id')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+            }
+
+            if (Schema::hasColumn('giu_phong', 'meta')) {
+                $holdsWithMeta = DB::table('giu_phong')
+                    ->where('released', false)
+                    ->where('loai_phong_id', $loaiPhongId)
+                    ->where('het_han_luc', '>', now())
+                    ->whereNotNull('meta')
+                    ->pluck('meta');
+
+                foreach ($holdsWithMeta as $metaRaw) {
+                    if (!$metaRaw) continue;
+                    $decoded = null;
+                    if (is_string($metaRaw)) {
+                        $decoded = json_decode($metaRaw, true);
+                    } elseif (is_array($metaRaw)) {
+                        $decoded = $metaRaw;
+                    }
+                    if (is_array($decoded) && !empty($decoded['selected_phong_ids'])) {
+                        foreach ($decoded['selected_phong_ids'] as $pid) {
+                            $heldRoomIds[] = (int)$pid;
+                        }
+                    }
+                }
+            }
         }
 
-        // Among matchingRoomIds, which are free (not specifically booked/held)
         $occupiedSpecificIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
         $matchingAvailableIds = array_values(array_diff($matchingRoomIds, $occupiedSpecificIds));
         $matchingAvailableCount = count($matchingAvailableIds);
 
-        // -------------------------------
-        // 2) Compute aggregate totals for the whole loai_phong
-        // -------------------------------
         $aggregateBooked = 0;
         if (Schema::hasTable('dat_phong_item')) {
             $q = DB::table('dat_phong')
@@ -153,24 +178,46 @@ class BookingController extends Controller
             }
         }
 
-        $aggregateHolds = 0;
+
+        $aggregateHoldsForSignature = 0;
         if (Schema::hasTable('giu_phong')) {
             $qg = DB::table('giu_phong')
                 ->where('released', false)
                 ->where('loai_phong_id', $loaiPhongId)
-                ->where('het_han_luc', '>', now());
+                ->where('het_han_luc', '>', now())
+                ->whereNull('phong_id');
 
-            if (Schema::hasColumn('giu_phong', 'so_luong')) {
-                $aggregateHolds = (int) $qg->sum('so_luong');
-            } elseif (!Schema::hasColumn('giu_phong', 'phong_id')) {
-                $aggregateHolds = (int) $qg->count();
+            if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
+                $qg = $qg->where('spec_signature_hash', $requiredSignature);
+            } else {
+                if (Schema::hasColumn('giu_phong', 'meta')) {
+                    $holdsMeta = $qg->whereNotNull('meta')->pluck('meta');
+                    foreach ($holdsMeta as $metaRaw) {
+                        $decoded = null;
+                        if (is_string($metaRaw)) {
+                            $decoded = json_decode($metaRaw, true);
+                        } elseif (is_array($metaRaw)) {
+                            $decoded = $metaRaw;
+                        }
+                        if (is_array($decoded) && isset($decoded['spec_signature_hash']) && $decoded['spec_signature_hash'] === $requiredSignature) {
+                            $aggregateHoldsForSignature += (isset($decoded['rooms_count']) ? (int)$decoded['rooms_count'] : 1);
+                        }
+                    }
+                }
+            }
+
+            if (Schema::hasColumn('giu_phong', 'so_luong') && Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
+                $aggregateHoldsForSignature = (int) DB::table('giu_phong')
+                    ->where('released', false)
+                    ->where('loai_phong_id', $loaiPhongId)
+                    ->where('het_han_luc', '>', now())
+                    ->whereNull('phong_id')
+                    ->where('spec_signature_hash', $requiredSignature)
+                    ->sum('so_luong');
             }
         }
 
-        // -------------------------------
-        // 3) Determine total actual rooms of this type available to be used
-        //    Use so_luong_thuc_te if present (LoaiPhong), fall back to counting Phong rows with trang_thai='trong'
-        // -------------------------------
+
         $totalRoomsOfType = 0;
         if (Schema::hasTable('loai_phong') && Schema::hasColumn('loai_phong', 'so_luong_thuc_te')) {
             $totalRoomsOfType = (int) DB::table('loai_phong')->where('id', $loaiPhongId)->value('so_luong_thuc_te');
@@ -181,11 +228,8 @@ class BookingController extends Controller
                 ->count();
         }
 
-        // Remaining capacity across the whole type
-        $remainingAcrossType = max(0, $totalRoomsOfType - $aggregateBooked - $aggregateHolds);
+        $remainingAcrossType = max(0, $totalRoomsOfType - $aggregateBooked - $aggregateHoldsForSignature);
 
-        // The available for this signature is min(rooms that are physically matching & not specifically occupied, 
-        // and remaining capacity across the whole type)
         $availableForSignature = max(0, min($matchingAvailableCount, $remainingAcrossType));
 
         return (int) $availableForSignature;
@@ -210,16 +254,45 @@ class BookingController extends Controller
                 ->where('dat_phong_item.loai_phong_id', $loaiPhongId)
                 ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
                 ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$requestedStart, $requestedEnd])
-                ->pluck('phong_id')->filter()->unique()->toArray();
+                ->pluck('dat_phong_item.phong_id')->filter()->unique()->toArray();
         }
 
         $heldRoomIds = [];
-        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
-            $heldRoomIds = DB::table('giu_phong')
-                ->where('released', false)
-                ->where('loai_phong_id', $loaiPhongId)
-                ->where('het_han_luc', '>', now())
-                ->pluck('phong_id')->filter()->unique()->toArray();
+        if (Schema::hasTable('giu_phong')) {
+            if (Schema::hasColumn('giu_phong', 'phong_id')) {
+                $heldRoomIds = DB::table('giu_phong')
+                    ->where('released', false)
+                    ->where('loai_phong_id', $loaiPhongId)
+                    ->where('het_han_luc', '>', now())
+                    ->pluck('phong_id')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+            }
+
+            if (Schema::hasColumn('giu_phong', 'meta')) {
+                $holdsWithMeta = DB::table('giu_phong')
+                    ->where('released', false)
+                    ->where('loai_phong_id', $loaiPhongId)
+                    ->where('het_han_luc', '>', now())
+                    ->whereNotNull('meta')
+                    ->pluck('meta');
+
+                foreach ($holdsWithMeta as $metaRaw) {
+                    if (!$metaRaw) continue;
+                    $decoded = null;
+                    if (is_string($metaRaw)) {
+                        $decoded = json_decode($metaRaw, true);
+                    } elseif (is_array($metaRaw)) {
+                        $decoded = $metaRaw;
+                    }
+                    if (is_array($decoded) && !empty($decoded['selected_phong_ids'])) {
+                        foreach ($decoded['selected_phong_ids'] as $pid) {
+                            $heldRoomIds[] = (int)$pid;
+                        }
+                    }
+                }
+            }
         }
 
         $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
@@ -280,10 +353,7 @@ class BookingController extends Controller
         $from = Carbon::parse($request->input('ngay_nhan_phong'))->startOfDay();
         $to = Carbon::parse($request->input('ngay_tra_phong'))->startOfDay();
         $nights = $from->diffInDays($to);
-        Log::debug('Booking: parsed dates', ['from' => $from->toDateString(), 'to' => $to->toDateString(), 'nights' => $nights]);
-
         if ($nights <= 0) {
-            Log::warning('Booking: invalid nights <= 0', ['nights' => $nights]);
             return back()->withInput()->withErrors(['ngay_tra_phong' => 'Check-out date must be after check-in date.']);
         }
 
@@ -291,12 +361,9 @@ class BookingController extends Controller
         $childrenInput = (int)$request->input('children', 0);
         $childrenAges = $request->input('children_ages', []);
 
-        Log::debug('Booking: guest inputs', ['adults' => $adultsInput, 'children' => $childrenInput, 'children_ages' => $childrenAges]);
-
         if ($childrenInput > 0) {
             $provided = is_array($childrenAges) ? count($childrenAges) : 0;
             if ($provided !== $childrenInput) {
-                Log::warning('Booking: children ages count mismatch', ['expected' => $childrenInput, 'provided' => $provided]);
                 return back()->withInput()->withErrors(['children_ages' => 'Please provide ages for each child.']);
             }
         }
@@ -305,13 +372,9 @@ class BookingController extends Controller
         $chargeableChildren = 0;
         foreach ($childrenAges as $age) {
             $age = (int)$age;
-            if ($age >= 13) {
-                $computedAdults++;
-            } elseif ($age >= 7) {
-                $chargeableChildren++;
-            }
+            if ($age >= 13) $computedAdults++;
+            elseif ($age >= 7) $chargeableChildren++;
         }
-        Log::debug('Booking: computedAdults/chargeableChildren', ['computedAdults' => $computedAdults, 'chargeableChildren' => $chargeableChildren]);
 
         $roomCapacity = 0;
         if ($phong->bedTypes && $phong->bedTypes->count()) {
@@ -321,14 +384,9 @@ class BookingController extends Controller
                 $roomCapacity += $qty * $cap;
             }
         }
-        if ($roomCapacity <= 0) {
-            $roomCapacity = (int) ($phong->suc_chua ?? ($phong->loaiPhong->suc_chua ?? 1));
-        }
-        Log::debug('Booking: roomCapacity computed', ['roomCapacity' => $roomCapacity]);
+        if ($roomCapacity <= 0) $roomCapacity = (int) ($phong->suc_chua ?? ($phong->loaiPhong->suc_chua ?? 1));
 
-        $roomsCount = (int) $request->input('rooms_count', 1);
-        if ($roomsCount < 1) $roomsCount = 1;
-        Log::debug('Booking: roomsCount', ['roomsCount' => $roomsCount]);
+        $roomsCount = max(1, (int)$request->input('rooms_count', 1));
 
         $selectedAddonIds = $request->input('addons', []);
         $selectedAddons = collect();
@@ -337,11 +395,9 @@ class BookingController extends Controller
         }
         $addonsPerNightPerRoom = (float) ($selectedAddons->sum('gia') ?? 0.0);
         $addonsPerNight = $addonsPerNightPerRoom * $roomsCount;
-        Log::debug('Booking: addons', ['selectedAddonIds' => $selectedAddonIds, 'addonsPerNight' => $addonsPerNight]);
 
         $childrenMaxAllowed = 2 * $roomsCount;
         if ($childrenInput > $childrenMaxAllowed) {
-            Log::warning('Booking: too many children', ['childrenInput' => $childrenInput, 'childrenMaxAllowed' => $childrenMaxAllowed]);
             return back()->withInput()->withErrors(['children' => "Maximum {$childrenMaxAllowed} children allowed for {$roomsCount} room(s)."]);
         }
 
@@ -349,10 +405,10 @@ class BookingController extends Controller
         $countedPersons = $computedAdults + $chargeableChildren;
         $totalMaxAllowed = $totalRoomCapacity + (2 * $roomsCount);
         if ($countedPersons > $totalMaxAllowed) {
-            Log::warning('Booking: too many guests', ['countedPersons' => $countedPersons, 'totalMaxAllowed' => $totalMaxAllowed]);
             return back()->withInput()->withErrors(['error' => "Maximum allowed guests for {$roomsCount} room(s) is {$totalMaxAllowed}. You provided {$countedPersons}."]);
         }
 
+        $basePerNight = (float) ($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
         $extraCountTotal = max(0, $countedPersons - $totalRoomCapacity);
         $adultBeyondBaseTotal = max(0, $computedAdults - $totalRoomCapacity);
         $adultExtraTotal = min($adultBeyondBaseTotal, $extraCountTotal);
@@ -362,193 +418,245 @@ class BookingController extends Controller
         $adultsChargePerNight = $adultExtraTotal * self::ADULT_PRICE;
         $childrenChargePerNight = $childrenExtraTotal * self::CHILD_PRICE;
 
-        $basePerNight = (float) ($phong->gia_cuoi_cung ?? $phong->gia_mac_dinh ?? 0);
+        $finalPerNightServer = ($basePerNight * $roomsCount) + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
+        $snapshotTotalServer = $finalPerNightServer * $nights;
 
-        Log::debug('Booking: pricing summary', [
-            'basePerNight' => $basePerNight,
-            'adultsChargePerNight' => $adultsChargePerNight,
-            'childrenChargePerNight' => $childrenChargePerNight,
-            'addonsPerNight' => $addonsPerNight
-        ]);
+        $maThamChieu = 'BK' . Str::upper(Str::random(8));
 
-        DB::beginTransaction();
+        $payload = [
+            'ma_tham_chieu' => $maThamChieu,
+            'nguoi_dung_id' => $user->id,
+            'created_by' => $user->id,
+            'ngay_nhan_phong' => $from->toDateString(),
+            'ngay_tra_phong' => $to->toDateString(),
+            'so_khach' => ($adultsInput + $childrenInput),
+            'trang_thai' => 'dang_cho',
+            'tong_tien' => $snapshotTotalServer,
+            'snapshot_total' => $snapshotTotalServer,
+            'ghi_chu' => $request->input('ghi_chu', null),
+            'phuong_thuc' => $request->input('phuong_thuc'),
+            'created_at' => now(),
+            'updated_at' => now(),
+            'contact_name'    => $request->input('name'),
+            'contact_address' => $request->input('address'),
+            'contact_phone'   => $request->input('phone', $user->so_dien_thoai ?? null),
+            'snapshot_meta' => json_encode([
+                'rooms_count' => $roomsCount,
+                'adults_input' => $adultsInput,
+                'children_input' => $childrenInput,
+                'children_ages' => $childrenAges,
+                'computed_adults' => $computedAdults,
+                'chargeable_children' => $chargeableChildren,
+                'room_capacity_single' => $roomCapacity,
+                'total_room_capacity' => $totalRoomCapacity,
+                'counted_persons' => $countedPersons,
+                'extra_count_total' => $extraCountTotal,
+                'adult_extra_total' => $adultExtraTotal,
+                'children_extra_total' => $childrenExtraTotal,
+                'room_base_per_night' => $basePerNight,
+                'adults_charge_per_night' => $adultsChargePerNight,
+                'children_charge_per_night' => $childrenChargePerNight,
+                'addons_per_night' => $addonsPerNight,
+                'addons' => $selectedAddons->map(function ($a) {
+                    return ['id' => $a->id, 'ten' => $a->ten, 'gia' => $a->gia];
+                })->toArray(),
+                'final_per_night' => $finalPerNightServer,
+                'nights' => $nights,
+            ]),
+        ];
+
         try {
-            Log::debug('Booking: before concurrency check');
-
-            $requiredSignature = $phong->specSignatureHash();
-
-            $hasItemsTable = Schema::hasTable('dat_phong_item');
-            $itemsHasPhongId = $hasItemsTable && Schema::hasColumn('dat_phong_item', 'phong_id');
-
-            if ($hasItemsTable && !$itemsHasPhongId) {
-                DB::table('loai_phong')->where('id', $phong->loai_phong_id)->lockForUpdate()->first();
-                Log::debug('Booking: locked loai_phong for aggregate booking', ['loai_phong_id' => $phong->loai_phong_id]);
-            }
-
-            $availableNow = $this->computeAvailableRoomsCount($phong->loai_phong_id, $from, $to, $requiredSignature);
-            Log::debug('Booking: concurrency check result', ['availableNow' => $availableNow]);
-
-            if ($roomsCount > $availableNow) {
-                DB::rollBack();
-                Log::warning('Booking: not enough rooms available', ['roomsCount' => $roomsCount, 'availableNow' => $availableNow]);
-                return back()->withInput()->withErrors(['rooms_count' => "Only {$availableNow} room(s) matching required features are available for selected dates (concurrency check)."]);
-            }
-
-            $finalPerNight = ($basePerNight * $roomsCount) + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
-            $snapshotTotal = $finalPerNight * $nights;
-
-            Log::debug('Booking: about to insert dat_phong', [
-                'finalPerNight' => $finalPerNight,
-                'snapshotTotal' => $snapshotTotal,
-                'nights' => $nights
-            ]);
-
-            $maThamChieu = 'BK' . Str::upper(Str::random(8));
-
-            $payload = [
-                'ma_tham_chieu' => $maThamChieu,
-                'nguoi_dung_id' => $user->id,
-                'created_by' => $user->id,
-                'ngay_nhan_phong' => $from->toDateString(),
-                'ngay_tra_phong' => $to->toDateString(),
-                'so_khach' => ($adultsInput + $childrenInput),
-                'trang_thai' => 'dang_cho',
-                'tong_tien' => $snapshotTotal,
-                'snapshot_total' => $snapshotTotal,
-                'ghi_chu' => $request->input('ghi_chu', null),
-                'phuong_thuc' => $request->input('phuong_thuc'),
-                'created_at' => now(),
-                'updated_at' => now(),
-                'contact_name'    => $request->input('name'),
-                'contact_address' => $request->input('address'),
-                'contact_phone'   => $request->input('phone', $user->so_dien_thoai ?? null),
-                'snapshot_meta' => json_encode([
-                    'rooms_count' => $roomsCount,
-                    'adults_input' => $adultsInput,
-                    'children_input' => $childrenInput,
-                    'children_ages' => $childrenAges,
-                    'computed_adults' => $computedAdults,
-                    'chargeable_children' => $chargeableChildren,
-                    'room_capacity_single' => $roomCapacity,
-                    'total_room_capacity' => $totalRoomCapacity ?? ($roomCapacity * $roomsCount),
-                    'counted_persons' => $countedPersons,
-                    'extra_count_total' => $extraCountTotal ?? 0,
-                    'adult_extra_total' => $adultExtraTotal ?? 0,
-                    'children_extra_total' => $childrenExtraTotal ?? 0,
-                    'room_base_per_night' => $basePerNight,
-                    'adults_charge_per_night' => $adultsChargePerNight,
-                    'children_charge_per_night' => $childrenChargePerNight,
-                    'addons_per_night' => $addonsPerNight,
-                    'addons' => $selectedAddons->map(function ($a) {
-                        return ['id' => $a->id, 'ten' => $a->ten, 'gia' => $a->gia];
-                    })->toArray(),
-                    'final_per_night' => $finalPerNight,
-                    'nights' => $nights,
-                ]),
-            ];
-
-            $allowedPayload = [];
-            foreach ($payload as $k => $v) {
-                if (Schema::hasColumn('dat_phong', $k)) {
-                    $allowedPayload[$k] = $v;
-                } else {
-                    Log::debug('Booking: dat_phong column missing, skipping', ['column' => $k]);
+            $datPhongId = null;
+            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $nights) {
+                if (Schema::hasTable('loai_phong')) {
+                    DB::table('loai_phong')->where('id', $phong->loai_phong_id)->lockForUpdate()->first();
                 }
-            }
 
-            Log::debug('Booking: inserting dat_phong payload keys', ['keys' => array_keys($allowedPayload)]);
+                $requiredSignature = $phong->specSignatureHash();
+                $availableNow = $this->computeAvailableRoomsCount($phong->loai_phong_id, $from, $to, $requiredSignature);
 
-            $datPhongId = DB::table('dat_phong')->insertGetId($allowedPayload);
+                if ($roomsCount > $availableNow) {
+                    throw new \Exception("Only {$availableNow} room(s) available.");
+                }
 
-            Log::debug('Booking: dat_phong inserted', ['dat_phong_id' => $datPhongId, 'ma_tham_chieu' => $maThamChieu]);
+                $allowedPayload = [];
+                foreach ($payload as $k => $v) {
+                    if (Schema::hasColumn('dat_phong', $k)) $allowedPayload[$k] = $v;
+                }
+                $datPhongId = DB::table('dat_phong')->insertGetId($allowedPayload);
 
+                if (Schema::hasTable('giu_phong')) {
+                    $holdBase = [
+                        'dat_phong_id' => $datPhongId,
+                        'loai_phong_id' => $phong->loai_phong_id,
+                        'so_luong' => $roomsCount,
+                        'het_han_luc' => now()->addMinutes(15),
+                        'released' => false,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
 
-            if (Schema::hasTable('giu_phong')) {
-                $holdPayload = [
-                    'dat_phong_id' => $datPhongId,
-                    'loai_phong_id' => $phong->loai_phong_id,
-                    'so_luong' => $roomsCount,
-                    'het_han_luc' => now()->addMinutes(15),
-                    'released' => false,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+                    $baseSignature = $phong->spec_signature_hash ?? $phong->specSignatureHash();
 
-                $selectedAddonIdsArr = $selectedAddons->pluck('id')->map('intval')->toArray();
-                $baseTienNghi = method_exists($phong, 'effectiveTienNghiIds') ? $phong->effectiveTienNghiIds() : [];
-                $mergedTienNghi = array_values(array_unique(array_merge($baseTienNghi, $selectedAddonIdsArr)));
-                sort($mergedTienNghi, SORT_NUMERIC);
-                $bedSpec = method_exists($phong, 'effectiveBedSpec') ? $phong->effectiveBedSpec() : [];
+                    $baseTienNghi = method_exists($phong, 'effectiveTienNghiIds') ? $phong->effectiveTienNghiIds() : [];
+                    $selectedAddonIdsArr = $selectedAddons->pluck('id')->map('intval')->toArray();
+                    $mergedTienNghi = array_values(array_unique(array_merge($baseTienNghi, $selectedAddonIdsArr)));
+                    sort($mergedTienNghi, SORT_NUMERIC);
+                    $bedSpec = method_exists($phong, 'effectiveBedSpec') ? $phong->effectiveBedSpec() : [];
 
-                $specArray = [
-                    'loai_phong_id' => (int)$phong->loai_phong_id,
-                    'tien_nghi' => $mergedTienNghi,
-                    'beds' => $bedSpec,
-                ];
-                $spec_signature_hash = md5(json_encode($specArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-                $holdPayload['spec_signature_hash'] = $spec_signature_hash;
+                    $specArray = [
+                        'loai_phong_id' => (int)$phong->loai_phong_id,
+                        'tien_nghi' => $mergedTienNghi,
+                        'beds' => $bedSpec,
+                    ];
 
-                $holdMeta = [
-                    'final_per_night' => (float)$finalPerNight,
-                    'snapshot_total' => (float)$snapshotTotal,
-                    'nights' => $nights,
-                    'rooms_count' => $roomsCount,
-                    'addons' => $selectedAddons->map(function ($a) {
-                        return ['id' => $a->id, 'ten' => $a->ten, 'gia' => $a->gia];
-                    })->toArray()
-                ];
+                    ksort($specArray);
+                    $requestedSpecSignature = md5(json_encode($specArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
-                // if DB has phong_id column, attempt to pick specific IDs (for rooms_count == 1 prefer specific phong_id)
-                if (Schema::hasColumn('giu_phong', 'phong_id')) {
-                    if ($roomsCount === 1) {
-                        $selectedIds = $this->computeAvailableRoomIds($phong->loai_phong_id, $from, $to, 1, $requiredSignature);
-                        if (count($selectedIds) >= 1) {
-                            $holdPayload['phong_id'] = $selectedIds[0];
-                            // so_luong already set to 1 above
-                            $holdPayload['meta'] = json_encode($holdMeta, JSON_UNESCAPED_UNICODE);
-                            DB::table('giu_phong')->insert($holdPayload);
-                            Log::debug('Booking: giu_phong inserted with phong_id', ['giu_phong_phong_id' => $selectedIds[0], 'dat_phong_id' => $datPhongId]);
+                    Log::debug('Booking: signatures', [
+                        'phong_id' => $phong->id,
+                        'phong_db_signature' => $phong->spec_signature_hash ?? null,
+                        'requestedSpecSignature' => $requestedSpecSignature,
+                        'specArray' => $specArray,
+                    ]);
+
+                    $meta = [
+                        'final_per_night' => (float)$finalPerNightServer,
+                        'snapshot_total' => (float)$snapshotTotalServer,
+                        'nights' => $nights,
+                        'rooms_count' => $roomsCount,
+                        'addons' => $selectedAddons->map(function ($a) {
+                            return ['id' => $a->id, 'ten' => $a->ten, 'gia' => $a->gia];
+                        })->toArray(),
+                        'spec_signature_hash' => $requestedSpecSignature,
+                        'requested_spec_signature' => $requestedSpecSignature,
+                        'base_spec_signature' => $baseSignature,
+                    ];
+
+                    $requestedPhongId = $phong->id ?? null;
+                    $requestedReserved = 0;
+
+                    if ($requestedPhongId && Schema::hasColumn('giu_phong', 'phong_id')) {
+                        $dbRoomSignature = $phong->spec_signature_hash ?? $phong->specSignatureHash();
+                        if ($dbRoomSignature === $requestedSpecSignature) {
+                            $isBooked = false;
+                            if (Schema::hasTable('dat_phong_item')) {
+                                $isBooked = DB::table('dat_phong_item')
+                                    ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                                    ->where('dat_phong_item.phong_id', $requestedPhongId)
+                                    ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                                    ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$from->copy()->setTime(14, 0)->toDateTimeString(), $to->copy()->setTime(12, 0)->toDateTimeString()])
+                                    ->exists();
+                            }
+
+                            $isHeld = false;
+                            if (!$isBooked && Schema::hasTable('giu_phong')) {
+                                $isHeld = DB::table('giu_phong')
+                                    ->where('phong_id', $requestedPhongId)
+                                    ->where('released', false)
+                                    ->where('het_han_luc', '>', now())
+                                    ->exists();
+                            }
+
+                            if (!$isBooked && !$isHeld) {
+                                $locked = Phong::where('id', $requestedPhongId)
+                                    ->where('trang_thai', 'trong')
+                                    ->lockForUpdate()
+                                    ->first();
+
+                                if ($locked) {
+                                    $row = $holdBase;
+                                    $row['so_luong'] = 1;
+                                    $row['phong_id'] = $requestedPhongId;
+                                    if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
+                                        $row['spec_signature_hash'] = $dbRoomSignature;
+                                    }
+                                    $row['meta'] = json_encode(array_merge($meta, ['selected_phong_id' => $requestedPhongId, 'selected_phong_ids' => [$requestedPhongId]]), JSON_UNESCAPED_UNICODE);
+                                    DB::table('giu_phong')->insert($row);
+                                    $requestedReserved = 1;
+                                    Log::debug('Booking: giu_phong inserted per-phong (requested room reserved)', ['phong_id' => $requestedPhongId, 'dat_phong_id' => $datPhongId]);
+                                } else {
+                                    Log::debug('Booking: requested room could not be locked', ['phong_id' => $requestedPhongId]);
+                                }
+                            } else {
+                                Log::debug('Booking: requested room not available to reserve', ['phong_id' => $requestedPhongId, 'isBooked' => $isBooked, 'isHeld' => $isHeld]);
+                            }
                         } else {
-                            // fallback to aggregate hold (so_luong)
-                            $holdPayload['meta'] = json_encode($holdMeta, JSON_UNESCAPED_UNICODE);
-                            DB::table('giu_phong')->insert($holdPayload);
-                            Log::debug('Booking: giu_phong inserted with so_luong fallback (no specific phong_id available)', ['so_luong' => $roomsCount, 'dat_phong_id' => $datPhongId]);
-                        }
-                    } else {
-                        // multiple rooms requested: try to reserve specific ids for all rooms
-                        $selectedIds = $this->computeAvailableRoomIds($phong->loai_phong_id, $from, $to, $roomsCount, $requiredSignature);
-                        if (count($selectedIds) === $roomsCount) {
-                            // store selected ids in meta so we know which specific rooms were held for this dat_phong
-                            $holdMeta['selected_phong_ids'] = $selectedIds;
-                            $holdPayload['meta'] = json_encode($holdMeta, JSON_UNESCAPED_UNICODE);
-                            // keep phong_id NULL (we have list in meta)
-                            DB::table('giu_phong')->insert($holdPayload);
-                            Log::debug('Booking: giu_phong inserted with multiple specific phong_ids (stored in meta)', ['selected_phong_ids' => $selectedIds, 'dat_phong_id' => $datPhongId]);
-                        } else {
-                            // fallback to aggregate
-                            $holdPayload['meta'] = json_encode($holdMeta, JSON_UNESCAPED_UNICODE);
-                            DB::table('giu_phong')->insert($holdPayload);
-                            Log::debug('Booking: giu_phong inserted aggregate (could not get all specific phong_ids)', ['so_luong' => $roomsCount, 'dat_phong_id' => $datPhongId]);
+                            Log::debug('Booking: requested room signature mismatch', ['phong_id' => $requestedPhongId, 'db' => $dbRoomSignature, 'requested' => $requestedSpecSignature]);
                         }
                     }
-                } else {
-                    // giu_phong table doesn't have phong_id column: insert aggregate hold
-                    $holdPayload['meta'] = json_encode($holdMeta, JSON_UNESCAPED_UNICODE);
-                    DB::table('giu_phong')->insert($holdPayload);
-                    Log::debug('Booking: giu_phong inserted (no phong_id column in giu_phong table)', ['so_luong' => $roomsCount, 'dat_phong_id' => $datPhongId]);
-                }
-            } else {
-                Log::debug('Booking: giu_phong table not present, skipping hold creation');
-            }
 
-            DB::commit();
-            Log::debug('Booking: transaction committed', ['dat_phong_id' => $datPhongId]);
+                    if (Schema::hasColumn('giu_phong', 'phong_id')) {
+                        $stillNeeded = max(0, $roomsCount - $requestedReserved);
+
+                        $selectedIds = [];
+                        if ($stillNeeded > 0) {
+                            $selectedIds = $this->computeAvailableRoomIds($phong->loai_phong_id, $from, $to, $stillNeeded, $requestedSpecSignature);
+
+                            if (empty($selectedIds) || count($selectedIds) < $stillNeeded) {
+                                $need = $stillNeeded - count($selectedIds);
+                                $fallbackIds = $this->computeAvailableRoomIds($phong->loai_phong_id, $from, $to, $need, null);
+                                $selectedIds = array_values(array_unique(array_merge($selectedIds, $fallbackIds)));
+                            }
+
+                            if ($requestedReserved && !empty($selectedIds)) {
+                                $selectedIds = array_values(array_diff($selectedIds, [$requestedPhongId]));
+                            }
+                        }
+
+                        if (!empty($selectedIds)) {
+                            $locked = Phong::whereIn('id', $selectedIds)
+                                ->where('trang_thai', 'trong')
+                                ->lockForUpdate()
+                                ->get(['id'])
+                                ->pluck('id')
+                                ->toArray();
+
+                            $selectedIds = array_values(array_intersect($selectedIds, $locked));
+                        }
+
+                        $reservedCount = $requestedReserved;
+                        if (!empty($selectedIds)) {
+                            foreach ($selectedIds as $pid) {
+                                if ($reservedCount >= $roomsCount) break;
+                                $row = $holdBase;
+                                $row['so_luong'] = 1;
+                                $row['phong_id'] = $pid;
+                                if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
+                                    $row['spec_signature_hash'] = $baseSignature;
+                                }
+                                $row['meta'] = json_encode(array_merge($meta, ['selected_phong_id' => $pid, 'selected_phong_ids' => $selectedIds]), JSON_UNESCAPED_UNICODE);
+                                DB::table('giu_phong')->insert($row);
+                                $reservedCount++;
+                                Log::debug('Booking: giu_phong inserted per-phong', ['phong_id' => $pid, 'dat_phong_id' => $datPhongId]);
+                            }
+                        }
+
+                        $remaining = $roomsCount - $reservedCount;
+                        if ($remaining > 0) {
+                            $aggRow = $holdBase;
+                            $aggRow['so_luong'] = $remaining;
+                            if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
+                                $aggRow['spec_signature_hash'] = $baseSignature;
+                            }
+                            $aggRow['meta'] = json_encode(array_merge($meta, ['reserved_count' => $reservedCount]), JSON_UNESCAPED_UNICODE);
+                            DB::table('giu_phong')->insert($aggRow);
+                            Log::debug('Booking: giu_phong inserted aggregate for remaining', ['remaining' => $remaining, 'dat_phong_id' => $datPhongId]);
+                        }
+                    } else {
+                        $aggRow = $holdBase;
+                        $aggRow['spec_signature_hash'] = $requestedSpecSignature;
+                        $aggRow['meta'] = json_encode($meta, JSON_UNESCAPED_UNICODE);
+                        DB::table('giu_phong')->insert($aggRow);
+                        Log::debug('Booking: giu_phong inserted (no phong_id column)', ['so_luong' => $roomsCount, 'dat_phong_id' => $datPhongId]);
+                    }
+                }
+            });
 
             return redirect()->route('account.booking.create', $phong->id)
                 ->with('success', 'Room(s) held for 15 minutes. Please proceed to payment to confirm the booking.')
                 ->with('dat_phong_id', $datPhongId);
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('Booking.store exception: ' . $e->getMessage(), [
                 'code' => $e->getCode(),
                 'trace' => $e->getTraceAsString(),
