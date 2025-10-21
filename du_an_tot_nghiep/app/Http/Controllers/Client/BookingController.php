@@ -591,51 +591,51 @@ class BookingController extends Controller
 
                     if ($requestedPhongId && Schema::hasColumn('giu_phong', 'phong_id')) {
                         $dbRoomSignature = $phong->spec_signature_hash ?? $phong->specSignatureHash();
-                        if ($dbRoomSignature === $requestedSpecSignature) {
-                            $isBooked = false;
-                            if (Schema::hasTable('dat_phong_item')) {
-                                $isBooked = DB::table('dat_phong_item')
-                                    ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
-                                    ->where('dat_phong_item.phong_id', $requestedPhongId)
-                                    ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
-                                    ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$from->copy()->setTime(14, 0)->toDateTimeString(), $to->copy()->setTime(12, 0)->toDateTimeString()])
-                                    ->exists();
-                            }
 
-                            $isHeld = false;
-                            if (!$isBooked && Schema::hasTable('giu_phong')) {
-                                $isHeld = DB::table('giu_phong')
-                                    ->where('phong_id', $requestedPhongId)
-                                    ->where('released', false)
-                                    ->where('het_han_luc', '>', now())
-                                    ->exists();
-                            }
+                        $isBooked = false;
+                        if (Schema::hasTable('dat_phong_item')) {
+                            $isBooked = DB::table('dat_phong_item')
+                                ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                                ->where('dat_phong_item.phong_id', $requestedPhongId)
+                                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                                ->whereRaw("? < CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') AND CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$from->copy()->setTime(14, 0)->toDateTimeString(), $to->copy()->setTime(12, 0)->toDateTimeString()])
+                                ->exists();
+                        }
 
-                            if (!$isBooked && !$isHeld) {
-                                $locked = Phong::where('id', $requestedPhongId)
-                                    ->where('trang_thai', 'trong')
-                                    ->lockForUpdate()
-                                    ->first();
+                        $isHeld = false;
+                        if (!$isBooked && Schema::hasTable('giu_phong')) {
+                            $isHeld = DB::table('giu_phong')
+                                ->where('phong_id', $requestedPhongId)
+                                ->where('released', false)
+                                ->where('het_han_luc', '>', now())
+                                ->exists();
+                        }
 
-                                if ($locked) {
-                                    $row = $holdBase;
-                                    $row['so_luong'] = 1;
-                                    $row['phong_id'] = $requestedPhongId;
-                                    if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
-                                        $row['spec_signature_hash'] = $dbRoomSignature;
-                                    }
-                                    $row['meta'] = json_encode(array_merge($meta, ['selected_phong_id' => $requestedPhongId, 'selected_phong_ids' => [$requestedPhongId]]), JSON_UNESCAPED_UNICODE);
-                                    DB::table('giu_phong')->insert($row);
-                                    $requestedReserved = 1;
-                                    Log::debug('Booking: giu_phong inserted per-phong (requested room reserved)', ['phong_id' => $requestedPhongId, 'dat_phong_id' => $datPhongId]);
-                                } else {
-                                    Log::debug('Booking: requested room could not be locked', ['phong_id' => $requestedPhongId]);
+                        if (!$isBooked && !$isHeld) {
+                            $locked = Phong::where('id', $requestedPhongId)
+                                ->where('trang_thai', 'trong')
+                                ->lockForUpdate()
+                                ->first();
+
+                            if ($locked) {
+                                $row = $holdBase;
+                                $row['so_luong'] = 1;
+                                $row['phong_id'] = $requestedPhongId;
+
+                                if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
+                                    $row['spec_signature_hash'] = $dbRoomSignature;
                                 }
+
+                                $row['meta'] = json_encode(array_merge($meta, ['selected_phong_id' => $requestedPhongId, 'selected_phong_ids' => [$requestedPhongId]]), JSON_UNESCAPED_UNICODE);
+                                DB::table('giu_phong')->insert($row);
+
+                                $requestedReserved = 1;
+                                Log::debug('Booking: giu_phong inserted per-phong (requested room reserved)', ['phong_id' => $requestedPhongId, 'dat_phong_id' => $datPhongId]);
                             } else {
-                                Log::debug('Booking: requested room not available to reserve', ['phong_id' => $requestedPhongId, 'isBooked' => $isBooked, 'isHeld' => $isHeld]);
+                                Log::debug('Booking: requested room could not be locked', ['phong_id' => $requestedPhongId]);
                             }
                         } else {
-                            Log::debug('Booking: requested room signature mismatch', ['phong_id' => $requestedPhongId, 'db' => $dbRoomSignature, 'requested' => $requestedSpecSignature]);
+                            Log::debug('Booking: requested room not available to reserve', ['phong_id' => $requestedPhongId, 'isBooked' => $isBooked, 'isHeld' => $isHeld]);
                         }
                     }
 
