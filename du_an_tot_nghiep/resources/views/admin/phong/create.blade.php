@@ -90,7 +90,7 @@
                         value="{{ old('so_giuong') }}" required readonly>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label>Giá mặc định (Loại)</label>
+                    <label>Giá mặc định</label>
                     <input type="number" id="gia_input" name="gia_mac_dinh" class="form-control"
                         value="{{ old('gia_mac_dinh') }}" readonly>
                     <small class="form-text text-muted">Giá loại phòng; tổng thực tế hiển thị dưới.</small>

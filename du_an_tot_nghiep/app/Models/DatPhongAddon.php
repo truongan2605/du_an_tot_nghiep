@@ -13,6 +13,7 @@ class DatPhongAddon extends Model
 
     protected $fillable = [
         'dat_phong_id',
+        'phong_id',
         'name',
         'price',
         'qty',
@@ -21,18 +22,17 @@ class DatPhongAddon extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'qty' => 'integer',
         'total_price' => 'decimal:2',
     ];
 
-    // Relationships
     public function datPhong()
     {
         return $this->belongsTo(DatPhong::class);
     }
 
-    // Accessors
     public function getTotalPriceAttribute()
     {
-        return $this->price * $this->qty;
+        return (float)$this->price * (int)$this->qty;
     }
 }
