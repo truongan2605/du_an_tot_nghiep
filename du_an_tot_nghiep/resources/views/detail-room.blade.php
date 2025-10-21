@@ -277,7 +277,7 @@
                                                             class="d-sm-flex justify-content-sm-between align-items-center mt-auto">
                                                             <div class="d-flex align-items-center">
                                                                 <h5 class="fw-bold mb-0 me-1">
-                                                                    {{ number_format($r->gia_mac_dinh, 0, ',', '.') }} VND
+                                                                    {{ number_format($r->gia_cuoi_cung, 0, ',', '.') }} VND
                                                                 </h5>
                                                                 <span class="mb-0 me-2">/day</span>
                                                             </div>
