@@ -26,16 +26,22 @@ class DatPhong extends Model
         'ma_voucher',
         'discount_amount',
         'snapshot_total',
+        'snapshot_meta',
         'source',
         'ghi_chu',
+        'contact_name',
+        'contact_address',
+        'contact_phone',
     ];
 
     protected $casts = [
         'ngay_nhan_phong' => 'date',
         'ngay_tra_phong' => 'date',
+        'so_khach' => 'integer',
         'tong_tien' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'snapshot_total' => 'decimal:2',
+        'snapshot_meta' => 'array',
         'can_thanh_toan' => 'boolean',
     ];
 

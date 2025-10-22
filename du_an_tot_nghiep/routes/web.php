@@ -66,7 +66,7 @@ Route::prefix('admin')
             ->name('tien-nghi.toggle-active');
 
         // Loại phòng
-        Route::get('/admin/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
+        Route::get('/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
         Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])
             ->name('loai_phong.disable');
         Route::post('loai-phong/{id}/enable', [LoaiPhongController::class, 'enable'])
@@ -110,6 +110,8 @@ Route::prefix('admin')
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])
             ->name('voucher.toggle-active');
 
+        // ---- Giường ----
+        Route::resource('bed-types', BedTypeController::class);
         // ---- Redirect old routes ----
         Route::get('thong-bao', function () {
             return redirect()->route('admin.customer-notifications.index');
@@ -224,6 +226,12 @@ Route::middleware(['auth', 'admin'])->prefix('api/notifications')->group(functio
 
         Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
         Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+
+        Route::get('bookings', [BookingController::class, 'index'])
+            ->name('booking.index');
+
+        Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])
+            ->name('booking.show');
     });
 
 
