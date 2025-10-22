@@ -13,7 +13,7 @@ use Exception;
 
 class SendBatchNotificationJob implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, SerializesModels;
+    use Queueable, SerializesModels;
 
     protected $notificationData;
     protected $userIds;
