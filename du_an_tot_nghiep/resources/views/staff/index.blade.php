@@ -5,19 +5,23 @@
 @section('content')
 <div class="p-4">
 
-    {{-- Header --}}
+ 
     <h2 class="text-center mb-5 fw-bold text-dark">Dashboard Nhân Viên</h2>
 
-    {{-- Thống kê chính --}}
-    <div class="row g-4">
-        @php
-            $stats = [
-                ['label'=>'Booking Chờ Xác Nhận','value'=>$pendingBookings,'icon'=>'bi bi-clock','bg'=>'bg-gradient-primary'],
-                ['label'=>'Check-in Hôm Nay','value'=>$todayCheckins,'icon'=>'bi bi-box-arrow-in-right','bg'=>'bg-gradient-success'],
-                ['label'=>'Doanh Thu Hôm Nay','value'=>number_format($todayRevenue,0).' VND','icon'=>'bi bi-currency-dollar','bg'=>'bg-gradient-warning'],
-                ['label'=>'Phòng Trống','value'=>$availableRooms,'icon'=>'bi bi-house','bg'=>'bg-gradient-info']
-            ];
-        @endphp
+   
+    <div class="row g-4">   
+      @php
+    $stats = [
+        ['label'=>'Booking Chờ Xác Nhận','value'=>$pendingBookings,'icon'=>'bi bi-clock','bg'=>'bg-gradient-primary'],
+        ['label'=>'Check-in Hôm Nay','value'=>$todayCheckins,'icon'=>'bi bi-box-arrow-in-right','bg'=>'bg-gradient-success'],
+        ['label'=>'Doanh Thu Hôm Nay','value'=>number_format($todayRevenue,0).' VND','icon'=>'bi bi-currency-dollar','bg'=>'bg-gradient-warning'],
+        ['label'=>'Doanh Thu Tuần Này','value'=>number_format($weeklyRevenue,0).' VND','icon'=>'bi bi-calendar-week','bg'=>'bg-gradient-info'],
+        ['label'=>'Doanh Thu Tháng Này','value'=>number_format($monthlyRevenue,0).' VND','icon'=>'bi bi-calendar-month','bg'=>'bg-gradient-danger'],
+        ['label'=>'Tổng Doanh Thu','value'=>number_format($totalRevenue,0).' VND','icon'=>'bi bi-cash-stack','bg'=>'bg-gradient-dark'],
+        ['label'=>'Phòng Trống','value'=>$availableRooms,'icon'=>'bi bi-house','bg'=>'bg-gradient-secondary']
+    ];
+@endphp
+
 
         @foreach($stats as $s)
             <div class="col-md-3">
@@ -34,9 +38,9 @@
         @endforeach
     </div>
 
-    {{-- Biểu đồ & Hoạt động --}}
+   
     <div class="row mt-5 g-4">
-        {{-- Biểu đồ Check-in/Check-out --}}
+       
         <div class="col-lg-6">
             <div class="card shadow-sm rounded-3 border-0">
                 <div class="card-header bg-white fw-bold">Biểu đồ Check-in/Check-out</div>
@@ -46,7 +50,7 @@
             </div>
         </div>
 
-        {{-- Hoạt động gần đây --}}
+        
         <div class="col-lg-6">
             <div class="card shadow-sm rounded-3 border-0">
                 <div class="card-header bg-white fw-bold d-flex align-items-center">
@@ -82,7 +86,7 @@
         </div>
     </div>
 
-    {{-- Lịch & Quick Actions --}}
+
     <div class="row mt-5 g-4">
         <div class="col-lg-6">
             <div class="card shadow-sm rounded-3 border-0">
@@ -111,7 +115,7 @@
     </div>
 </div>
 
-{{-- Chart.js --}}
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -151,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-{{-- FullCalendar --}}
+
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
 <script>
@@ -174,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-{{-- Custom Gradients --}}
+
 <style>
 .bg-gradient-primary { background: linear-gradient(45deg, #0d6efd, #6610f2); }
 .bg-gradient-success { background: linear-gradient(45deg, #198754, #20c997); }
