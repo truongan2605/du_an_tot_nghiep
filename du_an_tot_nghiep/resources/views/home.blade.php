@@ -532,7 +532,7 @@
     <!-- =======================
                 Download app END -->
 
-    <!-- **************** MAIN CONTENT END **************** -->
+
     @push('scripts')
         <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
         <link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css" rel="stylesheet">
