@@ -98,10 +98,10 @@
             <a href="{{ route('staff.bookings') }}" class="btn btn-primary w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
                 <i class="bi bi-plus-circle me-2 fs-5"></i> Tạo Booking
             </a>
-            <a href="{{ route('staff.checkin') }}" class="btn btn-success w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
+            <a class="btn btn-success w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
                 <i class="bi bi-box-arrow-in-right me-2 fs-5"></i> Check-in
             </a>
-            <a href="{{ route('staff.checkout') }}" class="btn btn-warning w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
+            <a  class="btn btn-warning w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
                 <i class="bi bi-box-arrow-left me-2 fs-5"></i> Check-out
             </a>
             <a href="{{ route('staff.reports') }}" class="btn btn-info w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">

@@ -13,20 +13,29 @@ class DatPhongItem extends Model
 
     protected $fillable = [
         'dat_phong_id',
+        'phong_id',
         'loai_phong_id',
         'so_luong',
         'gia_tren_dem',
         'so_dem',
         'taxes_amount',
+        'tong_item'
     ];
 
     protected $casts = [
+        'so_luong' => 'integer',
         'gia_tren_dem' => 'decimal:2',
+        'so_dem' => 'integer',
         'taxes_amount' => 'decimal:2',
     ];
 
     // Relationships
-   public function datPhong()
+  
+    protected $attributes = [
+        'so_dem' => 1,
+    ];
+
+    public function datPhong()
     {
         return $this->belongsTo(DatPhong::class, 'dat_phong_id');
     }
@@ -36,14 +45,27 @@ class DatPhongItem extends Model
         return $this->belongsTo(LoaiPhong::class, 'loai_phong_id');
     }
 
+     public function phong()
+    {
+        return $this->belongsTo(Phong::class, 'phong_id');
+    }
+
     public function phongDaDats()
     {
         return $this->hasMany(PhongDaDat::class, 'dat_phong_item_id');
     }
 
     // Accessors
+    public function getTongItemAttribute()
+    {
+        if (!is_null($this->attributes['tong_item'] ?? null)) {
+            return (float) $this->attributes['tong_item'];
+        }
+        return (float) ($this->gia_tren_dem ?? 1) * (int) ($this->so_dem ?? 1) * (int) ($this->so_luong ?? 1);
+    }
+
     public function getTongTienAttribute()
     {
-        return $this->gia_tren_dem * $this->so_dem * $this->so_luong;
+        return $this->getTongItemAttribute();
     }
 }

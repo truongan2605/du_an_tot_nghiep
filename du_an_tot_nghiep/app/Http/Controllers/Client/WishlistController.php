@@ -27,7 +27,6 @@ class WishlistController extends Controller
         return view('account.wishlist', compact('wishlists'));
     }
 
-
     public function toggle(Request $request, $phongId)
     {
         $user = Auth::user();
