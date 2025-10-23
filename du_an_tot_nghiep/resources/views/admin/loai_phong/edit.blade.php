@@ -40,7 +40,7 @@
                     value="{{ old('gia_mac_dinh', $loaiphong->gia_mac_dinh) }}" required>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-3" hidden>
                 <label>Số lượng thực tế</label>
                 <input type="number" name="so_luong_thuc_te" class="form-control"
                     value="{{ old('so_luong_thuc_te', $loaiphong->so_luong_thuc_te) }}">

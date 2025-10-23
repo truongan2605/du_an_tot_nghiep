@@ -2,10 +2,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class BedType extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['name','slug','description','capacity','price','icon'];
+
+    protected $casts = [
+        'capacity' => 'integer',
+        'price' => 'decimal:2',
+    ];
 
     public function loaiPhongs()
     {
