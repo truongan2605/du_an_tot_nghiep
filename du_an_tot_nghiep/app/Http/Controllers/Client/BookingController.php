@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Client;
 
-use App\Http\Controllers\Controller;
-use App\Models\DatPhong;
-use App\Models\Phong;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
+use App\Models\Phong;
+use App\Models\DatPhong;
 use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class BookingController extends Controller
 {
@@ -35,11 +35,14 @@ class BookingController extends Controller
             ->orderBy('updated_at', 'desc')
             ->get();
 
-        $completed = DatPhong::where('nguoi_dung_id', $user->id)
-            ->where('trang_thai', 'hoan_thanh')
-            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
-            ->orderBy('ngay_nhan_phong', 'desc')
-            ->get();
+         $completed = DatPhong::where('nguoi_dung_id', $user->id)
+        ->where('trang_thai', 'hoan_thanh')
+        ->with([
+            'datPhongItems.phong.tang',  
+            'datPhongItems.loaiPhong'
+        ])
+        ->orderBy('ngay_nhan_phong', 'desc')
+        ->get();
 
         return view('account.bookings', compact('upcoming', 'cancelled', 'completed', 'user'));
     }
