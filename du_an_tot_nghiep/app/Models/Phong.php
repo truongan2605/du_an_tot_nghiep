@@ -273,7 +273,10 @@ class Phong extends Model
         $sig = $this->specSignatureArray();
         return md5(json_encode($sig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
-
+    public function danhGias()
+{
+    return $this->hasManyThrough(DanhGia::class, DatPhong::class, 'phong_id', 'dat_phong_id', 'id', 'id');
+}
     protected static function booted()
     {
         static::saving(function ($phong) {
