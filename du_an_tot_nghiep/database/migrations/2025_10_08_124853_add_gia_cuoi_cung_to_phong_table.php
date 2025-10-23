@@ -20,4 +20,3 @@ class AddGiaCuoiCungToPhongTable extends Migration
         });
     }
 }
-

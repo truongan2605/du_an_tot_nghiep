@@ -24,7 +24,10 @@ class LoaiPhong extends Model
     ];
 
     protected $casts = [
+        'suc_chua' => 'integer',
+        'so_giuong' => 'integer',
         'gia_mac_dinh' => 'decimal:2',
+        'so_luong_thuc_te' => 'integer',
         'active' => 'boolean',
     ];
 
@@ -52,7 +55,6 @@ public function vatDungs()
             ->withPivot(['quantity', 'price'])
             ->withTimestamps();
     }
-
 
     public static function refreshSoLuongThucTe(int $loaiPhongId): int
     {

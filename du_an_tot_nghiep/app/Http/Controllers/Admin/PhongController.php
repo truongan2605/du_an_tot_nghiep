@@ -12,7 +12,9 @@ use App\Models\TienNghi;
 use App\Models\VatDung;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 
 class PhongController extends Controller
 {
@@ -184,6 +186,13 @@ class PhongController extends Controller
             $phong->loadMissing(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes']);
             $phong->recalcAndSave(true);
 
+            try {
+                $phong->spec_signature_hash = $phong->specSignatureHash();
+                $phong->saveQuietly();
+            } catch (\Throwable $e) {
+                Log::warning('Could not save spec_signature_hash for Phong id=' . $phong->id . ': ' . $e->getMessage());
+            }
+
             DB::commit();
             return redirect()->route('admin.phong.index')->with('success', 'Thêm phòng thành công');
         } catch (\Throwable $e) {
@@ -332,6 +341,13 @@ class PhongController extends Controller
 
             $phong->loadMissing(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes']);
             $phong->recalcAndSave(true);
+
+            try {
+                $phong->spec_signature_hash = $phong->specSignatureHash();
+                $phong->saveQuietly();
+            } catch (\Throwable $e) {
+                Log::warning('Could not save spec_signature_hash for Phong id=' . $phong->id . ': ' . $e->getMessage());
+            }
 
             DB::commit();
             return redirect()->route('admin.phong.index')->with('success', 'Cập nhật phòng thành công');

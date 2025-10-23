@@ -17,7 +17,10 @@
                                 action="{{ route('account.wishlist.clear') }}">
                                 @csrf
                                 <div class="col-6 col-xl-3">
-                                    
+                                    <select class="form-select form-select-sm js-choice border-0">
+                                        <option value="">Sort by</option>
+                                        <option>Recently added</option>
+                                    </select>
                                 </div>
                                 <button class="btn btn-danger-soft mb-0" type="submit"><i
                                         class="fas fa-trash me-2"></i>Remove all</button>
@@ -32,8 +35,6 @@
                                                 <img src="{{ $p->firstImageUrl() ?? ($p->thumb_url ?? asset('template/stackbros/assets/images/category/hotel/4by3/10.jpg')) }}"
                                                     class="card-img rounded-2"
                                                     alt="{{ $p->ten_phong ?? ($p->name ?? 'Phong') }}">
-
-
                                             </div>
                                             <div class="col-md-9">
                                                 <div class="card-body py-md-2 d-flex flex-column h-100">
