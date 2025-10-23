@@ -4,7 +4,7 @@
 
 @section('content')
     <!-- =======================
-    Banner START -->
+                            Banner START -->
     <section class="position-relative overflow-hidden rounded-4 mt-4 mx-auto"
         style="height: 360px; width: 90%; max-width: 1200px;">
         <!-- Background Image -->
@@ -25,7 +25,7 @@
         </div>
     </section>
     <!-- =======================
-    Banner END -->
+                            Banner END -->
 
 
 
@@ -79,25 +79,42 @@
 
                             <div class="filter-divider"></div>
 
-                            {{-- Rating --}}
-                            <h6>Rating Star</h6>
-                            <div class="d-flex flex-wrap gap-2 mb-3">
-                                <button type="button" class="btn btn-light btn-sm border">★</button>
-                                <button type="button" class="btn btn-light btn-sm border">★★</button>
-                                <button type="button" class="btn btn-light btn-sm border">★★★</button>
-                                <button type="button" class="btn btn-light btn-sm border">★★★★</button>
-                                <button type="button" class="btn btn-light btn-sm border">★★★★★</button>
-                            </div>
-
-                            <div class="filter-divider"></div>
+                            {{-- Rating Star --}}
+                            <h6 class="fw-bold mb-3">Rating Star</h6>
+                            <ul class="list-unstyled mb-3">
+                                @for ($i = 5; $i >= 1; $i--)
+                                    <li class="mb-1">
+                                        <input type="radio" name="diem" id="star{{ $i }}"
+                                            value="{{ $i }}" {{ request('diem') == $i ? 'checked' : '' }}>
+                                        <label for="star{{ $i }}">
+                                            @for ($j = 1; $j <= $i; $j++)
+                                                <i class="bi bi-star-fill text-warning"></i>
+                                            @endfor
+                                            @for ($j = $i + 1; $j <= 5; $j++)
+                                                <i class="bi bi-star text-muted"></i>
+                                            @endfor
+                                        </label>
+                                    </li>
+                                @endfor
+                                <li>
+                                    <input type="radio" name="diem" id="all_rating" value=""
+                                        {{ request('diem') == '' ? 'checked' : '' }}>
+                                    <label for="all_rating">All ratings</label>
+                                </li>
+                            </ul>
 
                             {{-- Amenities --}}
                             <h6>Amenities</h6>
                             <ul class="list-unstyled">
+                                @php
+                                    $selectedTienNghi = (array) request('tien_nghi', []);
+                                @endphp
+
                                 @foreach ($tienNghis as $tienNghi)
                                     <li>
                                         <input type="checkbox" name="tien_nghi[]" id="amenity{{ $tienNghi->id }}"
-                                            value="{{ $tienNghi->id }}">
+                                            value="{{ $tienNghi->id }}"
+                                            {{ in_array($tienNghi->id, $selectedTienNghi) ? 'checked' : '' }}>
                                         <label for="amenity{{ $tienNghi->id }}">{{ $tienNghi->ten }}</label>
                                     </li>
                                 @endforeach
@@ -124,13 +141,13 @@
                                         <div class="col-md-5 position-relative">
                                             @if ($phong->images->count() > 1)
                                                 <div id="carouselRoom{{ $phong->id }}" class="carousel slide"
-                                                    data-bs-ride="carousel">
-                                                    <div class="carousel-inner">
+                                                    data-bs-ride="carousel" data-bs-interval="3000">
+                                                    <div class="carousel-inner room-carousel-inner rounded-start">
                                                         @foreach ($phong->images as $key => $img)
                                                             <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
-                                                                <img src="{{ asset($img->duong_dan) }}"
-                                                                    class="w-100 h-100 object-fit-cover"
-                                                                    alt="{{ $phong->name }}">
+                                                                <img src="{{ asset('storage/' . $img->image_path) }}"
+                                                                    class="d-block w-100 h-100 object-fit-cover rounded-start-4"
+                                                                    alt="Image {{ $key + 1 }}">
                                                             </div>
                                                         @endforeach
                                                     </div>
@@ -148,8 +165,9 @@
                                                     </button>
                                                 </div>
                                             @else
-                                                <img src="{{ asset($phong->firstImageUrl() ?? 'template/stackbros/assets/images/default-room.jpg') }}"
-                                                    class="w-100 h-100 object-fit-cover" alt="{{ $phong->name }}">
+                                                <img src="{{ asset('storage/' . ($phong->images->first()->image_path ?? 'template/stackbros/assets/images/default-room.jpg')) }}"
+                                                    class="w-100 h-100 object-fit-cover rounded-start-4"
+                                                    alt="{{ $phong->name }}">
                                             @endif
 
                                             {{-- Badge Giảm giá nếu có --}}
@@ -196,21 +214,20 @@
                                                 <div class="small text-muted mb-2">
                                                     @if ($phong->tienNghis && $phong->tienNghis->count())
                                                         @foreach ($phong->tienNghis->take(3) as $tiennghi)
-                                                            {{ $tiennghi->ten_tien_nghi }} &bull;
+                                                            <span class="me-2"><i
+                                                                    class="bi bi-check-circle text-success me-1"></i>{{ $tiennghi->ten }}</span>
                                                         @endforeach
+
                                                         @if ($phong->tienNghis->count() > 3)
-                                                            <a href="#" class="text-decoration-none">More+</a>
+                                                            <a href="{{ route('rooms.show', $phong->id) }}"
+                                                                class="text-decoration-none">More+</a>
                                                         @endif
                                                     @else
                                                         <span>Chưa có tiện nghi</span>
                                                     @endif
                                                 </div>
 
-                                                {{-- Ưu đãi --}}
-                                                <ul class="list-unstyled small mb-3 text-success">
-                                                    <li><i class="bi bi-check-circle me-2"></i>Miễn phí huỷ phòng</li>
-                                                    <li><i class="bi bi-check-circle me-2"></i>Bữa sáng miễn phí</li>
-                                                </ul>
+
 
                                                 {{-- Giá & Nút chọn phòng --}}
                                                 <div class="d-flex justify-content-between align-items-center">
@@ -377,6 +394,36 @@
 
         section.rounded-4:hover img {
             transform: scale(1.05);
+        }
+
+        /* Carousel ảnh phòng */
+        .room-carousel-inner {
+            height: 250px;
+            /* Chiều cao cố định */
+            overflow: hidden;
+            border-radius: 14px 0 0 14px;
+        }
+
+        .room-carousel-img {
+            height: 100%;
+            width: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .room-carousel-img:hover {
+            transform: scale(1.05);
+        }
+
+        /* Đảm bảo toàn card không nhảy khi đổi ảnh */
+        .room-card {
+            min-height: 250px;
+        }
+
+        @media (max-width: 768px) {
+            .room-carousel-inner {
+                height: 200px;
+            }
         }
     </style>
 @endpush
