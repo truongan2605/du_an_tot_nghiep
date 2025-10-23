@@ -13,11 +13,22 @@ class VatDungController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        $vatdungs = VatDung::orderBy('created_at', 'desc')->paginate(10);
-        return view('admin.vat-dung.index', compact('vatdungs'));
+  public function index(Request $request)
+{
+    $query = VatDung::query();
+
+    // Nếu có từ khóa tìm kiếm
+    if ($request->filled('keyword')) {
+        $query->where('ten', 'like', '%' . $request->keyword . '%');
+        // 👉 Nếu cột trong DB của bạn là 'name' thì đổi dòng trên thành:
+        // $query->where('name', 'like', '%' . $request->keyword . '%');
     }
+
+    $vatdungs = $query->orderBy('created_at', 'desc')->paginate(10);
+
+    return view('admin.vat-dung.index', compact('vatdungs'));
+}
+
 
     /**
      * Show the form for creating a new resource.

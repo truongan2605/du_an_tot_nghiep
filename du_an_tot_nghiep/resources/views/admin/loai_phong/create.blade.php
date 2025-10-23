@@ -67,15 +67,15 @@
                         <div class="col-md-6 mb-2">
                             <div class="form-check">
                                 <input 
-                                    class="form-check-input" 
-                                    type="checkbox" 
-                                    name="vat_dung[]" 
-                                    value="{{ $item->id }}" 
-                                    id="vatDung{{ $item->id }}"
-                                    {{ in_array($item->id, old('vat_dung', [])) ? 'checked' : '' }}>
-                                <label class="form-check-label" for="vatDung{{ $item->id }}">
-                                    {{ $item->ten }}
-                                </label>
+    class="form-check-input" 
+    type="checkbox" 
+    name="vat_dungs[]" 
+    value="{{ $item->id }}" 
+    id="vatDung{{ $item->id }}"
+    {{ in_array($item->id, old('vat_dungs', [])) ? 'checked' : '' }}>
+<label class="form-check-label" for="vatDung{{ $item->id }}">
+    {{ $item->ten }}
+</label>
                             </div>
                         </div>
                     @endforeach

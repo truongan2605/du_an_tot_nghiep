@@ -39,5 +39,9 @@ public function loaiPhongs()
 {
     return $this->belongsToMany(LoaiPhong::class, 'loai_phong_vat_dung', 'vat_dung_id', 'loai_phong_id');
 }
+public function scopeActive($query)
+{
+    return $query->where('active', true);
+}
 
 }

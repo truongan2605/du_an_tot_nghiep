@@ -8,6 +8,13 @@
     <a href="{{ route('admin.vat-dung.create') }}" class="btn btn-primary">
         <i class="fas fa-plus me-2"></i>Thêm dịch vụ mới
     </a>
+    <form action="{{ route('admin.vat-dung.index') }}" method="GET" class="mb-3 d-flex">
+    <input type="text" name="keyword" class="form-control me-2" 
+           placeholder="Nhập tên vật dụng cần tìm..." 
+           value="{{ request('keyword') }}">
+    <button type="submit" class="btn btn-primary">Tìm kiếm</button>
+</form>
+
 </div>
 
 <div class="card">

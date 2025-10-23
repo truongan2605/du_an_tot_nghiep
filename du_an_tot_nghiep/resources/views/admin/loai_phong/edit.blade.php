@@ -47,18 +47,23 @@
                 <div class="form-text">Sẽ được cập nhật tự động nếu bạn thay đổi cấu hình giường bên dưới.</div>
             </div>
 
-            <div class="mb-3">
-                <label>Tiện nghi</label>
-                <div class="d-flex flex-wrap">
-                    @foreach ($tienNghis as $tn)
-                        <div class="form-check me-3">
-                            <input type="checkbox" name="tien_nghi[]" value="{{ $tn->id }}" class="form-check-input"
-                                {{ in_array($tn->id, old('tien_nghi', $loaiphong->tienNghis->pluck('id')->toArray())) ? 'checked' : '' }}>
-                            <label class="form-check-label">{{ $tn->ten }}</label>
-                        </div>
-                    @endforeach
-                </div>
+           {{-- Tiện nghi --}}
+<div class="mb-3">
+    <label>Tiện nghi</label>
+    <div class="d-flex flex-wrap">
+        @foreach ($tienNghis as $tn)
+            <div class="form-check me-3">
+                <input 
+                    type="checkbox" 
+                    name="tien_nghi_ids[]" 
+                    value="{{ $tn->id }}" 
+                    class="form-check-input"
+                    {{ in_array($tn->id, old('tien_nghi_ids', $loaiphong->tienNghis->pluck('id')->toArray())) ? 'checked' : '' }}>
+                <label class="form-check-label">{{ $tn->ten }}</label>
             </div>
+        @endforeach
+    </div>
+</div>
 
             <hr>
             <h5>Bed types (Cấu hình giường cho loại phòng)</h5>

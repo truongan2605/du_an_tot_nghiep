@@ -41,8 +41,11 @@ class LoaiPhong extends Model
 
 public function vatDungs()
 {
-    return $this->belongsToMany(VatDung::class, 'loai_phong_vat_dung', 'loai_phong_id', 'vat_dung_id');
+    return $this->belongsToMany(VatDung::class, 'loai_phong_vat_dung', 'loai_phong_id', 'vat_dung_id')
+                ->where('vat_dungs.active', true);
 }
+
+
     public function bedTypes()
     {
         return $this->belongsToMany(BedType::class, 'loai_phong_bed_type')
