@@ -48,6 +48,9 @@ use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
+Route::get('/list-room', [RoomController::class, 'index'])->name('list-room.index');
+Route::get('/list-room/{id}', [RoomController::class, 'show'])->name('list-room.show');
+
 Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.show');
 
 Route::get('auth/google', [SocialAuthController::class, 'redirectToGoogle'])->name('auth.google');
@@ -76,7 +79,7 @@ Route::prefix('admin')
         Route::resource('phong', PhongController::class);
         Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
             ->name('phong.image.destroy');
-        // loai phong 
+        // loai phong
         Route::resource('loai_phong', LoaiPhongController::class);
 
         // ---- Tầng ----
