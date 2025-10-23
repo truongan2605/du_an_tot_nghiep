@@ -27,6 +27,10 @@ use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+Route::get('/list-room', [RoomController::class, 'index'])->name('list-room.index');
+Route::get('/list-room/{id}', [RoomController::class, 'show'])->name('list-room.show');
+
 Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.show');
 
 // Google login
@@ -54,6 +58,10 @@ Route::prefix('admin')
         // Phòng
         Route::resource('phong', PhongController::class);
         Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])->name('phong.image.destroy');
+        Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
+            ->name('phong.image.destroy');
+        // loai phong
+        Route::resource('loai_phong', LoaiPhongController::class);
 
         // ---- Tầng ----
         Route::resource('tang', TangController::class);

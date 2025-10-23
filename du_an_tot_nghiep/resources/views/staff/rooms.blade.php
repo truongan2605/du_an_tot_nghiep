@@ -63,6 +63,7 @@
                                     'trong' => ['label'=>'Trống','class'=>'bg-success text-white'],
                                     'dang_su_dung' => ['label'=>'Đang sử dụng','class'=>'bg-primary text-white'],
                                     'dang_don_dep' => ['label'=>'Đang dọn dẹp','class'=>'bg-warning text-dark'],
+                                    'da_dat' => ['label'=>'Đã đặt','class'=>'bg-info text-white'],
                                 ];
                             @endphp
                             <span class="badge rounded-pill {{ $statusRoom[$room->trang_thai]['class'] ?? 'bg-secondary' }}">

@@ -284,7 +284,7 @@
                                                         value="{{ $ngay_tra ?? now()->addDay()->format('Y-m-d') }}">
 
 
-                                                    <label class="form-label">Payment method</label>
+
                                                     <div class="mt-3" id="vnpay_button_wrapper" style="display:none;">
                                                         <button type="button" class="btn btn-lg btn-success"
                                                             id="pay_vnpay_btn">
@@ -735,6 +735,9 @@
                 const snapshotTotalInput = document.getElementById('snapshot_total_input');
                 if (finalPerNightInput) finalPerNightInput.value = finalPerNight;
                 if (snapshotTotalInput) snapshotTotalInput.value = total;
+
+                const hiddenTotalInput = document.getElementById('hidden_tong_tien');
+                if (hiddenTotalInput) hiddenTotalInput.value = total;
             }
 
             // bind events
@@ -774,7 +777,7 @@
 
                 // 🔹 Lấy thông tin phòng từ form
                 const phongId = document.querySelector('input[name="phong_id"]')
-                .value; // id phòng đang xem
+                    .value; // id phòng đang xem
                 const ngayNhan = document.querySelector('input[name="ngay_nhan"]').value;
                 const ngayTra = document.querySelector('input[name="ngay_tra"]').value;
                 const tongTien = document.getElementById('hidden_tong_tien').value;
