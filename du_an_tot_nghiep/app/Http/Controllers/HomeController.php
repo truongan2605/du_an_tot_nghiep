@@ -20,7 +20,8 @@ class HomeController extends Controller
         if (Auth::check()) {
             $favoriteIds = Wishlist::where('user_id', Auth::id())->pluck('phong_id')->toArray();
         }
-
-        return view('home', compact('loaiPhongs','phongs', 'favoriteIds'));
+        $giaMin = 0;
+        $giaMax = Phong::max('gia_cuoi_cung') ?? 1000000;
+        return view('home', compact('loaiPhongs','phongs', 'favoriteIds','giaMin', 'giaMax'));
     }
 }

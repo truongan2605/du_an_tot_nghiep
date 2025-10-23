@@ -44,21 +44,8 @@ class RoomController extends Controller
             $query->where('loai_phong_id', $request->loai_phong_id);
         }
         // =============== Lọc theo giá ===============
-        if ($request->filled('gia_khoang')) {
-            switch ($request->gia_khoang) {
-                case '1':
-                    $query->where('gia_mac_dinh', '<', 500000);
-                    break;
-                case '2':
-                    $query->whereBetween('gia_mac_dinh', [500000, 1000000]);
-                    break;
-                case '3':
-                    $query->whereBetween('gia_mac_dinh', [1000000, 1500000]);
-                    break;
-                case '4':
-                    $query->where('gia_mac_dinh', '>', 1500000);
-                    break;
-            }
+        if ($request->filled('gia_min') && $request->filled('gia_max')) {
+            $query->whereBetween('gia_cuoi_cung', [$request->gia_min, $request->gia_max]);
         }
         // =============== Lọc theo tiện nghi ===============
         if ($request->filled('amenities')) {
@@ -66,17 +53,26 @@ class RoomController extends Controller
         $q->whereIn('tien_nghi.id', $request->amenities);
     });
 }
-        // =============== Lọc theo trạng thái phòng / ngày ===============
-        if ($request->filled('check_in_out')) {
-            $dates = explode(' to ', $request->check_in_out);
-            if (count($dates) === 2) {
-                $query->where('trang_thai', 'Trống');
-            }
+        // ====== Lọc theo ngày Check-in / Check-out ======
+    $checkIn = null;
+    $checkOut = null;
+    if ($request->filled('check_in_out')) {
+        $dates = explode(' to ', $request->check_in_out);
+        if (count($dates) === 2) {
+            $checkIn = trim($dates[0]);
+            $checkOut = trim($dates[1]);
         }
+    }
+
+    // Không lọc theo trạng thái nữa → hiển thị tất cả
+    $phongs = $query->paginate(9)->withQueryString();
     $phongs = $query->paginate(9);
     $loaiPhongs = LoaiPhong::all();
     $tienNghis = TienNghi::where('active', 1)->get();
-    return view('list-room', compact('phongs', 'loaiPhongs','tienNghis'));
+    $giaMin =   0;
+    $giaMax = Phong::max('gia_cuoi_cung') ;
+    return view('list-room', compact('phongs', 'loaiPhongs','tienNghis','giaMin',
+    'giaMax'));
     }
     public function show($id)
     {

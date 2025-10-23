@@ -5,7 +5,7 @@
 @section('content')
 
     <!-- =======================
-    Main Banner START -->
+                Main Banner START -->
     <section class="pt-3 pt-lg-5">
         <div class="container">
             <!-- Content and Image START -->
@@ -89,157 +89,72 @@
             <!-- Content and Image END -->
 
             <!-- Search START -->
-            <div class="row">
-                <div class="col-xl-10 position-relative mt-n3 mt-xl-n9">
-                    <!-- Title -->
-                    <h6 class="d-none d-xl-block mb-3">Check Availability</h6>
+            <form action="{{ route('list-room.index') }}" method="GET"
+                class="card shadow rounded-4 position-relative p-4 pb-5 pb-md-4">
+                <div class="row g-4 align-items-center">
 
-                    <!-- Booking from START -->
-                    <form action="{{ route('list-room.index') }}" method="GET" class="card shadow rounded-3 position-relative p-4 pe-md-5 pb-5 pb-md-4">
-                        <div class="row g-4 align-items-center">
-                            <!-- Loại phòng -->
-                            <div class="col-lg-4">
-                                <div class="form-control-border form-control-transparent form-fs-md d-flex">
-                                    <i class="bi bi-door-open fs-3 me-2 mt-2"></i>
-                                    <div class="flex-grow-1">
-                                        <label class="form-label">Room Type</label>
-                                        <select class="form-select js-choice" name="loai_phong_id" data-search-enabled="true">
-                                            <option value="">-- ALL Room Type --</option>
-                                            @foreach($loaiPhongs as $loaiPhong)
-                                                <option value="{{ $loaiPhong->id }}"
-                                                    {{ request('loai_phong_id') == $loaiPhong->id ? 'selected' : '' }}>
-                                                    {{ $loaiPhong->ten_loai_phong ?? $loaiPhong->ten }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Check in -->
-                            <div class="col-lg-4">
-                                <div class="d-flex">
-                                    <!-- Icon -->
-                                    <i class="bi bi-calendar fs-3 me-2 mt-2"></i>
-                                    <!-- Date input -->
-                                    <div class="form-control-border form-control-transparent form-fs-md">
-                                        <label class="form-label">Check in - out</label>
-                                        <input type="text" class="form-control flatpickr" data-mode="range"
-                                            placeholder="Select date" value="19 Sep to 28 Sep">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Guest -->
-                            <div class="col-lg-4">
-                                <div class="form-control-border form-control-transparent form-fs-md d-flex">
-                                    <!-- Icon -->
-                                    <i class="bi bi-person fs-3 me-2 mt-2"></i>
-                                    <!-- Dropdown input -->
-                                    <div class="w-100">
-                                        <label class="form-label">Guests & rooms</label>
-                                        <div class="dropdown guest-selector me-2">
-                                            <input type="text" class="form-guest-selector form-control selection-result"
-                                                value="2 Guests 1 Room" data-bs-auto-close="outside"
-                                                data-bs-toggle="dropdown">
-
-                                            <!-- dropdown items -->
-                                            <ul class="dropdown-menu guest-selector-dropdown">
-                                                <!-- Adult -->
-                                                <li class="d-flex justify-content-between">
-                                                    <div>
-                                                        <h6 class="mb-0">Adults</h6>
-                                                        <small>Ages 13 or above</small>
-                                                    </div>
-
-                                                    <div class="hstack gap-1 align-items-center">
-                                                        <button type="button" class="btn btn-link adult-remove p-0 mb-0"><i
-                                                                class="bi bi-dash-circle fs-5 fa-fw"></i></button>
-                                                        <h6 class="guest-selector-count mb-0 adults">2</h6>
-                                                        <button type="button" class="btn btn-link adult-add p-0 mb-0"><i
-                                                                class="bi bi-plus-circle fs-5 fa-fw"></i></button>
-                                                    </div>
-                                                </li>
-
-                                                <!-- Divider -->
-                                                <li class="dropdown-divider"></li>
-
-                                                <!-- Child -->
-                                                <li class="d-flex justify-content-between">
-                                                    <div>
-                                                        <h6 class="mb-0">Child</h6>
-                                                        <small>Ages 13 below</small>
-                                                    </div>
-
-                                                    <div class="hstack gap-1 align-items-center">
-                                                        <button type="button" class="btn btn-link child-remove p-0 mb-0"><i
-                                                                class="bi bi-dash-circle fs-5 fa-fw"></i></button>
-                                                        <h6 class="guest-selector-count mb-0 child">0</h6>
-                                                        <button type="button" class="btn btn-link child-add p-0 mb-0"><i
-                                                                class="bi bi-plus-circle fs-5 fa-fw"></i></button>
-                                                    </div>
-                                                </li>
-
-                                                <!-- Divider -->
-                                                <li class="dropdown-divider"></li>
-
-                                                <!-- Rooms -->
-                                                <li class="d-flex justify-content-between">
-                                                    <div>
-                                                        <h6 class="mb-0">Rooms</h6>
-                                                        <small>Max room 8</small>
-                                                    </div>
-
-                                                    <div class="hstack gap-1 align-items-center">
-                                                        <button type="button"
-                                                            class="btn btn-link room-remove p-0 mb-0"><i
-                                                                class="bi bi-dash-circle fs-5 fa-fw"></i></button>
-                                                        <h6 class="guest-selector-count mb-0 rooms">1</h6>
-                                                        <button type="button" class="btn btn-link room-add p-0 mb-0"><i
-                                                                class="bi bi-plus-circle fs-5 fa-fw"></i></button>
-                                                    </div>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- Loại phòng -->
+                    <div class="col-lg-3 col-md-6 d-flex align-items-center">
+                        <i class="bi bi-door-open fs-3 me-2 text-muted"></i>
+                        <div class="flex-grow-1">
+                            <label class="form-label fw-semibold text-muted mb-1">Room Type</label>
+                            <select class="form-select js-choice" name="loai_phong_id" data-search-enabled="true">
+                                <option value="">-- All Room Type --</option>
+                                @foreach ($loaiPhongs as $loaiPhong)
+                                    <option value="{{ $loaiPhong->id }}"
+                                        {{ request('loai_phong_id') == $loaiPhong->id ? 'selected' : '' }}>
+                                        {{ $loaiPhong->ten_loai_phong ?? $loaiPhong->ten }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
-                        <!-- Khoảng giá -->
-                                <div class="col-lg-4">
-                                    <div class="form-control-border form-control-transparent form-fs-md d-flex">
-                                        <i class="bi bi-cash-stack fs-3 me-2 mt-2"></i>
-                                        <div class="flex-grow-1">
-                                            <label class="form-label">Price</label>
-                                            <select class="form-select js-choice" name="gia_khoang">
-                                                <option value="">-- All Price --</option>
-                                                <option value="1" {{ request('gia_khoang') == '1' ? 'selected' : '' }}>Dưới 500.000đ</option>
-                                                <option value="2" {{ request('gia_khoang') == '2' ? 'selected' : '' }}>500.000đ - 1.000.000đ</option>
-                                                <option value="3" {{ request('gia_khoang') == '3' ? 'selected' : '' }}>1.000.000đ - 1.500.000đ</option>
-                                                <option value="4" {{ request('gia_khoang') == '4' ? 'selected' : '' }}>Trên 1.500.000đ</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                        <!-- Button -->
-                        <div class="btn-position-md-middle">
-                            {{-- <a class="icon-lg btn btn-round btn-primary mb-0" href="#"><i
-                                    class="bi bi-search fa-fw"></i></a> --}}
-                            <button type="submit" class="icon-lg btn btn-round btn-primary mb-0"><i
-                                    class="bi bi-search fa-fw"></i></button>
+                    </div>
+
+                    <!-- Check in -->
+                    <div class="col-lg-3 col-md-6 d-flex align-items-center">
+                        <i class="bi bi-calendar fs-3 me-2 text-muted"></i>
+                        <div class="flex-grow-1">
+                            <label class="form-label fw-semibold text-muted mb-1">Check in - out</label>
+                            <input type="text" class="form-control flatpickr" name="date_range" data-mode="range"
+                                placeholder="Select date" value="{{ request('date_range') }}">
                         </div>
-                    </form>
-                    <!-- Booking from END -->
+                    </div>
+
+                    <!-- Price Range -->
+                    <div class="col-lg-5 col-md-12 d-flex align-items-center">
+                        <i class="bi bi-cash-stack fs-3 me-3 text-muted"></i>
+                        <div class="flex-grow-1">
+                            <label class="form-label fw-semibold text-muted mb-1">Price (VNĐ)</label>
+                            <div id="price-slider-home" class="my-1"></div>
+                            <div class="d-flex justify-content-between small text-muted mt-1">
+                                <span id="min-price-home">{{ number_format($giaMin, 0, ',', '.') }}đ</span>
+                                <span id="max-price-home">{{ number_format($giaMax, 0, ',', '.') }}đ</span>
+                            </div>
+                            <input type="hidden" id="gia_min_home" name="gia_min"
+                                value="{{ request('gia_min', $giaMin) }}">
+                            <input type="hidden" id="gia_max_home" name="gia_max"
+                                value="{{ request('gia_max', $giaMax) }}">
+                        </div>
+                    </div>
+
+                    <!-- Button -->
+                    <div class="col-lg-1 col-md-12 d-flex justify-content-center">
+                        <button type="submit"
+                            class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
+                            style="width: 50px; height: 50px; background-color: #5E3EFF;">
+                            <i class="bi bi-search fs-4"></i>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            </form>
             <!-- Search END -->
         </div>
     </section>
     <!-- =======================
-    Main Banner END -->
+                Main Banner END -->
 
     <!-- =======================
-    Best deal START -->
+                Best deal START -->
     <section class="pb-2 pb-lg-5">
         <div class="container">
             <!-- Slider START -->
@@ -343,10 +258,10 @@
         </div>
     </section>
     <!-- =======================
-    Best deal END -->
+                Best deal END -->
 
     <!-- =======================
-    About START -->
+                About START -->
     <section class="pb-0 pb-xl-5">
         <div class="container">
             <div class="row g-4 justify-content-between align-items-center">
@@ -456,10 +371,10 @@
         </div>
     </section>
     <!-- =======================
-    About END -->
+                About END -->
 
     <!-- =======================
-    Featured Hotels START -->
+                Featured Hotels START -->
     <section>
         <div class="container mt-5">
             <!-- Title -->
@@ -528,10 +443,10 @@
         </div>
     </section>
     <!-- =======================
-    Featured Hotels END -->
+                Featured Hotels END -->
 
     <!-- =======================
-    Client START -->
+                Client START -->
     <section class="py-0 py-md-5">
         <div class="container">
             <div class="row g-4 g-lg-7 justify-content-center align-items-center">
@@ -569,10 +484,10 @@
         </div>
     </section>
     <!-- =======================
-    Client END -->
+                Client END -->
 
     <!-- =======================
-    Download app START -->
+                Download app START -->
     <section class="bg-light">
         <div class="container">
             <div class="row g-4">
@@ -615,9 +530,49 @@
         </div>
     </section>
     <!-- =======================
-    Download app END -->
+                Download app END -->
 
     <!-- **************** MAIN CONTENT END **************** -->
+    @push('scripts')
+        <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+        <link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css" rel="stylesheet">
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var priceSlider = document.getElementById('price-slider-home');
+                if (!priceSlider) return;
+
+                var minInput = document.getElementById('gia_min_home');
+                var maxInput = document.getElementById('gia_max_home');
+                var minLabel = document.getElementById('min-price-home');
+                var maxLabel = document.getElementById('max-price-home');
+
+                var minVal = parseInt(minInput.value);
+                var maxVal = parseInt(maxInput.value);
+
+                noUiSlider.create(priceSlider, {
+                    start: [minVal, maxVal],
+                    connect: true,
+                    range: {
+                        'min': {{ $giaMin }},
+                        'max': {{ $giaMax }}
+                    },
+                    step: 50000,
+                    format: {
+                        to: value => Math.round(value),
+                        from: value => Math.round(value)
+                    }
+                });
+
+                priceSlider.noUiSlider.on('update', function(values) {
+                    minInput.value = values[0];
+                    maxInput.value = values[1];
+                    minLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[0]) + 'đ';
+                    maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[1]) + 'đ';
+                });
+            });
+        </script>
+    @endpush
 
 @endsection
 
@@ -657,6 +612,31 @@
 
         .btn-wishlist i.text-danger {
             color: #dc3545 !important;
+        }
+
+        /* Thanh trượt giá trang chủ */
+        .noUi-target {
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            height: 8px;
+        }
+
+        .noUi-connect {
+            background: rgba(110, 110, 110, 0.6) !important;
+        }
+
+        .noUi-handle {
+            width: 26px !important;
+            height: 26px !important;
+            border-radius: 50% !important;
+            background: #fff !important;
+            border: 3px solid #5E3EFF !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .noUi-horizontal .noUi-handle {
+            top: -9px;
         }
     </style>
 @endpush
