@@ -22,7 +22,7 @@
         }
 
         aside {
-            width: 250px;
+            min-width: 300px;
             min-height: 100vh;
             transition: all 0.3s;
             background-color: #343a40;
@@ -114,7 +114,7 @@
         <!-- Sidebar -->
         <aside class="p-3 shadow-sm">
             <div class="sidebar-brand mb-4">
-                🏨 <span>Hotel Manager</span>
+                <span>Hotel Manager</span>
             </div>
             <nav class="nav flex-column">
                 @if(Auth::check() && in_array(Auth::user()->vai_tro, ['nhan_vien','admin']))
@@ -160,7 +160,7 @@
                     <!-- User dropdown -->
                     <div class="dropdown">
                         <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <img src="https://i.pravatar.cc/40?{{ Auth::id() }}" alt="avatar" class="rounded-circle border border-light shadow-sm" width="40" height="40">
+                            <img src="{{ auth()->user() && auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/avt.jpg') }}" alt="avatar" class="rounded-circle border border-light shadow-sm" width="40" height="40">
                             <div class="ms-2 text-dark">
                                 <div class="fw-semibold">{{ Auth::user()->name }}</div>
                                 <small class="text-muted">{{ ucfirst(Auth::user()->vai_tro) }}</small>

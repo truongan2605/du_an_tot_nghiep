@@ -324,9 +324,9 @@
                                                                 {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>
                                                                 Pay at the hotel (Cash)
                                                             </option>
-                                                            <option value="vnpay"
-                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>
-                                                                VNPAY QR
+                                                            <option value="vnpay">
+                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}
+                                                                Pay with VNPAY
                                                             </option>
                                                             <option value="chuyen_khoan"
                                                                 {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>

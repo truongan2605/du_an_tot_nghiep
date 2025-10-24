@@ -4,9 +4,9 @@
     <title>Xác Nhận Thanh Toán</title>
 </head>
 <body>
-    <h1>Chào {{ $user_name }},</h1>
-    <p>Thanh toán cho đặt phòng (Mã: {{ $dat_phong->ma_tham_chieu }}) đã được ghi nhận.</p>
-    <p>Đơn hàng của bạn đang chờ nhân viên xác nhận. Vui lòng đợi thông báo tiếp theo.</p>
-    <p>Trạng thái: {{ $dat_phong->trang_thai }}</p>
+    <h1>Hi {{ $user_name }},</h1>
+    <p>Payment for booking (Code: {{ $dat_phong->ma_tham_chieu }}) has been recorded.</p>
+    <p>Your order is awaiting staff confirmation. Please wait for further notification.</p>
+    <p>Status: {{ $dat_phong->trang_thai }}</p>
 </body>
 </html>

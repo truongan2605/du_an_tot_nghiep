@@ -16,10 +16,8 @@ use Illuminate\Support\Facades\Mail;
 
 class PaymentController extends Controller
 {
-    /**
-     * ✅ Tạo URL thanh toán VNPAY (Sandbox)
-     */
-public function initiateVNPay(Request $request)
+
+    public function initiateVNPay(Request $request)
     {
         Log::info('🔹 initiateVNPay request:', $request->all());
 
@@ -57,7 +55,6 @@ public function initiateVNPay(Request $request)
                 'ghi_chu'      => "Thanh toán đặt phòng #{$dat_phong->ma_tham_chieu}",
             ]);
 
-            // ✅ Dùng các biến trong .env (VNPAY_)
             $vnp_Url        = env('VNPAY_URL');
             $vnp_TmnCode    = env('VNPAY_TMN_CODE');
             $vnp_HashSecret = env('VNPAY_HASH_SECRET');
@@ -68,7 +65,7 @@ public function initiateVNPay(Request $request)
                 "vnp_TmnCode"   => $vnp_TmnCode,
                 "vnp_Amount"    => $validated['amount'] * 100,
                 "vnp_Command"   => "pay",
-                "vnp_CreateDate"=> date('YmdHis'),
+                "vnp_CreateDate" => date('YmdHis'),
                 "vnp_CurrCode"  => "VND",
                 "vnp_IpAddr"    => $request->ip(),
                 "vnp_Locale"    => "vn",
@@ -86,14 +83,14 @@ public function initiateVNPay(Request $request)
 
             return response()->json(['redirect_url' => $redirectUrl]);
         } catch (\Throwable $e) {
-            Log::error('🔥 VNPay initiate error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('VNPay initiate error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
         }
     }
     /**
-     * ✅ Callback từ VNPAY khi người dùng quay lại
+     *  Callback từ VNPAY khi người dùng quay lại
      */
-public function handleVNPayCallback(Request $request)
+    public function handleVNPayCallback(Request $request)
     {
         Log::info('VNPAY Callback Received', $request->all());
 
@@ -157,18 +154,15 @@ public function handleVNPayCallback(Request $request)
             : view('payment.fail', ['code' => $vnp_ResponseCode]);
     }
 
-    
-    /**
-     * ✅ IPN (Server-to-Server)
-     */
-  public function handleIpn(Request $request)
+
+    public function handleIpn(Request $request)
     {
         $inputData = collect($request->all())->toArray();
         $receivedSecureHash = $inputData['vnp_SecureHash'] ?? '';
         unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
 
         ksort($inputData);
-         $hashData = http_build_query($inputData, '', '&', 1);
+        $hashData = http_build_query($inputData, '', '&', 1);
         $calculatedHash = strtoupper(hash_hmac('sha512', $hashData, env('VNPAY_HASH_SECRET')));
 
         if ($calculatedHash !== strtoupper($receivedSecureHash)) {
@@ -203,16 +197,14 @@ public function handleVNPayCallback(Request $request)
         return response()->json(['RspCode' => '99', 'Message' => 'Payment failed']);
     }
 
-    /**
-     * ✅ Danh sách thanh toán đang chờ
-     */
+
     public function pendingPayments()
     {
         $pendingPayments = DatPhong::with(['nguoiDung', 'giaoDichs'])
             ->whereIn('trang_thai', ['dang_cho_xac_nhan', 'dang_cho'])
             ->where(function ($q) {
                 $q->where('can_xac_nhan', true)
-                  ->orWhere('can_thanh_toan', true);
+                    ->orWhere('can_thanh_toan', true);
             })
             ->whereHas('giaoDichs', function ($q) {
                 $q->whereIn('trang_thai', ['thanh_cong', 'dang_cho']);
@@ -223,108 +215,103 @@ public function handleVNPayCallback(Request $request)
         return view('payment.pending_payments', compact('pendingPayments'));
     }
     public function simulateCallback()
-{
-  
-    $testData = [
-        "vnp_Amount" => 200000000, 
-        "vnp_BankCode" => "NCB",
-        "vnp_Command" => "pay",
-        "vnp_CreateDate" => now()->format('YmdHis'),
-        "vnp_CurrCode" => "VND",
-        "vnp_IpAddr" => request()->ip(),
-        "vnp_Locale" => "vn",
-        "vnp_OrderInfo" => "Thanh toan don hang test",
-        "vnp_OrderType" => "billpayment",
-        "vnp_TmnCode" => env('VNPAY_TMN_CODE'),
-        "vnp_TxnRef" => "TESTSIMULATE001",
-        "vnp_ResponseCode" => "00", 
-        "vnp_TransactionNo" => "999999",
-        "vnp_PayDate" => now()->format('YmdHis'),
-    ];
+    {
 
-   
-    ksort($testData);
-    $hashData = urldecode(http_build_query($testData));
-    $testData["vnp_SecureHash"] = strtoupper(hash_hmac('sha512', $hashData, env('VNPAY_HASH_SECRET')));
+        $testData = [
+            "vnp_Amount" => 200000000,
+            "vnp_BankCode" => "NCB",
+            "vnp_Command" => "pay",
+            "vnp_CreateDate" => now()->format('YmdHis'),
+            "vnp_CurrCode" => "VND",
+            "vnp_IpAddr" => request()->ip(),
+            "vnp_Locale" => "vn",
+            "vnp_OrderInfo" => "Thanh toan don hang test",
+            "vnp_OrderType" => "billpayment",
+            "vnp_TmnCode" => env('VNPAY_TMN_CODE'),
+            "vnp_TxnRef" => "TESTSIMULATE001",
+            "vnp_ResponseCode" => "00",
+            "vnp_TransactionNo" => "999999",
+            "vnp_PayDate" => now()->format('YmdHis'),
+        ];
 
-    return redirect()->route('payment.callback', $testData);
-}
 
-public function createPayment(Request $request)
-{
-    // ✅ Lấy booking (DatPhong) từ request hoặc query
-    $dat_phong_id = $request->input('dat_phong_id');
-    $dat_phong = DatPhong::findOrFail($dat_phong_id);
+        ksort($testData);
+        $hashData = urldecode(http_build_query($testData));
+        $testData["vnp_SecureHash"] = strtoupper(hash_hmac('sha512', $hashData, env('VNPAY_HASH_SECRET')));
 
-    // Kiểm tra quyền sở hữu & trạng thái
-    if ($dat_phong->nguoi_dung_id !== Auth::id()) {
-        abort(403, 'Bạn không có quyền thanh toán đơn này.');
-    }
-    if ($dat_phong->trang_thai !== 'dang_cho') {
-        abort(400, 'Đơn này không ở trạng thái chờ thanh toán.');
+        return redirect()->route('payment.callback', $testData);
     }
 
-    // ✅ Cấu hình VNPay
-    $vnp_TmnCode    = env('VNPAY_TMN_CODE'); 
-    $vnp_HashSecret = env('VNPAY_HASH_SECRET'); 
-    $vnp_Url        = env('VNPAY_URL');
-    $vnp_ReturnUrl  = env('VNPAY_RETURN_URL');
+    public function createPayment(Request $request)
+    {
+        // Lấy booking (DatPhong) từ request hoặc query
+        $dat_phong_id = $request->input('dat_phong_id');
+        $dat_phong = DatPhong::findOrFail($dat_phong_id);
 
-    // ✅ Tạo giao dịch trong DB
-    $giao_dich = DB::transaction(function () use ($dat_phong) {
-        return GiaoDich::create([
-            'dat_phong_id' => $dat_phong->id,
-            'nha_cung_cap' => 'vnpay',
-            'so_tien' => $dat_phong->tong_tien,
-            'don_vi' => $dat_phong->don_vi_tien ?? 'VND',
-            'trang_thai' => 'dang_cho',
-            'ghi_chu' => 'Thanh toán đặt phòng #' . $dat_phong->id,
-        ]);
-    });
+        // Kiểm tra quyền sở hữu & trạng thái
+        if ($dat_phong->nguoi_dung_id !== Auth::id()) {
+            abort(403, 'Bạn không có quyền thanh toán đơn này.');
+        }
+        if ($dat_phong->trang_thai !== 'dang_cho') {
+            abort(400, 'Đơn này không ở trạng thái chờ thanh toán.');
+        }
 
-    if (!$giao_dich) {
-        abort(500, 'Không thể khởi tạo giao dịch.');
+        $vnp_TmnCode    = env('VNPAY_TMN_CODE');
+        $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+        $vnp_Url        = env('VNPAY_URL');
+        $vnp_ReturnUrl  = env('VNPAY_RETURN_URL');
+
+        $giao_dich = DB::transaction(function () use ($dat_phong) {
+            return GiaoDich::create([
+                'dat_phong_id' => $dat_phong->id,
+                'nha_cung_cap' => 'vnpay',
+                'so_tien' => $dat_phong->tong_tien,
+                'don_vi' => $dat_phong->don_vi_tien ?? 'VND',
+                'trang_thai' => 'dang_cho',
+                'ghi_chu' => 'Thanh toán đặt phòng #' . $dat_phong->id,
+            ]);
+        });
+
+        if (!$giao_dich) {
+            abort(500, 'Không thể khởi tạo giao dịch.');
+        }
+
+        // Tạo dữ liệu gửi sang VNPay
+        $vnp_TxnRef = (string)$giao_dich->id;
+        $vnp_OrderInfo = 'Thanh toán đơn đặt phòng #' . $dat_phong->id;
+        $vnp_OrderType = 'billpayment';
+        $vnp_Amount = $dat_phong->tong_tien * 100; // VNPay tính theo đồng xu
+        $vnp_Locale = 'vn';
+        $vnp_IpAddr = $request->ip();
+
+        $inputData = [
+            "vnp_Version" => "2.1.0",
+            "vnp_TmnCode" => $vnp_TmnCode,
+            "vnp_Amount" => $vnp_Amount,
+            "vnp_Command" => "pay",
+            "vnp_CreateDate" => date('YmdHis'),
+            "vnp_CurrCode" => "VND",
+            "vnp_IpAddr" => $vnp_IpAddr,
+            "vnp_Locale" => $vnp_Locale,
+            "vnp_OrderInfo" => $vnp_OrderInfo,
+            "vnp_OrderType" => $vnp_OrderType,
+            "vnp_ReturnUrl" => $vnp_ReturnUrl,
+            "vnp_TxnRef" => $vnp_TxnRef,
+        ];
+
+
+        $inputData['vnp_BankCode'] = 'NCB';
+
+
+        ksort($inputData);
+
+
+        $hashData = urldecode(http_build_query($inputData));
+        $vnp_SecureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+        $vnp_Url .= '?' . http_build_query($inputData) . '&vnp_SecureHash=' . $vnp_SecureHash;
+
+
+        return redirect()->away($vnp_Url);
     }
-
-    // ✅ Tạo dữ liệu gửi sang VNPay
-    $vnp_TxnRef = (string)$giao_dich->id;
-    $vnp_OrderInfo = 'Thanh toán đơn đặt phòng #' . $dat_phong->id;
-    $vnp_OrderType = 'billpayment';
-    $vnp_Amount = $dat_phong->tong_tien * 100; // VNPay tính theo đồng xu
-    $vnp_Locale = 'vn';
-    $vnp_IpAddr = $request->ip();
-
-    $inputData = [
-        "vnp_Version" => "2.1.0",
-        "vnp_TmnCode" => $vnp_TmnCode,
-        "vnp_Amount" => $vnp_Amount,
-        "vnp_Command" => "pay",
-        "vnp_CreateDate" => date('YmdHis'),
-        "vnp_CurrCode" => "VND",
-        "vnp_IpAddr" => $vnp_IpAddr,
-        "vnp_Locale" => $vnp_Locale,
-        "vnp_OrderInfo" => $vnp_OrderInfo,
-        "vnp_OrderType" => $vnp_OrderType,
-        "vnp_ReturnUrl" => $vnp_ReturnUrl,
-        "vnp_TxnRef" => $vnp_TxnRef,
-    ];
-
-   
-    $inputData['vnp_BankCode'] = 'NCB';
-
-
-    ksort($inputData);
-
-
-    $hashData = urldecode(http_build_query($inputData));
-    $vnp_SecureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
-
-    $vnp_Url .= '?' . http_build_query($inputData) . '&vnp_SecureHash=' . $vnp_SecureHash;
-
- 
-    return redirect()->away($vnp_Url);
-}
-
-
-
 }

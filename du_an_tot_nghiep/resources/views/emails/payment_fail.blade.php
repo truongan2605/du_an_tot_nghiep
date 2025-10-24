@@ -1,3 +1,3 @@
-<h2>❌ Thanh toán thất bại</h2>
-<p>Đơn đặt phòng #{{ $dat_phong->id }} không thành công.</p>
-<p>Mã lỗi: {{ $errorCode }}</p>
+<h2>❌ Payment failed</h2>
+<p>Booking #{{ $dat_phong->id }} failure.</p>
+<p>Error code: {{ $errorCode }}</p>
