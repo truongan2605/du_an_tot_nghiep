@@ -106,6 +106,7 @@ Route::prefix('admin')
         Route::resource('internal-notifications', InternalNotificationController::class);
         Route::resource('admin-notifications', AdminNotificationController::class);
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
+        
     });
 
 // ==================== STAFF ====================
