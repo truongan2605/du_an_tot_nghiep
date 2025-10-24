@@ -3,144 +3,120 @@
 @section('title', 'Chỉnh sửa dịch vụ')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-edit me-2"></i>Chỉnh sửa dịch vụ</h2>
-    <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-left me-2"></i>Quay lại
-    </a>
-</div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-edit me-2"></i>Chỉnh sửa dịch vụ</h2>
+        <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Quay lại
+        </a>
+    </div>
 
-<div class="card">
-    <div class="card-body">
-        <form action="{{ route('admin.tien-nghi.update', $tienNghi) }}" method="POST" enctype="multipart/form-data">
-            @csrf
-            @method('PUT')
-            
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="mb-3">
-                        <label for="ten" class="form-label">Tên dịch vụ <span class="text-danger">*</span></label>
-                        <input type="text" 
-                               class="form-control @error('ten') is-invalid @enderror" 
-                               id="ten" 
-                               name="ten" 
-                               value="{{ old('ten', $tienNghi->ten) }}" 
-                               required>
-                        @error('ten')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-{{-- <div class="mb-3">
-    <label for="gia" class="form-label">Giá dịch vụ</label>
-    <input type="number" step="0.01" name="gia" id="gia" class="form-control"
-           value="{{ old('gia', isset($tiennghi) ? $tiennghi->gia : '') }}"required>
-</div> --}}
- 
-                 <div class="mb-3">
-    <label for="gia" class="form-label">Giá <span class="text-danger">*</span></label>
-    <input type="text" 
-           class="form-control @error('gia') is-invalid @enderror" 
-           id="gia" 
-           name="gia" 
-           value="{{ old('gia', number_format($tienNghi->gia, 0, ',', '.')) }}"
-           required>
-    @error('gia')
-        <div class="invalid-feedback">{{ $message }}</div>
-    @enderror
-</div>
+    <div class="card">
+        <div class="card-body">
+            <form action="{{ route('admin.tien-nghi.update', $tienNghi) }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
 
-
-                    <div class="mb-3">
-                        <label for="mo_ta" class="form-label">Mô tả</label>
-                        <textarea class="form-control @error('mo_ta') is-invalid @enderror" 
-                                  id="mo_ta" 
-                                  name="mo_ta" 
-                                  rows="4">{{ old('mo_ta', $tienNghi->mo_ta) }}</textarea>
-                        @error('mo_ta')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" 
-                                   type="checkbox" 
-                                   id="active" 
-                                   name="active" 
-                                   value="1" 
-                                   {{ old('active', $tienNghi->active) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="active">
-                                Kích hoạt dịch vụ
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="icon" class="form-label">Icon</label>
-                        <input type="file" 
-                               class="form-control @error('icon') is-invalid @enderror" 
-                               id="icon" 
-                               name="icon" 
-                               accept="image/*">
-                        @error('icon')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <div class="form-text">
-                            Chọn file ảnh mới để thay thế (JPG, PNG, GIF, SVG). Kích thước tối đa: 2MB
-                        </div>
-                    </div>
-
-                    @if($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon))
+                <div class="row">
+                    <div class="col-md-8">
                         <div class="mb-3">
-                            <label class="form-label">Icon hiện tại:</label>
-                            <div class="border rounded p-2 text-center">
-                                <img src="{{ Storage::url($tienNghi->icon) }}" 
-                                     alt="{{ $tienNghi->ten }}" 
-                                     class="img-fluid" 
-                                     style="max-height: 200px;">
+                            <label for="ten" class="form-label">Tên dịch vụ <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control @error('ten') is-invalid @enderror" id="ten"
+                                name="ten" value="{{ old('ten', $tienNghi->ten) }}" required>
+                            @error('ten')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="gia" class="form-label">Giá <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control @error('gia') is-invalid @enderror" id="gia"
+                                name="gia" value="{{ old('gia', number_format($tienNghi->gia, 0, ',', '.')) }}"
+                                required>
+                            @error('gia')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+
+                        <div class="mb-3">
+                            <label for="mo_ta" class="form-label">Mô tả</label>
+                            <textarea class="form-control @error('mo_ta') is-invalid @enderror" id="mo_ta" name="mo_ta" rows="4">{{ old('mo_ta', $tienNghi->mo_ta) }}</textarea>
+                            @error('mo_ta')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="active" name="active" value="1"
+                                    {{ old('active', $tienNghi->active) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="active">
+                                    Kích hoạt dịch vụ
+                                </label>
                             </div>
                         </div>
-                    @endif
+                    </div>
 
-                    <div class="preview-container" id="preview-container" style="display: none;">
-                        <label class="form-label">Xem trước icon mới:</label>
-                        <div class="border rounded p-2 text-center">
-                            <img id="preview-image" src="" alt="Preview" class="img-fluid" style="max-height: 200px;">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="icon" class="form-label">Icon</label>
+                            <input type="file" class="form-control @error('icon') is-invalid @enderror" id="icon"
+                                name="icon" accept="image/*">
+                            @error('icon')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <div class="form-text">
+                                Chọn file ảnh mới để thay thế (JPG, PNG, GIF, SVG). Kích thước tối đa: 2MB
+                            </div>
+                        </div>
+
+                        @if ($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon))
+                            <div class="mb-3">
+                                <label class="form-label">Icon hiện tại:</label>
+                                <div class="border rounded p-2 text-center">
+                                    <img src="{{ Storage::url($tienNghi->icon) }}" alt="{{ $tienNghi->ten }}"
+                                        class="img-fluid" style="max-height: 200px;">
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="preview-container" id="preview-container" style="display: none;">
+                            <label class="form-label">Xem trước icon mới:</label>
+                            <div class="border rounded p-2 text-center">
+                                <img id="preview-image" src="" alt="Preview" class="img-fluid"
+                                    style="max-height: 200px;">
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="d-flex justify-content-end gap-2">
-                <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
-                    <i class="fas fa-times me-2"></i>Hủy
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Cập nhật dịch vụ
-                </button>
-            </div>
-        </form>
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{{ route('admin.tien-nghi.index') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Hủy
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Cập nhật dịch vụ
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
 @endsection
 
 @section('scripts')
-<script>
-document.getElementById('icon').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('preview-image').src = e.target.result;
-            document.getElementById('preview-container').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    } else {
-        document.getElementById('preview-container').style.display = 'none';
-    }
-});
-</script>
+    <script>
+        document.getElementById('icon').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('preview-image').src = e.target.result;
+                    document.getElementById('preview-container').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                document.getElementById('preview-container').style.display = 'none';
+            }
+        });
+    </script>
 @endsection
-
