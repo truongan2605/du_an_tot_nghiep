@@ -32,7 +32,7 @@
             </div>
 
             <div class="mb-3">
-                <label>Giá mặc định (VND / night)</label>
+                <label>Giá mặc định (VND / đêm)</label>
                 <input type="number" step="0.01" name="gia_mac_dinh" class="form-control"
                     value="{{ old('gia_mac_dinh', 0) }}" required>
             </div>
@@ -56,9 +56,9 @@
             </div>
 
             <hr>
-            <h5>Bed types (Cấu hình giường cho loại phòng)</h5>
-            <p class="text-muted small">Chọn số lượng cho mỗi loại giường. <strong>Suc_chua</strong> và
-                <strong>so_giuong</strong> sẽ được tính tự động dựa trên cấu hình này.</p>
+            <h5>Loại giường</h5>
+            <p class="text-muted small">Chọn số lượng cho mỗi loại giường. <strong>Sức chứa</strong> và
+                <strong>Số giường</strong> sẽ được tính tự động dựa trên cấu hình này.</p>
 
             @foreach ($bedTypes as $bt)
                 @php

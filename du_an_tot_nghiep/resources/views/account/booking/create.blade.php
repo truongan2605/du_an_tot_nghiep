@@ -154,7 +154,8 @@
                                                     </div>
 
                                                     <div class="mt-3">
-                                                        <strong>Room beds:</strong>
+                                                        <i class="fa-solid fa-bed"></i>
+                                                        <strong> Room beds:</strong>
                                                         <ul class="list-unstyled mb-2">
                                                             @forelse ($phong->bedTypes as $bt)
                                                                 <li class="mb-1">
