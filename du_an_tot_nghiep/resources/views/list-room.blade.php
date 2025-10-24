@@ -1,1131 +1,430 @@
 @extends('layouts.app')
 
-@section('title', 'List room')
+@section('title', 'Danh sách phòng')
 
 @section('content')
-    <!-- **************** MAIN CONTENT START **************** -->
-    <main>
-        <!--Main Banner START -->
-        <section class="pt-0">
-            <div class="container">
-                <!-- Background image -->
-                <div class="rounded-3 p-3 p-sm-5"
-                    style="background-image: url(assets/images/bg/05.jpg); background-position: center center; background-repeat: no-repeat; background-size: cover;">
-                    <!-- Banner title -->
-                    <div class="row my-2 my-xl-5">
-                        <div class="col-md-8 mx-auto">
-                            <h1 class="text-center text-white">150 Hotels in New York</h1>
-                        </div>
-                    </div>
+    <!-- =======================
+                            Banner START -->
+    <section class="position-relative overflow-hidden rounded-4 mt-4 mx-auto"
+        style="height: 360px; width: 90%; max-width: 1200px;">
+        <!-- Background Image -->
+        <img src="{{ asset('template/stackbros/assets/images/bg/07.jpg') }}" alt="banner"
+            class="position-absolute top-0 start-0 w-100 h-100 object-fit-cover rounded-4"
+            style="filter: brightness(70%); object-position: center;">
 
-                    <!-- Booking from START -->
-                    <form class="bg-mode shadow rounded-3 position-relative p-4 pe-md-5 pb-5 pb-md-4 mb-4">
-                        <div class="row g-4 align-items-center">
-                            <!-- Location -->
-                            <div class="col-lg-4">
-                                <div class="form-control-border form-control-transparent form-fs-md d-flex">
-                                    <!-- Icon -->
-                                    <i class="bi bi-geo-alt fs-3 me-2 mt-2"></i>
-                                    <!-- Select input -->
-                                    <div class="flex-grow-1">
-                                        <label class="form-label">Location</label>
-                                        <select class="form-select js-choice" data-search-enabled="true">
-                                            <option value="">Select location</option>
-                                            <option selected>San Jacinto, USA</option>
-                                            <option>North Dakota, Canada</option>
-                                            <option>West Virginia, Paris</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
+        <!-- Overlay -->
+        <div class="position-absolute top-0 start-0 w-100 h-100 rounded-4" style="background: rgba(0, 0, 0, 0.4);"></div>
 
-                            <!-- Check in -->
-                            <div class="col-lg-4">
-                                <div class="d-flex">
-                                    <!-- Icon -->
-                                    <i class="bi bi-calendar fs-3 me-2 mt-2"></i>
-                                    <!-- Date input -->
-                                    <div class="form-control-border form-control-transparent form-fs-md">
-                                        <label class="form-label">Check in - out</label>
-                                        <input type="text" class="form-control flatpickr" data-mode="range"
-                                            placeholder="Select date" value="19 Sep to 28 Sep">
-                                    </div>
-                                </div>
-                            </div>
+        <!-- Text -->
+        <div
+            class="position-relative z-2 text-center text-white d-flex flex-column justify-content-center align-items-center h-100">
+            <h1 class="display-5 fw-bold mb-3" style="color: #ddd">List of available rooms</h1>
+            <p class="lead mb-0" style="max-width: 600px;">
+                Explore active rooms in our system
+            </p>
+        </div>
+    </section>
+    <!-- =======================
+                            Banner END -->
 
-                            <!-- Guest -->
-                            <div class="col-lg-4">
-                                <div class="form-control-border form-control-transparent form-fs-md d-flex">
-                                    <!-- Icon -->
-                                    <i class="bi bi-person fs-3 me-2 mt-2"></i>
-                                    <!-- Dropdown input -->
-                                    <div class="w-100">
-                                        <label class="form-label">Guests & rooms</label>
-                                        <div class="dropdown guest-selector me-2">
-                                            <input type="text" class="form-guest-selector form-control selection-result"
-                                                value="2 Guests 1 Room" id="dropdownGuest" data-bs-auto-close="outside"
-                                                data-bs-toggle="dropdown">
 
-                                            <!-- dropdown items -->
-                                            <ul class="dropdown-menu guest-selector-dropdown"
-                                                aria-labelledby="dropdownGuest">
-                                                <!-- Adult -->
-                                                <li class="d-flex justify-content-between">
-                                                    <div>
-                                                        <h6 class="mb-0">Adults</h6>
-                                                        <small>Ages 13 or above</small>
-                                                    </div>
 
-                                                    <div class="hstack gap-1 align-items-center">
-                                                        <button type="button" class="btn btn-link adult-remove p-0 mb-0"><i
-                                                                class="bi bi-dash-circle fs-5 fa-fw"></i></button>
-                                                        <h6 class="guest-selector-count mb-0 adults">2</h6>
-                                                        <button type="button" class="btn btn-link adult-add p-0 mb-0"><i
-                                                                class="bi bi-plus-circle fs-5 fa-fw"></i></button>
-                                                    </div>
-                                                </li>
 
-                                                <!-- Divider -->
-                                                <li class="dropdown-divider"></li>
-
-                                                <!-- Child -->
-                                                <li class="d-flex justify-content-between">
-                                                    <div>
-                                                        <h6 class="mb-0">Child</h6>
-                                                        <small>Ages 13 below</small>
-                                                    </div>
-
-                                                    <div class="hstack gap-1 align-items-center">
-                                                        <button type="button" class="btn btn-link child-remove p-0 mb-0"><i
-                                                                class="bi bi-dash-circle fs-5 fa-fw"></i></button>
-                                                        <h6 class="guest-selector-count mb-0 child">0</h6>
-                                                        <button type="button" class="btn btn-link child-add p-0 mb-0"><i
-                                                                class="bi bi-plus-circle fs-5 fa-fw"></i></button>
-                                                    </div>
-                                                </li>
-
-                                                <!-- Divider -->
-                                                <li class="dropdown-divider"></li>
-
-                                                <!-- Rooms -->
-                                                <li class="d-flex justify-content-between">
-                                                    <div>
-                                                        <h6 class="mb-0">Rooms</h6>
-                                                        <small>Max room 8</small>
-                                                    </div>
-
-                                                    <div class="hstack gap-1 align-items-center">
-                                                        <button type="button" class="btn btn-link room-remove p-0 mb-0"><i
-                                                                class="bi bi-dash-circle fs-5 fa-fw"></i></button>
-                                                        <h6 class="guest-selector-count mb-0 rooms">1</h6>
-                                                        <button type="button" class="btn btn-link room-add p-0 mb-0"><i
-                                                                class="bi bi-plus-circle fs-5 fa-fw"></i></button>
-                                                    </div>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Button -->
-                        <div class="btn-position-md-middle">
-                            <a class="icon-lg btn btn-round btn-primary mb-0" href="#"><i
-                                    class="bi bi-search fa-fw"></i></a>
-                        </div>
-                    </form>
-                    <!-- Booking from END -->
-                </div>
-            </div>
-        </section>
-        <!-- =======================
-    Main Banner END -->
-
-        <!-- =======================
-    Hotel list START -->
-        <section class="pt-0">
-            <div class="container">
-                <!-- Tabs and alert START -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <!-- Alert box START -->
-                        <div class="alert alert-danger alert-dismissible d-flex justify-content-between align-items-center rounded-3 fade show mb-4 mb-0 pe-2"
-                            role="alert">
-                            <div class="d-flex">
-                                <span class="alert-heading h5 mb-0 me-2"><i
-                                        class="bi bi-exclamation-octagon-fill"></i></span>
-                                <span><strong class="alert-heading me-2">Covid Policy:</strong>You may require to present an
-                                    RT-PCR negative test report at the hotel</span>
-                            </div>
-                            <button type="button" class="btn btn-link pb-0 text-end" data-bs-dismiss="alert"
-                                aria-label="Close"><i class="bi bi-x-lg text-dark"></i></button>
-                        </div>
-                        <!-- Alert box END -->
-
-                        <!-- Buttons -->
-                        <div class="hstack gap-3 justify-content-between justify-content-md-end">
-                            <!-- Filter offcanvas button -->
-                            <button class="btn btn-primary-soft btn-primary-check mb-0 d-xl-none" type="button"
-                                data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar"
-                                aria-controls="offcanvasSidebar">
-                                <i class="fa-solid fa-sliders-h me-1"></i> Show filters
-                            </button>
-                            <!-- tabs -->
-                            <ul class="nav nav-pills nav-pills-dark" id="tour-pills-tab" role="tablist">
-                                <!-- Tab item -->
-                                <li class="nav-item">
-                                    <a class="nav-link rounded-start rounded-0 mb-0 active" href="hotel-list.html"><i
-                                            class="bi fa-fw bi-list-ul"></i></a>
+    <section class="pt-4 pb-5">
+        <div class="container">
+            <div class="row g-4">
+                {{-- ==== SIDEBAR LỌC ==== --}}
+                <aside class="col-lg-3">
+                    <form method="GET" action="{{ route('list-room.index') }}" class="card border-0 shadow-sm">
+                        <div class="filter-box sidebar-filter">
+                            {{-- Room Type --}}
+                            <h6 class="fw-bold mb-3">Room Type</h6>
+                            <ul class="list-unstyled">
+                                <li>
+                                    <input type="radio" name="loai_phong_id" id="type_all" value=""
+                                        {{ request('loai_phong_id') == '' ? 'checked' : '' }}>
+                                    <label for="type_all">All Room Type</label>
                                 </li>
-                                <!-- Tab item -->
-                                <li class="nav-item">
-                                    <a class="nav-link rounded-end rounded-0 mb-0" href="hotel-grid.html"><i
-                                            class="bi fa-fw bi-grid-fill"></i></a>
+
+                                @foreach ($loaiPhongs as $loai)
+                                    <li>
+                                        <input type="radio" name="loai_phong_id" id="type_{{ $loai->id }}"
+                                            value="{{ $loai->id }}"
+                                            {{ request('loai_phong_id') == $loai->id ? 'checked' : '' }}>
+                                        <label for="type_{{ $loai->id }}">{{ $loai->ten }}</label>
+                                    </li>
+                                @endforeach
+                            </ul>
+
+
+                            {{-- Check in-out --}}
+                            <h6>Check in - out</h6>
+                            <input type="text" class="form-control flatpickr mb-3" data-mode="range"
+                                placeholder="Select date" name="date_range">
+
+                            <h6>Price (VNĐ)</h6>
+                            <div class="mb-3">
+                                <div id="price-slider"></div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <span id="min-price"
+                                        class="small fw-semibold">{{ number_format($giaMin, 0, ',', '.') }}đ</span>
+                                    <span id="max-price"
+                                        class="small fw-semibold">{{ number_format($giaMax, 0, ',', '.') }}đ</span>
+                                </div>
+                                <input type="hidden" id="gia_min" name="gia_min"
+                                    value="{{ request('gia_min', $giaMin) }}">
+                                <input type="hidden" id="gia_max" name="gia_max"
+                                    value="{{ request('gia_max', $giaMax) }}">
+                            </div>
+
+                            <div class="filter-divider"></div>
+
+                            {{-- Rating Star --}}
+                            <h6 class="fw-bold mb-3">Rating Star</h6>
+                            <ul class="list-unstyled mb-3">
+                                @for ($i = 5; $i >= 1; $i--)
+                                    <li class="mb-1">
+                                        <input type="radio" name="diem" id="star{{ $i }}"
+                                            value="{{ $i }}" {{ request('diem') == $i ? 'checked' : '' }}>
+                                        <label for="star{{ $i }}">
+                                            @for ($j = 1; $j <= $i; $j++)
+                                                <i class="bi bi-star-fill text-warning"></i>
+                                            @endfor
+                                            @for ($j = $i + 1; $j <= 5; $j++)
+                                                <i class="bi bi-star text-muted"></i>
+                                            @endfor
+                                        </label>
+                                    </li>
+                                @endfor
+                                <li>
+                                    <input type="radio" name="diem" id="all_rating" value=""
+                                        {{ request('diem') == '' ? 'checked' : '' }}>
+                                    <label for="all_rating">All ratings</label>
                                 </li>
                             </ul>
+
+                            {{-- Amenities --}}
+                            <h6>Amenities</h6>
+                            <ul class="list-unstyled">
+                                @php
+                                    $selectedTienNghi = (array) request('tien_nghi', []);
+                                @endphp
+
+                                @foreach ($tienNghis as $tienNghi)
+                                    <li>
+                                        <input type="checkbox" name="tien_nghi[]" id="amenity{{ $tienNghi->id }}"
+                                            value="{{ $tienNghi->id }}"
+                                            {{ in_array($tienNghi->id, $selectedTienNghi) ? 'checked' : '' }}>
+                                        <label for="amenity{{ $tienNghi->id }}">{{ $tienNghi->ten }}</label>
+                                    </li>
+                                @endforeach
+                            </ul>
+
+                            <div class="mt-3">
+                                <button type="submit" class="filter-submit-btn">Search</button>
+                            </div>
                         </div>
+
+                    </form>
+                </aside>
+
+                {{-- ==== DANH SÁCH PHÒNG ==== --}}
+                <div class="col-lg-9">
+                    <div class="row g-4">
+                        @forelse($phongs as $phong)
+                            <div class="col-12">
+                                <div
+                                    class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 room-card position-relative hover-shadow transition-all">
+
+                                    {{-- ========== ẢNH PHÒNG / CAROUSEL ========== --}}
+                                    <div class="row g-0 align-items-center">
+                                        <div class="col-md-5 position-relative">
+                                            @if ($phong->images->count() > 1)
+                                                <div id="carouselRoom{{ $phong->id }}" class="carousel slide"
+                                                    data-bs-ride="carousel" data-bs-interval="3000">
+                                                    <div class="carousel-inner room-carousel-inner rounded-start">
+                                                        @foreach ($phong->images as $key => $img)
+                                                            <div class="carousel-item {{ $key == 0 ? 'active' : '' }}">
+                                                                <img src="{{ asset('storage/' . $img->image_path) }}"
+                                                                    class="d-block w-100 h-100 object-fit-cover rounded-start-4"
+                                                                    alt="Image {{ $key + 1 }}">
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                    <button class="carousel-control-prev" type="button"
+                                                        data-bs-target="#carouselRoom{{ $phong->id }}"
+                                                        data-bs-slide="prev">
+                                                        <span
+                                                            class="carousel-control-prev-icon bg-dark rounded-circle p-2"></span>
+                                                    </button>
+                                                    <button class="carousel-control-next" type="button"
+                                                        data-bs-target="#carouselRoom{{ $phong->id }}"
+                                                        data-bs-slide="next">
+                                                        <span
+                                                            class="carousel-control-next-icon bg-dark rounded-circle p-2"></span>
+                                                    </button>
+                                                </div>
+                                            @else
+                                                <img src="{{ asset('storage/' . ($phong->images->first()->image_path ?? 'template/stackbros/assets/images/default-room.jpg')) }}"
+                                                    class="w-100 h-100 object-fit-cover rounded-start-4"
+                                                    alt="{{ $phong->name }}">
+                                            @endif
+
+                                            {{-- Badge Giảm giá nếu có --}}
+                                            @if (isset($phong->khuyen_mai) && $phong->khuyen_mai > 0)
+                                                <span
+                                                    class="badge bg-danger position-absolute top-0 start-0 m-3 px-3 py-2 fs-6 shadow-sm">
+                                                    -{{ $phong->khuyen_mai }}%
+                                                </span>
+                                            @endif
+
+                                            {{-- Badge trạng thái phòng --}}
+                                            @if ($phong->trang_thai == 'Trống')
+                                                <span
+                                                    class="badge bg-success position-absolute bottom-0 start-0 m-3 px-3 py-2 shadow-sm">Phòng
+                                                    trống</span>
+                                            @elseif($phong->trang_thai == 'Đang ở')
+                                                <span
+                                                    class="badge bg-warning text-dark position-absolute bottom-0 start-0 m-3 px-3 py-2 shadow-sm">Đang
+                                                    ở</span>
+                                            @endif
+                                        </div>
+
+                                        {{-- ========== THÔNG TIN PHÒNG ========== --}}
+                                        <div class="col-md-7">
+                                            <div class="card-body py-4 px-4">
+                                                {{-- Đánh giá sao --}}
+                                                <div class="d-flex align-items-center mb-2">
+                                                    @for ($i = 1; $i <= 5; $i++)
+                                                        <i
+                                                            class="bi bi-star{{ $i <= ($phong->so_sao ?? 4) ? '-fill text-warning' : '' }} me-1"></i>
+                                                    @endfor
+                                                </div>
+
+                                                {{-- Tên phòng --}}
+                                                <h5 class="fw-bold mb-1">{{ $phong->name ?? $phong->ma_phong }}</h5>
+
+                                                {{-- Mô tả hoặc vị trí --}}
+                                                <p class="text-muted mb-2">
+                                                    <i class="bi bi-geo-alt me-1"></i>
+                                                    {{ $phong->mo_ta ?? 'Địa điểm đang cập nhật' }}
+                                                </p>
+
+                                                {{-- Tiện nghi --}}
+                                                <div class="small text-muted mb-2">
+                                                    @if ($phong->tienNghis && $phong->tienNghis->count())
+                                                        @foreach ($phong->tienNghis->take(3) as $tiennghi)
+                                                            <span class="me-2"><i
+                                                                    class="bi bi-check-circle text-success me-1"></i>{{ $tiennghi->ten }}</span>
+                                                        @endforeach
+
+                                                        @if ($phong->tienNghis->count() > 3)
+                                                            <a href="{{ route('rooms.show', $phong->id) }}"
+                                                                class="text-decoration-none">More+</a>
+                                                        @endif
+                                                    @else
+                                                        <span>Chưa có tiện nghi</span>
+                                                    @endif
+                                                </div>
+
+
+
+                                                {{-- Giá & Nút chọn phòng --}}
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <h4 class="fw-bold text-primary mb-0">
+                                                            {{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }} VNĐ
+                                                            <span class="small fw-normal text-muted">/Night</span>
+                                                        </h4>
+                                                        {{-- @if ($phong->gia_mac_dinh ?? false)
+                                    <small class="text-decoration-line-through text-muted">
+                                        {{ number_format($phong->gia_mac_dinh, 0, ',', '.') }} VNĐ
+                                    </small>
+                                @endif --}}
+
+                                                    </div>
+                                                    @if ($phong->trang_thai == 'trong')
+                                                        <a href="{{ route('rooms.show', $phong->id) }}"
+                                                            class="btn btn-dark rounded-pill px-4 py-2 transition-all">
+                                                            Select Room
+                                                        </a>
+                                                    @else
+                                                        <button class="btn btn-secondary rounded-pill px-4 py-2" disabled>
+                                                            Full Room
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="text-center py-5">
+                                <p class="mt-3 mb-0">
+                                    <i class="fa-regular fa-eye-slash"></i>
+                                    No suitable rooms were found.
+                                </p>
+                            </div>
+                        @endforelse
+
                     </div>
+                    <div class="mt-4 d-flex justify-content-center">{{ $phongs->links() }}</div>
                 </div>
-                <!-- Tabs and alert END -->
-
-                <div class="row">
-                    <!-- Left sidebar START -->
-                    <aside class="col-xl-4 col-xxl-3">
-                        <!-- Responsive offcanvas body START -->
-                        <div class="offcanvas-xl offcanvas-end" tabindex="-1" id="offcanvasSidebar"
-                            aria-labelledby="offcanvasSidebarLabel">
-                            <div class="offcanvas-header">
-                                <h5 class="offcanvas-title" id="offcanvasSidebarLabel">Advance Filters</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"
-                                    data-bs-target="#offcanvasSidebar" aria-label="Close"></button>
-                            </div>
-                            <div class="offcanvas-body flex-column p-3 p-xl-0">
-                                <form class="rounded-3 shadow">
-                                    <!-- Hotel type START -->
-                                    <div class="card card-body rounded-0 rounded-top p-4">
-                                        <!-- Title -->
-                                        <h6 class="mb-2">Hotel Type</h6>
-                                        <!-- Hotel Type group -->
-                                        <div class="col-12">
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="hotelType1">
-                                                <label class="form-check-label" for="hotelType1">All</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="hotelType2">
-                                                <label class="form-check-label" for="hotelType2">Hotel</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="hotelType3">
-                                                <label class="form-check-label" for="hotelType3">Apartment</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="hotelType4">
-                                                <label class="form-check-label" for="hotelType4">Resort</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="hotelType5">
-                                                <label class="form-check-label" for="hotelType5">Villa</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="hotelType6">
-                                                <label class="form-check-label" for="hotelType6">Lodge</label>
-                                            </div>
-
-                                            <!-- Collapse body -->
-                                            <div class="multi-collapse collapse" id="hotelType">
-                                                <!-- Checkbox -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="hotelType7">
-                                                    <label class="form-check-label" for="hotelType7">Guest House</label>
-                                                </div>
-                                                <!-- Checkbox -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="hotelType10">
-                                                    <label class="form-check-label" for="hotelType10">Cottage</label>
-                                                </div>
-                                                <!-- Checkbox -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="hotelType8">
-                                                    <label class="form-check-label" for="hotelType8">Beach Hut</label>
-                                                </div>
-                                                <!-- Checkbox -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="hotelType9">
-                                                    <label class="form-check-label" for="hotelType9">Farm house</label>
-                                                </div>
-                                            </div>
-                                            <!-- Collapse button -->
-                                            <a class="p-0 mb-0 mt-2 btn-more d-flex align-items-center collapsed"
-                                                data-bs-toggle="collapse" href="#hotelType" role="button"
-                                                aria-expanded="false" aria-controls="hotelType">
-                                                See <span class="see-more ms-1">more</span><span
-                                                    class="see-less ms-1">less</span><i
-                                                    class="fa-solid fa-angle-down ms-2"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <!-- Hotel type END -->
-
-                                    <hr class="my-0"> <!-- Divider -->
-
-                                    <!-- Price range START -->
-                                    <div class="card card-body rounded-0 p-4">
-                                        <!-- Title -->
-                                        <h6 class="mb-2">Price range</h6>
-                                        <!-- Price range group -->
-                                        <div class="col-12">
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="priceRange1">
-                                                <label class="form-check-label" for="priceRange1">Up to $500</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="priceRange2">
-                                                <label class="form-check-label" for="priceRange2">$500 - $1000</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="priceRange3">
-                                                <label class="form-check-label" for="priceRange3">$1000 - $1500</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="priceRange4">
-                                                <label class="form-check-label" for="priceRange4">$1500 - $2000</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="priceRange5">
-                                                <label class="form-check-label" for="priceRange5">$2000+</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Price range END -->
-
-                                    <hr class="my-0"> <!-- Divider -->
-
-                                    <!-- Popular type START -->
-                                    <div class="card card-body rounded-0 p-4">
-                                        <!-- Title -->
-                                        <h6 class="mb-2">Popular Type</h6>
-                                        <!-- Popular Type group -->
-                                        <div class="col-12">
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="popolarType1">
-                                                <label class="form-check-label" for="popolarType1">Free Breakfast
-                                                    Included</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="popolarType2">
-                                                <label class="form-check-label" for="popolarType2">Pay At Hotel
-                                                    Available</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="popolarType3">
-                                                <label class="form-check-label" for="popolarType3">Free Cancellation
-                                                    Available</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- Popular type END -->
-
-                                    <hr class="my-0"> <!-- Divider -->
-
-                                    <!-- Customer Rating START -->
-                                    <div class="card card-body rounded-0 p-4">
-                                        <!-- Title -->
-                                        <h6 class="mb-2">Customer Rating</h6>
-                                        <!-- Customer Rating group -->
-                                        <ul class="list-inline mb-0 g-3">
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-c1">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-c1">3+</label>
-                                            </li>
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-c2">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-c2">3.5+</label>
-                                            </li>
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-c3">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-c3">4+</label>
-                                            </li>
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-c4">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-c4">4.5+</label>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <!-- Customer Rating END -->
-
-                                    <hr class="my-0"> <!-- Divider -->
-
-                                    <!-- Rating Star START -->
-                                    <div class="card card-body rounded-0 p-4">
-                                        <!-- Title -->
-                                        <h6 class="mb-2">Rating Star</h6>
-                                        <!-- Rating Star group -->
-                                        <ul class="list-inline mb-0 g-3">
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-6">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-6">1<i class="bi bi-star-fill"></i></label>
-                                            </li>
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-7">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-7">2<i class="bi bi-star-fill"></i></label>
-                                            </li>
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-8">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-8">3<i class="bi bi-star-fill"></i></label>
-                                            </li>
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-15">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-15">4<i class="bi bi-star-fill"></i></label>
-                                            </li>
-                                            <!-- Item -->
-                                            <li class="list-inline-item mb-0">
-                                                <input type="checkbox" class="btn-check" id="btn-check-16">
-                                                <label class="btn btn-sm btn-light btn-primary-soft-check"
-                                                    for="btn-check-16">5<i class="bi bi-star-fill"></i></label>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                    <!-- Rating Star END -->
-
-                                    <hr class="my-0"> <!-- Divider -->
-
-                                    <!-- Amenities START -->
-                                    <div class="card card-body rounded-0 rounded-bottom p-4">
-                                        <!-- Title -->
-                                        <h6 class="mb-2">Amenities</h6>
-                                        <!-- Amenities group -->
-                                        <div class="col-12">
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="amenitiesType1">
-                                                <label class="form-check-label" for="amenitiesType1">All</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="amenitiesType2">
-                                                <label class="form-check-label" for="amenitiesType2">Air
-                                                    Conditioning</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="amenitiesType3">
-                                                <label class="form-check-label" for="amenitiesType3">Bar</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="amenitiesType4">
-                                                <label class="form-check-label" for="amenitiesType4">Bonfire</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="amenitiesType5">
-                                                <label class="form-check-label" for="amenitiesType5">Business
-                                                    Services</label>
-                                            </div>
-                                            <!-- Checkbox -->
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" value=""
-                                                    id="amenitiesType6">
-                                                <label class="form-check-label" for="amenitiesType6">Caretaker</label>
-                                            </div>
-
-                                            <!-- Collapse body -->
-                                            <div class="multi-collapse collapse" id="amenitiesCollapes">
-                                                <!-- Checkbox -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="amenitiesType7">
-                                                    <label class="form-check-label" for="amenitiesType7">Dining</label>
-                                                </div>
-                                                <!-- Checkbox -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="amenitiesType8">
-                                                    <label class="form-check-label" for="amenitiesType8">Free
-                                                        Internet</label>
-                                                </div>
-                                                <!-- Checkbox -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="amenitiesType9">
-                                                    <label class="form-check-label" for="amenitiesType9">Hair nets</label>
-                                                </div>
-                                                <!-- Checkbox -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value=""
-                                                        id="amenitiesType10">
-                                                    <label class="form-check-label" for="amenitiesType10">Masks</label>
-                                                </div>
-                                            </div>
-                                            <!-- Collapse button -->
-                                            <a class="p-0 mb-0 mt-2 btn-more d-flex align-items-center collapsed"
-                                                data-bs-toggle="collapse" href="#amenitiesCollapes" role="button"
-                                                aria-expanded="false" aria-controls="amenitiesCollapes">
-                                                See <span class="see-more ms-1">more</span><span
-                                                    class="see-less ms-1">less</span><i
-                                                    class="fa-solid fa-angle-down ms-2"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                    <!-- Amenities END -->
-                                </form><!-- Form End -->
-                            </div>
-                            <!-- Buttons -->
-                            <div class="d-flex justify-content-between p-2 p-xl-0 mt-xl-4">
-                                <button class="btn btn-link p-0 mb-0">Clear all</button>
-                                <button class="btn btn-primary mb-0">Filter Result</button>
-                            </div>
-                        </div>
-                        <!-- Responsive offcanvas body END -->
-                    </aside>
-                    <!-- Left sidebar END -->
-
-                    <!-- Main content START -->
-                    <div class="col-xl-8 col-xxl-9">
-                        <div class="vstack gap-4">
-
-                            <!-- Card item START -->
-                            <div class="card shadow p-2">
-                                <div class="row g-0">
-                                    <!-- Card img -->
-                                    <div class="col-md-5 position-relative">
-
-                                        <!-- Overlay item -->
-                                        <div class="position-absolute top-0 start-0 z-index-1 m-2">
-                                            <div class="badge text-bg-danger">30% Off</div>
-                                        </div>
-
-                                        <!-- Slider START -->
-                                        <div class="tiny-slider arrow-round arrow-xs arrow-dark overflow-hidden rounded-2">
-                                            <div class="tiny-slider-inner" data-autoplay="false" data-arrow="true"
-                                                data-dots="false" data-items="1">
-                                                <!-- Image item -->
-                                                <div><img src="assets/images/category/hotel/4by3/04.jpg" alt="Card image">
-                                                </div>
-
-                                                <!-- Image item -->
-                                                <div><img src="assets/images/category/hotel/4by3/02.jpg" alt="Card image">
-                                                </div>
-
-                                                <!-- Image item -->
-                                                <div><img src="assets/images/category/hotel/4by3/03.jpg" alt="Card image">
-                                                </div>
-
-                                                <!-- Image item -->
-                                                <div><img src="assets/images/category/hotel/4by3/01.jpg" alt="Card image">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <!-- Slider END -->
-                                    </div>
-
-                                    <!-- Card body -->
-                                    <div class="col-md-7">
-                                        <div class="card-body py-md-2 d-flex flex-column h-100 position-relative">
-
-                                            <!-- Rating and buttons -->
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <ul class="list-inline mb-0">
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star-half-alt text-warning"></i></li>
-                                                </ul>
-
-                                                <ul class="list-inline mb-0 z-index-2">
-                                                    <!-- Heart icon -->
-                                                    <li class="list-inline-item">
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"><i
-                                                                class="fa-solid fa-fw fa-heart"></i></a>
-                                                    </li>
-                                                    <!-- Share icon -->
-                                                    <li class="list-inline-item dropdown">
-                                                        <!-- Share button -->
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"
-                                                            role="button" id="dropdownShare" data-bs-toggle="dropdown"
-                                                            aria-expanded="false">
-                                                            <i class="fa-solid fa-fw fa-share-alt"></i>
-                                                        </a>
-                                                        <!-- dropdown button -->
-                                                        <ul class="dropdown-menu dropdown-menu-end min-w-auto shadow rounded"
-                                                            aria-labelledby="dropdownShare">
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-twitter-square me-2"></i>Twitter</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-facebook-square me-2"></i>Facebook</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-linkedin me-2"></i>LinkedIn</a></li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fa-solid fa-copy me-2"></i>Copy link</a>
-                                                            </li>
-                                                        </ul>
-                                                    </li>
-                                                </ul>
-                                            </div>
-
-                                            <!-- Title -->
-                                            <h5 class="card-title mb-1"><a href="hotel-detail.html">Courtyard by Marriott
-                                                    New York </a></h5>
-                                            <small><i class="bi bi-geo-alt me-2"></i>5855 W Century Blvd, Los Angeles -
-                                                90045</small>
-                                            <!-- Amenities -->
-                                            <ul class="nav nav-divider mt-3">
-                                                <li class="nav-item">Air Conditioning</li>
-                                                <li class="nav-item">Wifi</li>
-                                                <li class="nav-item">Kitchen</li>
-                                                <li class="nav-item"><a href="#"
-                                                        class="mb-0 text-primary">More+</a></li>
-                                            </ul>
-
-                                            <!-- List -->
-                                            <ul class="list-group list-group-borderless small mb-0 mt-2">
-                                                <li class="list-group-item d-flex text-success p-0">
-                                                    <i class="bi bi-patch-check-fill me-2"></i>Free Cancellation till 7 Jan
-                                                    2022
-                                                </li>
-                                                <li class="list-group-item d-flex text-success p-0">
-                                                    <i class="bi bi-patch-check-fill me-2"></i>Free Breakfast
-                                                </li>
-                                            </ul>
-
-                                            <!-- Price and Button -->
-                                            <div
-                                                class="d-sm-flex justify-content-sm-between align-items-center mt-3 mt-md-auto">
-                                                <!-- Button -->
-                                                <div class="d-flex align-items-center">
-                                                    <h5 class="fw-bold mb-0 me-1">$750</h5>
-                                                    <span class="mb-0 me-2">/day</span>
-                                                    <span class="text-decoration-line-through mb-0">$1000</span>
-                                                </div>
-                                                <!-- Price -->
-                                                <div class="mt-3 mt-sm-0">
-                                                    <a href="#" class="btn btn-sm btn-dark mb-0 w-100">Select
-                                                        Room</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Card item END -->
-
-                            <!-- Card item START -->
-                            <div class="card shadow p-2">
-                                <div class="row g-0">
-                                    <!-- Card img -->
-                                    <div class="col-md-5">
-                                        <img src="assets/images/category/hotel/4by3/10.jpg" class="card-img rounded-2"
-                                            alt="Card image">
-                                    </div>
-
-                                    <!-- Card body -->
-                                    <div class="col-md-7">
-                                        <div class="card-body py-md-2 d-flex flex-column h-100">
-
-                                            <!-- Rating and buttons -->
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <ul class="list-inline mb-0">
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star-half-alt text-warning"></i></li>
-                                                </ul>
-
-                                                <ul class="list-inline mb-0 z-index-2">
-                                                    <!-- Heart icon -->
-                                                    <li class="list-inline-item">
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"><i
-                                                                class="fa-solid fa-fw fa-heart"></i></a>
-                                                    </li>
-                                                    <!-- Share icon -->
-                                                    <li class="list-inline-item dropdown">
-                                                        <!-- Share button -->
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"
-                                                            role="button" id="dropdownShare2" data-bs-toggle="dropdown"
-                                                            aria-expanded="false">
-                                                            <i class="fa-solid fa-fw fa-share-alt"></i>
-                                                        </a>
-                                                        <!-- dropdown button -->
-                                                        <ul class="dropdown-menu dropdown-menu-end min-w-auto shadow rounded"
-                                                            aria-labelledby="dropdownShare2">
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-twitter-square me-2"></i>Twitter</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-facebook-square me-2"></i>Facebook</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-linkedin me-2"></i>LinkedIn</a></li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fa-solid fa-copy me-2"></i>Copy link</a>
-                                                            </li>
-                                                        </ul>
-                                                    </li>
-                                                </ul>
-                                            </div>
-
-                                            <!-- Title -->
-                                            <h5 class="card-title mb-1"><a href="hotel-detail.html">Pride moon Village
-                                                    Resort & Spa</a></h5>
-                                            <small><i class="bi bi-geo-alt me-2"></i>31J W Spark Street, California -
-                                                24578</small>
-                                            <!-- Amenities -->
-                                            <ul class="nav nav-divider mt-3">
-                                                <li class="nav-item">Air Conditioning</li>
-                                                <li class="nav-item">Wifi</li>
-                                                <li class="nav-item">Kitchen</li>
-                                                <li class="nav-item">Pool</li>
-                                            </ul>
-
-                                            <!-- List -->
-                                            <ul class="list-group list-group-borderless small mb-0 mt-2">
-                                                <li class="list-group-item d-flex text-danger p-0">
-                                                    <i class="bi bi-patch-check-fill me-2"></i>Non Refundable
-                                                </li>
-                                            </ul>
-
-                                            <!-- Price and Button -->
-                                            <div
-                                                class="d-sm-flex justify-content-sm-between align-items-center mt-3 mt-md-auto">
-                                                <!-- Button -->
-                                                <div class="d-flex align-items-center">
-                                                    <h5 class="fw-bold mb-0 me-1">$980</h5>
-                                                    <span class="mb-0 me-2">/day</span>
-                                                </div>
-                                                <!-- Price -->
-                                                <div class="mt-3 mt-sm-0">
-                                                    <a href="hotel-detail.html"
-                                                        class="btn btn-sm btn-dark mb-0 w-100">Select Room</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Card item END -->
-
-                            <!-- Card item START -->
-                            <div class="card shadow p-2">
-                                <div class="row g-0">
-                                    <!-- Card img -->
-                                    <div class="col-md-5">
-                                        <img src="assets/images/category/hotel/4by3/11.jpg" class="card-img rounded-2"
-                                            alt="Card image">
-                                    </div>
-
-                                    <!-- Card body -->
-                                    <div class="col-md-7">
-                                        <div class="card-body py-md-2 d-flex flex-column h-100 position-relative">
-
-                                            <!-- Rating and buttons -->
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <ul class="list-inline mb-0">
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star-half-alt text-warning"></i></li>
-                                                </ul>
-
-                                                <ul class="list-inline mb-0 z-index-2">
-                                                    <!-- Heart icon -->
-                                                    <li class="list-inline-item">
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"><i
-                                                                class="fa-solid fa-fw fa-heart"></i></a>
-                                                    </li>
-                                                    <!-- Share icon -->
-                                                    <li class="list-inline-item dropdown">
-                                                        <!-- Share button -->
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"
-                                                            role="button" id="dropdownShare3" data-bs-toggle="dropdown"
-                                                            aria-expanded="false">
-                                                            <i class="fa-solid fa-fw fa-share-alt"></i>
-                                                        </a>
-                                                        <!-- dropdown button -->
-                                                        <ul class="dropdown-menu dropdown-menu-end min-w-auto shadow rounded"
-                                                            aria-labelledby="dropdownShare3">
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-twitter-square me-2"></i>Twitter</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-facebook-square me-2"></i>Facebook</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-linkedin me-2"></i>LinkedIn</a></li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fa-solid fa-copy me-2"></i>Copy link</a>
-                                                            </li>
-                                                        </ul>
-                                                    </li>
-                                                </ul>
-                                            </div>
-
-                                            <!-- Title -->
-                                            <h5 class="card-title mb-1"><a href="hotel-detail.html">Royal Beach Resort</a>
-                                            </h5>
-                                            <small><i class="bi bi-geo-alt me-2"></i>Manhattan street, London -
-                                                24578</small>
-                                            <!-- Amenities -->
-                                            <ul class="nav nav-divider mt-3">
-                                                <li class="nav-item">Air Conditioning</li>
-                                                <li class="nav-item">Wifi</li>
-                                                <li class="nav-item">Kitchen</li>
-                                                <li class="nav-item">Pool</li>
-                                                <li class="nav-item"><a href="#"
-                                                        class="mb-0 text-primary">More+</a></li>
-                                            </ul>
-
-                                            <!-- List -->
-                                            <ul class="list-group list-group-borderless small mb-0 mt-2">
-                                                <li class="list-group-item d-flex text-success p-0">
-                                                    <i class="bi bi-patch-check-fill me-2"></i>Free Cancellation till 7 Jan
-                                                    2022
-                                                </li>
-                                            </ul>
-
-                                            <!-- Price and Button -->
-                                            <div
-                                                class="d-sm-flex justify-content-sm-between align-items-center mt-3 mt-md-auto">
-                                                <!-- Button -->
-                                                <div class="d-flex align-items-center">
-                                                    <h5 class="fw-bold mb-0 me-1">$540</h5>
-                                                    <span class="mb-0 me-2">/day</span>
-                                                </div>
-                                                <!-- Price -->
-                                                <div class="mt-3 mt-sm-0">
-                                                    <a href="hotel-detail.html"
-                                                        class="btn btn-sm btn-dark mb-0 w-100">Select Room</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Card item END -->
-
-                            <!-- Card item START -->
-                            <div class="card shadow p-2">
-                                <div class="row g-0">
-                                    <!-- Card img -->
-                                    <div class="col-md-5 position-relative">
-
-                                        <!-- Slider START -->
-                                        <div class="tiny-slider arrow-round arrow-xs arrow-dark overflow-hidden rounded-2">
-                                            <div class="tiny-slider-inner" data-autoplay="false" data-arrow="true"
-                                                data-dots="false" data-items="1">
-                                                <!-- Image item -->
-                                                <div><img src="assets/images/category/hotel/4by3/08.jpg" alt="Card image">
-                                                </div>
-
-                                                <!-- Image item -->
-                                                <div><img src="assets/images/category/hotel/4by3/02.jpg" alt="Card image">
-                                                </div>
-
-                                                <!-- Image item -->
-                                                <div><img src="assets/images/category/hotel/4by3/03.jpg" alt="Card image">
-                                                </div>
-
-                                                <!-- Image item -->
-                                                <div><img src="assets/images/category/hotel/4by3/06.jpg" alt="Card image">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <!-- Slider END -->
-                                    </div>
-
-                                    <!-- Card body -->
-                                    <div class="col-md-7">
-                                        <div class="card-body py-md-2 d-flex flex-column h-100 position-relative">
-
-                                            <!-- Rating and buttons -->
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <ul class="list-inline mb-0">
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star-half-alt text-warning"></i></li>
-                                                </ul>
-
-                                                <ul class="list-inline mb-0 z-index-2">
-                                                    <!-- Heart icon -->
-                                                    <li class="list-inline-item">
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"><i
-                                                                class="fa-solid fa-fw fa-heart"></i></a>
-                                                    </li>
-                                                    <!-- Share icon -->
-                                                    <li class="list-inline-item dropdown">
-                                                        <!-- Share button -->
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"
-                                                            role="button" id="dropdownShare4" data-bs-toggle="dropdown"
-                                                            aria-expanded="false">
-                                                            <i class="fa-solid fa-fw fa-share-alt"></i>
-                                                        </a>
-                                                        <!-- dropdown button -->
-                                                        <ul class="dropdown-menu dropdown-menu-end min-w-auto shadow rounded"
-                                                            aria-labelledby="dropdownShare4">
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-twitter-square me-2"></i>Twitter</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-facebook-square me-2"></i>Facebook</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-linkedin me-2"></i>LinkedIn</a></li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fa-solid fa-copy me-2"></i>Copy link</a>
-                                                            </li>
-                                                        </ul>
-                                                    </li>
-                                                </ul>
-                                            </div>
-
-                                            <!-- Title -->
-                                            <h5 class="card-title mb-1"><a href="hotel-detail.html">Park Plaza Lodge
-                                                    Hotel</a></h5>
-                                            <small><i class="bi bi-geo-alt me-2"></i>5855 W Century Blvd, Los Angeles -
-                                                90045</small>
-                                            <!-- Amenities -->
-                                            <ul class="nav nav-divider mt-3">
-                                                <li class="nav-item">Air Conditioning</li>
-                                                <li class="nav-item">Wifi</li>
-                                                <li class="nav-item">Kitchen</li>
-                                                <li class="nav-item">Pool</li>
-                                            </ul>
-
-                                            <!-- List -->
-                                            <ul class="list-group list-group-borderless small mb-0 mt-2">
-                                                <li class="list-group-item d-flex text-success p-0">
-                                                    <i class="bi bi-patch-check-fill me-2"></i>Free Cancellation till 7 Jan
-                                                    2022
-                                                </li>
-                                                <li class="list-group-item d-flex text-success p-0">
-                                                    <i class="bi bi-patch-check-fill me-2"></i>Free Breakfast
-                                                </li>
-                                            </ul>
-
-                                            <!-- Price and Button -->
-                                            <div
-                                                class="d-sm-flex justify-content-sm-between align-items-center mt-3 mt-md-auto">
-                                                <!-- Button -->
-                                                <div class="d-flex align-items-center">
-                                                    <h5 class="fw-bold mb-0 me-1">$845</h5>
-                                                    <span class="mb-0 me-2">/day</span>
-                                                </div>
-                                                <!-- Price -->
-                                                <div class="mt-3 mt-sm-0">
-                                                    <a href="hotel-detail.html"
-                                                        class="btn btn-sm btn-dark mb-0 w-100">Select Room</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Card item END -->
-
-                            <!-- Card item START -->
-                            <div class="card shadow p-2">
-                                <div class="row g-0">
-                                    <!-- Card img -->
-                                    <div class="col-md-5">
-                                        <img src="assets/images/category/hotel/4by3/10.jpg" class="card-img rounded-2"
-                                            alt="Card image">
-                                    </div>
-
-                                    <!-- Card body -->
-                                    <div class="col-md-7">
-                                        <div class="card-body py-md-2 d-flex flex-column h-100 position-relative">
-
-                                            <!-- Rating and buttons -->
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <ul class="list-inline mb-0">
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                    <li class="list-inline-item me-0 small"><i
-                                                            class="fa-solid fa-star-half-alt text-warning"></i></li>
-                                                </ul>
-
-                                                <ul class="list-inline mb-0 z-index-2">
-                                                    <!-- Heart icon -->
-                                                    <li class="list-inline-item">
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"><i
-                                                                class="fa-solid fa-fw fa-heart"></i></a>
-                                                    </li>
-                                                    <!-- Share icon -->
-                                                    <li class="list-inline-item dropdown">
-                                                        <!-- Share button -->
-                                                        <a href="#" class="btn btn-sm btn-round btn-light"
-                                                            role="button" id="dropdownShare5" data-bs-toggle="dropdown"
-                                                            aria-expanded="false">
-                                                            <i class="fa-solid fa-fw fa-share-alt"></i>
-                                                        </a>
-                                                        <!-- dropdown button -->
-                                                        <ul class="dropdown-menu dropdown-menu-end min-w-auto shadow rounded"
-                                                            aria-labelledby="dropdownShare5">
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-twitter-square me-2"></i>Twitter</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-facebook-square me-2"></i>Facebook</a>
-                                                            </li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fab fa-linkedin me-2"></i>LinkedIn</a></li>
-                                                            <li><a class="dropdown-item" href="#"><i
-                                                                        class="fa-solid fa-copy me-2"></i>Copy link</a>
-                                                            </li>
-                                                        </ul>
-                                                    </li>
-                                                </ul>
-                                            </div>
-
-                                            <!-- Title -->
-                                            <h5 class="card-title mb-1"><a href="hotel-detail.html">Beverly Hills
-                                                    Marriott</a></h5>
-                                            <small><i class="bi bi-geo-alt me-2"></i>31J W Spark Street, California -
-                                                24578</small>
-                                            <!-- Amenities -->
-                                            <ul class="nav nav-divider mt-3">
-                                                <li class="nav-item">Air Conditioning</li>
-                                                <li class="nav-item">Wifi</li>
-                                                <li class="nav-item">Kitchen</li>
-                                                <li class="nav-item">Pool</li>
-                                            </ul>
-
-                                            <!-- List -->
-                                            <ul class="list-group list-group-borderless small mb-0 mt-2">
-                                                <li class="list-group-item d-flex text-danger p-0">
-                                                    <i class="bi bi-patch-check-fill me-2"></i>Non Refundable
-                                                </li>
-                                            </ul>
-
-                                            <!-- Price and Button -->
-                                            <div
-                                                class="d-sm-flex justify-content-sm-between align-items-center mt-3 mt-md-auto">
-                                                <!-- Button -->
-                                                <div class="d-flex align-items-center">
-                                                    <h5 class="fw-bold mb-0 me-1">$645</h5>
-                                                    <span class="mb-0 me-2">/day</span>
-                                                </div>
-                                                <!-- Price -->
-                                                <div class="mt-3 mt-sm-0">
-                                                    <a href="#" class="btn btn-sm btn-dark mb-0 w-100">Select
-                                                        Room</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Card item END -->
-
-                            <!-- Pagination -->
-                            <nav class="d-flex justify-content-center" aria-label="navigation">
-                                <ul class="pagination pagination-primary-soft d-inline-block d-md-flex rounded mb-0">
-                                    <li class="page-item mb-0"><a class="page-link" href="#" tabindex="-1"><i
-                                                class="fa-solid fa-angle-left"></i></a></li>
-                                    <li class="page-item mb-0"><a class="page-link" href="#">1</a></li>
-                                    <li class="page-item mb-0 active"><a class="page-link" href="#">2</a></li>
-                                    <li class="page-item mb-0"><a class="page-link" href="#">..</a></li>
-                                    <li class="page-item mb-0"><a class="page-link" href="#">6</a></li>
-                                    <li class="page-item mb-0"><a class="page-link" href="#"><i
-                                                class="fa-solid fa-angle-right"></i></a></li>
-                                </ul>
-                            </nav>
-
-                        </div>
-                    </div>
-                    <!-- Main content END -->
-                </div> <!-- Row END -->
             </div>
-        </section>
-        <!-- Hotel list END -->
+        </div>
+    </section>
+    @push('scripts')
+        <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+        <link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css" rel="stylesheet">
 
-    </main>
-    <!-- **************** MAIN CONTENT END **************** -->
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var priceSlider = document.getElementById('price-slider');
+                var minInput = document.getElementById('gia_min');
+                var maxInput = document.getElementById('gia_max');
+                var minLabel = document.getElementById('min-price');
+                var maxLabel = document.getElementById('max-price');
+
+                var minVal = parseInt(minInput.value);
+                var maxVal = parseInt(maxInput.value);
+
+                noUiSlider.create(priceSlider, {
+                    start: [minVal, maxVal],
+                    connect: true,
+                    range: {
+                        'min': {{ $giaMin }},
+                        'max': {{ $giaMax }}
+                    },
+                    step: 50000, // bước 50.000đ
+                    format: {
+                        to: value => Math.round(value),
+                        from: value => Math.round(value)
+                    }
+                });
+
+                priceSlider.noUiSlider.on('update', function(values) {
+                    minInput.value = values[0];
+                    maxInput.value = values[1];
+                    minLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[0]) + 'đ';
+                    maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[1]) + 'đ';
+                });
+            });
+        </script>
+    @endpush
 
 @endsection
+@push('styles')
+    <style>
+        /* Tùy chỉnh thanh trượt giá */
+        .noUi-target,
+        .noUi-target * {
+            box-shadow: none !important;
+        }
+
+        .noUi-target {
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            height: 8px;
+        }
+
+        .noUi-connect {
+            background: rgba(110, 110, 110, 0.6) !important;
+            /* tím nhạt, có thể đổi */
+            transition: background 0.3s ease;
+        }
+
+        .noUi-handle {
+            width: 26px !important;
+            height: 26px !important;
+            border-radius: 50% !important;
+            background: #fff !important;
+            border: 3px solid #5E3EFF !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .noUi-handle:hover {
+            border-color: #a58dff;
+        }
+
+        .sidebar-filter h6 {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .sidebar-filter .list-unstyled li {
+            margin-bottom: 6px;
+        }
+
+        .filter-box {
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-divider {
+            border-top: 1px solid #eee;
+            margin: 15px 0;
+        }
+
+        .filter-submit-btn {
+            background: #6759ff;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            width: 100%;
+            padding: 10px 0;
+            font-weight: 500;
+            transition: 0.25s;
+        }
+
+        .filter-submit-btn:hover {
+            background: #5845f5;
+        }
+
+        .object-fit-cover {
+            object-fit: cover;
+        }
+
+        section.rounded-4 img {
+            transition: transform 0.6s ease;
+        }
+
+        section.rounded-4:hover img {
+            transform: scale(1.05);
+        }
+
+        /* Carousel ảnh phòng */
+        .room-carousel-inner {
+            height: 250px;
+            /* Chiều cao cố định */
+            overflow: hidden;
+            border-radius: 14px 0 0 14px;
+        }
+
+        .room-carousel-img {
+            height: 100%;
+            width: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+
+        .room-carousel-img:hover {
+            transform: scale(1.05);
+        }
+
+        /* Đảm bảo toàn card không nhảy khi đổi ảnh */
+        .room-card {
+            min-height: 250px;
+        }
+
+        @media (max-width: 768px) {
+            .room-carousel-inner {
+                height: 200px;
+            }
+        }
+    </style>
+@endpush

@@ -108,32 +108,32 @@
 							<i class="fas fa-ellipsis-h"></i>
 						</a>
 						<ul class="dropdown-menu min-w-auto" data-bs-popper="none">
-							<li> 
+							<li>
 								<a class="dropdown-item" href="#" target="_blank">
 									<i class="text-warning fa-fw bi bi-life-preserver me-2"></i>Support
-								</a> 
+								</a>
 							</li>
-							<li> 
+							<li>
 								<a class="dropdown-item" href="{{ asset('template/stackbros/docs/index.html') }}" target="_blank">
 									<i class="text-danger fa-fw bi bi-card-text me-2"></i>Documentation
-								</a> 
+								</a>
 							</li>
 							<li> <hr class="dropdown-divider"></li>
-							<li> 
+							<li>
 								<a class="dropdown-item" href="#" target="_blank">
 									<i class="text-info fa-fw bi bi-toggle-off me-2"></i>RTL demo
-								</a> 
+								</a>
 							</li>
-							<li> 
+							<li>
 								<a class="dropdown-item" href="#" target="_blank">
 									<i class="text-success fa-fw bi bi-cloud-download-fill me-2"></i>Buy Booking!
-								</a> 
+								</a>
 							</li>
 							<li> <hr class="dropdown-divider"></li>
-							<li> 
+							<li>
 								<a class="dropdown-item" href="{{ asset('template/stackbros/docs/alerts.html') }}" target="_blank">
 									<i class="text-orange fa-fw bi bi-puzzle-fill me-2"></i>Components
-								</a> 
+								</a>
 							</li>
 						</ul>
 					</li>
