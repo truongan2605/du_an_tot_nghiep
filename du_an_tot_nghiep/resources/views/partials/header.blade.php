@@ -205,6 +205,11 @@
 								<button class="btn btn-sm btn-link mb-0 p-0" onclick="notificationManager.markAllAsRead()">
 									<i class="fas fa-check-double me-1"></i>Đánh dấu tất cả đã đọc
 								</button>
+								@auth
+								<button class="btn btn-sm btn-outline-primary ms-2" onclick="testClientBroadcast()">
+									<i class="fas fa-bell me-1"></i>Test Client
+								</button>
+								@endauth
 							</div>
 						</div>
 					</div>
@@ -275,16 +280,11 @@
 						@endguest
 					</ul>
 				</li>
-				<!-- Profile dropdown END -->
 			</ul>
-			<!-- Profile and Notification START -->
-
 		</div>
 	</nav>
-	<!-- Logo Nav END -->
 </header>
 
-<!-- Notification Detail Modal -->
 <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -319,12 +319,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const markAsReadBtn = document.getElementById('markAsReadBtn');
     let currentNotificationId = null;
     
-    // Handle modal show event
     modal.addEventListener('show.bs.modal', function (event) {
         const button = event.relatedTarget;
         currentNotificationId = button.getAttribute('data-notification-id');
         
-        // Reset modal content
         modalBody.innerHTML = `
             <div class="text-center py-4">
                 <div class="spinner-border text-primary" role="status">
@@ -334,13 +332,8 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        // Hide mark as read button initially
         markAsReadBtn.style.display = 'none';
         
-        // Fetch notification details via AJAX
-        console.log('Fetching notification:', currentNotificationId);
-        
-        // Add timeout to prevent infinite loading
         const timeoutId = setTimeout(() => {
             modalBody.innerHTML = `
                 <div class="alert alert-warning">
@@ -355,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </button>
                 </div>
             `;
-        }, 10000); // 10 seconds timeout
+        }, 5000);
         
         fetch(`/thong-bao/${currentNotificationId}/modal`, {
             method: 'GET',
@@ -366,10 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(response => {
-            clearTimeout(timeoutId); // Clear timeout on successful response
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            
+            clearTimeout(timeoutId);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -380,7 +370,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 modalBody.innerHTML = data.html;
                 
-                // Show mark as read button if notification is unread
                 if (data.isUnread) {
                     markAsReadBtn.style.display = 'inline-block';
                 }
@@ -394,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => {
-            clearTimeout(timeoutId); // Clear timeout on error
+            clearTimeout(timeoutId);
             console.error('Fetch error:', error);
             modalBody.innerHTML = `
                 <div class="alert alert-danger">
@@ -429,10 +418,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
     
-    // Handle mark as read button
     markAsReadBtn.addEventListener('click', function() {
         if (currentNotificationId) {
-            // Mark as read via AJAX
             fetch(`/thong-bao/${currentNotificationId}/read`, {
                 method: 'POST',
                 headers: {
@@ -442,10 +429,8 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                // Hide mark as read button
                 markAsReadBtn.style.display = 'none';
                 
-                // Remove unread styling from notification item
                 const notificationItem = document.querySelector(`[data-notification-id="${currentNotificationId}"]`);
                 if (notificationItem) {
                     notificationItem.classList.remove('notif-unread');
@@ -476,7 +461,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Function to update notification badge
     function updateNotificationBadge() {
         fetch('/api/notifications/unread-count')
             .then(response => response.json())
@@ -495,5 +479,49 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error updating badge:', error);
             });
     }
+    
+    // Test client broadcast function
+    window.testClientBroadcast = function() {
+        fetch('/test-client-broadcast', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Test client notification sent:', data);
+                // Show success message
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                alert.innerHTML = `
+                    <i class="fas fa-check me-1"></i>Test client notification sent! Check console for Echo logs.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(alert);
+                
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.remove();
+                    }
+                }, 5000);
+            }
+        })
+        .catch(error => {
+            console.error('Error sending test client notification:', error);
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+            alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alert.innerHTML = `
+                <i class="fas fa-exclamation-triangle me-1"></i>Error sending test client notification
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alert);
+        });
+    };
 });
 </script>

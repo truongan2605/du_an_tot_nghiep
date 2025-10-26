@@ -304,7 +304,7 @@
             setInterval(() => {
                 loadAdminNotifications();
                 loadAdminUnreadCount();
-            }, 30000);
+            }, 5000);
         });
     </script>
     

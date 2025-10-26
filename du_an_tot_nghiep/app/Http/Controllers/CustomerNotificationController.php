@@ -6,6 +6,7 @@ use App\Models\ThongBao;
 use App\Models\User;
 use App\Jobs\SendNotificationJob;
 use App\Jobs\SendBatchNotificationJob;
+use App\Events\NotificationCreated;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Mail;
@@ -151,6 +152,11 @@ class CustomerNotificationController extends Controller
 
         // Otherwise create single notification for selected customer
         $notification = ThongBao::create($data);
+
+        // Broadcast notification for real-time updates
+        if ($data['kenh'] === 'in_app') {
+            broadcast(new NotificationCreated($notification));
+        }
 
         // Dispatch single notification job
         SendNotificationJob::dispatch($notification->id, $notification->nguoi_nhan_id)

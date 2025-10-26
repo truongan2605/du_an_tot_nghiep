@@ -30,6 +30,43 @@ Route::get('test-route-exists', function() {
     return 'Route exists: ' . (Route::has('notifications.show') ? 'YES' : 'NO');
 });
 
+// Test API route
+Route::get('test-api', function() {
+    return response()->json([
+        'success' => true,
+        'message' => 'API is working',
+        'user' => auth()->user() ? auth()->user()->name : 'Not authenticated'
+    ]);
+});
+
+// Test broadcast for client
+Route::middleware('auth')->post('test-client-broadcast', function() {
+    $user = auth()->user();
+    
+    $notification = \App\Models\ThongBao::create([
+        'nguoi_nhan_id' => $user->id,
+        'kenh' => 'in_app',
+        'ten_template' => 'test_client_notification',
+        'payload' => [
+            'title' => 'Test Client Thông báo',
+            'message' => 'Đây là thông báo test cho client. Thời gian: ' . now()->format('H:i:s'),
+            'link' => '/account/bookings',
+        ],
+        'trang_thai' => 'pending',
+        'so_lan_thu' => 0,
+    ]);
+    
+    // Broadcast notification
+    broadcast(new \App\Events\NotificationCreated($notification));
+    
+    return response()->json([
+        'success' => true,
+        'message' => 'Test client notification sent',
+        'notification_id' => $notification->id,
+        'user_id' => $user->id
+    ]);
+});
+
 use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 
@@ -186,20 +223,21 @@ Route::middleware('auth')->prefix('account')
     ->name('account.')
     ->group(function () {
 
-// In-app notification: mark as read
-Route::middleware('auth')->post('thong-bao/{thong_bao}/read', [ThongBaoController::class, 'markRead'])->name('thong-bao.mark-read');
+        // In-app notification: mark as read
+        Route::post('thong-bao/{thong_bao}/read', [ThongBaoController::class, 'markRead'])->name('thong-bao.mark-read');
 
-// Mark notification as read when viewing
-Route::middleware('auth')->post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('thong-bao.mark-read-on-view');
+        // Mark notification as read when viewing
+        Route::post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('thong-bao.mark-read-on-view');
 
-// Client notification modal
-Route::middleware('auth')->get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('thong-bao.client-modal');
+        // Client notification modal
+        Route::get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('thong-bao.client-modal');
 
-// API for unread count
-Route::middleware('auth')->get('api/notifications/unread-count', [ThongBaoController::class, 'getUnreadCount']);
+        // API for unread count
+        Route::get('api/notifications/unread-count', [ThongBaoController::class, 'getUnreadCount']);
+    });
 
 // API routes for notifications - Basic access for all users
-Route::middleware('auth')->prefix('api/notifications')->group(function () {
+Route::middleware(['web', 'auth'])->prefix('api/notifications')->group(function () {
     Route::get('/recent', [App\Http\Controllers\Api\NotificationController::class, 'getRecent']);
     Route::get('/unread-count', [App\Http\Controllers\Api\NotificationController::class, 'getUnreadCount']);
     Route::get('/{id}', [App\Http\Controllers\Api\NotificationController::class, 'show']);
@@ -208,30 +246,38 @@ Route::middleware('auth')->prefix('api/notifications')->group(function () {
 });
 
 // API routes for notifications - Admin only access
-Route::middleware(['auth', 'admin'])->prefix('api/notifications')->group(function () {
+Route::middleware(['web', 'auth', 'admin'])->prefix('api/notifications')->group(function () {
     Route::get('/', [App\Http\Controllers\Api\NotificationController::class, 'index']);
     Route::get('/stats', [App\Http\Controllers\Api\NotificationController::class, 'getStats']);
     Route::post('/mark-multiple-read', [App\Http\Controllers\Api\NotificationController::class, 'markMultipleAsRead']);
     Route::delete('/{id}', [App\Http\Controllers\Api\NotificationController::class, 'destroy']);
 });
+
+Route::middleware('auth')->prefix('account')
+    ->name('account.')
+    ->group(function () {
+        // Settings
         Route::get('settings', function () {
             return view('account.profile');
         })->name('settings');
         Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
 
+        // Wishlist
         Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
         Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
         Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
         Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
 
+        // Booking
         Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
         Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+        Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
+        Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
 
-        Route::get('bookings', [BookingController::class, 'index'])
-            ->name('booking.index');
-
-        Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])
-            ->name('booking.show');
+        // Notifications
+        Route::post('thong-bao/{thong_bao}/read', [ThongBaoController::class, 'markRead'])->name('thong-bao.mark-read');
+        Route::post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('thong-bao.mark-read-on-view');
+        Route::get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('thong-bao.client-modal');
     });
 
 

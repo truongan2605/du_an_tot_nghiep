@@ -11,20 +11,18 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class RoomCreated
+class RoomCreated implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $phong;
-    public $user;
+    public Phong $room;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(Phong $phong, $user)
+    public function __construct(Phong $room)
     {
-        $this->phong = $phong;
-        $this->user = $user;
+        $this->room = $room;
     }
 
     /**
@@ -35,14 +33,33 @@ class RoomCreated
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('channel-name'),
+            new Channel('room-updates'),
+        ];
+    }
+
+    /**
+     * The event's broadcast name.
+     */
+    public function broadcastAs(): string
+    {
+        return 'RoomCreated';
+    }
+
+    /**
+     * Get the data to broadcast.
+     */
+    public function broadcastWith(): array
+    {
+        return [
+            'room' => [
+                'id' => $this->room->id,
+                'ma_phong' => $this->room->ma_phong,
+                'name' => $this->room->name,
+                'loai_phong' => $this->room->loaiPhong->name ?? null,
+                'gia_cuoi_cung' => $this->room->gia_cuoi_cung,
+                'trang_thai' => $this->room->trang_thai,
+                'created_at' => $this->room->created_at->toISOString(),
+            ]
         ];
     }
 }
-
-
-
-
-
-
-

@@ -9,6 +9,5 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('cleanup:expired-holds --auto-cancel')
-    ->everyTenSeconds()
-    ->withoutOverlapping()
-    ->onOneServer();
+    ->daily()
+    ->withoutOverlapping();
