@@ -264,6 +264,72 @@
                         </div>
                     </div>
                 </div>
+<!-- Vật dụng -->
+<div class="mt-4">
+    <h5 class="fw-bold">Vật dụng</h5>
+    <div class="row">
+        @php
+            // Lấy danh sách vật dụng mặc định theo loại phòng
+            $vatMacDinh = $vatDungLoaiPhong->where('trang_thai', 0) ?? collect();
+
+            // Lấy danh sách vật dụng theo phòng
+            $vatPhongAll = $vatDungPhong->where('trang_thai', 0) ?? collect();
+
+            // Tính vật dụng bổ sung (có trong phòng nhưng không có trong loại phòng)
+            $vatBoSung = $vatPhongAll->reject(function ($item) use ($vatMacDinh) {
+                return $vatMacDinh->contains('id', $item->id);
+            });
+        @endphp
+
+        <!-- Vật dụng mặc định -->
+        <div class="col-md-6">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">Vật dụng mặc định</div>
+                <div class="card-body">
+                    @if ($vatMacDinh->count())
+                        <ul class="list-unstyled mb-0">
+                            @foreach ($vatMacDinh as $vd)
+                                <li>
+                                    ✔ {{ $vd->ten }}
+                                    <small class="text-muted"> — 
+                                        {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ
+                                    </small>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p><em>Không có vật dụng mặc định</em></p>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <!-- Vật dụng bổ sung -->
+        <div class="col-md-6">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">Vật dụng bổ sung</div>
+                <div class="card-body">
+                    @if ($vatBoSung->count())
+                        <ul class="list-unstyled mb-0">
+                            @foreach ($vatBoSung as $vd)
+                                <li>
+                                    ➕ {{ $vd->ten }}
+                                    <small class="text-muted"> — 
+                                        {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ
+                                    </small>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p><em>Không có vật dụng bổ sung</em></p>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 
                 <div class="mt-3 text-end">
                     <h5>Tổng giá phòng:

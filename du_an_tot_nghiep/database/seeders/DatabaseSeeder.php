@@ -11,12 +11,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        
         $this->call([
             HotelSeeder::class,
             TienNghiSeeder::class,
+            DatPhongSeeder::class, 
             TangSeeder::class,
             LoaiPhongSeeder::class,
             PhongSeeder::class,
+            DatPhongItemSeeder::class,
         ]);
     }
 }

@@ -9001,9 +9001,9 @@ textarea.form-control-lg {
 }
 
 .flex-grow-1 {
-  -webkit-box-flex: 1 !important;
-      -ms-flex-positive: 1 !important;
-          flex-grow: 1 !important;
+  -webkit-box-flex: 1 ;
+      -ms-flex-positive: 1 ;
+          flex-grow: 1 ;
 }
 
 .flex-shrink-0 {

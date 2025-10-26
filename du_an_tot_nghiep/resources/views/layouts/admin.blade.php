@@ -7,11 +7,13 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin Panel')</title>
-
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 
     <style>
@@ -60,6 +62,10 @@
                     <a class="nav-link {{ request()->routeIs('admin.tien-nghi.*') ? 'active' : '' }}"
                         href="{{ route('admin.tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Dịch vụ
+                    </a>
+                     <a class="nav-link {{ request()->routeIs('admin.vat-dung.*') ? 'active' : '' }}"
+                        href="{{ route('admin.vat-dung.index') }}">
+                        <i class="fas fa-concierge-bell me-2"></i> Vật dụng
                     </a>
                     <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}"
                         href="{{ route('admin.phong.index') }}">
@@ -163,20 +169,9 @@
                 </div>
                 
                 <div class="p-4">
-                    @if (session('success'))
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            {{ session('success') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
+                   
 
-                    @if (session('error'))
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            {{ session('error') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
-
+                   
                     @yield('content')
                 </div>
             </div>

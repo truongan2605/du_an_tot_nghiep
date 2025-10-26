@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Tang;
+use Illuminate\Database\Seeder;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
 class TangSeeder extends Seeder
 {
@@ -13,6 +13,7 @@ class TangSeeder extends Seeder
      */
     public function run(): void
     {
+        
         Tang::create([
             'so_tang' => 1,
             'ten' => 'Tầng 1',

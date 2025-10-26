@@ -2,10 +2,11 @@
 
 namespace App\Providers;
 
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 use App\Models\Phong;
 use App\Observers\PhongObserver;
-use Illuminate\Pagination\Paginator;
+
 
 class AppServiceProvider extends ServiceProvider
 {

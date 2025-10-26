@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('ma_tham_chieu')->unique();
             $table->foreignId('nguoi_dung_id')->constrained('nguoi_dung');
-            $table->enum('trang_thai', ['dang_cho', 'da_xac_nhan', 'da_nhan_phong', 'hoan_thanh', 'da_huy', 'het_han'])->default('dang_cho');
+            $table->enum('trang_thai', ['dang_cho','da_gan_phong', 'da_xac_nhan', 'da_nhan_phong', 'hoan_thanh', 'da_huy', 'het_han'])->default('dang_cho');
             $table->date('ngay_nhan_phong');
             $table->date('ngay_tra_phong');
             $table->integer('so_khach');
