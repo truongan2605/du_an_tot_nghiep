@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 
@@ -181,7 +182,7 @@ Route::middleware('auth')->group(function () {
 
 // ==================== TEST ====================
 Route::get('/test-notifications', function() {
-    $user = auth()->user();
+    $user = Auth::user();
     if (!$user) {
         return response()->json(['error' => 'Not authenticated']);
     }
@@ -207,7 +208,7 @@ Route::get('/test-notifications', function() {
 })->middleware('auth');
 
 Route::get('/test-admin-notifications', function() {
-    $user = auth()->user();
+    $user = Auth::user();
     if (!$user) {
         return response()->json(['error' => 'Not authenticated']);
     }
