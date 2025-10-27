@@ -44,52 +44,59 @@
                     dưới.</div>
             </div>
 
+            {{-- Tiện nghi --}}
             <div class="mb-3">
                 <label>Tiện nghi</label><br>
                 @foreach ($tienNghis as $tn)
                     <div class="form-check form-check-inline">
-                        <input type="checkbox" name="tien_nghi[]" value="{{ $tn->id }}" class="form-check-input"
-                            {{ in_array($tn->id, old('tien_nghi', [])) ? 'checked' : '' }}>
+                        <input type="checkbox" name="tien_nghi_ids[]" value="{{ $tn->id }}" class="form-check-input"
+                            {{ in_array($tn->id, old('tien_nghi_ids', [])) ? 'checked' : '' }}>
                         <label class="form-check-label">{{ $tn->ten }}</label>
                     </div>
                 @endforeach
             </div>
-{{-- Vật dụng --}}
-<div class="col-md-6">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-success text-white fw-bold">
-            Chọn Vật Dụng
-        </div>
-        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-            @if($vatDungs->count() > 0)
-                <div class="row">
-                    @foreach($vatDungs as $item)
-                        <div class="col-md-6 mb-2">
-                            <div class="form-check">
-                                <input 
-    class="form-check-input" 
-    type="checkbox" 
-    name="vat_dungs[]" 
-    value="{{ $item->id }}" 
-    id="vatDung{{ $item->id }}"
-    {{ in_array($item->id, old('vat_dungs', [])) ? 'checked' : '' }}>
-<label class="form-check-label" for="vatDung{{ $item->id }}">
-    {{ $item->ten }}
-</label>
+
+            {{-- Vật dụng: show durable items with status and tracked flag --}}
+            <div class="col-md-12 mb-3">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-success text-white fw-bold">
+                        Chọn Vật Dụng (Đồ dùng)
+                    </div>
+                    <div class="card-body" style="max-height: 360px; overflow-y: auto;">
+                        @if ($vatDungs->count() > 0)
+                            <div class="row">
+                                @foreach ($vatDungs as $item)
+                                    <div class="col-md-6 mb-2">
+                                        <label class="d-flex align-items-center gap-2">
+                                            <input class="form-check-input" type="checkbox" name="vat_dung_ids[]"
+                                                value="{{ $item->id }}" id="vatDung{{ $item->id }}"
+                                                {{ in_array($item->id, old('vat_dung_ids', [])) ? 'checked' : '' }}>
+
+                                            <span class="flex-grow-1">{{ $item->ten }}</span>
+
+                                            @if($item->tracked_instances)
+                                                <span class="badge bg-warning text-dark small">Tracked</span>
+                                            @endif
+
+                                            <span class="badge {{ $item->active ? 'bg-success' : 'bg-secondary' }} small">
+                                                {{ $item->active ? 'Present' : 'Inactive' }}
+                                            </span>
+                                        </label>
+                                    </div>
+                                @endforeach
                             </div>
-                        </div>
-                    @endforeach
+                        @else
+                            <p class="text-muted mb-0">Chưa có vật dụng nào.</p>
+                        @endif
+                    </div>
                 </div>
-            @else
-                <p class="text-muted mb-0">Chưa có vật dụng nào.</p>
-            @endif
-        </div>
-    </div>
-</div>
+            </div>
+
             <hr>
             <h5>Loại giường</h5>
             <p class="text-muted small">Chọn số lượng cho mỗi loại giường. <strong>Sức chứa</strong> và
-                <strong>Số giường</strong> sẽ được tính tự động dựa trên cấu hình này.</p>
+                <strong>Số giường</strong> sẽ được tính tự động dựa trên cấu hình này.
+            </p>
 
             @foreach ($bedTypes as $bt)
                 @php

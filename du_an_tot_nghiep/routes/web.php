@@ -27,7 +27,9 @@ use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
-
+use App\Http\Controllers\Admin\PhongVatDungController;
+use App\Http\Controllers\Admin\PhongConsumptionController;
+use App\Http\Controllers\Admin\VatDungIncidentController;
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -52,11 +54,11 @@ Route::prefix('admin')
         Route::resource('tien-nghi', AdminTienNghiController::class);
         Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])->name('tien-nghi.toggle-active');
 
-             // vatdung
+        // vatdung
         Route::resource('vat-dung', AdminVatDungController::class);
         Route::patch('vat-dung/{vat_dung}/toggle-active', [AdminVatDungController::class, 'toggleActive'])
-        ->name('vat-dung.toggle-active');
-            
+            ->name('vat-dung.toggle-active');
+
         // Loại phòng
         Route::get('/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
         Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])->name('loai_phong.disable');
@@ -106,7 +108,22 @@ Route::prefix('admin')
         Route::resource('internal-notifications', InternalNotificationController::class);
         Route::resource('admin-notifications', AdminNotificationController::class);
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
-        
+
+
+        // ---- Vật dụng trong phòng ----
+        Route::post('phong/{phong}/vat-dung/sync', [PhongVatDungController::class, 'sync'])->name('phong.vatdung.sync');
+        Route::post('phong/{phong}/vat-dung/remove/{vat_dung}', [PhongVatDungController::class, 'remove'])->name('phong.vatdung.remove');
+
+        // Consumptions (đồ ăn theo booking) — admin thêm cho booking (dat_phong)
+        Route::post('phong/consumptions', [PhongConsumptionController::class, 'store'])->name('phong.consumptions.store');
+        Route::put('phong/consumptions/{consumption}', [PhongConsumptionController::class, 'update'])->name('phong.consumptions.update');
+        Route::delete('phong/consumptions/{consumption}', [PhongConsumptionController::class, 'destroy'])->name('phong.consumptions.destroy');
+
+        // Durable instances & incidents
+        Route::post('phong/{phong}/instances', [VatDungIncidentController::class, 'createInstance'])->name('phong.instances.store');
+        Route::post('phong/incidents', [VatDungIncidentController::class, 'store'])->name('phong.incidents.store');
+        Route::put('phong/incidents/{incident}', [VatDungIncidentController::class, 'update'])->name('phong.incidents.update');
+        Route::delete('phong/incidents/{incident}', [VatDungIncidentController::class, 'destroy'])->name('phong.incidents.destroy');
     });
 
 // ==================== STAFF ====================

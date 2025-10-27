@@ -28,7 +28,7 @@
                         <div class="mb-3">
                             <label for="gia" class="form-label">Giá dịch vụ</label>
                             <input type="number" step="0.01" name="gia" id="gia"
-                                value="{{ old('gia', $tiennghi->gia ?? '') }}" class="form-control">
+                                value="{{ old('gia', $tiennghi->gia ?? 0) }}" class="form-control">
                         </div>
 
                         <div class="mb-3">

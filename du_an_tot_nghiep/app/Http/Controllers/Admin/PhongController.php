@@ -357,18 +357,6 @@ class PhongController extends Controller
         }
     }
 
-    //     public function show($id)
-    //     {
-    //         $phong = Phong::with(['loaiPhong.tienNghis', 'tienNghis','vatDungs','bedTypes'])->findOrFail($id);
-
-    //         $tienNghiLoaiPhong = $phong->loaiPhong->tienNghis ?? collect();
-    //         $tienNghiPhong = $phong->tienNghis ?? collect();
-    //         $vatDungLoaiPhong = $phong->loaiPhong->vatDungs ?? collect();
-    // $vatDungPhong = $phong->vatDungs ?? collect();
-
-
-    //         return view('admin.phong.show', compact('phong', 'tienNghiLoaiPhong', 'tienNghiPhong'));
-    //     }
     public function show($id)
     {
         $phong = Phong::with(['loaiPhong.tienNghis', 'tienNghis', 'vatDungs', 'loaiPhong.vatDungs'])->findOrFail($id);

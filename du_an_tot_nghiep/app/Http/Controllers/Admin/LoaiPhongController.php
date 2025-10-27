@@ -12,49 +12,46 @@ use Illuminate\Support\Facades\DB;
 
 class LoaiPhongController extends Controller
 {
-public function index(Request $request)
-{
-    $query = LoaiPhong::with('tienNghis')
-        ->withCount([
-            'phongs',
-            'phongs as occupied_count' => function ($q) {
-                $q->where('trang_thai', 'dang_o');
-            },
-        ]);
+    public function index(Request $request)
+    {
+        $query = LoaiPhong::with('tienNghis')
+            ->withCount([
+                'phongs',
+                'phongs as occupied_count' => function ($q) {
+                    $q->where('trang_thai', 'dang_o');
+                },
+            ]);
 
-    // Lọc theo tên
-    if ($request->filled('ten')) {
-        $query->where('ten', 'like', '%' . $request->ten . '%');
+        // Lọc theo tên
+        if ($request->filled('ten')) {
+            $query->where('ten', 'like', '%' . $request->ten . '%');
+        }
+
+        // Lọc theo tiện nghi
+        if ($request->filled('tien_nghi_ids')) {
+            $tien_nghi_ids = (array) $request->tien_nghi_ids;
+
+            foreach ($tien_nghi_ids as $tnId) {
+                $query->whereHas('tienNghis', function ($q) use ($tnId) {
+                    $q->where('tien_nghi.id', $tnId);
+                });
+            }
+        }
+
+        $loaiPhongs = $query->orderByDesc('id')->get();
+        $dsTienNghis = TienNghi::all();
+
+        return view('admin.loai_phong.index', compact('loaiPhongs', 'dsTienNghis'));
     }
-
-    // Lọc theo tiện nghi
-  if ($request->filled('tien_nghi_ids')) {
-    $tien_nghi_ids = (array) $request->tien_nghi_ids;
-
-    foreach ($tien_nghi_ids as $tnId) {
-        $query->whereHas('tienNghis', function ($q) use ($tnId) {
-            $q->where('tien_nghi.id', $tnId);
-        });
-    }
-}
-
-    $loaiPhongs = $query->orderByDesc('id')->get();
-    $dsTienNghis = TienNghi::all();
-
-    return view('admin.loai_phong.index', compact('loaiPhongs', 'dsTienNghis'));
-}
-
-
-
 
 
     public function create()
     {
         $tienNghis = TienNghi::where('active', true)->get();
-        $vatDungs = VatDung::where('active', true)->get();
-         $bedTypes = BedType::orderBy('name')->get();
-       
-        return view('admin.loai_phong.create', compact('tienNghis', 'bedTypes','vatDungs'));
+        $vatDungs = VatDung::where('active', true)->where('loai', VatDung::LOAI_DO_DUNG)->get();
+        $bedTypes = BedType::orderBy('name')->get();
+
+        return view('admin.loai_phong.create', compact('tienNghis', 'bedTypes', 'vatDungs'));
     }
 
     public function store(Request $request)
@@ -69,8 +66,12 @@ public function index(Request $request)
             'so_luong_thuc_te' => 'nullable|integer|min:0',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'exists:tien_nghi,id',
-                   'vat_dungs' => 'nullable|array',
-    'vat_dungs.*' => 'exists:vat_dungs,id',
+            'tien_nghi_ids' => 'nullable|array',
+            'tien_nghi_ids.*' => 'exists:tien_nghi,id',
+            'vat_dungs' => 'nullable|array',
+            'vat_dungs.*' => 'exists:vat_dungs,id',
+            'vat_dung_ids' => 'nullable|array',
+            'vat_dung_ids.*' => 'exists:vat_dungs,id',
             'bed_types' => 'nullable|array',
             'bed_types.*.quantity' => 'nullable|integer|min:0',
             'bed_types.*.price' => 'nullable|numeric|min:0',
@@ -86,12 +87,19 @@ public function index(Request $request)
 
             $loaiPhong = LoaiPhong::create($data);
 
-            if ($request->has('tien_nghi')) {
-                $loaiPhong->tienNghis()->sync($request->input('tien_nghi', []));
+            $tienNghiInput = $request->input('tien_nghi', $request->input('tien_nghi_ids', []));
+            if (!empty($tienNghiInput)) {
+                $loaiPhong->tienNghis()->sync($tienNghiInput);
             }
-               if ($request->has('vat_dungs')) {
-    $loaiPhong->vatDungs()->sync($request->vat_dungs);
-}
+
+            $rawVatDungs = $request->input('vat_dungs', $request->input('vat_dung_ids', []));
+            if (!empty($rawVatDungs)) {
+                $ids = VatDung::whereIn('id', (array)$rawVatDungs)
+                    ->where('loai', VatDung::LOAI_DO_DUNG)
+                    ->pluck('id')
+                    ->toArray();
+                $loaiPhong->vatDungs()->sync($ids);
+            }
 
             $bedData = $request->input('bed_types', null);
 
@@ -132,7 +140,6 @@ public function index(Request $request)
                 $loaiPhong->suc_chua = $totalCapacity;
                 $loaiPhong->so_giuong = $totalBeds;
                 $loaiPhong->save();
-            } else {
             }
 
             DB::commit();
@@ -141,26 +148,23 @@ public function index(Request $request)
             DB::rollBack();
             return back()->withInput()->withErrors(['error' => 'Lỗi lưu loại phòng: ' . $e->getMessage()]);
         }
-     
-
-        return redirect()->route('admin.loai_phong.index')->with('success', 'Thêm loại phòng thành công');
     }
 
 
     public function show($id)
     {
-        $loaiphong = LoaiPhong::with(['tienNghis', 'bedTypes'])->findOrFail($id);
+        $loaiphong = LoaiPhong::with(['tienNghis', 'bedTypes', 'vatDungs'])->findOrFail($id);
         return view('admin.loai_phong.show', compact('loaiphong'));
     }
 
     public function edit($id)
     {
-        $loaiphong = LoaiPhong::with(['tienNghis', 'vatDungs'])->findOrFail($id);
+        $loaiphong = LoaiPhong::with(['tienNghis', 'vatDungs', 'bedTypes'])->findOrFail($id);
         $tienNghis = TienNghi::where('active', true)->get();
-$vatDungs = VatDung::where('active', true)->get();
-$bedTypes = BedType::orderBy('name')->get();
-       
-        return view('admin.loai_phong.edit', compact('loaiphong', 'tienNghis','vatDungs','bedTypes'));
+        $vatDungs = VatDung::where('active', true)->where('loai', VatDung::LOAI_DO_DUNG)->get();
+        $bedTypes = BedType::orderBy('name')->get();
+
+        return view('admin.loai_phong.edit', compact('loaiphong', 'tienNghis', 'vatDungs', 'bedTypes'));
     }
 
     public function update(Request $request, $id)
@@ -173,10 +177,15 @@ $bedTypes = BedType::orderBy('name')->get();
             'so_giuong' => 'nullable|integer|min:0',
             'gia_mac_dinh' => 'required|numeric',
             'so_luong_thuc_te' => 'required|integer',
+            // chấp nhận cả 2 tên input
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'exists:tien_nghi,id',
-             'vat_dungs' => 'nullable|array',
-    'vat_dungs.*' => 'exists:vat_dungs,id',
+            'tien_nghi_ids' => 'nullable|array',
+            'tien_nghi_ids.*' => 'exists:tien_nghi,id',
+            'vat_dungs' => 'nullable|array',
+            'vat_dungs.*' => 'exists:vat_dungs,id',
+            'vat_dung_ids' => 'nullable|array',
+            'vat_dung_ids.*' => 'exists:vat_dungs,id',
             'bed_types' => 'nullable|array',
             'bed_types.*.quantity' => 'nullable|integer|min:0',
             'bed_types.*.price' => 'nullable|numeric|min:0',
@@ -194,8 +203,18 @@ $bedTypes = BedType::orderBy('name')->get();
                 'so_luong_thuc_te'
             ]));
 
-        $loaiphong->tienNghis()->sync($request->input('tien_nghi_ids', []));
-        $loaiphong->vatDungs()->sync($request->input('vat_dung_ids', []));
+            $tienNghiInput = $request->input('tien_nghi', $request->input('tien_nghi_ids', []));
+            $loaiphong->tienNghis()->sync($tienNghiInput);
+
+            $rawVatDungs = $request->input('vat_dungs', $request->input('vat_dung_ids', []));
+            $vatIds = [];
+            if (!empty($rawVatDungs)) {
+                $vatIds = VatDung::whereIn('id', (array)$rawVatDungs)
+                    ->where('loai', VatDung::LOAI_DO_DUNG)
+                    ->pluck('id')
+                    ->toArray();
+            }
+            $loaiphong->vatDungs()->sync($vatIds);
 
             if ($request->has('bed_types')) {
                 $bedData = $request->input('bed_types', []);
@@ -283,8 +302,4 @@ $bedTypes = BedType::orderBy('name')->get();
         $loaiPhong = LoaiPhong::with('tienNghis')->findOrFail($id);
         return response()->json($loaiPhong->tienNghis);
     }
-    
- 
 }
-
-

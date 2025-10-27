@@ -57,7 +57,12 @@
                 @foreach($loaiphong->vatDungs as $vatDung)
                     <li>
                         {{ $vatDung->ten }}
-                       
+                        @if($vatDung->tracked_instances)
+                            <span class="badge bg-warning text-dark ms-2">Tracked</span>
+                        @endif
+                        <span class="badge ms-2 {{ $vatDung->active ? 'bg-success' : 'bg-secondary' }}">
+                            {{ $vatDung->active ? 'Present' : 'Inactive' }}
+                        </span>
                     </li>
                 @endforeach
             </ul>

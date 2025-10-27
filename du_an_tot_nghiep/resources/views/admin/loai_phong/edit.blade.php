@@ -47,7 +47,7 @@
                 <div class="form-text">Sẽ được cập nhật tự động nếu bạn thay đổi cấu hình giường bên dưới.</div>
             </div>
 
-           {{-- Tiện nghi --}}
+            {{-- Tiện nghi --}}
 <div class="mb-3">
     <label>Tiện nghi</label>
     <div class="d-flex flex-wrap">
@@ -108,13 +108,19 @@
                     value="{{ $vd->id }}" 
                     class="form-check-input"
                     {{ in_array($vd->id, old('vat_dung_ids', $loaiphong->vatDungs->pluck('id')->toArray() ?? [])) ? 'checked' : '' }}>
-                <label class="form-check-label">{{ $vd->ten }}</label>
+                <label class="form-check-label">
+                    {{ $vd->ten }}
+                    @if($vd->tracked_instances)
+                        <span class="badge bg-warning text-dark small ms-2">Tracked</span>
+                    @endif
+                    <span class="badge {{ $vd->active ? 'bg-success' : 'bg-secondary' }} small ms-2">
+                        {{ $vd->active ? 'Present' : 'Inactive' }}
+                    </span>
+                </label>
             </div>
         @endforeach
     </div>
 </div>
-
-    
 
             <div class="mt-3">
                 <button type="submit" class="btn btn-primary">Cập nhật</button>
