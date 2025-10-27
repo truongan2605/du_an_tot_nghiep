@@ -90,26 +90,45 @@ class InternalNotificationController extends Controller
      */
     public function store(Request $request)
     {
-        // Convert payload from JSON string (textarea) to array before validation
-        $rawPayload = $request->input('payload');
-        if (is_string($rawPayload) && trim($rawPayload) !== '') {
-            $decoded = json_decode($rawPayload, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return back()->withInput()->withErrors(['payload' => 'Payload phải là JSON hợp lệ.']);
+        // Handle both old JSON format and new form fields
+        $payload = null;
+        
+        // Check if using new form fields
+        if ($request->has('notification_title') && $request->has('notification_message')) {
+            $payload = [
+                'title' => $request->input('notification_title'),
+                'message' => $request->input('notification_message')
+            ];
+            
+            if ($request->filled('notification_link')) {
+                $payload['link'] = $request->input('notification_link');
             }
-            $request->merge(['payload' => $decoded]);
-        } elseif ($rawPayload === '' || $rawPayload === null) {
-            $request->merge(['payload' => null]);
+        } else {
+            // Fallback to old JSON format
+            $rawPayload = $request->input('payload');
+            if (is_string($rawPayload) && trim($rawPayload) !== '') {
+                $decoded = json_decode($rawPayload, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return back()->withInput()->withErrors(['payload' => 'Payload phải là JSON hợp lệ.']);
+                }
+                $payload = $decoded;
+            }
         }
 
         $data = $request->validate([
             'nguoi_nhan_id' => ['nullable', Rule::exists('users', 'id')],
             'kenh' => ['required', Rule::in(['email', 'in_app'])],
             'ten_template' => ['required', 'string', 'max:255'],
-            'payload' => ['nullable', 'array'],
             'vai_tro_broadcast' => ['sometimes', 'array'],
             'vai_tro_broadcast.*' => ['in:admin,nhan_vien'],
+            // New form fields
+            'notification_title' => ['nullable', 'string', 'max:255'],
+            'notification_message' => ['nullable', 'string'],
+            'notification_link' => ['nullable', 'string', 'max:500'],
         ]);
+        
+        // Add payload to data
+        $data['payload'] = $payload;
 
         // Validate that either nguoi_nhan_id or vai_tro_broadcast is provided
         if (empty($data['nguoi_nhan_id']) && empty($data['vai_tro_broadcast'])) {

@@ -185,10 +185,23 @@
     <script>
         // Load admin notifications
         function loadAdminNotifications() {
-            fetch('/admin/api/admin-notifications/recent')
-                .then(response => response.json())
+            console.log('Loading admin notifications...');
+            fetch('/api/notifications/recent', {
+                credentials: 'include'
+            })
+                .then(response => {
+                    console.log('Admin notifications response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
-                    updateAdminNotificationList(data);
+                    console.log('Admin notifications response data:', data);
+                    if (data.success) {
+                        updateAdminNotificationList(data.data);
+                    } else {
+                        console.error('API error:', data.message);
+                        document.getElementById('adminNotificationList').innerHTML = 
+                            '<div class="text-center p-3 text-muted">Không thể tải thông báo</div>';
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading admin notifications:', error);
@@ -236,10 +249,21 @@
 
         // Load unread count
         function loadAdminUnreadCount() {
-            fetch('/admin/api/admin-notifications/unread-count')
-                .then(response => response.json())
+            console.log('Loading admin unread count...');
+            fetch('/api/notifications/unread-count', {
+                credentials: 'include'
+            })
+                .then(response => {
+                    console.log('Admin unread count response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
-                    updateAdminNotificationBadge(data.count);
+                    console.log('Admin unread count response data:', data);
+                    if (data.success) {
+                        updateAdminNotificationBadge(data.count);
+                    } else {
+                        console.error('API error:', data.message);
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading unread count:', error);
@@ -259,18 +283,21 @@
 
         // Mark all admin notifications as read
         function markAllAdminNotificationsAsRead() {
-            fetch('/admin/admin-notifications/mark-all-read', {
+            fetch('/api/notifications/mark-all-read', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     loadAdminNotifications();
                     loadAdminUnreadCount();
+                } else {
+                    console.error('API error:', data.message);
                 }
             })
             .catch(error => {

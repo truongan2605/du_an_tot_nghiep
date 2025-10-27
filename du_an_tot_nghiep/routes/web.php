@@ -99,11 +99,13 @@ Route::prefix('admin')
         Route::get('customer-notifications/create', [CustomerNotificationController::class, 'create'])->name('customer-notifications.create');
         Route::post('customer-notifications', [CustomerNotificationController::class, 'store'])->name('customer-notifications.store');
         Route::get('customer-notifications/{notification}', [CustomerNotificationController::class, 'show'])->name('customer-notifications.show');
+        Route::get('customer-notifications/{notification}/edit', [CustomerNotificationController::class, 'edit'])->name('customer-notifications.edit');
         Route::put('customer-notifications/{notification}', [CustomerNotificationController::class, 'update'])->name('customer-notifications.update');
         Route::delete('customer-notifications/{notification}', [CustomerNotificationController::class, 'destroy'])->name('customer-notifications.destroy');
         Route::post('customer-notifications/{notification}/resend', [CustomerNotificationController::class, 'resend'])->name('customer-notifications.resend');
 
         Route::resource('internal-notifications', InternalNotificationController::class);
+        Route::post('internal-notifications/{internal_notification}/resend', [InternalNotificationController::class, 'resend'])->name('internal-notifications.resend');
         Route::resource('admin-notifications', AdminNotificationController::class);
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
         
@@ -167,7 +169,6 @@ Route::middleware('auth')->group(function () {
     Route::get('notifications/{id}', [ThongBaoController::class, 'clientShow'])->name('notifications.show');
     Route::post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('notifications.read');
     Route::get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('notifications.modal');
-    Route::get('api/notifications/unread-count', [ThongBaoController::class, 'getUnreadCount']);
 
     Route::prefix('api/notifications')->group(function () {
         Route::get('/recent', [NotificationController::class, 'getRecent']);
@@ -177,6 +178,63 @@ Route::middleware('auth')->group(function () {
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     });
 });
+
+// ==================== TEST ====================
+Route::get('/test-notifications', function() {
+    $user = auth()->user();
+    if (!$user) {
+        return response()->json(['error' => 'Not authenticated']);
+    }
+    
+    $unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
+        ->where('kenh', 'in_app')
+        ->where('trang_thai', '!=', 'read')
+        ->count();
+    
+    $recentNotifications = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
+        ->where('kenh', 'in_app')
+        ->orderBy('created_at', 'desc')
+        ->limit(5)
+        ->get();
+    
+    return response()->json([
+        'user' => $user->name,
+        'user_id' => $user->id,
+        'role' => $user->vai_tro,
+        'unread_count' => $unreadCount,
+        'recent_notifications' => $recentNotifications
+    ]);
+})->middleware('auth');
+
+Route::get('/test-admin-notifications', function() {
+    $user = auth()->user();
+    if (!$user) {
+        return response()->json(['error' => 'Not authenticated']);
+    }
+    
+    if ($user->vai_tro !== 'admin') {
+        return response()->json(['error' => 'Admin access required']);
+    }
+    
+    $unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
+        ->where('kenh', 'in_app')
+        ->where('trang_thai', '!=', 'read')
+        ->count();
+    
+    $recentNotifications = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
+        ->where('kenh', 'in_app')
+        ->orderBy('created_at', 'desc')
+        ->limit(5)
+        ->get();
+    
+    return response()->json([
+        'user' => $user->name,
+        'user_id' => $user->id,
+        'role' => $user->vai_tro,
+        'unread_count' => $unreadCount,
+        'recent_notifications' => $recentNotifications
+    ]);
+})->middleware(['auth', 'admin']);
 
 // ==================== AUTH ====================
 require __DIR__ . '/auth.php';

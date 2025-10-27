@@ -81,6 +81,7 @@ class NotificationManager {
     
     async loadUnreadCount() {
         try {
+            console.log('Loading unread count...');
             const response = await fetch('/api/notifications/unread-count', {
                 method: 'GET',
                 headers: {
@@ -90,12 +91,21 @@ class NotificationManager {
                 credentials: 'include'
             });
             
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
             if (response.ok) {
                 const data = await response.json();
+                console.log('Response data:', data);
                 if (data.success) {
                     this.updateBadge(data.count);
                     this.unreadCount = data.count;
+                    console.log('Updated badge with count:', data.count);
                 }
+            } else {
+                console.error('API error:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
             }
         } catch (error) {
             console.error('Error loading unread count:', error);
