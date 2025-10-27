@@ -125,10 +125,10 @@
                         <i class="bi bi-journal-text me-2"></i> Tổng quan booking
                     </a>
                     <a href="{{ route('staff.pending-bookings') }}" class="nav-link {{ request()->routeIs('staff.pending-bookings') ? 'active' : '' }}">
-                        <i class="bi bi-calendar-check me-2"></i> Quản lý đặt phòng
+                        <i class="bi bi-calendar-check me-2"></i> Danh Sách Booking Chờ Xác Nhận
                     </a>
                     <a href="{{ route('staff.rooms') }}" class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}">
-                        <i class="bi bi-door-open me-2"></i> Danh sách trạng thái phòng
+                        <i class="bi bi-door-open me-2"></i> Quản Lý Tình Trạng Phòng
                     </a>
                     <a href="{{ route('payment.pending_payments') }}" class="nav-link {{ request()->routeIs('payment.pending-payments') ? 'active' : '' }}">
                         <i class="bi bi-credit-card me-2"></i> Chờ thanh toán

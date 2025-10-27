@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
+
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
@@ -105,44 +106,56 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
     ->prefix('staff')
     ->name('staff.')
     ->group(function () {
+        // Dashboard
         Route::get('/', [StaffController::class, 'index'])->name('index');
+
+        // Booking chờ xác nhận
         Route::get('/pending-bookings', [StaffController::class, 'pendingBookings'])->name('pending-bookings');
-        Route::get('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRoomsForm'])->name('assign-rooms');
-        Route::post('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRooms'])->name('assign-rooms.post');
-        Route::get('/rooms', [StaffController::class, 'rooms'])->name('rooms');
+        // Route::get('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRoomsForm'])->name('assign-rooms');
+        // Route::post('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRooms'])->name('assign-rooms.post');
         Route::post('/confirm/{id}', [StaffController::class, 'confirm'])->name('confirm');
-        Route::get('/bookings', [StaffController::class, 'bookings'])->name('bookings');
         Route::delete('/cancel/{id}', [StaffController::class, 'cancel'])->name('cancel');
+        Route::get('/bookings', [StaffController::class, 'bookings'])->name('bookings');
+        Route::get('/bookings/{booking}', [StaffController::class, 'showBooking'])->name('bookings.show');
+
+        // Quản lý phòng
+        Route::get('/rooms', [StaffController::class, 'rooms'])->name('rooms');
+        Route::patch('/rooms/{room}', [StaffController::class, 'updateRoom'])->name('rooms.update');
 
         // Checkin / Checkout
-        Route::get('/checkin', [StaffController::class, 'checkinForm'])->name('checkin');
-        Route::post('/checkin', [StaffController::class, 'processCheckin'])->name('checkin.process');
         Route::get('/checkout', [StaffController::class, 'checkoutForm'])->name('checkout');
         Route::post('/checkout', [StaffController::class, 'processCheckout'])->name('checkout.process');
 
-        // Báo cáo / Tổng quan phòng
+        // Báo cáo / Tổng quan
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
     });
 
+
 // ==================== ACCOUNT ====================
-Route::middleware('auth')->prefix('account')->name('account.')->group(function () {
-    Route::get('settings', function () {
-        return view('account.profile');
-    })->name('settings');
-    Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
+Route::middleware('auth')
+    ->prefix('account')
+    ->name('account.')
+    ->group(function () {
 
-    Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
-    Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
-    Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
-    Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
+        // Cài đặt tài khoản
+        Route::get('settings', function () {
+            return view('account.profile');
+        })->name('settings');
+        Route::patch('settings', [ProfileController::class, 'update'])->name('settings.update');
 
-    Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
-    Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
-    Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
-    Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
-});
+        // Danh sách yêu thích
+        Route::get('wishlist', [WishlistController::class, 'index'])->name('wishlist');
+        Route::post('wishlist/toggle/{phong}', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+        Route::delete('wishlist/{id}', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+        Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
 
+        // Đặt phòng
+        Route::get('booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
+        Route::post('booking', [BookingController::class, 'store'])->name('booking.store');
+        Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
+        Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
+    });
 // ==================== PAYMENT ====================
 Route::middleware(['auth'])->group(function () {
     Route::get('/payment/pending-payments', [PaymentController::class, 'pendingPayments'])->name('payment.pending_payments');
@@ -168,6 +181,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
     });
 });
+
 
 // ==================== AUTH ====================
 require __DIR__ . '/auth.php';

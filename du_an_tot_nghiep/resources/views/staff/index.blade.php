@@ -4,24 +4,20 @@
 
 @section('content')
 <div class="p-4">
-
- 
     <h2 class="text-center mb-5 fw-bold text-dark">Dashboard Nhân Viên</h2>
 
-   
-    <div class="row g-4">   
-      @php
-    $stats = [
-        ['label'=>'Booking Chờ Xác Nhận','value'=>$pendingBookings,'icon'=>'bi bi-clock','bg'=>'bg-gradient-primary'],
-        ['label'=>'Check-in Hôm Nay','value'=>$todayCheckins,'icon'=>'bi bi-box-arrow-in-right','bg'=>'bg-gradient-success'],
-        ['label'=>'Doanh Thu Hôm Nay','value'=>number_format($todayRevenue,0).' VND','icon'=>'bi bi-currency-dollar','bg'=>'bg-gradient-warning'],
-        ['label'=>'Doanh Thu Tuần Này','value'=>number_format($weeklyRevenue,0).' VND','icon'=>'bi bi-calendar-week','bg'=>'bg-gradient-info'],
-        ['label'=>'Doanh Thu Tháng Này','value'=>number_format($monthlyRevenue,0).' VND','icon'=>'bi bi-calendar-month','bg'=>'bg-gradient-danger'],
-        ['label'=>'Tổng Doanh Thu','value'=>number_format($totalRevenue,0).' VND','icon'=>'bi bi-cash-stack','bg'=>'bg-gradient-dark'],
-        ['label'=>'Phòng Trống','value'=>$availableRooms,'icon'=>'bi bi-house','bg'=>'bg-gradient-secondary']
-    ];
-@endphp
-
+    <div class="row g-4">
+        @php
+            $stats = [
+                ['label'=>'Booking Chờ Xác Nhận','value'=>$pendingBookings,'icon'=>'bi bi-clock','bg'=>'bg-gradient-primary'],
+                ['label'=>'Check-in Hôm Nay','value'=>$todayCheckins,'icon'=>'bi bi-box-arrow-in-right','bg'=>'bg-gradient-success'],
+                ['label'=>'Doanh Thu Hôm Nay','value'=>number_format($todayRevenue,0).' VND','icon'=>'bi bi-currency-dollar','bg'=>'bg-gradient-warning'],
+                ['label'=>'Doanh Thu Tuần Này','value'=>number_format($weeklyRevenue,0).' VND','icon'=>'bi bi-calendar-week','bg'=>'bg-gradient-info'],
+                ['label'=>'Doanh Thu Tháng Này','value'=>number_format($monthlyRevenue,0).' VND','icon'=>'bi bi-calendar-month','bg'=>'bg-gradient-danger'],
+                ['label'=>'Tổng Doanh Thu','value'=>number_format($totalRevenue,0).' VND','icon'=>'bi bi-cash-stack','bg'=>'bg-gradient-dark'],
+                ['label'=>'Phòng Trống','value'=>$availableRooms,'icon'=>'bi bi-house','bg'=>'bg-gradient-secondary']
+            ];
+        @endphp
 
         @foreach($stats as $s)
             <div class="col-md-3">
@@ -38,9 +34,7 @@
         @endforeach
     </div>
 
-   
     <div class="row mt-5 g-4">
-       
         <div class="col-lg-6">
             <div class="card shadow-sm rounded-3 border-0">
                 <div class="card-header bg-white fw-bold">Biểu đồ Check-in/Check-out</div>
@@ -50,7 +44,6 @@
             </div>
         </div>
 
-        
         <div class="col-lg-6">
             <div class="card shadow-sm rounded-3 border-0">
                 <div class="card-header bg-white fw-bold d-flex align-items-center">
@@ -65,7 +58,7 @@
                                         {{ $activity->ma_tham_chieu }}
                                     </a>
                                     <span class="badge 
-                                        @if($activity->trang_thai == 'da_xac_nhan') bg-success
+                                        @if($activity->trang_thai == 'da_gan_phong') bg-success
                                         @elseif($activity->trang_thai == 'dang_cho') bg-warning
                                         @elseif($activity->trang_thai == 'dang_cho_xac_nhan') bg-info
                                         @elseif($activity->trang_thai == 'da_huy') bg-danger
@@ -86,7 +79,6 @@
         </div>
     </div>
 
-
     <div class="row mt-5 g-4">
         <div class="col-lg-6">
             <div class="card shadow-sm rounded-3 border-0">
@@ -105,7 +97,7 @@
             <a class="btn btn-success w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
                 <i class="bi bi-box-arrow-in-right me-2 fs-5"></i> Check-in
             </a>
-            <a  class="btn btn-warning w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
+            <a class="btn btn-warning w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
                 <i class="bi bi-box-arrow-left me-2 fs-5"></i> Check-out
             </a>
             <a href="{{ route('staff.reports') }}" class="btn btn-info w-100 d-flex align-items-center justify-content-center shadow-sm rounded-3 py-3">
@@ -114,7 +106,6 @@
         </div>
     </div>
 </div>
-
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -155,7 +146,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
 <script>
@@ -177,7 +167,6 @@ document.addEventListener('DOMContentLoaded', function () {
     calendar.render();
 });
 </script>
-
 
 <style>
 .bg-gradient-primary { background: linear-gradient(45deg, #0d6efd, #6610f2); }

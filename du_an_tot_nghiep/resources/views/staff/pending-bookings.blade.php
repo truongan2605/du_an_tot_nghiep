@@ -12,11 +12,11 @@
                 <tr>
                     <th class="text-center">ID</th>
                     <th>Tên Khách Hàng</th>
+                    <th>Phòng Đặt</th>
                     <th>Loại Phòng</th>
                     <th>Ngày Nhận</th>
                     <th>Ngày Trả</th>
                     <th class="text-center">SL</th>
-                    <th class="text-center">Phòng Đã Gán</th>
                     <th>Trạng Thái</th>
                     <th class="text-end">Tổng Tiền</th>
                     <th class="text-center">Thao Tác</th>
@@ -27,21 +27,28 @@
                 <tr>
                     <td class="text-center">{{ $booking->id }}</td>
                     <td>{{ $booking->nguoiDung?->name ?? $booking->customer_name ?? 'Ẩn danh' }}</td>
+                    <td>
+                        @php
+                            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true);
+                            $selectedPhongMa = $meta['selected_phong_ma'] ?? 'N/A';
+                        @endphp
+                        <span class="badge bg-success me-1">
+                            {{ $selectedPhongMa }} (Khách chọn)
+                        </span>
+                        @foreach ($booking->datPhongItems as $item)
+                            @if ($item->phong)
+                                <span class="badge bg-success me-1">
+                                    {{ $item->phong->ma_phong }}
+                                </span>
+                            @else
+                                <span class="text-muted">Chưa gán</span>
+                            @endif
+                        @endforeach
+                    </td>
                     <td>{{ $booking->datPhongItems->first()?->loaiPhong?->ten ?? 'N/A' }}</td>
                     <td>{{ $booking->ngay_nhan_phong?->format('d-m-Y H:i') ?? '-' }}</td>
                     <td>{{ $booking->ngay_tra_phong?->format('d-m-Y H:i') ?? '-' }}</td>
                     <td class="text-center">{{ $booking->datPhongItems->sum('so_luong') ?? 1 }}</td>
-                    <td class="text-center fw-bold">
-                        @if ($booking->trang_thai === 'da_gan_phong' && $booking->phongDaDats->isNotEmpty())
-                            @foreach ($booking->phongDaDats as $room)
-                                <span class="badge bg-success me-1">{{ $room->phong?->ma_phong ?? 'N/A' }}</span>
-                            @endforeach
-                        @elseif ($booking->trang_thai === 'da_xac_nhan')
-                            <span class="text-muted">Chưa gán</span>
-                        @else
-                            N/A
-                        @endif
-                    </td>
                     <td class="text-center">
                         @php
                             $statusColors = [
@@ -51,33 +58,27 @@
                             ];
                         @endphp
                         <span class="badge {{ $statusColors[$booking->trang_thai] ?? 'bg-secondary' }}">
-                            {{ ucfirst(str_replace('_',' ',$booking->trang_thai)) }}
+                            {{ ucfirst(str_replace('_', ' ', $booking->trang_thai)) }}
                         </span>
                     </td>
                     <td class="text-end fw-bold">{{ number_format($booking->tong_tien, 0, ',', '.') }} VNĐ</td>
                     <td class="text-center text-nowrap">
                         @if ($booking->trang_thai === 'dang_cho')
-                            <form action="{{ route('staff.confirm', $booking->id) }}" method="POST" class="d-inline-flex align-items-center gap-1">
+                            <form action="{{ route('staff.confirm', $booking->id) }}" method="POST" class="d-inline">
                                 @csrf
-                                <select name="phong_id" class="form-select form-select-sm" style="width:auto;">
-                                    <option value="">Chọn phòng</option>
-                                    @foreach ($availableRooms as $room)
-                                        <option value="{{ $room->id }}" {{ $room->trang_thai !== 'trong' ? 'disabled' : '' }}>
-                                            {{ $room->ma_phong }} ({{ $room->trang_thai === 'trong' ? 'Trống' : 'Đã gán' }})
-                                        </option>
-                                    @endforeach
-                                </select>
-                                <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Xác nhận Booking và gán phòng?');">XÁC NHẬN</button>
+                                <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Xác nhận và gán phòng tự động cho booking này?');">
+                                    XÁC NHẬN
+                                </button>
                             </form>
                             <form action="{{ route('staff.cancel', $booking->id) }}" method="POST" class="d-inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Bạn có chắc muốn hủy booking này?');">Hủy</button>
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Bạn có chắc muốn hủy booking này?');">
+                                    HỦY
+                                </button>
                             </form>
-                        @elseif ($booking->trang_thai === 'da_xac_nhan')
-                            <a href="{{ route('staff.assign-rooms', $booking->id) }}" class="btn btn-warning btn-sm">Gán Phòng</a>
                         @else
-                            <a href="{{ route('staff.rooms') }}" class="btn btn-info btn-sm">Xem Tình Trạng</a>
+                            <a href="{{ route('staff.rooms') }}" class="btn btn-info btn-sm">Xem Phòng</a>
                         @endif
                     </td>
                 </tr>
@@ -90,23 +91,13 @@
         </table>
     </div>
 
-    <!-- Pagination -->
     <div class="d-flex justify-content-center mt-3">
         {{ $bookings->links('pagination::bootstrap-5') }}
     </div>
 </div>
 
 <style>
-.table-responsive {
-    background: #fff;
-    border-radius: 0.5rem;
-    padding: 1rem;
-}
-.table th, .table td {
-    vertical-align: middle;
-}
-.form-select-sm {
-    min-width: 100px;
-}
+.table-responsive { background: #fff; border-radius: .5rem; padding: 1rem; }
+.table th, .table td { vertical-align: middle; }
 </style>
 @endsection
