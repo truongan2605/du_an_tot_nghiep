@@ -105,6 +105,15 @@
     <script src="{{ asset('template/stackbros/assets/vendor/choices/js/choices.min.js') }}"></script>
 
     <script src="{{ asset('template/stackbros/assets/js/functions.js') }}"></script>
+    
+    <!-- Vite Assets for Notifications -->
+    @vite(['resources/js/app.js'])
+    
+    <!-- Client Notification Scripts -->
+    <script>
+        // Set user ID for notification manager
+        window.userId = {{ auth()->id() ?? 'null' }};
+    </script>
 
     @stack('scripts')
     <script>

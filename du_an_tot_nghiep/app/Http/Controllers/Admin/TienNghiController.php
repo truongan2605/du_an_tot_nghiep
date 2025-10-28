@@ -49,7 +49,6 @@ class TienNghiController extends Controller
             ->with('success', 'Tiện nghi đã được tạo thành công!');
     }
 
-
     public function show(TienNghi $tienNghi)
     {
         $rooms = $tienNghi->phongs()

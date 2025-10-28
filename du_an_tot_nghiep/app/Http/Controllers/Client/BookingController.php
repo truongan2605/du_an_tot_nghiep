@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Client;
 
+use App\Events\BookingCreated;
 use App\Http\Controllers\Controller;
 use App\Models\DatPhong;
 use App\Models\Phong;
@@ -553,6 +554,16 @@ class BookingController extends Controller
                     if (Schema::hasColumn('dat_phong', $k)) $allowedPayload[$k] = $v;
                 }
                 $datPhongId = DB::table('dat_phong')->insertGetId($allowedPayload);
+
+                // Dispatch booking created event
+                $booking = DatPhong::find($datPhongId);
+                if ($booking) {
+                    Log::info("Dispatching BookingCreated event", [
+                        'booking_id' => $booking->id,
+                        'booking_code' => $booking->ma_dat_phong
+                    ]);
+                    event(new BookingCreated($booking));
+                }
 
                 if (Schema::hasTable('giu_phong')) {
                     $holdBase = [

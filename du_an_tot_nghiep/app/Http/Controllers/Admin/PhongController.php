@@ -10,11 +10,12 @@ use App\Models\PhongImage;
 use App\Models\Tang;
 use App\Models\TienNghi;
 use App\Models\VatDung;
+use App\Events\RoomCreated;
+use App\Events\RoomUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
 
 class PhongController extends Controller
 {
@@ -194,6 +195,14 @@ class PhongController extends Controller
             }
 
             DB::commit();
+            
+            // Dispatch room created event (will trigger listener)
+            Log::info("Dispatching RoomCreated event", [
+                'room_id' => $phong->id,
+                'room_code' => $phong->ma_phong
+            ]);
+            event(new RoomCreated($phong));
+            
             return redirect()->route('admin.phong.index')->with('success', 'Thêm phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -350,6 +359,10 @@ class PhongController extends Controller
             }
 
             DB::commit();
+            
+            // Dispatch room updated event (will trigger listener)
+            event(new RoomUpdated($phong));
+            
             return redirect()->route('admin.phong.index')->with('success', 'Cập nhật phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
