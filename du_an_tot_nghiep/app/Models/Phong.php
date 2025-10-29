@@ -49,8 +49,14 @@ class Phong extends Model
 
     public function tienNghis()
     {
-        return $this->belongsToMany(TienNghi::class, 'phong_tien_nghi');
+        return $this->belongsToMany(TienNghi::class, 'phong_tien_nghi')
+        ->where('tien_nghi.active', true);
     }
+    public function vatDungs()
+{
+    return $this->belongsToMany(VatDung::class, 'phong_vat_dung', 'phong_id', 'vat_dung_id')
+                ->where('vat_dungs.active', true);
+}
 
     public function bedTypes()
     {

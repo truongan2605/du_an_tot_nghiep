@@ -9,8 +9,10 @@ class AddPhongIdToGiuPhongTable extends Migration
     public function up()
     {
         Schema::table('giu_phong', function (Blueprint $table) {
-            $table->unsignedBigInteger('phong_id')->after('loai_phong_id')->nullable();
-            $table->foreign('phong_id')->references('id')->on('phong')->onDelete('cascade');
+            if (!Schema::hasColumn('giu_phong', 'phong_id')) {
+                $table->unsignedBigInteger('phong_id')->after('loai_phong_id')->nullable();
+                $table->foreign('phong_id')->references('id')->on('phong')->onDelete('cascade');
+            }
         });
     }
 

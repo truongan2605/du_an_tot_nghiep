@@ -22,11 +22,45 @@ class NotificationManager {
     
     setupEventListeners() {
         // Listen for new notifications (if using WebSockets or Server-Sent Events)
-        if (typeof window.Echo !== 'undefined') {
+        if (typeof window.Echo !== 'undefined' && window.userId) {
+            console.log('Setting up Echo listeners for user:', window.userId);
+            console.log('Echo instance:', window.Echo);
+            
+            // Listen to user-specific channel
             window.Echo.private(`user.${window.userId}`)
                 .listen('NotificationCreated', (e) => {
+                    console.log('Received notification:', e);
+                    this.handleNewNotification(e.notification);
+                })
+                .listen('NotificationSent', (e) => {
+                    console.log('Notification sent:', e);
                     this.handleNewNotification(e.notification);
                 });
+                
+            // Listen to room updates channel
+            window.Echo.channel('room-updates')
+                .listen('RoomCreated', (e) => {
+                    console.log('Room created:', e);
+                    this.showRoomUpdateNotification(e.room, 'created');
+                })
+                .listen('RoomUpdated', (e) => {
+                    console.log('Room updated:', e);
+                    this.showRoomUpdateNotification(e.room, 'updated');
+                });
+                
+            // Listen to booking updates channel
+            window.Echo.channel('booking-updates')
+                .listen('BookingCreated', (e) => {
+                    console.log('Booking created:', e);
+                    this.showBookingUpdateNotification(e.booking, 'created');
+                });
+                
+            console.log('Echo listeners set up successfully');
+        } else {
+            console.log('Echo not available or userId not set:', {
+                echo: typeof window.Echo,
+                userId: window.userId
+            });
         }
         
         // Listen for page visibility changes
@@ -47,20 +81,31 @@ class NotificationManager {
     
     async loadUnreadCount() {
         try {
+            console.log('Loading unread count...');
             const response = await fetch('/api/notifications/unread-count', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
+            
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
             
             if (response.ok) {
                 const data = await response.json();
+                console.log('Response data:', data);
                 if (data.success) {
                     this.updateBadge(data.count);
                     this.unreadCount = data.count;
+                    console.log('Updated badge with count:', data.count);
                 }
+            } else {
+                console.error('API error:', response.status, response.statusText);
+                const errorText = await response.text();
+                console.error('Error response:', errorText);
             }
         } catch (error) {
             console.error('Error loading unread count:', error);
@@ -74,7 +119,8 @@ class NotificationManager {
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -148,7 +194,8 @@ class NotificationManager {
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -230,7 +277,8 @@ class NotificationManager {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -262,7 +310,8 @@ class NotificationManager {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -294,6 +343,54 @@ class NotificationManager {
         
         // Show browser notification if permission granted
         this.showBrowserNotification(notification);
+    }
+    
+    showRoomUpdateNotification(room, action) {
+        const actionText = action === 'created' ? 'được thêm mới' : 'được cập nhật';
+        const message = `Phòng ${room.ma_phong} (${room.name || 'Không có tên'}) ${actionText}. Giá: ${new Intl.NumberFormat('vi-VN').format(room.gia_cuoi_cung || 0)} VNĐ`;
+        
+        // Show toast notification
+        this.showToast({
+            title: action === 'created' ? 'Phòng mới được thêm' : 'Phòng được cập nhật',
+            message: message,
+            type: 'info'
+        });
+        
+        // Log to console
+        console.log(`Room ${action}:`, room);
+    }
+    
+    showBookingUpdateNotification(booking, action) {
+        const message = `Đơn đặt phòng mới ${booking.ma_dat_phong} - Tổng tiền: ${new Intl.NumberFormat('vi-VN').format(booking.tong_tien || 0)} VNĐ`;
+        
+        // Show toast notification
+        this.showToast({
+            title: 'Đơn đặt phòng mới',
+            message: message,
+            type: 'success'
+        });
+        
+        // Log to console
+        console.log(`Booking ${action}:`, booking);
+    }
+    
+    showToast(data) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${data.type || 'info'} alert-dismissible fade show position-fixed`;
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 400px;';
+        alert.innerHTML = `
+            <strong>${data.title || 'Thông báo'}</strong><br>
+            ${data.message || ''}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
     }
     
     async showBrowserNotification(notification) {
@@ -400,6 +497,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Export for use in other scripts
 window.NotificationManager = NotificationManager;
+
+
+
+
 
 
 

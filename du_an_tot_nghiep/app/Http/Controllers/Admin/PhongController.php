@@ -9,28 +9,57 @@ use App\Models\Phong;
 use App\Models\PhongImage;
 use App\Models\Tang;
 use App\Models\TienNghi;
+use App\Models\VatDung;
+use App\Events\RoomCreated;
+use App\Events\RoomUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
 
 class PhongController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $phongs = Phong::with(['loaiPhong', 'tang', 'images'])->orderBy('id', 'desc')->get();
-        return view('admin.phong.index', compact('phongs'));
+        $query = Phong::with(['loaiPhong', 'tang', 'images'])->orderBy('id', 'desc');
+
+        // --- Bộ lọc ---
+        if ($request->filled('ma_phong')) {
+            $query->where('ma_phong', 'like', '%' . $request->ma_phong . '%');
+        }
+
+        if ($request->filled('name')) {
+            $query->where('name', 'like', '%' . $request->name . '%');
+        }
+
+        if ($request->filled('loai_phong_id')) {
+            $query->where('loai_phong_id', $request->loai_phong_id);
+        }
+
+        if ($request->filled('tang_id')) {
+            $query->where('tang_id', $request->tang_id);
+        }
+
+        // Lấy dữ liệu
+        $phongs = $query->get();
+
+        // Dữ liệu cho dropdown
+        $loaiPhongs = \App\Models\LoaiPhong::all();
+        $tangs = \App\Models\Tang::all();
+
+        return view('admin.phong.index', compact('phongs', 'loaiPhongs', 'tangs'));
     }
+
 
     public function create()
     {
         $loaiPhongs = LoaiPhong::with('tienNghis', 'bedTypes')->get();
         $tangs = Tang::all();
         $tienNghis = TienNghi::where('active', true)->get();
+        $vatDungs = VatDung::where('active', true)->get();
         $bedTypes = BedType::orderBy('name')->get();
 
-        return view('admin.phong.create', compact('loaiPhongs', 'tangs', 'tienNghis', 'bedTypes'));
+        return view('admin.phong.create', compact('loaiPhongs', 'tangs', 'tienNghis', 'vatDungs', 'bedTypes'));
     }
 
     public function store(Request $request)
@@ -49,6 +78,8 @@ class PhongController extends Controller
             'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'integer|exists:tien_nghi,id',
+            'vat_dungs' => 'nullable|array',
+            'vat_dungs.*' => 'exists:vat_dungs,id',
             'bed_types' => 'nullable|array',
             'trang_thai' => 'nullable|in:trong,dang_o,bao_tri,khong_su_dung'
         ]);
@@ -164,6 +195,14 @@ class PhongController extends Controller
             }
 
             DB::commit();
+            
+            // Dispatch room created event (will trigger listener)
+            Log::info("Dispatching RoomCreated event", [
+                'room_id' => $phong->id,
+                'room_code' => $phong->ma_phong
+            ]);
+            event(new RoomCreated($phong));
+            
             return redirect()->route('admin.phong.index')->with('success', 'Thêm phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -198,6 +237,8 @@ class PhongController extends Controller
             'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'integer|exists:tien_nghi,id',
+            'vat_dungs' => 'nullable|array',
+            'vat_dungs.*' => 'exists:vat_dungs,id',
             'bed_types' => 'nullable|array',
             'trang_thai' => 'nullable|in:khong_su_dung,trong,dang_o,bao_tri',
         ]);
@@ -318,6 +359,10 @@ class PhongController extends Controller
             }
 
             DB::commit();
+            
+            // Dispatch room updated event (will trigger listener)
+            event(new RoomUpdated($phong));
+            
             return redirect()->route('admin.phong.index')->with('success', 'Cập nhật phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -325,14 +370,37 @@ class PhongController extends Controller
         }
     }
 
+    //     public function show($id)
+    //     {
+    //         $phong = Phong::with(['loaiPhong.tienNghis', 'tienNghis','vatDungs','bedTypes'])->findOrFail($id);
+
+    //         $tienNghiLoaiPhong = $phong->loaiPhong->tienNghis ?? collect();
+    //         $tienNghiPhong = $phong->tienNghis ?? collect();
+    //         $vatDungLoaiPhong = $phong->loaiPhong->vatDungs ?? collect();
+    // $vatDungPhong = $phong->vatDungs ?? collect();
+
+
+    //         return view('admin.phong.show', compact('phong', 'tienNghiLoaiPhong', 'tienNghiPhong'));
+    //     }
     public function show($id)
     {
-        $phong = Phong::with(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes'])->findOrFail($id);
+        $phong = Phong::with(['loaiPhong.tienNghis', 'tienNghis', 'vatDungs', 'loaiPhong.vatDungs'])->findOrFail($id);
 
-        $tienNghiLoaiPhong = $phong->loaiPhong->tienNghis ?? collect();
+        // giống logic tiện nghi
+        $tienNghiLoaiPhong = $phong->loaiPhong?->tienNghis ?? collect();
         $tienNghiPhong = $phong->tienNghis ?? collect();
 
-        return view('admin.phong.show', compact('phong', 'tienNghiLoaiPhong', 'tienNghiPhong'));
+        // phần mới cho vật dụng
+        $vatDungLoaiPhong = $phong->loaiPhong?->vatDungs()->where('active', 1)->get() ?? collect();
+        $vatDungPhong = $phong->vatDungs()->where('active', 1)->get() ?? collect();
+
+        return view('admin.phong.show', compact(
+            'phong',
+            'tienNghiLoaiPhong',
+            'tienNghiPhong',
+            'vatDungLoaiPhong',
+            'vatDungPhong'
+        ));
     }
 
     public function destroy(Phong $phong)

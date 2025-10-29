@@ -32,7 +32,7 @@
             </div>
 
             <div class="mb-3">
-                <label>Giá mặc định (VND / night)</label>
+                <label>Giá mặc định (VND / đêm)</label>
                 <input type="number" step="0.01" name="gia_mac_dinh" class="form-control"
                     value="{{ old('gia_mac_dinh', 0) }}" required>
             </div>
@@ -54,11 +54,42 @@
                     </div>
                 @endforeach
             </div>
-
+{{-- Vật dụng --}}
+<div class="col-md-6">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-success text-white fw-bold">
+            Chọn Vật Dụng
+        </div>
+        <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+            @if($vatDungs->count() > 0)
+                <div class="row">
+                    @foreach($vatDungs as $item)
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input 
+    class="form-check-input" 
+    type="checkbox" 
+    name="vat_dungs[]" 
+    value="{{ $item->id }}" 
+    id="vatDung{{ $item->id }}"
+    {{ in_array($item->id, old('vat_dungs', [])) ? 'checked' : '' }}>
+<label class="form-check-label" for="vatDung{{ $item->id }}">
+    {{ $item->ten }}
+</label>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="text-muted mb-0">Chưa có vật dụng nào.</p>
+            @endif
+        </div>
+    </div>
+</div>
             <hr>
-            <h5>Bed types (Cấu hình giường cho loại phòng)</h5>
-            <p class="text-muted small">Chọn số lượng cho mỗi loại giường. <strong>Suc_chua</strong> và
-                <strong>so_giuong</strong> sẽ được tính tự động dựa trên cấu hình này.</p>
+            <h5>Loại giường</h5>
+            <p class="text-muted small">Chọn số lượng cho mỗi loại giường. <strong>Sức chứa</strong> và
+                <strong>Số giường</strong> sẽ được tính tự động dựa trên cấu hình này.</p>
 
             @foreach ($bedTypes as $bt)
                 @php

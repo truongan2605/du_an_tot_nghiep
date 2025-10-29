@@ -27,7 +27,7 @@ class ConfirmPaymentController extends Controller
 
            
             $user = $dat_phong->nguoiDung;
-            if ($user && $user->vai_tro === 'khach_hang') {
+            if ($user && $user->vai_tro === 'khach_hang || admin || nhan_vien') {
                 Mail::to($user->email)->queue(new \App\Mail\PaymentConfirmed($dat_phong, $user->name));
             }
         });

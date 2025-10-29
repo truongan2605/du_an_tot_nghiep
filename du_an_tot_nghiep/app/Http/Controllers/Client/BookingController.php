@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use App\Models\DatPhongItem;
 use Illuminate\Http\Request;
 use App\Models\DatPhongAddon;
+use App\Events\BookingCreated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
@@ -528,6 +529,16 @@ class BookingController extends Controller
                     if (Schema::hasColumn('dat_phong', $k)) $allowedPayload[$k] = $v;
                 }
                 $datPhongId = DB::table('dat_phong')->insertGetId($allowedPayload);
+
+                // Dispatch booking created event
+                $booking = DatPhong::find($datPhongId);
+                if ($booking) {
+                    Log::info("Dispatching BookingCreated event", [
+                        'booking_id' => $booking->id,
+                        'booking_code' => $booking->ma_dat_phong
+                    ]);
+                    event(new BookingCreated($booking));
+                }
 
                 if (Schema::hasTable('giu_phong')) {
                     $holdBase = [

@@ -5,32 +5,56 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LoaiPhong;
 use App\Models\TienNghi;
+use App\Models\VatDung;
 use App\Models\BedType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LoaiPhongController extends Controller
 {
-    public function index()
-    {
-        $loaiPhongs = LoaiPhong::with('tienNghis')
-            ->withCount([
-                'phongs',
-                'phongs as occupied_count' => function ($q) {
-                    $q->where('trang_thai', 'dang_o');
-                },
-            ])
-            ->orderByDesc('id')
-            ->get();
+public function index(Request $request)
+{
+    $query = LoaiPhong::with('tienNghis')
+        ->withCount([
+            'phongs',
+            'phongs as occupied_count' => function ($q) {
+                $q->where('trang_thai', 'dang_o');
+            },
+        ]);
 
-        return view('admin.loai_phong.index', compact('loaiPhongs'));
+    // Lọc theo tên
+    if ($request->filled('ten')) {
+        $query->where('ten', 'like', '%' . $request->ten . '%');
     }
+
+    // Lọc theo tiện nghi
+  if ($request->filled('tien_nghi_ids')) {
+    $tien_nghi_ids = (array) $request->tien_nghi_ids;
+
+    foreach ($tien_nghi_ids as $tnId) {
+        $query->whereHas('tienNghis', function ($q) use ($tnId) {
+            $q->where('tien_nghi.id', $tnId);
+        });
+    }
+}
+
+    $loaiPhongs = $query->orderByDesc('id')->get();
+    $dsTienNghis = TienNghi::all();
+
+    return view('admin.loai_phong.index', compact('loaiPhongs', 'dsTienNghis'));
+}
+
+
+
+
 
     public function create()
     {
         $tienNghis = TienNghi::where('active', true)->get();
-        $bedTypes = BedType::orderBy('name')->get();
-        return view('admin.loai_phong.create', compact('tienNghis', 'bedTypes'));
+        $vatDungs = VatDung::where('active', true)->get();
+         $bedTypes = BedType::orderBy('name')->get();
+       
+        return view('admin.loai_phong.create', compact('tienNghis', 'bedTypes','vatDungs'));
     }
 
     public function store(Request $request)
@@ -45,6 +69,8 @@ class LoaiPhongController extends Controller
             'so_luong_thuc_te' => 'nullable|integer|min:0',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'exists:tien_nghi,id',
+                   'vat_dungs' => 'nullable|array',
+    'vat_dungs.*' => 'exists:vat_dungs,id',
             'bed_types' => 'nullable|array',
             'bed_types.*.quantity' => 'nullable|integer|min:0',
             'bed_types.*.price' => 'nullable|numeric|min:0',
@@ -63,6 +89,9 @@ class LoaiPhongController extends Controller
             if ($request->has('tien_nghi')) {
                 $loaiPhong->tienNghis()->sync($request->input('tien_nghi', []));
             }
+               if ($request->has('vat_dungs')) {
+    $loaiPhong->vatDungs()->sync($request->vat_dungs);
+}
 
             $bedData = $request->input('bed_types', null);
 
@@ -112,6 +141,9 @@ class LoaiPhongController extends Controller
             DB::rollBack();
             return back()->withInput()->withErrors(['error' => 'Lỗi lưu loại phòng: ' . $e->getMessage()]);
         }
+     
+
+        return redirect()->route('admin.loai_phong.index')->with('success', 'Thêm loại phòng thành công');
     }
 
 
@@ -123,10 +155,12 @@ class LoaiPhongController extends Controller
 
     public function edit($id)
     {
-        $loaiphong = LoaiPhong::with('tienNghis', 'bedTypes')->findOrFail($id);
+        $loaiphong = LoaiPhong::with(['tienNghis', 'vatDungs'])->findOrFail($id);
         $tienNghis = TienNghi::where('active', true)->get();
-        $bedTypes = BedType::orderBy('name')->get();
-        return view('admin.loai_phong.edit', compact('loaiphong', 'tienNghis', 'bedTypes'));
+$vatDungs = VatDung::where('active', true)->get();
+$bedTypes = BedType::orderBy('name')->get();
+       
+        return view('admin.loai_phong.edit', compact('loaiphong', 'tienNghis','vatDungs','bedTypes'));
     }
 
     public function update(Request $request, $id)
@@ -141,6 +175,8 @@ class LoaiPhongController extends Controller
             'so_luong_thuc_te' => 'required|integer',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'exists:tien_nghi,id',
+             'vat_dungs' => 'nullable|array',
+    'vat_dungs.*' => 'exists:vat_dungs,id',
             'bed_types' => 'nullable|array',
             'bed_types.*.quantity' => 'nullable|integer|min:0',
             'bed_types.*.price' => 'nullable|numeric|min:0',
@@ -158,7 +194,8 @@ class LoaiPhongController extends Controller
                 'so_luong_thuc_te'
             ]));
 
-            $loaiphong->tienNghis()->sync($request->input('tien_nghi', []));
+        $loaiphong->tienNghis()->sync($request->input('tien_nghi_ids', []));
+        $loaiphong->vatDungs()->sync($request->input('vat_dung_ids', []));
 
             if ($request->has('bed_types')) {
                 $bedData = $request->input('bed_types', []);
@@ -246,4 +283,8 @@ class LoaiPhongController extends Controller
         $loaiPhong = LoaiPhong::with('tienNghis')->findOrFail($id);
         return response()->json($loaiPhong->tienNghis);
     }
+    
+ 
 }
+
+

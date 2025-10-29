@@ -60,7 +60,7 @@
                             {{-- Check in-out --}}
                             <h6>Check in - out</h6>
                             <input type="text" class="form-control flatpickr mb-3" data-mode="range"
-                                placeholder="Chọn ngày" name="date_range">
+                                placeholder="Select date" name="date_range">
 
                             <h6>Price (VNĐ)</h6>
                             <div class="mb-3">
@@ -261,9 +261,10 @@
                             </div>
                         @empty
                             <div class="text-center py-5">
-                                <img src="{{ asset('template/stackbros/assets/images/no-data.svg') }}" alt="No rooms"
-                                    width="180">
-                                <p class="mt-3 mb-0">Không tìm thấy phòng nào phù hợp.</p>
+                                <p class="mt-3 mb-0">
+                                    <i class="fa-regular fa-eye-slash"></i>
+                                    No suitable rooms were found.
+                                </p>
                             </div>
                         @endforelse
 

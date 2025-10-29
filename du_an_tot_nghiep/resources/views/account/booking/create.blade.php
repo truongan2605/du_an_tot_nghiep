@@ -238,7 +238,7 @@
                                                             <option value="vnpay" {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Pay with VNPAY</option>
                                                             <option value="chuyen_khoan" {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>Bank transfer</option>
                                                         </select>
-                                                    </div>
+                                                    </div>  
                                                 </div>
 
                                                 <input type="hidden" name="final_per_night" id="final_per_night_input" value="">
@@ -259,40 +259,40 @@
                     <aside class="col-xl-4">
                         <div class="row g-4">
                             <!-- Price summary START -->
-                            <div class="col-md-6 col-xl-12">
+                            <div class="col-md-6 col-xl-12" > 
                                 <div class="card shadow rounded-2">
                                     <div class="card-header border-bottom">
-                                        <h5 class="card-title mb-0">Price Summary</h5>
+                                        <h5 class="card-title mb-0">Tóm tắt giá</h5>
                                     </div>
 
                                     <div class="card-body">
                                         <ul class="list-group list-group-borderless">
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Room base / night</span>
+                                                <span class="h6 fw-light mb-0">Căn phòng / đêm</span>
                                                 <span class="fs-6" id="price_base_display">{{ number_format($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0), 0, ',', '.') }} đ</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Adults extra / night</span>
+                                                <span class="h6 fw-light mb-0">Người lớn thêm / đêm</span>
                                                 <span class="fs-6" id="price_adults_display">-</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Children extra / night</span>
+                                                <span class="h6 fw-light mb-0">Trẻ em thêm / đêm</span>
                                                 <span class="fs-6" id="price_children_display">-</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Final price / night</span>
+                                                <span class="h6 fw-light mb-0">Giá cuối cùng / đêm</span>
                                                 <span class="fs-6" id="final_per_night_display">-</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Nights</span>
+                                                <span class="h6 fw-light mb-0">Đêm</span>
                                                 <span class="fs-5" id="nights_count_display">-</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Additional services</span>
+                                                <span class="h6 fw-light mb-0">Dịch vụ bổ sung</span>
                                                 <span class="fs-6" id="price_addons_display">-</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Total</span>
+                                                <span class="h6 fw-light mb-0">Tổng</span>
                                                 <span class="fs-5" id="total_snapshot_display">-</span>
                                             </li>
                                         </ul>
@@ -300,9 +300,10 @@
 
                                     <div class="card-footer border-top">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span class="h5 mb-0">Payable Now</span>
+                                            <span class="h5 mb-0">Đặt Cọc (20%)</span>
                                             <span class="h5 mb-0" id="payable_now_display">-</span>
                                         </div>
+                                        <small class="text-muted d-block mt-2">Phần còn lại (80%) thanh toán tại khách sạn khi check in</small>
                                     </div>
                                 </div>
                             </div>
@@ -881,5 +882,18 @@
             updateSummary();
             updateRoomsAvailability();
         })();
+        // === Sticky Scroll cho Price Summary ===
+window.addEventListener('scroll', () => {
+    const summary = document.querySelector('.card.shadow.rounded-2');
+    if (!summary) return;
+
+    const startOffset = 200; 
+    const scrollY = window.scrollY;
+    const maxTranslate = 1500; 
+
+    const translateY = Math.min(Math.max(0, scrollY - startOffset), maxTranslate);
+    summary.style.transform = `translateY(${translateY}px)`;
+    summary.style.transition = 'transform 0.2s ease-out';
+});
     </script>
 @endpush

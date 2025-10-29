@@ -1,7 +1,10 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\HomeController;
+
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
@@ -23,6 +26,7 @@ use App\Http\Controllers\InternalNotificationController;
 use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
+use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
 
@@ -50,6 +54,11 @@ Route::prefix('admin')
         Route::resource('tien-nghi', AdminTienNghiController::class);
         Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])->name('tien-nghi.toggle-active');
 
+             // vatdung
+        Route::resource('vat-dung', AdminVatDungController::class);
+        Route::patch('vat-dung/{vat_dung}/toggle-active', [AdminVatDungController::class, 'toggleActive'])
+        ->name('vat-dung.toggle-active');
+            
         // Loại phòng
         Route::get('/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
         Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])->name('loai_phong.disable');
@@ -92,13 +101,16 @@ Route::prefix('admin')
         Route::get('customer-notifications/create', [CustomerNotificationController::class, 'create'])->name('customer-notifications.create');
         Route::post('customer-notifications', [CustomerNotificationController::class, 'store'])->name('customer-notifications.store');
         Route::get('customer-notifications/{notification}', [CustomerNotificationController::class, 'show'])->name('customer-notifications.show');
+        Route::get('customer-notifications/{notification}/edit', [CustomerNotificationController::class, 'edit'])->name('customer-notifications.edit');
         Route::put('customer-notifications/{notification}', [CustomerNotificationController::class, 'update'])->name('customer-notifications.update');
         Route::delete('customer-notifications/{notification}', [CustomerNotificationController::class, 'destroy'])->name('customer-notifications.destroy');
         Route::post('customer-notifications/{notification}/resend', [CustomerNotificationController::class, 'resend'])->name('customer-notifications.resend');
 
         Route::resource('internal-notifications', InternalNotificationController::class);
+        Route::post('internal-notifications/{internal_notification}/resend', [InternalNotificationController::class, 'resend'])->name('internal-notifications.resend');
         Route::resource('admin-notifications', AdminNotificationController::class);
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
+        
     });
 
 // ==================== STAFF ====================
@@ -171,7 +183,6 @@ Route::middleware('auth')->group(function () {
     Route::get('notifications/{id}', [ThongBaoController::class, 'clientShow'])->name('notifications.show');
     Route::post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('notifications.read');
     Route::get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('notifications.modal');
-    Route::get('api/notifications/unread-count', [ThongBaoController::class, 'getUnreadCount']);
 
     Route::prefix('api/notifications')->group(function () {
         Route::get('/recent', [NotificationController::class, 'getRecent']);
@@ -182,6 +193,62 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+// ==================== TEST ====================
+Route::get('/test-notifications', function() {
+    $user = Auth::user();
+    if (!$user) {
+        return response()->json(['error' => 'Not authenticated']);
+    }
+    
+    $unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
+        ->where('kenh', 'in_app')
+        ->where('trang_thai', '!=', 'read')
+        ->count();
+    
+    $recentNotifications = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
+        ->where('kenh', 'in_app')
+        ->orderBy('created_at', 'desc')
+        ->limit(5)
+        ->get();
+    
+    return response()->json([
+        'user' => $user->name,
+        'user_id' => $user->id,
+        'role' => $user->vai_tro,
+        'unread_count' => $unreadCount,
+        'recent_notifications' => $recentNotifications
+    ]);
+})->middleware('auth');
+
+Route::get('/test-admin-notifications', function() {
+    $user = Auth::user();
+    if (!$user) {
+        return response()->json(['error' => 'Not authenticated']);
+    }
+    
+    if ($user->vai_tro !== 'admin') {
+        return response()->json(['error' => 'Admin access required']);
+    }
+    
+    $unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
+        ->where('kenh', 'in_app')
+        ->where('trang_thai', '!=', 'read')
+        ->count();
+    
+    $recentNotifications = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
+        ->where('kenh', 'in_app')
+        ->orderBy('created_at', 'desc')
+        ->limit(5)
+        ->get();
+    
+    return response()->json([
+        'user' => $user->name,
+        'user_id' => $user->id,
+        'role' => $user->vai_tro,
+        'unread_count' => $unreadCount,
+        'recent_notifications' => $recentNotifications
+    ]);
+})->middleware(['auth', 'admin']);
 
 // ==================== AUTH ====================
 require __DIR__ . '/auth.php';

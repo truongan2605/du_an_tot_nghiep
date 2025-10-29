@@ -18,10 +18,8 @@ use Illuminate\Support\Facades\Mail;
 
 class PaymentController extends Controller
 {
-    /**
-     * Tạo URL thanh toán VNPAY và bản ghi giu_phong
-     */
-   public function initiateVNPay(Request $request)
+
+    public function initiateVNPay(Request $request)
     {
         Log::info('🔹 initiateVNPay request:', $request->all());
 
@@ -135,7 +133,7 @@ class PaymentController extends Controller
                 return response()->json(['redirect_url' => $redirectUrl, 'dat_phong_id' => $dat_phong->id]);
             });
         } catch (\Throwable $e) {
-            Log::error('🔥 VNPay initiate error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('VNPay initiate error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
         }
     }
@@ -143,7 +141,7 @@ class PaymentController extends Controller
     /**
      * Callback từ VNPAY khi người dùng quay lại
      */
-public function handleVNPayCallback(Request $request)
+    public function handleVNPayCallback(Request $request)
     {
         Log::info('VNPAY Callback Received', $request->all());
 
@@ -246,9 +244,6 @@ public function handleVNPayCallback(Request $request)
         });
     }
 
-    /**
-     * IPN (Server-to-Server)
-     */
     public function handleIpn(Request $request)
     {
         Log::info('VNPAY IPN Received', $request->all());
@@ -348,7 +343,7 @@ public function handleVNPayCallback(Request $request)
             ->whereIn('trang_thai', ['dang_cho_xac_nhan', 'dang_cho'])
             ->where(function ($q) {
                 $q->where('can_xac_nhan', true)
-                  ->orWhere('can_thanh_toan', true);
+                    ->orWhere('can_thanh_toan', true);
             })
             ->whereHas('giaoDichs', function ($q) {
                 $q->whereIn('trang_thai', ['thanh_cong', 'dang_cho']);
