@@ -21,12 +21,12 @@ use App\Http\Controllers\Client\ProfileController;
 Route::middleware('auth')->get('notifications/{id}', [ThongBaoController::class, 'clientShow'])->name('notifications.show');
 
 // Test route immediately after
-Route::get('test-notifications-route', function() {
+Route::get('test-notifications-route', function () {
     return 'Test: ' . route('notifications.show', 1);
 });
 
 // Simple route test
-Route::get('test-route-exists', function() {
+Route::get('test-route-exists', function () {
     return 'Route exists: ' . (Route::has('notifications.show') ? 'YES' : 'NO');
 });
 
@@ -189,34 +189,34 @@ Route::middleware('auth')->prefix('account')
     ->name('account.')
     ->group(function () {
 
-// In-app notification: mark as read
-Route::middleware('auth')->post('thong-bao/{thong_bao}/read', [ThongBaoController::class, 'markRead'])->name('thong-bao.mark-read');
+        // In-app notification: mark as read
+        Route::middleware('auth')->post('thong-bao/{thong_bao}/read', [ThongBaoController::class, 'markRead'])->name('thong-bao.mark-read');
 
-// Mark notification as read when viewing
-Route::middleware('auth')->post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('thong-bao.mark-read-on-view');
+        // Mark notification as read when viewing
+        Route::middleware('auth')->post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('thong-bao.mark-read-on-view');
 
-// Client notification modal
-Route::middleware('auth')->get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('thong-bao.client-modal');
+        // Client notification modal
+        Route::middleware('auth')->get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('thong-bao.client-modal');
 
-// API for unread count
-Route::middleware('auth')->get('api/notifications/unread-count', [ThongBaoController::class, 'getUnreadCount']);
+        // API for unread count
+        Route::middleware('auth')->get('api/notifications/unread-count', [ThongBaoController::class, 'getUnreadCount']);
 
-// API routes for notifications - Basic access for all users
-Route::middleware('auth')->prefix('api/notifications')->group(function () {
-    Route::get('/recent', [App\Http\Controllers\Api\NotificationController::class, 'getRecent']);
-    Route::get('/unread-count', [App\Http\Controllers\Api\NotificationController::class, 'getUnreadCount']);
-    Route::get('/{id}', [App\Http\Controllers\Api\NotificationController::class, 'show']);
-    Route::post('/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
-    Route::post('/mark-all-read', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
-});
+        // API routes for notifications - Basic access for all users
+        Route::middleware('auth')->prefix('api/notifications')->group(function () {
+            Route::get('/recent', [App\Http\Controllers\Api\NotificationController::class, 'getRecent']);
+            Route::get('/unread-count', [App\Http\Controllers\Api\NotificationController::class, 'getUnreadCount']);
+            Route::get('/{id}', [App\Http\Controllers\Api\NotificationController::class, 'show']);
+            Route::post('/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+            Route::post('/mark-all-read', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+        });
 
-// API routes for notifications - Admin only access
-Route::middleware(['auth', 'admin'])->prefix('api/notifications')->group(function () {
-    Route::get('/', [App\Http\Controllers\Api\NotificationController::class, 'index']);
-    Route::get('/stats', [App\Http\Controllers\Api\NotificationController::class, 'getStats']);
-    Route::post('/mark-multiple-read', [App\Http\Controllers\Api\NotificationController::class, 'markMultipleAsRead']);
-    Route::delete('/{id}', [App\Http\Controllers\Api\NotificationController::class, 'destroy']);
-});
+        // API routes for notifications - Admin only access
+        Route::middleware(['auth', 'admin'])->prefix('api/notifications')->group(function () {
+            Route::get('/', [App\Http\Controllers\Api\NotificationController::class, 'index']);
+            Route::get('/stats', [App\Http\Controllers\Api\NotificationController::class, 'getStats']);
+            Route::post('/mark-multiple-read', [App\Http\Controllers\Api\NotificationController::class, 'markMultipleAsRead']);
+            Route::delete('/{id}', [App\Http\Controllers\Api\NotificationController::class, 'destroy']);
+        });
         Route::get('settings', function () {
             return view('account.profile');
         })->name('settings');
@@ -236,6 +236,39 @@ Route::middleware(['auth', 'admin'])->prefix('api/notifications')->group(functio
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])
             ->name('booking.show');
     });
+
+
+use App\Http\Controllers\Client\BlogController as ClientBlog;
+use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
+use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
+use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
+
+// Client
+Route::get('/blog', [ClientBlog::class, 'index'])->name('blog.index');
+Route::get('/blog/{slug}', [ClientBlog::class, 'show'])->name('blog.show');
+
+// Admin
+Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
+    Route::prefix('blog')->name('blog.')->group(function () {
+        // // Upload anh tren noi dung bai viet:
+        // Route::post('posts/upload-image', [AdminPost::class, 'uploadContentImage'])
+        //     ->name('posts.upload-image');
+        //     // routes/web.php (trong nhóm middleware auth của admin cũng được)
+        //     Route::post('admin/blog/posts/upload-image',
+        //     [\App\Http\Controllers\Admin\Blog\PostController::class, 'uploadContentImage']
+        //     )->name('admin.blog.posts.upload-image');
+
+        // Posts
+        Route::get('posts/trash', [AdminPost::class, 'trash'])->name('posts.trash');
+        Route::post('posts/{id}/restore', [AdminPost::class, 'restore'])->name('posts.restore');
+        Route::delete('posts/{id}/force', [AdminPost::class, 'forceDelete'])->name('posts.force');
+        Route::resource('posts', AdminPost::class)->parameters(['posts' => 'post']);
+
+        // Categories & Tags
+        Route::resource('categories', AdminCategory::class)->parameters(['categories' => 'category']);
+        Route::resource('tags', AdminTag::class)->parameters(['tags' => 'tag']);
+    });
+});
 
 
 

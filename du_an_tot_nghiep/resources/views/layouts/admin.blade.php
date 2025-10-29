@@ -94,6 +94,12 @@
                         href="{{ route('admin.internal-notifications.index') }}">
                         <i class="fas fa-building me-2"></i> Thông Báo Nội Bộ
                     </a>
+                    <li class="nav-link {{ request()->routeIs('admin.blog.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.blog.posts.index') }}">
+                            <i class="fa-solid fa-newspaper me-2"></i> Blog
+                        </a>
+                    </li>
+
                 </nav>
             </div>
 
