@@ -17,6 +17,8 @@
                     <th>Mã Tham Chiếu</th>
                     <th>Ngày Nhận</th>
                     <th>Ngày Trả</th>
+                    <th class="text-end">Tổng Tiền</th>
+                    <th class="text-end">Đặt Cọc (20%)</th>
                     <th class="text-center">Thao Tác</th>
                 </tr>
             </thead>
@@ -63,6 +65,8 @@
                     <td>{{ $booking->ma_tham_chieu ?? 'Chưa có' }}</td>
                     <td>{{ $booking->ngay_nhan_phong?->format('d-m-Y H:i') ?? '-' }}</td>
                     <td>{{ $booking->ngay_tra_phong?->format('d-m-Y H:i') ?? '-' }}</td>
+                    <td class="text-end fw-bold">{{ number_format($booking->tong_tien, 0, ',', '.') }} VNĐ</td>
+                    <td class="text-end fw-bold">{{ number_format($booking->deposit_amount, 0, ',', '.') }} VNĐ</td>
                     <td class="text-center text-nowrap">
                         <div class="d-flex gap-1 justify-content-center">
                             @if ($booking->trang_thai === 'dang_cho')
@@ -104,7 +108,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="text-center text-muted">Không có booking nào.</td>
+                    <td colspan="10" class="text-center text-muted">Không có booking nào.</td>
                 </tr>
                 @endforelse
             </tbody>

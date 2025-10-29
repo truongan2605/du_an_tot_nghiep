@@ -22,8 +22,10 @@
                             <div class="card-body">
                                 <nav aria-label="breadcrumb">
                                     <ol class="breadcrumb breadcrumb-dots mb-0">
-                                        <li class="breadcrumb-item"><a href="{{ route('home') }}"><i class="bi bi-house me-1"></i> Home</a></li>
-                                        <li class="breadcrumb-item"><a href="{{ route('rooms.show', $phong->id) }}">Room detail</a></li>
+                                        <li class="breadcrumb-item"><a href="{{ route('home') }}"><i
+                                                    class="bi bi-house me-1"></i> Home</a></li>
+                                        <li class="breadcrumb-item"><a href="{{ route('rooms.show', $phong->id) }}">Room
+                                                detail</a></li>
                                         <li class="breadcrumb-item active">Booking</li>
                                     </ol>
                                 </nav>
@@ -32,7 +34,8 @@
                         </div>
 
                         <div class="col-sm-3 text-end d-none d-sm-block">
-                            <img src="{{ $phong->firstImageUrl() }}" class="mb-n4" alt="{{ $phong->name ?? $phong->ma_phong }}" style="max-width:100px;">
+                            <img src="{{ $phong->firstImageUrl() }}" class="mb-n4"
+                                alt="{{ $phong->name ?? $phong->ma_phong }}" style="max-width:100px;">
                         </div>
                     </div>
                 </div>
@@ -56,7 +59,8 @@
                                         {{-- Server-side messages --}}
                                         <div id="server_message_container" class="mb-3">
                                             @if (session('success'))
-                                                <div id="server_success" data-message="{{ e(session('success')) }}" data-datphong="{{ session('dat_phong_id') ?? '' }}"></div>
+                                                <div id="server_success" data-message="{{ e(session('success')) }}"
+                                                    data-datphong="{{ session('dat_phong_id') ?? '' }}"></div>
                                             @endif
 
                                             @if ($errors->any())
@@ -65,18 +69,24 @@
                                         </div>
 
                                         <input type="hidden" name="phong_id" value="{{ $phong->id }}">
-                                        <input type="hidden" name="spec_signature_hash" value="{{ $phong->spec_signature_hash ?? $phong->specSignatureHash() }}">
+                                        <input type="hidden" name="spec_signature_hash"
+                                            value="{{ $phong->spec_signature_hash ?? $phong->specSignatureHash() }}">
 
                                         <div class="row g-4">
                                             <div class="col-lg-6">
                                                 <div class="d-flex">
                                                     <i class="bi bi-calendar fs-3 me-2 mt-2"></i>
-                                                    <div class="form-control-border form-control-transparent form-fs-md w-100">
+                                                    <div
+                                                        class="form-control-border form-control-transparent form-fs-md w-100">
                                                         <label class="form-label">Check in - Check out</label>
-                                                        <input id="date_range" type="text" class="form-control flatpickr" placeholder="Select date range" readonly>
-                                                        <input type="hidden" name="ngay_nhan_phong" id="ngay_nhan_phong" value="{{ old('ngay_nhan_phong', \Carbon\Carbon::today()->format('Y-m-d')) }}">
-                                                        <input type="hidden" name="ngay_tra_phong" id="ngay_tra_phong" value="{{ old('ngay_tra_phong', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}">
-                                                        <small class="text-muted">Check-in time: 2:00 pm — Check-out time: 12:00 pm</small>
+                                                        <input id="date_range" type="text" class="form-control flatpickr"
+                                                            placeholder="Select date range" readonly>
+                                                        <input type="hidden" name="ngay_nhan_phong" id="ngay_nhan_phong"
+                                                            value="{{ old('ngay_nhan_phong', \Carbon\Carbon::today()->format('Y-m-d')) }}">
+                                                        <input type="hidden" name="ngay_tra_phong" id="ngay_tra_phong"
+                                                            value="{{ old('ngay_tra_phong', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}">
+                                                        <small class="text-muted">Check-in time: 2:00 pm — Check-out time:
+                                                            12:00 pm</small>
                                                         <div id="availability_message" class="small mt-2"></div>
                                                         @error('ngay_nhan_phong')
                                                             <div class="text-danger small">{{ $message }}</div>
@@ -95,20 +105,34 @@
                                                     <div class="row g-2 mb-2">
                                                         <div class="col-6">
                                                             <label class="form-label">Adults</label>
-                                                            <input type="number" name="adults" id="adults" class="form-control" min="1" max="{{ max(1, $roomCapacity + 2) }}" value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
-                                                            <small id="adults_help" class="text-muted d-block">Maximum number of people: <strong id="room_capacity_display">{{ $roomCapacity + 2 }}</strong></small>
+                                                            <input type="number" name="adults" id="adults"
+                                                                class="form-control" min="1"
+                                                                max="{{ max(1, $roomCapacity + 2) }}"
+                                                                value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
+                                                            <small id="adults_help" class="text-muted d-block">Maximum
+                                                                number of people: <strong
+                                                                    id="room_capacity_display">{{ $roomCapacity + 2 }}</strong></small>
                                                         </div>
 
                                                         <div class="col-6">
                                                             <label class="form-label">Children</label>
-                                                            <input type="number" name="children" id="children" class="form-control" min="0" max="2" value="{{ old('children', 0) }}">
-                                                            <small id="children_help" class="text-muted d-block">Maximum 2 children per room.</small>
+                                                            <input type="number" name="children" id="children"
+                                                                class="form-control" min="0" max="2"
+                                                                value="{{ old('children', 0) }}">
+                                                            <small id="children_help" class="text-muted d-block">Maximum 2
+                                                                children per room.</small>
                                                         </div>
 
                                                         <div class="col-6">
                                                             <label class="form-label">Rooms</label>
-                                                            <input type="number" name="rooms_count" id="rooms_count" class="form-control" min="1" max="{{ $availableRoomsDefault ?? 1 }}" value="{{ old('rooms_count', 1) }}">
-                                                            <small class="text-muted d-block">Available for selected dates: <strong id="available_rooms_display">{{ $availableRoomsDefault ?? 0 }}</strong> room(s)</small>
+                                                            <input type="number" name="rooms_count" id="rooms_count"
+                                                                class="form-control" min="1"
+                                                                max="{{ $availableRoomsDefault ?? 1 }}"
+                                                                value="{{ old('rooms_count', 1) }}">
+                                                            <small class="text-muted d-block">Available for selected dates:
+                                                                <strong
+                                                                    id="available_rooms_display">{{ $availableRoomsDefault ?? 0 }}</strong>
+                                                                room(s)</small>
                                                         </div>
                                                     </div>
 
@@ -120,12 +144,17 @@
                                                         <ul class="list-unstyled mb-2">
                                                             @forelse ($phong->bedTypes as $bt)
                                                                 <li class="mb-1">
-                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                    <div
+                                                                        class="d-flex justify-content-between align-items-center">
                                                                         <div>
                                                                             <strong>{{ $bt->name }}</strong>
-                                                                            <div class="small text">{{ $bt->description ?? '' }}</div>
-                                                                            <div class="small text">Quantity: {{ $bt->pivot->quantity }}</div>
-                                                                            <div class="small text">Price/bed: {{ number_format($bt->price, 0, ',', '.') }} đ/night</div>
+                                                                            <div class="small text">
+                                                                                {{ $bt->description ?? '' }}</div>
+                                                                            <div class="small text">Quantity:
+                                                                                {{ $bt->pivot->quantity }}</div>
+                                                                            <div class="small text">Price/bed:
+                                                                                {{ number_format($bt->price, 0, ',', '.') }}
+                                                                                đ/night</div>
                                                                         </div>
                                                                     </div>
                                                                 </li>
@@ -135,15 +164,18 @@
                                                         </ul>
                                                     </div>
 
-                                                    <input type="hidden" name="so_khach" id="so_khach" value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
-                                                    <div class="small text">Room for: {{ $phong->suc_chua ?? ($roomCapacity ?? '-') }} persons</div>
+                                                    <input type="hidden" name="so_khach" id="so_khach"
+                                                        value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
+                                                    <div class="small text">Room for:
+                                                        {{ $phong->suc_chua ?? ($roomCapacity ?? '-') }} persons</div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="card border mt-4">
                                             <div class="card-header border-bottom d-md-flex justify-content-md-between">
-                                                <h5 class="card-title mb-0">{{ $phong->name ?? ($phong->loaiPhong->ten ?? 'Room') }}</h5>
+                                                <h5 class="card-title mb-0">
+                                                    {{ $phong->name ?? ($phong->loaiPhong->ten ?? 'Room') }}</h5>
                                             </div>
 
                                             <div class="card-body">
@@ -152,10 +184,13 @@
                                                     <ul class="list-unstyled">
                                                         @foreach ($phong->tienNghis as $tn)
                                                             <li>
-                                                                <i class="{{ $tn->icon ?? 'fa-solid fa-check' }} text-success me-2"></i>
+                                                                <i
+                                                                    class="{{ $tn->icon ?? 'fa-solid fa-check' }} text-success me-2"></i>
                                                                 {{ $tn->ten }}
                                                                 @if ($tn->mo_ta)
-                                                                    <div class="small text-muted">{{ \Illuminate\Support\Str::limit($tn->mo_ta, 150) }}</div>
+                                                                    <div class="small text-muted">
+                                                                        {{ \Illuminate\Support\Str::limit($tn->mo_ta, 150) }}
+                                                                    </div>
                                                                 @endif
                                                             </li>
                                                         @endforeach
@@ -167,18 +202,27 @@
                                                             @foreach ($availableAddons as $addon)
                                                                 <li class="mb-2">
                                                                     <label class="d-flex align-items-center">
-                                                                        <input type="checkbox" name="addons[]" value="{{ $addon->id }}" data-price="{{ $addon->gia }}" class="me-2 addon-checkbox" {{ in_array($addon->id, old('addons', [])) ? 'checked' : '' }}>
+                                                                        <input type="checkbox" name="addons[]"
+                                                                            value="{{ $addon->id }}"
+                                                                            data-price="{{ $addon->gia }}"
+                                                                            class="me-2 addon-checkbox"
+                                                                            {{ in_array($addon->id, old('addons', [])) ? 'checked' : '' }}>
                                                                         <span>
                                                                             <strong>{{ $addon->ten }}</strong>
-                                                                            <div class="small text-muted">{{ \Illuminate\Support\Str::limit($addon->mo_ta ?? '', 100) }}</div>
-                                                                            <div class="small text">+ {{ number_format($addon->gia ?? 0, 0, ',', '.') }} đ / night</div>
+                                                                            <div class="small text-muted">
+                                                                                {{ \Illuminate\Support\Str::limit($addon->mo_ta ?? '', 100) }}
+                                                                            </div>
+                                                                            <div class="small text">+
+                                                                                {{ number_format($addon->gia ?? 0, 0, ',', '.') }}
+                                                                                đ / night</div>
                                                                         </span>
                                                                     </label>
                                                                 </li>
                                                             @endforeach
                                                         </ul>
                                                     @else
-                                                        <p class="mb-0"><em>No additional payable services available.</em></p>
+                                                        <p class="mb-0"><em>No additional payable services
+                                                                available.</em></p>
                                                     @endif
                                                 @else
                                                     <p class="mb-0"><em>No services listed for this room.</em></p>
@@ -188,7 +232,8 @@
 
                                         <div class="card shadow mt-4">
                                             <div class="card-header border-bottom p-4">
-                                                <h4 class="card-title mb-0"><i class="bi bi-people-fill me-2"></i>Guest Details</h4>
+                                                <h4 class="card-title mb-0"><i class="bi bi-people-fill me-2"></i>Guest
+                                                    Details</h4>
                                             </div>
 
                                             <div class="card-body p-4">
@@ -196,7 +241,9 @@
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Full name</label>
-                                                    <input type="text" name="name" class="form-control form-control-lg" value="{{ old('name', $u->name ?? '') }}" required>
+                                                    <input type="text" name="name"
+                                                        class="form-control form-control-lg"
+                                                        value="{{ old('name', $u->name ?? '') }}" required>
                                                     @error('name')
                                                         <div class="text-danger small">{{ $message }}</div>
                                                     @enderror
@@ -204,7 +251,9 @@
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Address</label>
-                                                    <input type="text" name="address" class="form-control form-control-lg" value="{{ old('address', $u->address ?? '') }}" required>
+                                                    <input type="text" name="address"
+                                                        class="form-control form-control-lg"
+                                                        value="{{ old('address', $u->address ?? '') }}" required>
                                                     @error('address')
                                                         <div class="text-danger small">{{ $message }}</div>
                                                     @enderror
@@ -213,11 +262,13 @@
                                                 <div class="row g-3">
                                                     <div class="col-md-6">
                                                         <label class="form-label">Email</label>
-                                                        <input type="email" class="form-control" value="{{ $u->email ?? '' }}" readonly>
+                                                        <input type="email" class="form-control"
+                                                            value="{{ $u->email ?? '' }}" readonly>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label">Phone</label>
-                                                        <input type="text" name="phone" class="form-control" value="{{ old('phone', $u->so_dien_thoai ?? '') }}" required>
+                                                        <input type="text" name="phone" class="form-control"
+                                                            value="{{ old('phone', $u->so_dien_thoai ?? '') }}" required>
                                                     </div>
                                                 </div>
 
@@ -228,25 +279,38 @@
 
                                                 <div class="mb-3">
                                                     <input type="hidden" name="phong_id" value="{{ $phong->id }}">
-                                                    <input type="hidden" name="tong_tien" id="hidden_tong_tien" value="{{ $phong->tong_gia ?? ($phong->tong_tien ?? ($phong->gia_mac_dinh ?? 0)) }}">
+                                                    <input type="hidden" name="tong_tien" id="hidden_tong_tien"
+                                                        value="{{ $phong->tong_gia ?? ($phong->tong_tien ?? ($phong->gia_mac_dinh ?? 0)) }}">
+                                                    <input type="hidden" name="deposit_amount" id="hidden_deposit"
+                                                        value="0">
 
                                                     <div class="mt-3">
                                                         <label for="phuong_thuc" class="form-label">Payment method</label>
-                                                        <select name="phuong_thuc" id="phuong_thuc" class="form-select" required>
+                                                        <select name="phuong_thuc" id="phuong_thuc" class="form-select"
+                                                            required>
                                                             <option value="">Select method</option>
-                                                            <option value="tien_mat" {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>Pay at the hotel (Cash)</option>
-                                                            <option value="vnpay" {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Pay with VNPAY</option>
-                                                            <option value="chuyen_khoan" {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>Bank transfer</option>
+                                                            <option value="tien_mat"
+                                                                {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>
+                                                                Pay at the hotel (Cash)</option>
+                                                            <option value="vnpay"
+                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Pay
+                                                                with VNPAY</option>
+                                                            <option value="chuyen_khoan"
+                                                                {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
+                                                                Bank transfer</option>
                                                         </select>
-                                                    </div>  
+                                                    </div>
                                                 </div>
 
-                                                <input type="hidden" name="final_per_night" id="final_per_night_input" value="">
-                                                <input type="hidden" name="snapshot_total" id="snapshot_total_input" value="">
+                                                <input type="hidden" name="final_per_night" id="final_per_night_input"
+                                                    value="">
+                                                <input type="hidden" name="snapshot_total" id="snapshot_total_input"
+                                                    value="">
 
                                                 <div class="mt-3">
                                                     <button type="submit" class="btn btn-lg btn-primary">Confirm</button>
-                                                    <a href="{{ route('rooms.show', $phong->id) }}" class="btn btn-secondary ms-2">Cancel</a>
+                                                    <a href="{{ route('rooms.show', $phong->id) }}"
+                                                        class="btn btn-secondary ms-2">Cancel</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -259,7 +323,7 @@
                     <aside class="col-xl-4">
                         <div class="row g-4">
                             <!-- Price summary START -->
-                            <div class="col-md-6 col-xl-12" > 
+                            <div class="col-md-6 col-xl-12">
                                 <div class="card shadow rounded-2">
                                     <div class="card-header border-bottom">
                                         <h5 class="card-title mb-0">Tóm tắt giá</h5>
@@ -269,7 +333,9 @@
                                         <ul class="list-group list-group-borderless">
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Căn phòng / đêm</span>
-                                                <span class="fs-6" id="price_base_display">{{ number_format($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0), 0, ',', '.') }} đ</span>
+                                                <span class="fs-6"
+                                                    id="price_base_display">{{ number_format($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0), 0, ',', '.') }}
+                                                    đ</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Người lớn thêm / đêm</span>
@@ -303,7 +369,8 @@
                                             <span class="h5 mb-0">Đặt Cọc (20%)</span>
                                             <span class="h5 mb-0" id="payable_now_display">-</span>
                                         </div>
-                                        <small class="text-muted d-block mt-2">Phần còn lại (80%) thanh toán tại khách sạn khi check in</small>
+                                        <small class="text-muted d-block mt-2">Phần còn lại (80%) thanh toán tại khách sạn
+                                            khi check in</small>
                                     </div>
                                 </div>
                             </div>
@@ -376,6 +443,7 @@
                 if (!arr || arr.length === 0) return;
                 const from = arr[0];
                 const to = arr[1] || arr[0];
+
                 function fmt(d) {
                     const y = d.getFullYear();
                     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -393,11 +461,12 @@
                     mode: "range",
                     minDate: "today",
                     dateFormat: "Y-m-d",
-                    defaultDate: [fromInput.value || new Date().toISOString().slice(0, 10), toInput.value || (() => {
-                        let d = new Date();
-                        d.setDate(d.getDate() + 1);
-                        return d.toISOString().slice(0, 10);
-                    })()],
+                    defaultDate: [fromInput.value || new Date().toISOString().slice(0, 10), toInput.value || (
+                    () => {
+                            let d = new Date();
+                            d.setDate(d.getDate() + 1);
+                            return d.toISOString().slice(0, 10);
+                        })()],
                     onChange: function(selectedDates) {
                         if (selectedDates.length) setHiddenDates(selectedDates);
                     }
@@ -456,15 +525,19 @@
             function showNoAvailabilityMessage(fromStr, toStr) {
                 if (!availabilityMessageEl) return;
                 availabilityMessageEl.className = 'small mt-2 text-danger';
-                availabilityMessageEl.innerText = `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Đang tìm ngày khả dụng gần nhất...`;
+                availabilityMessageEl.innerText =
+                    `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Đang tìm ngày khả dụng gần nhất...`;
                 findNextAvailable(fromStr, 30).then(nextStart => {
                     if (!nextStart) {
-                        availabilityMessageEl.innerText = `Phòng {{ $phong->ma_phong }} không khả dụng trong 30 ngày tới. Vui lòng chọn khoảng thời gian khác.`;
+                        availabilityMessageEl.innerText =
+                            `Phòng {{ $phong->ma_phong }} không khả dụng trong 30 ngày tới. Vui lòng chọn khoảng thời gian khác.`;
                     } else {
-                        availabilityMessageEl.innerHTML = `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày bắt đầu từ <strong>${nextStart}</strong>.`;
+                        availabilityMessageEl.innerHTML =
+                            `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày bắt đầu từ <strong>${nextStart}</strong>.`;
                     }
                 }).catch(() => {
-                    availabilityMessageEl.innerText = `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
+                    availabilityMessageEl.innerText =
+                        `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
                 });
                 toggleSubmit(false);
             }
@@ -529,7 +602,8 @@
                 for (let i = 0; i < count; i++) {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'mb-2 child-age-wrapper';
-                    const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[i] !== 'undefined') ? Number(initialChildrenAges[i]) : 0;
+                    const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[i] !==
+                        'undefined') ? Number(initialChildrenAges[i]) : 0;
                     wrapper.innerHTML = `
                         <label class="form-label">Child ${i+1} age</label>
                         <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
@@ -540,7 +614,8 @@
 
                 document.querySelectorAll('.child-age-input').forEach((el) => {
                     el.addEventListener('input', function() {
-                        const min = 0, max = 12;
+                        const min = 0,
+                            max = 12;
                         let v = Number(this.value);
                         if (isNaN(v)) v = min;
                         if (v < min) {
@@ -553,7 +628,8 @@
                         updateSummary();
                     });
                     el.addEventListener('blur', function() {
-                        const min = 0, max = 12;
+                        const min = 0,
+                            max = 12;
                         let v = Number(this.value);
                         if (isNaN(v) || v < min) this.value = min;
                         if (v > max) this.value = max;
@@ -613,7 +689,10 @@
                     if (a >= 13) computedAdults++;
                     else if (a >= 7) chargeableChildren++;
                 });
-                return { computedAdults, chargeableChildren };
+                return {
+                    computedAdults,
+                    chargeableChildren
+                };
             }
 
             function validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed) {
@@ -628,7 +707,8 @@
                     const err = document.createElement('div');
                     err.id = 'guest_limit_error';
                     err.className = 'alert alert-danger mt-3';
-                    err.innerText = `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn khoảng thời gian khác.`;
+                    err.innerText =
+                        `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn khoảng thời gian khác.`;
                     const cardBody = form.querySelector('.card-body');
                     if (cardBody) cardBody.prepend(err);
                 } else {
@@ -637,7 +717,8 @@
                         const err = document.createElement('div');
                         err.id = 'guest_limit_error';
                         err.className = 'alert alert-danger mt-3';
-                        err.innerText = `Số lượng khách vượt quá giới hạn tối đa (${totalMaxAllowed}). Vui lòng giảm số lượng khách hoặc tăng số phòng. Lưu ý: Trẻ em dưới 7 tuổi được miễn phí và không tính vào giới hạn.`;
+                        err.innerText =
+                            `Số lượng khách vượt quá giới hạn tối đa (${totalMaxAllowed}). Vui lòng giảm số lượng khách hoặc tăng số phòng. Lưu ý: Trẻ em dưới 7 tuổi được miễn phí và không tính vào giới hạn.`;
                         const cardBody = form.querySelector('.card-body');
                         if (cardBody) cardBody.prepend(err);
                     } else if (childrenCount > Number(childrenInput.max || 2)) {
@@ -701,18 +782,22 @@
                 const basePerRoom = pricePerNight;
                 const baseTotalPerNight = basePerRoom * roomsCount;
 
-                const finalPerNight = baseTotalPerNight + adultsChargePerNightTotal + childrenChargePerNightTotal + addonsPerNight;
+                const finalPerNight = baseTotalPerNight + adultsChargePerNightTotal + childrenChargePerNightTotal +
+                    addonsPerNight;
                 const total = finalPerNight * nights;
+                const deposit = Math.ceil(total * 0.2 / 1000) * 1000;
 
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
-                priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) : '0 đ';
-                priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ? fmtVnd(childrenChargePerNightTotal) : '0 đ';
+                priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :
+                '0 đ';
+                priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ? fmtVnd(childrenChargePerNightTotal) :
+                    '0 đ';
                 const existingAddonsEl = document.getElementById('price_addons_display');
                 if (existingAddonsEl) existingAddonsEl.innerText = addonsPerNight > 0 ? fmtVnd(addonsPerNight) : '0 đ';
 
                 finalPerNightDisplay.innerText = fmtVnd(finalPerNight);
                 totalDisplay.innerText = fmtVnd(total);
-                payableDisplay.innerText = fmtVnd(total);
+                payableDisplay.innerText = fmtVnd(deposit);
 
                 validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed);
 
@@ -723,6 +808,8 @@
 
                 const hiddenTotalInput = document.getElementById('hidden_tong_tien');
                 if (hiddenTotalInput) hiddenTotalInput.value = total;
+                const hiddenDepositInput = document.getElementById('hidden_deposit');
+                if (hiddenDepositInput) hiddenDepositInput.value = deposit;
             }
 
             function showToastInline(msg, isError = false, timeout = 2800) {
@@ -754,8 +841,10 @@
                         alert.className = 'alert alert-success';
                         let html = `<strong>Thành công:</strong> ${msg}`;
                         if (datPhongId) {
-                            const url = "{{ route('account.booking.show', ['dat_phong' => '__ID__']) }}".replace('__ID__', datPhongId);
-                            html += ` <a href="${url}" class="btn btn-sm btn-outline-primary ms-2">Xem chi tiết đặt phòng</a>`;
+                            const url = "{{ route('account.booking.show', ['dat_phong' => '__ID__']) }}".replace(
+                                '__ID__', datPhongId);
+                            html +=
+                                ` <a href="${url}" class="btn btn-sm btn-outline-primary ms-2">Xem chi tiết đặt phòng</a>`;
                         }
                         alert.innerHTML = html;
                         container.appendChild(alert);
@@ -788,8 +877,11 @@
 
                     if (currentAvailableRooms <= 0) {
                         availabilityMessageEl.className = 'small mt-2 text-danger';
-                        availabilityMessageEl.innerText = `Không thể đặt: Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
-                        showToastInline(`Không thể đặt: Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`, true, 3500);
+                        availabilityMessageEl.innerText =
+                            `Không thể đặt: Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
+                        showToastInline(
+                            `Không thể đặt: Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`,
+                            true, 3500);
                         return;
                     }
 
@@ -797,16 +889,20 @@
                     if (paymentMethod === 'vnpay') {
                         submitBtn.disabled = true;
                         submitBtn.dataset.origHtml = submitBtn.innerHTML;
-                        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
+                        submitBtn.innerHTML =
+                            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
 
                         const phongId = document.querySelector('input[name="phong_id"]').value;
                         const ngayNhan = fromInput.value;
                         const ngayTra = toInput.value;
                         const tongTien = document.getElementById('hidden_tong_tien').value;
+                        const deposit = document.getElementById('hidden_deposit').value;
                         const adults = adultsInput.value;
                         const children = childrenInput.value;
-                        const childrenAges = Array.from(document.querySelectorAll('input[name="children_ages[]"]')).map(el => el.value);
-                        const addons = Array.from(document.querySelectorAll('input[name="addons[]"]:checked')).map(el => el.value);
+                        const childrenAges = Array.from(document.querySelectorAll(
+                            'input[name="children_ages[]"]')).map(el => el.value);
+                        const addons = Array.from(document.querySelectorAll(
+                            'input[name="addons[]"]:checked')).map(el => el.value);
                         const roomsCount = roomsInput.value;
                         const soKhach = Number(adults) + Number(children);
 
@@ -822,21 +918,28 @@
                                     phong_id: phongId,
                                     ngay_nhan_phong: ngayNhan,
                                     ngay_tra_phong: ngayTra,
-                                    amount: tongTien,
+                                    amount: deposit,
                                     so_khach: soKhach,
                                     adults: adults,
                                     children: children,
                                     children_ages: childrenAges,
                                     addons: addons,
                                     rooms_count: roomsCount,
+                                    total_amount: tongTien,
                                 }),
                             });
 
                             const data = await response.json();
+                            if (parseFloat(deposit) <= 0 || parseFloat(deposit) > parseFloat(
+                                tongTien)) {
+                                showToastInline('Deposit không hợp lệ.', true, 5000);
+                                return;
+                            }
                             if (data.redirect_url) {
                                 window.location.href = data.redirect_url;
                             } else {
-                                showToastInline(data.error || 'Không thể khởi tạo thanh toán.', true, 5000);
+                                showToastInline(data.error || 'Không thể khởi tạo thanh toán.', true,
+                                    5000);
                                 submitBtn.disabled = false;
                                 submitBtn.innerHTML = submitBtn.dataset.origHtml;
                             }
@@ -848,7 +951,8 @@
                     } else {
                         submitBtn.disabled = true;
                         submitBtn.dataset.origHtml = submitBtn.innerHTML;
-                        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
+                        submitBtn.innerHTML =
+                            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
                         form.submit();
                     }
                 });
@@ -858,7 +962,8 @@
                     if (el) el.addEventListener('change', () => {
                         if (submitBtn && submitBtn.disabled) {
                             submitBtn.disabled = false;
-                            if (submitBtn.dataset.origHtml) submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                            if (submitBtn.dataset.origHtml) submitBtn.innerHTML = submitBtn.dataset
+                                .origHtml;
                         }
                     });
                 });
@@ -867,7 +972,8 @@
             document.querySelectorAll('.addon-checkbox').forEach(chk => chk.addEventListener('change', updateSummary));
             if (Array.isArray(initialSelectedAddons) && initialSelectedAddons.length) {
                 document.querySelectorAll('.addon-checkbox').forEach(chk => {
-                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons.includes(Number(chk.value));
+                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons
+                        .includes(Number(chk.value));
                 });
             }
             if (adultsInput) adultsInput.addEventListener('input', updateSummary);
@@ -883,17 +989,17 @@
             updateRoomsAvailability();
         })();
         // === Sticky Scroll cho Price Summary ===
-window.addEventListener('scroll', () => {
-    const summary = document.querySelector('.card.shadow.rounded-2');
-    if (!summary) return;
+        window.addEventListener('scroll', () => {
+            const summary = document.querySelector('.card.shadow.rounded-2');
+            if (!summary) return;
 
-    const startOffset = 200; 
-    const scrollY = window.scrollY;
-    const maxTranslate = 1500; 
+            const startOffset = 200;
+            const scrollY = window.scrollY;
+            const maxTranslate = 1500;
 
-    const translateY = Math.min(Math.max(0, scrollY - startOffset), maxTranslate);
-    summary.style.transform = `translateY(${translateY}px)`;
-    summary.style.transition = 'transform 0.2s ease-out';
-});
+            const translateY = Math.min(Math.max(0, scrollY - startOffset), maxTranslate);
+            summary.style.transform = `translateY(${translateY}px)`;
+            summary.style.transition = 'transform 0.2s ease-out';
+        });
     </script>
 @endpush

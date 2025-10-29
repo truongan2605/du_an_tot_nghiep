@@ -26,6 +26,16 @@ class StaffController extends Controller
         $todayRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
             ->whereDate('ngay_nhan_phong', $today)
             ->sum('tong_tien');
+        $todayDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')
+            ->whereDate('ngay_nhan_phong', $today)
+            ->sum('deposit_amount');
+        $weeklyDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')
+            ->whereBetween('ngay_nhan_phong', $weekRange)
+            ->sum('deposit_amount');
+        $monthlyDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')
+            ->whereMonth('ngay_nhan_phong', $today->month)
+            ->sum('deposit_amount');
+        $totalDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')->sum('deposit_amount');
         $weeklyRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
             ->whereBetween('ngay_nhan_phong', $weekRange)
             ->sum('tong_tien');
@@ -56,10 +66,23 @@ class StaffController extends Controller
             $checkoutData[] = DatPhong::where('trang_thai', 'dang_o')->whereDate('ngay_tra_phong', $date)->count();
         }
         return view('staff.index', compact(
-            'pendingBookings', 'todayCheckins', 'todayCheckouts', 'todayRevenue',
-            'weeklyRevenue', 'monthlyRevenue', 'totalRevenue',
-            'availableRooms', 'events', 'recentActivities',
-            'chartLabels', 'checkinData', 'checkoutData'
+            'pendingBookings',
+            'todayCheckins',
+            'todayCheckouts',
+            'todayRevenue',
+            'weeklyRevenue',
+            'monthlyRevenue',
+            'totalRevenue',
+            'availableRooms',
+            'events',
+            'recentActivities',
+            'chartLabels',
+            'checkinData',
+            'checkoutData',
+            'todayDeposit',
+            'weeklyDeposit',
+            'monthlyDeposit',
+            'totalDeposit'
         ));
     }
 
@@ -72,8 +95,12 @@ class StaffController extends Controller
         $bookingsThisMonth = DatPhong::where('trang_thai', 'da_xac_nhan')
             ->whereMonth('ngay_nhan_phong', $month)->count();
         $availableRooms = Phong::where('trang_thai', 'trong')->count();
+        $monthlyDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')
+        ->whereMonth('ngay_nhan_phong', $month)
+        ->sum('deposit_amount');
         $weeklyRevenue = [];
         $weeklyBookings = [];
+        $weeklyDeposit = [];
         for ($i = 0; $i < 4; $i++) {
             $start = now()->startOfMonth()->addWeeks($i);
             $end = $start->copy()->endOfWeek();
@@ -83,10 +110,18 @@ class StaffController extends Controller
             $weeklyBookings[] = DatPhong::where('trang_thai', 'da_xac_nhan')
                 ->whereBetween('ngay_nhan_phong', [$start, $end])
                 ->count();
+          $weeklyDeposit[] = DatPhong::where('trang_thai', 'da_xac_nhan')
+            ->whereBetween('ngay_nhan_phong', [$start, $end])
+            ->sum('deposit_amount');
+    
         }
         return view('staff.reports', compact(
-            'monthlyRevenue', 'bookingsThisMonth',
-            'availableRooms', 'weeklyRevenue', 'weeklyBookings'
+            'monthlyRevenue',
+            'bookingsThisMonth',
+            'availableRooms',
+            'weeklyRevenue',
+            'weeklyBookings',
+            'monthlyDeposit', 'weeklyDeposit'
         ));
     }
 

@@ -13,9 +13,13 @@
                 ['label'=>'Check-in Hôm Nay','value'=>$todayCheckins,'icon'=>'bi bi-box-arrow-in-right','bg'=>'bg-gradient-success'],
                 ['label'=>'Doanh Thu Hôm Nay','value'=>number_format($todayRevenue,0).' VND','icon'=>'bi bi-currency-dollar','bg'=>'bg-gradient-warning'],
                 ['label'=>'Doanh Thu Tuần Này','value'=>number_format($weeklyRevenue,0).' VND','icon'=>'bi bi-calendar-week','bg'=>'bg-gradient-info'],
-                ['label'=>'Doanh Thu Tháng Này','value'=>number_format($monthlyRevenue,0).' VND','icon'=>'bi bi-calendar-month','bg'=>'bg-gradient-danger'],
-                ['label'=>'Tổng Doanh Thu','value'=>number_format($totalRevenue,0).' VND','icon'=>'bi bi-cash-stack','bg'=>'bg-gradient-dark'],
-                ['label'=>'Phòng Trống','value'=>$availableRooms,'icon'=>'bi bi-house','bg'=>'bg-gradient-secondary']
+                ['label'=>'Doanh Thu Tháng Này','value'=>number_format($monthlyRevenue,0).' VND','icon'=>'bi bi-calendar-month','bg'=>'bg-gradient-success'], 
+                ['label'=>'Tổng Doanh Thu','value'=>number_format($totalRevenue,0).' VND','icon'=>'bi bi-cash-stack','bg'=>'bg-gradient-success'],
+                ['label'=>'Phòng Trống','value'=>$availableRooms,'icon'=>'bi bi-house','bg'=>'bg-gradient-warning'],
+                ['label'=>'Doanh Thu Đặt Cọc Hôm Nay','value'=>number_format($todayDeposit ?? 0,0).' VND','icon'=>'bi bi-currency-dollar','bg'=>'bg-gradient-primary'],
+                ['label'=>'Doanh Thu Đặt Cọc Tuần Này','value'=>number_format($weeklyDeposit ?? 0,0).' VND','icon'=>'bi bi-calendar-week','bg'=>'bg-gradient-success'],
+                ['label'=>'Doanh Thu Đặt Cọc Tháng Này','value'=>number_format($monthlyDeposit ?? 0,0).' VND','icon'=>'bi bi-calendar-month','bg'=>'bg-gradient-warning'],
+                ['label'=>'Tổng Doanh Thu Đặt Cọc','value'=>number_format($totalDeposit ?? 0,0).' VND','icon'=>'bi bi-cash-stack','bg'=>'bg-gradient-info'],
             ];
         @endphp
 

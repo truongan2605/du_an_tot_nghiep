@@ -30,6 +30,7 @@ class PaymentController extends Controller
                 'ngay_nhan_phong' => 'required|date|after_or_equal:today',  // SỬA: Đổi từ 'ngay_nhan'
                 'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',  // SỬA: Đổi từ 'ngay_tra', và rule after khớp tên
                 'amount' => 'required|numeric|min:1',
+                'total_amount' => 'required|numeric|min:1|gte:amount',
                 'so_khach' => 'nullable|integer|min:1',
                 'adults' => 'required|integer|min:1',
                 'children' => 'nullable|integer|min:0',
@@ -38,6 +39,11 @@ class PaymentController extends Controller
                 'addons' => 'nullable|array',
                 'rooms_count' => 'required|integer|min:1',
             ]);
+
+            $expectedDeposit = $validated['total_amount'] * 0.2;
+            if (abs($validated['amount'] - $expectedDeposit) > 1000) {
+                return response()->json(['error' => 'Deposit không hợp lệ (phải khoảng 20% tổng)'], 400);
+            }
 
             // Lấy thông tin phòng
             $phong = Phong::findOrFail($validated['phong_id']);
@@ -67,7 +73,8 @@ class PaymentController extends Controller
                     'phong_id' => $validated['phong_id'],
                     'ngay_nhan_phong' => $validated['ngay_nhan_phong'],  // SỬA
                     'ngay_tra_phong' => $validated['ngay_tra_phong'],    // SỬA
-                    'tong_tien' => $validated['amount'],
+                    'tong_tien' => $validated['total_amount'],
+                    'deposit_amount' => $validated['amount'],
                     'so_khach' => $validated['so_khach'] ?? ($validated['adults'] + ($validated['children'] ?? 0)),
                     'trang_thai' => 'dang_cho',
                     'can_thanh_toan' => true,

@@ -37,6 +37,7 @@ class DatPhong extends Model
         'contact_name',
         'contact_address',
         'contact_phone',
+        'deposit_amount',
     ];
 
 
@@ -50,6 +51,7 @@ class DatPhong extends Model
         'snapshot_meta' => 'array',
         'can_thanh_toan' => 'boolean',
         'can_xac_nhan' => 'boolean',
+        'deposit_amount' => 'decimal:2',
     ];
 
     // Relationships

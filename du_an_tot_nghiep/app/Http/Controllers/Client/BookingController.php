@@ -103,7 +103,7 @@ class BookingController extends Controller
     }
 
     public function availability(Request $request)
-    {   
+    {
         $request->validate([
             'loai_phong_id' => 'required|integer|exists:loai_phong,id',
             'from' => 'required|date',
@@ -345,7 +345,7 @@ class BookingController extends Controller
 
         $occupiedIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
         $availableIds = array_diff($matchingRoomIds, $occupiedIds);
-        
+
         Log::debug('Booking.computeAvailableRoomIds: final available rooms', [
             'booked_room_ids' => $bookedRoomIds,
             'held_room_ids' => $heldRoomIds,
@@ -372,7 +372,7 @@ class BookingController extends Controller
             return redirect()->route('login')->with('error', 'You must be logged in to make a booking.');
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'phong_id' => 'required|exists:phong,id',
             'ngay_nhan_phong' => 'required|date',
             'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
@@ -388,12 +388,20 @@ class BookingController extends Controller
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:1000',
             'phone' => 'nullable|string|max:50',
+            'deposit_amount' => 'required|numeric|min:1',
+            'tong_tien' => 'required|numeric|gte:deposit_amount',
+
         ]);
+        $expectedDeposit = $validated['tong_tien'] * 0.2;
+        if (abs($validated['deposit_amount'] - $expectedDeposit) > 1000) {
+            return back()->withErrors(['deposit_amount' => 'Deposit không hợp lệ (phải khoảng 20% tổng)']);
+        }
 
         Log::debug('Booking: validation passed');
 
         $phong = Phong::with(['loaiPhong', 'tienNghis', 'bedTypes', 'activeOverrides'])->findOrFail($request->input('phong_id'));
         Log::debug('Booking: loaded phong', ['phong_id' => $phong->id]);
+
 
         $from = Carbon::parse($request->input('ngay_nhan_phong'))->startOfDay();
         $to = Carbon::parse($request->input('ngay_tra_phong'))->startOfDay();
@@ -512,7 +520,8 @@ class BookingController extends Controller
 
         try {
             $datPhongId = null;
-            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $nights) {
+            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $nights,$request) {
+
                 if (Schema::hasTable('loai_phong')) {
                     DB::table('loai_phong')->where('id', $phong->loai_phong_id)->lockForUpdate()->first();
                 }
@@ -528,6 +537,10 @@ class BookingController extends Controller
                 foreach ($payload as $k => $v) {
                     if (Schema::hasColumn('dat_phong', $k)) $allowedPayload[$k] = $v;
                 }
+                $allowedPayload['deposit_amount'] = $request->deposit_amount;
+                $allowedPayload['trang_thai'] = 'deposited';
+                $allowedPayload['tong_tien'] = $snapshotTotalServer;
+
                 $datPhongId = DB::table('dat_phong')->insertGetId($allowedPayload);
 
                 // Dispatch booking created event
