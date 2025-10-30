@@ -105,8 +105,9 @@ Route::prefix('admin')
         Route::delete('customer-notifications/{notification}', [CustomerNotificationController::class, 'destroy'])->name('customer-notifications.destroy');
         Route::post('customer-notifications/{notification}/resend', [CustomerNotificationController::class, 'resend'])->name('customer-notifications.resend');
 
-        Route::resource('internal-notifications', InternalNotificationController::class);
-        Route::post('internal-notifications/{internal_notification}/resend', [InternalNotificationController::class, 'resend'])->name('internal-notifications.resend');
+        Route::resource('internal-notifications', InternalNotificationController::class)
+            ->parameters(['internal-notifications' => 'notification']);
+        Route::post('internal-notifications/{notification}/resend', [InternalNotificationController::class, 'resend'])->name('internal-notifications.resend');
         Route::resource('admin-notifications', AdminNotificationController::class);
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
         
