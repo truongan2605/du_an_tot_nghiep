@@ -144,20 +144,37 @@ class StaffController extends Controller
         return view('staff.checkin', compact('bookings'));
     }
 
-    public function processCheckin(Request $request)
-    {
-        $request->validate([
-            'booking_id' => 'required|exists:dat_phong,id'
-        ]);
-        $booking = DatPhong::findOrFail($request->booking_id);
-        if ($booking->trang_thai != 'da_xac_nhan') {
-            return redirect()->back()->with('error', 'Booking không thể check-in');
-        }
-        $booking->trang_thai = 'dang_o';
-        $booking->save();
-        return redirect()->route('staff.index')->with('success', 'Check-in thành công');
+public function processCheckin(Request $request)
+{
+    $request->validate(['booking_id' => 'required|exists:dat_phong,id']);
+    $booking = DatPhong::with('datPhongItems')->findOrFail($request->booking_id);
+
+    if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
+        return redirect()->back()->with('error', 'Booking không thể check-in');
     }
 
+    $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+    $remaining = $booking->tong_tien - $paid;
+
+    if ($remaining > 0) {
+        return redirect()->back()->with('error', "Cần thanh toán còn lại {$remaining} VND trước khi check-in.");
+    }
+
+    DB::transaction(function () use ($booking) {
+        $booking->trang_thai = 'dang_su_dung';
+        $booking->checked_in_at = now(); 
+        $booking->save();
+
+       
+        $phongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
+        if (!empty($phongIds)) {
+            Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
+        }
+
+    });
+
+    return redirect()->route('staff.index')->with('success', 'Check-in thành công tại ' . now()->format('Y-m-d H:i:s'));
+}
     public function checkoutForm()
     {
         $bookings = DatPhong::whereIn('trang_thai', ['da_gan_phong', 'dang_o'])
@@ -288,18 +305,35 @@ class StaffController extends Controller
         return ($overlappingBookings + $holds) == 0;
     }
 
-    public function rooms(Request $request)
-    {
-        $query = Phong::with(['tang', 'datPhongItems.datPhong.nguoiDung']);
-        if ($ma_phong = $request->input('ma_phong')) {
-            $query->where('ma_phong', 'like', '%' . $ma_phong . '%');
-        }
-        if ($trang_thai = $request->input('trang_thai')) {
+public function rooms(Request $request)
+{
+    $query = Phong::with(['tang', 'datPhongItems.datPhong.nguoiDung']);
+
+    // Lọc theo mã phòng
+    if ($ma_phong = $request->input('ma_phong')) {
+        $query->where('ma_phong', 'like', '%' . $ma_phong . '%');
+    }
+
+   
+    if ($trang_thai = $request->input('trang_thai')) {
+        if (in_array($trang_thai, ['dang_su_dung', 'dang_o', 'da_xac_nhan'])) {
+            
+            $query->whereHas('datPhongItems.datPhong', function ($q) use ($trang_thai) {
+                $q->where('trang_thai', $trang_thai);
+            });
+        } else {
+            
             $query->where('trang_thai', $trang_thai);
         }
-        $rooms = $query->orderBy('ma_phong')->paginate(10);
-        return view('staff.rooms', compact('rooms'));
     }
+
+    $rooms = $query->orderBy('ma_phong')->paginate(10);
+
+    return view('staff.rooms', compact('rooms'));
+}
+
+
+
 
     public function updateRoom(Request $request, Phong $room)
     {

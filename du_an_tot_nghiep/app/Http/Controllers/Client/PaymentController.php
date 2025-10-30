@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Client;
 
+use Carbon\Carbon;
 use App\Models\Phong;
 use App\Models\DatPhong;
 use App\Models\GiaoDich;
@@ -24,11 +25,11 @@ class PaymentController extends Controller
         Log::info('🔹 initiateVNPay request:', $request->all());
 
         try {
-            // Validate dữ liệu đầu vào - SỬA: Đổi tên trường để khớp với JS
+           
             $validated = $request->validate([
                 'phong_id' => 'required|exists:phong,id',
-                'ngay_nhan_phong' => 'required|date|after_or_equal:today',  // SỬA: Đổi từ 'ngay_nhan'
-                'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',  // SỬA: Đổi từ 'ngay_tra', và rule after khớp tên
+                'ngay_nhan_phong' => 'required|date|after_or_equal:today',  
+                'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',  
                 'amount' => 'required|numeric|min:1',
                 'total_amount' => 'required|numeric|min:1|gte:amount',
                 'so_khach' => 'nullable|integer|min:1',
@@ -108,7 +109,7 @@ class PaymentController extends Controller
                     'so_tien' => $validated['amount'],
                     'don_vi' => 'VND',
                     'trang_thai' => 'dang_cho',
-                    'ghi_chu' => "Thanh toán đặt phòng #{$dat_phong->ma_tham_chieu}",
+                    'ghi_chu' => "Thanh toán đặt cọc phòng:{$dat_phong->ma_tham_chieu}",
                 ]);
 
                 // Tạo URL thanh toán VNPAY (giữ nguyên)
@@ -412,7 +413,7 @@ class PaymentController extends Controller
                 'so_tien' => $dat_phong->tong_tien,
                 'don_vi' => $dat_phong->don_vi_tien ?? 'VND',
                 'trang_thai' => 'dang_cho',
-                'ghi_chu' => 'Thanh toán đặt phòng #' . $dat_phong->id,
+                'ghi_chu' => 'Thanh toán đặt cọc phòng:' . $dat_phong->id,
             ]);
 
             $vnp_TmnCode = env('VNPAY_TMN_CODE');
@@ -476,4 +477,147 @@ class PaymentController extends Controller
             json_encode($data['addons'] ?? [])
         );
     }
+
+public function initiateRemainingPayment(Request $request, $dat_phong_id)
+{
+    $request->validate(['phuong_thuc' => 'required|in:tien_mat,vnpay']);
+
+    $booking = DatPhong::with(['giaoDichs', 'nguoiDung'])
+        ->lockForUpdate()
+        ->findOrFail($dat_phong_id);
+
+    if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
+        return back()->with('error', 'Booking không hợp lệ để thanh toán phần còn lại.');
+    }
+
+    $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+    $remaining = $booking->tong_tien - $paid;
+
+    if ($remaining <= 0) {
+        return back()->with('error', 'Đã thanh toán đủ, không cần thanh toán thêm.');
+    }
+
+    $transaction = DB::transaction(function () use ($booking, $remaining, $request) {
+        $trangThai = $request->phuong_thuc === 'tien_mat' ? 'thanh_cong' : 'dang_cho';
+        $nhaCungCap = $request->phuong_thuc === 'vnpay' ? 'vnpay' : 'tien_mat';
+
+        $giaoDich = GiaoDich::create([
+            'dat_phong_id'         => $booking->id,
+            'nguoi_dung_id'        => $booking->nguoi_dung_id,
+            'so_tien'              => $remaining,
+            'phuong_thuc'          => $request->phuong_thuc,
+            'trang_thai'           => $trangThai,
+            'nha_cung_cap'         => $nhaCungCap,
+            'ma_giao_dich'         => 'GD' . $booking->id . time(),
+            'thoi_gian_thanh_toan' => $trangThai === 'thanh_cong' ? now() : null,
+            'ghi_chu'              => "Thanh toán phần còn lại booking: {$booking->ma_tham_chieu}",
+        ]);
+
+        if ($request->phuong_thuc === 'tien_mat') {
+            $booking->update([
+                'trang_thai'    => 'dang_su_dung',
+                'checked_in_at' => now(),
+            ]);
+        }
+
+        return $giaoDich;
+    });
+
+    if ($request->phuong_thuc === 'vnpay') {
+        return $this->redirectToVNPay($transaction, $remaining);
+    }
+
+    return redirect()->route('staff.checkin')->with('success', 'Thanh toán tiền mặt thành công. Phòng đã được đưa vào sử dụng.');
+}
+public function handleRemainingCallback(Request $request)
+{
+    $vnp_HashSecret = config('services.vnpay.hash_secret');
+    $inputData = $request->except('vnp_SecureHash');
+    ksort($inputData);
+    $hashData = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
+    $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+    if ($secureHash !== $request->vnp_SecureHash) {
+        return redirect()->route('staff.checkin')->with('error', 'Chữ ký không hợp lệ.');
+    }
+
+    $transactionId = (int)$request->vnp_TxnRef;
+    $transaction = GiaoDich::find($transactionId);
+
+    if (!$transaction || $transaction->phuong_thuc !== 'vnpay') {
+        return redirect()->route('staff.checkin')->with('error', 'Không tìm thấy giao dịch hợp lệ.');
+    }
+
+    if ($transaction->trang_thai === 'thanh_cong') {
+        return redirect()->route('staff.checkin')->with('success', 'Thanh toán đã được xử lý thành công.');
+    }
+
+    if ($transaction->trang_thai !== 'dang_cho') {
+        return redirect()->route('staff.checkin')->with('error', 'Giao dịch không ở trạng thái chờ xử lý.');
+    }
+
+    if ($request->vnp_ResponseCode !== '00') {
+        $transaction->update([
+            'trang_thai' => 'that_bai',
+            'ghi_chu'    => 'VNPay lỗi: ' . ($request->vnp_ResponseCode ?? 'N/A'),
+        ]);
+        return redirect()->route('staff.checkin')->with('error', 'Thanh toán thất bại. Mã lỗi: ' . $request->vnp_ResponseCode);
+    }
+
+    DB::transaction(function () use ($transaction, $request) {
+        $transaction->update([
+            'trang_thai'           => 'thanh_cong',
+            'thoi_gian_thanh_toan' => now(),
+            'ma_giao_dich_vnpay'   => $request->vnp_TransactionNo ?? null,
+        ]);
+
+        $booking = $transaction->datPhong;
+
+        if ($booking && in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
+            $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+            if ($paid >= $booking->tong_tien) {
+                $booking->update([
+                    'trang_thai'    => 'dang_su_dung',
+                    'checked_in_at' => now(),
+                ]);
+            }
+        }
+    });
+
+    return redirect()->route('staff.checkin')->with('success', 'Thanh toán VNPay thành công! Phòng đã được đưa vào sử dụng.');
+}
+private function redirectToVNPay(GiaoDich $transaction, float $amount)
+{
+    $vnp_TmnCode    = config('services.vnpay.tmn_code');
+    $vnp_HashSecret = config('services.vnpay.hash_secret');
+    $vnp_Url        = config('services.vnpay.url');
+    $vnp_ReturnUrl  = route('payment.remaining.callback');
+
+    $vnp_TxnRef = (string)$transaction->id;
+    $vnp_OrderInfo = 'Thanh toán phần còn lại cho booking #' . $transaction->dat_phong_id;
+    $vnp_Amount = $amount * 100;
+
+    $inputData = [
+        "vnp_Version"    => "2.1.0",
+        "vnp_TmnCode"    => $vnp_TmnCode,
+        "vnp_Amount"     => $vnp_Amount,
+        "vnp_Command"    => "pay",
+        "vnp_CreateDate" => date('YmdHis'),
+        "vnp_CurrCode"   => "VND",
+        "vnp_IpAddr"     => request()->ip(),
+        "vnp_Locale"     => "vn",
+        "vnp_OrderInfo"  => $vnp_OrderInfo,
+        "vnp_OrderType"  => "billpayment",
+        "vnp_ReturnUrl"  => $vnp_ReturnUrl,
+        "vnp_TxnRef"     => $vnp_TxnRef,
+        "vnp_BankCode"   => "NCB",
+    ];
+
+    ksort($inputData);
+    $hashData = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
+    $vnp_SecureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+    $paymentUrl = $vnp_Url . '?' . $hashData . '&vnp_SecureHash=' . $vnp_SecureHash;
+
+    return redirect()->away($paymentUrl);
+}
 }

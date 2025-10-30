@@ -54,11 +54,11 @@ Route::prefix('admin')
         Route::resource('tien-nghi', AdminTienNghiController::class);
         Route::patch('tien-nghi/{tienNghi}/toggle-active', [AdminTienNghiController::class, 'toggleActive'])->name('tien-nghi.toggle-active');
 
-             // vatdung
+        // vatdung
         Route::resource('vat-dung', AdminVatDungController::class);
         Route::patch('vat-dung/{vat_dung}/toggle-active', [AdminVatDungController::class, 'toggleActive'])
-        ->name('vat-dung.toggle-active');
-            
+            ->name('vat-dung.toggle-active');
+
         // Loại phòng
         Route::get('/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
         Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])->name('loai_phong.disable');
@@ -110,7 +110,6 @@ Route::prefix('admin')
         Route::post('internal-notifications/{internal_notification}/resend', [InternalNotificationController::class, 'resend'])->name('internal-notifications.resend');
         Route::resource('admin-notifications', AdminNotificationController::class);
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
-        
     });
 
 // ==================== STAFF ====================
@@ -135,8 +134,10 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::patch('/rooms/{room}', [StaffController::class, 'updateRoom'])->name('rooms.update');
 
         // Checkin / Checkout
-        Route::get('/checkout', [StaffController::class, 'checkoutForm'])->name('checkout');
-        Route::post('/checkout', [StaffController::class, 'processCheckout'])->name('checkout.process');
+        Route::get('/checkin', [StaffController::class, 'checkinForm'])->name('checkin');
+        Route::post('/process-checkin', [StaffController::class, 'processCheckin'])->name('processCheckin');
+        
+
 
         // Báo cáo / Tổng quan
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
@@ -175,6 +176,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/payment/initiate', [PaymentController::class, 'initiateVNPay'])->name('payment.initiate');
     Route::post('/confirm-payment/{dat_phong_id}', [ConfirmPaymentController::class, 'confirm'])->name('api.confirm-payment');
     Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
+    Route::post('/payment/remaining/{dat_phong_id}', [PaymentController::class, 'initiateRemainingPayment'])
+        ->name('payment.remaining');
+    Route::get('/payment/remaining/callback', [PaymentController::class, 'handleRemainingCallback'])
+        ->name('payment.remaining.callback');
+    
 });
 Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
 
@@ -194,23 +200,23 @@ Route::middleware('auth')->group(function () {
 });
 
 // ==================== TEST ====================
-Route::get('/test-notifications', function() {
+Route::get('/test-notifications', function () {
     $user = Auth::user();
     if (!$user) {
         return response()->json(['error' => 'Not authenticated']);
     }
-    
+
     $unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
         ->where('kenh', 'in_app')
         ->where('trang_thai', '!=', 'read')
         ->count();
-    
+
     $recentNotifications = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
         ->where('kenh', 'in_app')
         ->orderBy('created_at', 'desc')
         ->limit(5)
         ->get();
-    
+
     return response()->json([
         'user' => $user->name,
         'user_id' => $user->id,
@@ -220,27 +226,27 @@ Route::get('/test-notifications', function() {
     ]);
 })->middleware('auth');
 
-Route::get('/test-admin-notifications', function() {
+Route::get('/test-admin-notifications', function () {
     $user = Auth::user();
     if (!$user) {
         return response()->json(['error' => 'Not authenticated']);
     }
-    
+
     if ($user->vai_tro !== 'admin') {
         return response()->json(['error' => 'Admin access required']);
     }
-    
+
     $unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
         ->where('kenh', 'in_app')
         ->where('trang_thai', '!=', 'read')
         ->count();
-    
+
     $recentNotifications = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
         ->where('kenh', 'in_app')
         ->orderBy('created_at', 'desc')
         ->limit(5)
         ->get();
-    
+
     return response()->json([
         'user' => $user->name,
         'user_id' => $user->id,

@@ -13,7 +13,7 @@
             <select class="form-select form-select-sm" id="statusFilter">
                 <option value="">Tất cả Trạng Thái</option>
                 <option value="dang_cho">Chờ Xác Nhận</option>
-                <option value="da_xac_nhan">Đã Xác Nhận</option>
+                <option value="da_xac_nhan">Đã Xác Nhận Đặt Cọc</option>
                 <option value="da_gan_phong">Đã Gán Phòng</option>
                 <option value="dang_o">Đang Ở</option>
                 <option value="da_huy">Đã Hủy</option>
@@ -79,7 +79,7 @@
                                     ];
                                     $statusLabels = [
                                         'dang_cho' => 'Chờ Xác Nhận',
-                                        'da_xac_nhan' => 'Đã Xác Nhận',
+                                        'da_xac_nhan' => 'Đã Xác Nhận Đặt Cọc',
                                         'da_gan_phong' => 'Đã Gán',
                                         'dang_o' => 'Đang Ở',
                                         'da_huy' => 'Đã Hủy',

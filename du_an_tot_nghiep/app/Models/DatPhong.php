@@ -20,6 +20,7 @@ class DatPhong extends Model
         'nguoi_dung_id',
         'trang_thai',
         'ngay_nhan_phong',
+        'checked_in_at',
         'ngay_tra_phong',
         'so_khach',
         'tong_tien',
@@ -43,6 +44,7 @@ class DatPhong extends Model
 
     protected $casts = [
         'ngay_nhan_phong' => 'date',
+        'checked_in_at' => 'datetime',
         'ngay_tra_phong' => 'date',
         'so_khach' => 'integer',
         'tong_tien' => 'decimal:2',

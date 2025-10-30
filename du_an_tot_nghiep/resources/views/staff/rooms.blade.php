@@ -1,160 +1,121 @@
 @extends('layouts.staff')
-
 @section('title', 'Quản Lý Phòng')
 
 @section('content')
-<div class="p-4">
+<div class="container-fluid px-3 px-md-4 py-3 py-md-4">
+    {{-- Header + Stats --}}
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold mb-0">Quản Lý Phòng</h2>
-        <div class="d-flex gap-2">
-            <span class="badge bg-success px-3 py-2">Trống: {{ $rooms->where('trang_thai', 'trong')->count() }}</span>
-            <span class="badge bg-primary px-3 py-2">Đang ở: {{ $rooms->where('trang_thai', 'dang_o')->count() }}</span>
-            <span class="badge bg-warning px-3 py-2">Dọn dẹp: {{ $rooms->where('trang_thai', 'dang_don_dep')->count() }}</span>
+        <h1 class="h4 fw-bold mb-0">Quản lý phòng</h1>
+        <div class="d-flex gap-3">
+            @php
+                $dangSuDung = $rooms->filter(fn($r) => $r->datPhongItems->pluck('datPhong.trang_thai')->contains('dang_su_dung'))->count();
+                $choCheckin = $rooms->filter(fn($r) => $r->datPhongItems->pluck('datPhong.trang_thai')->contains('da_xac_nhan'))->count();
+                $dangDonDep = $rooms->where('trang_thai', 'dang_don_dep')->count();
+                $trong = $rooms->filter(fn($r) => !$r->datPhongItems->pluck('datPhong.trang_thai')->contains('dang_su_dung') && $r->trang_thai === 'trong')->count();
+            @endphp
+            <div class="d-flex gap-2">
+            <span class="badge bg-success px-3 py-2">Trống: {{ $trong }}</span>
+            <span class="badge bg-primary px-3 py-2">Chờ check-in: {{ $choCheckin }}</span>
+            <span class="badge bg-warning px-3 py-2">Dọn dẹp: {{ $dangDonDep }}</span>
+            <span class="badge bg-danger px-3 py-2">Đã check-in: {{ $dangSuDung }}</span>
+        </div>
         </div>
     </div>
 
-    {{-- Form lọc --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <form method="GET" action="{{ route('staff.rooms') }}" class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold small">Mã Phòng</label>
-                    <input type="text" name="ma_phong" class="form-control" 
-                           placeholder="Nhập mã phòng..." value="{{ request('ma_phong') }}">
+    {{-- Search --}}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <form method="GET" action="{{ route('staff.rooms') }}" class="row g-2 g-md-3 align-items-end">
+                <div class="col-sm-6 col-md-4">
+                    <input type="text" name="ma_phong" class="form-control" placeholder="Mã phòng..." value="{{ request('ma_phong') }}">
                 </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold small">Trạng Thái</label>
+                <div class="col-sm-6 col-md-3">
                     <select name="trang_thai" class="form-select">
-                        <option value="">-- Tất cả trạng thái --</option>
-                        <option value="trong" {{ request('trang_thai') == 'trong' ? 'selected' : '' }}>Trống</option>
-                        <option value="dang_o" {{ request('trang_thai') == 'dang_o' ? 'selected' : '' }}>Đang ở</option>
-                        <option value="dang_don_dep" {{ request('trang_thai') == 'dang_don_dep' ? 'selected' : '' }}>Đang dọn dẹp</option>
+                        <option value="">Tất cả</option>
+                        <option value="da_xac_nhan" {{ request('trang_thai') == 'da_xac_nhan' ? 'selected' : '' }}>Chờ check-in</option>
+                        <option value="dang_su_dung" {{ request('trang_thai') == 'dang_su_dung' ? 'selected' : '' }}>Đã check-in</option>
                     </select>
                 </div>
-
-                <div class="col-md-4 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary flex-grow-1">
-                        <i class="bi bi-search"></i> Tìm kiếm
-                    </button>
-                    <a href="{{ route('staff.rooms') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-clockwise"></i>
-                    </a>
+                <div class="col-sm-6 col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Tìm</button>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <a href="{{ route('staff.rooms') }}" class="btn btn-outline-secondary w-100">Làm mới</a>
                 </div>
             </form>
         </div>
     </div>
 
-    {{-- Danh sách phòng dạng card --}}
-    <div class="row g-3">
+    {{-- Rooms Grid --}}
+    <div class="row g-3 g-md-4">
         @forelse ($rooms as $room)
             @php
-                $statusConfig = [
-                    'trong' => ['label' => 'Trống', 'icon' => 'door-open', 'color' => 'success'],
-                    'dang_o' => ['label' => 'Đang ở', 'icon' => 'person-check', 'color' => 'primary'],
-                    'dang_don_dep' => ['label' => 'Dọn dẹp', 'icon' => 'brush', 'color' => 'warning'],
-                ];
-                $status = $statusConfig[$room->trang_thai] ?? ['label' => 'N/A', 'icon' => 'question', 'color' => 'secondary'];
-
-                $activeBookings = $room->datPhongItems
-                    ->map(fn($item) => $item->datPhong)
+                $allBookings = $room->datPhongItems()
+                    ->with('datPhong.nguoiDung')
+                    ->get()
+                    ->map->datPhong
                     ->filter()
                     ->unique('id')
                     ->sortBy('ngay_nhan_phong');
-                
-                $currentBooking = $activeBookings->first();
-                $bookingCount = $activeBookings->count();
+
+                $currentBooking = $allBookings->first(fn($b) => in_array($b->trang_thai, ['da_xac_nhan', 'dang_su_dung']));
+                $bookingCount = $allBookings->count();
+
+                $status = 'trong';
+                if ($currentBooking?->trang_thai === 'dang_su_dung') $status = 'dang_su_dung';
+                elseif ($currentBooking?->trang_thai === 'da_xac_nhan') $status = 'cho_checkin';
+                elseif ($room->trang_thai === 'dang_don_dep') $status = 'dang_don_dep';
+
+                $statusMap = [
+                    'trong' => ['label' => 'Trống', 'color' => 'success', 'bg' => 'bg-success-subtle'],
+                    'cho_checkin' => ['label' => 'Chờ Check-in', 'color' => 'primary', 'bg' => 'bg-primary-subtle'],
+                    'dang_su_dung' => ['label' => 'Đã Check-in', 'color' => 'danger', 'bg' => 'bg-danger-subtle'],
+                    'dang_don_dep' => ['label' => 'Dọn', 'color' => 'warning', 'bg' => 'bg-warning-subtle']
+                ];
+                $st = $statusMap[$status];
             @endphp
 
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 shadow-sm border-0 room-card">
-                    {{-- Header --}}
-                    <div class="card-header bg-{{ $status['color'] }} bg-opacity-10 border-0 d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-0 fw-bold">{{ $room->ma_phong }}</h5>
-                            <small class="text-muted">{{ $room->tang?->ten ?? 'Chưa có tầng' }}</small>
+            <div class="col-sm-6 col-lg-4 col-xl-3">
+                <div class="card h-100 border-0 shadow-sm hover-lift rounded-3">
+                    <div class="card-header p-3 {{ $st['bg'] }} border-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ $room->ma_phong }}</h6>
+                                <small class="text-muted">{{ $room->tang?->ten ?? '-' }}</small>
+                            </div>
+                            <span class="badge bg-{{ $st['color'] }}">{{ $st['label'] }}</span>
                         </div>
-                        <span class="badge bg-{{ $status['color'] }} rounded-pill">
-                            <i class="bi bi-{{ $status['icon'] }}"></i> {{ $status['label'] }}
-                        </span>
                     </div>
 
-                    {{-- Body --}}
-                    <div class="card-body">
-                        @if($room->trang_thai === 'trong')
-                            <div class="text-center py-4 text-muted">
-                                <i class="bi bi-check-circle display-4 d-block mb-2"></i>
-                                <p class="mb-0">Phòng sẵn sàng</p>
+                    <div class="card-body p-3">
+                        @if ($status === 'trong')
+                            <div class="text-center py-3">
+                                <i class="bi bi-check-lg text-success fs-1 d-block mb-2"></i>
+                                <small class="text-muted">Sẵn sàng</small>
                             </div>
-                        @elseif($currentBooking)
-                            <div class="booking-info">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-person-circle text-primary me-2"></i>
-                                    <span class="fw-semibold">{{ $currentBooking->nguoiDung?->name ?? $currentBooking->contact_name ?? 'Khách' }}</span>
+
+                        @elseif ($currentBooking)
+                            <div class="mb-2">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <small class="fw-semibold text-dark">{{ $currentBooking->nguoiDung?->name ?? 'Khách' }}</small>
+                                    <span class="badge bg-light text-dark small">{{ $bookingCount }} lượt</span>
                                 </div>
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-calendar-check text-success me-2"></i>
-                                    <small>{{ \Carbon\Carbon::parse($currentBooking->ngay_nhan_phong)->format('d/m/Y') }}</small>
+                                <div class="d-flex justify-content-between small text-muted">
+                                    <span>{{ \Carbon\Carbon::parse($currentBooking->ngay_nhan_phong)->format('d/m H:i') }}</span>
+                                    <span>{{ \Carbon\Carbon::parse($currentBooking->ngay_tra_phong)->format('d/m H:i') }}</span>
                                 </div>
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="bi bi-calendar-x text-danger me-2"></i>
-                                    <small>{{ \Carbon\Carbon::parse($currentBooking->ngay_tra_phong)->format('d/m/Y') }}</small>
-                                </div>
-                                
-                                @if($bookingCount > 1)
-                                    <div class="alert alert-info py-2 px-3 mt-3 mb-0 small">
-                                        <i class="bi bi-info-circle"></i> Còn {{ $bookingCount - 1 }} booking khác
-                                    </div>
-                                @endif
                             </div>
-                        @elseif($room->trang_thai === 'dang_don_dep')
-                            <div class="text-center py-4 text-warning">
-                                <i class="bi bi-hourglass-split display-4 d-block mb-2"></i>
-                                <p class="mb-0">Đang dọn dẹp...</p>
+
+                        @else
+                            <div class="text-center py-3">
+                                <i class="bi bi-gear-fill text-warning fs-2 d-block mb-2"></i>
+                                <small class="text-muted">Đang dọn dẹp</small>
                             </div>
                         @endif
-                    </div>
 
-                    {{-- Footer Actions --}}
-                    <div class="card-footer bg-transparent border-0 pt-0">
-                        <div class="d-flex gap-2 flex-wrap">
-                            @if ($room->trang_thai === 'trong')
-                                <button class="btn btn-outline-secondary btn-sm flex-grow-1" disabled>
-                                    <i class="bi bi-check2"></i> Sẵn sàng
-                                </button>
-
-                            @elseif ($room->trang_thai === 'dang_o' && $currentBooking && \Carbon\Carbon::parse($currentBooking->ngay_tra_phong)->isToday())
-                                <form action="{{ route('staff.checkout.process', $currentBooking->id) }}" method="POST" class="flex-grow-1">
-                                    @csrf
-                                    <button type="submit" class="btn btn-warning btn-sm w-100"
-                                            onclick="return confirm('Xác nhận check-out phòng {{ $room->ma_phong }}?')">
-                                        <i class="bi bi-box-arrow-left"></i> Check-out
-                                    </button>
-                                </form>
-                                <a href="{{ route('staff.bookings.show', $currentBooking->id) }}" 
-                                   class="btn btn-primary btn-sm">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-
-                            @elseif ($room->trang_thai === 'dang_o' && $currentBooking)
-                                <a href="{{ route('staff.bookings.show', $currentBooking->id) }}" 
-                                   class="btn btn-primary btn-sm flex-grow-1">
-                                    <i class="bi bi-eye"></i> Xem chi tiết
-                                </a>
-
-                            @elseif ($room->trang_thai === 'dang_don_dep')
-                                <form action="{{ route('staff.rooms.update', $room->id) }}" method="POST" class="flex-grow-1">
-                                    @csrf
-                                    @method('PATCH')
-                                    <input type="hidden" name="trang_thai" value="trong">
-                                    <button type="submit" class="btn btn-success btn-sm w-100"
-                                            onclick="return confirm('Xác nhận hoàn tất dọn dẹp?')">
-                                        <i class="bi bi-check-circle"></i> Hoàn tất
-                                    </button>
-                                </form>
-                            @endif
-                            
-                            @if($bookingCount > 0)
+                        {{-- Nút mở Modal --}}
+                        @if($bookingCount > 0)
+                            <div class="text-end mt-2">
                                 <button type="button" class="btn btn-outline-info btn-sm" 
                                         data-bs-toggle="modal" 
                                         data-bs-target="#bookingModal{{ $room->id }}"
@@ -162,63 +123,73 @@
                                     <i class="bi bi-list-ul"></i> 
                                     <span class="badge bg-info">{{ $bookingCount }}</span>
                                 </button>
-                            @endif
-                        </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="card-footer p-3 border-0 bg-light">
+                        @if ($status === 'trong')
+                            <button class="btn btn-success btn-sm w-100" disabled>Sẵn sàng</button>
+                        @elseif ($currentBooking)
+                            <a href="{{ route('staff.bookings.show', $currentBooking->id) }}" class="btn btn-primary btn-sm w-100">Xem booking</a>
+                        @else
+                            <form action="{{ route('staff.rooms.update', $room->id) }}" method="POST" class="w-100">
+                                @csrf @method('PATCH')
+                                <input type="hidden" name="trang_thai" value="trong">
+                                <button type="submit" class="btn btn-success btn-sm w-100">Hoàn tất</button>
+                            </form>
+                        @endif
                     </div>
                 </div>
             </div>
-            
-            {{-- Modal chi tiết bookings --}}
+
+            {{-- Modal Booking List --}}
             @if($bookingCount > 0)
             <div class="modal fade" id="bookingModal{{ $room->id }}" tabindex="-1">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
                     <div class="modal-content">
-                        <div class="modal-header bg-light">
+                        <div class="modal-header bg-light border-0">
                             <h5 class="modal-title">
-                                <i class="bi bi-door-open text-primary"></i> 
                                 Lịch booking phòng <strong>{{ $room->ma_phong }}</strong>
                             </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body p-0">
                             <div class="list-group list-group-flush">
-                                @foreach($activeBookings as $index => $booking)
-                                <div class="list-group-item">
-                                    <div class="row align-items-center">
+                                @foreach($allBookings as $index => $booking)
+                                @php
+                                    $statusMap = [
+                                        'da_xac_nhan' => ['label' => 'Đã Xác Nhận', 'class' => 'info'],
+                                        'dang_su_dung' => ['label' => 'Đã Check-in', 'class' => 'primary'],
+                                        'hoan_thanh' => ['label' => 'Hoàn thành', 'class' => 'success'],
+                                        'da_huy' => ['label' => 'Hủy', 'class' => 'danger'],
+                                    ];
+                                    $bs = $statusMap[$booking->trang_thai] ?? ['label' => 'N/A', 'class' => 'secondary'];
+                                @endphp
+                                <div class="list-group-item px-3 py-2">
+                                    <div class="row align-items-center g-2">
                                         <div class="col-auto">
-                                            <div class="avatar-circle bg-primary text-white">
+                                            <div class="avatar-circle bg-primary text-white small">
                                                 {{ $index + 1 }}
                                             </div>
                                         </div>
                                         <div class="col">
-                                            <div class="fw-bold text-primary">{{ $booking->ma_tham_chieu }}</div>
+                                            <div class="fw-bold text-primary small">{{ $booking->ma_tham_chieu ?? 'N/A' }}</div>
                                             <div class="small text-muted">
-                                                <i class="bi bi-person"></i> 
                                                 {{ $booking->nguoiDung?->name ?? $booking->contact_name ?? 'Khách' }}
                                             </div>
                                         </div>
                                         <div class="col-auto text-end">
                                             <div class="small">
-                                                <i class="bi bi-calendar-check text-success"></i>
                                                 {{ \Carbon\Carbon::parse($booking->ngay_nhan_phong)->format('d/m/Y') }}
                                             </div>
-                                            <div class="small">
-                                                <i class="bi bi-calendar-x text-danger"></i>
+                                            <div class="small text-danger">
                                                 {{ \Carbon\Carbon::parse($booking->ngay_tra_phong)->format('d/m/Y') }}
                                             </div>
                                         </div>
                                         <div class="col-auto">
-                                            @php
-                                                $statusMap = [
-                                                    'dang_cho' => ['label' => 'Chờ', 'class' => 'warning'],
-                                                    'da_xac_nhan' => ['label' => 'Đã XN', 'class' => 'info'],
-                                                    'dang_o' => ['label' => 'Đang ở', 'class' => 'primary'],
-                                                    'da_gan_phong' => ['label' => 'Đã gán', 'class' => 'success'],
-                                                ];
-                                                $bookingStatus = $statusMap[$booking->trang_thai] ?? ['label' => 'N/A', 'class' => 'secondary'];
-                                            @endphp
-                                            <span class="badge bg-{{ $bookingStatus['class'] }}">
-                                                {{ $bookingStatus['label'] }}
+                                            <span class="badge bg-{{ $bs['class'] }} small">
+                                                {{ $bs['label'] }}
                                             </span>
                                         </div>
                                         <div class="col-auto">
@@ -232,86 +203,41 @@
                                 @endforeach
                             </div>
                         </div>
+                        <div class="modal-footer bg-light border-0">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                        </div>
                     </div>
                 </div>
             </div>
             @endif
         @empty
-            <div class="col-12">
-                <div class="card shadow-sm">
-                    <div class="card-body text-center py-5">
-                        <i class="bi bi-inbox display-1 text-muted"></i>
-                        <p class="text-muted mt-3 mb-0">Không tìm thấy phòng nào</p>
-                    </div>
-                </div>
+            <div class="col-12 text-center py-5">
+                <i class="bi bi-building fs-1 text-muted mb-3 d-block"></i>
+                <p class="text-muted">Không có phòng nào</p>
             </div>
         @endforelse
     </div>
 
-    {{-- Phân trang --}}
-    <div class="d-flex justify-content-center mt-4">
+    <div class="mt-4">
         {{ $rooms->links('pagination::bootstrap-5') }}
     </div>
 </div>
 
-{{-- Custom CSS --}}
 <style>
-    .room-card {
-        transition: all 0.3s ease;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-    
-    .room-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-    }
-    
-    .card-header {
-        padding: 1rem;
-    }
-    
-    .card-body {
-        min-height: 150px;
-    }
-    
-    .booking-info {
-        font-size: 0.9rem;
-    }
-    
-    .avatar-circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 1.1rem;
-    }
-    
-    .list-group-item {
-        border-left: none;
-        border-right: none;
-        padding: 1rem;
-    }
-    
-    .list-group-item:first-child {
-        border-top: none;
-    }
-    
-    .list-group-item:last-child {
-        border-bottom: none;
-    }
-    
-    .btn-sm {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.875rem;
-    }
-    
-    .bg-opacity-10 {
-        opacity: 0.1;
-        background-blend-mode: lighten;
-    }
+.hover-lift {
+    transition: all 0.2s ease;
+    border-radius: 0.75rem;
+}
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+.avatar-circle {
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold;
+}
+.bg-success-subtle { background-color: rgba(25,135,84,.05) !important; }
+.bg-primary-subtle { background-color: rgba(13,110,253,.05) !important; }
+.bg-danger-subtle { background-color: rgba(220,53,69,.05) !important; }
+.bg-warning-subtle { background-color: rgba(255,193,7,.05) !important; }
 </style>
 @endsection
