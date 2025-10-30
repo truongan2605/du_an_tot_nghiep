@@ -134,7 +134,7 @@
                             <i class="bi bi-credit-card-2-front-fill text-muted me-3"></i>
                             <div>
                                 <small class="text-muted">Phương Thức</small>
-                                <p class="mb-0">{{ $booking->phuong_thuc_thanh_toan ?? 'Chưa thanh toán' }}</p>
+                                <p class="mb-0">{{ $booking->phuong_thuc_thanh_toan ?? 'VN PAY' }}</p>
                             </div>
                         </div>
                     </div>
