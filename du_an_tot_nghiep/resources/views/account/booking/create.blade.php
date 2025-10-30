@@ -14,6 +14,73 @@
     @endphp
 
     <main>
+        <!-- Modal Xác Nhận Thanh Toán VNPAY -->
+        <div class="modal fade" id="vnpayConfirmModal" tabindex="-1" aria-labelledby="vnpayConfirmModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="vnpayConfirmModalLabel">Xác Nhận Thanh Toán VNPAY </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <h6 class="fw-bold">Thông Tin Nội Dung Cần Thanh Toán - Tóm Tắt Thanh Toán</h6>
+                        <ul class="list-group list-group-flush mb-3">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Giá phòng / đêm</span>
+                                <span id="modal_price_base"></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Phí người lớn thêm / đêm</span>
+                                <span id="modal_price_adults"></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Phí trẻ em thêm / đêm</span>
+                                <span  id="modal_price_children"></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between" hidden>
+                                <span hidden >Dịch vụ bổ sung / đêm</span>
+                                <span hidden id="modal_price_addons"></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Giá cuối cùng / đêm</span>
+                                <span id="modal_final_per_night"></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>Số đêm</span>
+                                <span id="modal_nights_count"></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between fw-bold">
+                                <span>Tổng tiền</span>
+                                <span id="modal_total_snapshot"></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between fw-bold text-primary">
+                                <span>Đặt cọc (20%)</span>
+                                <span id="modal_payable_now"></span>
+                            </li>
+                        </ul>
+                        <hr>
+                        <h6 class="fw-bold">Nội Quy Hoàn Tiền</h6>
+                        <p>Hoàn tiền 100% trong vòng 24h khi đặt cọc trước khi check-in.</p>
+                         <h6 class="fw-bold">Chính Sách Trong Khách Sạn</h6>
+                        <p>Được phép uống rượu và hút thuốc trong phạm vi được kiểm soát tại khu vực phòng nhưng vui lòng không gây bừa bộn hoặc ồn ào trong phòng.</p>
+                        <p>Ma túy và các sản phẩm bất hợp pháp gây say bị cấm và không được mang vào nhà hoặc tiêu thụ.</p>
+                        <p>Đối với bất kỳ bản cập nhật nào, khách hàng sẽ phải trả phí hủy/sửa đổi áp dụng</p>
+                        <p>Check-in: 2:00 pm</p>
+                        <p>Check out: 12:00 am.</p>
+                        <p>Tự làm thủ tục nhận phòng với nhân viên tòa khách sạn</p>
+                        <p>Thú Cưng.</p>
+                        <p>Được sử dụng thuốc lá.</p>
+                    
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" id="vnpayProceedBtn">Xác Nhận</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <section class="py-0">
             <div class="container">
                 <div class="card bg-light overflow-hidden px-sm-5">
@@ -85,7 +152,7 @@
                                                             value="{{ old('ngay_nhan_phong', \Carbon\Carbon::today()->format('Y-m-d')) }}">
                                                         <input type="hidden" name="ngay_tra_phong" id="ngay_tra_phong"
                                                             value="{{ old('ngay_tra_phong', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}">
-                                                        <small class="text-muted">Check-in time: 2:00 pm — Check-out time:
+                                                        <small class="text-muted">Check-in time: 2:00 pm – Check-out time:
                                                             12:00 pm</small>
                                                         <div id="availability_message" class="small mt-2"></div>
                                                         @error('ngay_nhan_phong')
@@ -353,9 +420,9 @@
                                                 <span class="h6 fw-light mb-0">Đêm</span>
                                                 <span class="fs-5" id="nights_count_display">-</span>
                                             </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Dịch vụ bổ sung</span>
-                                                <span class="fs-6" id="price_addons_display">-</span>
+                                            <li hidden class="list-group-item d-flex justify-content-between align-items-center" >
+                                                <span hidden  class="h6 fw-light mb-0">Dịch vụ bổ sung</span>
+                                                <span hidden class="fs-6" id="price_addons_display">-</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                                 <span class="h6 fw-light mb-0">Tổng</span>
@@ -462,7 +529,7 @@
                     minDate: "today",
                     dateFormat: "Y-m-d",
                     defaultDate: [fromInput.value || new Date().toISOString().slice(0, 10), toInput.value || (
-                    () => {
+                        () => {
                             let d = new Date();
                             d.setDate(d.getDate() + 1);
                             return d.toISOString().slice(0, 10);
@@ -605,10 +672,10 @@
                     const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[i] !==
                         'undefined') ? Number(initialChildrenAges[i]) : 0;
                     wrapper.innerHTML = `
-                        <label class="form-label">Child ${i+1} age</label>
-                        <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
-                        <div class="small text-danger mt-1 age-error" style="display:none;"></div>
-                    `;
+                    <label class="form-label">Child ${i+1} age</label>
+                    <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
+                    <div class="small text-danger mt-1 age-error" style="display:none;"></div>
+                `;
                     childrenAgesContainer.appendChild(wrapper);
                 }
 
@@ -789,7 +856,7 @@
 
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
                 priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :
-                '0 đ';
+                    '0 đ';
                 priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ? fmtVnd(childrenChargePerNightTotal) :
                     '0 đ';
                 const existingAddonsEl = document.getElementById('price_addons_display');
@@ -864,6 +931,99 @@
                 }
             })();
 
+            // Hàm hiển thị modal xác nhận VNPAY
+            function showVNPAYConfirmModal() {
+                // Cập nhật thông tin vào modal
+                const nights = Number(nightsDisplay.innerText || 0);
+                const basePrice = pricePerNight * (roomsInput ? Number(roomsInput.value || 1) : 1);
+                const adultsCharge = priceAdultsDisplay.innerText;
+                const childrenCharge = priceChildrenDisplay.innerText;
+                const addonsCharge = document.getElementById('price_addons_display').innerText;
+                const finalPerNight = finalPerNightDisplay.innerText;
+                const total = totalDisplay.innerText;
+                const deposit = payableDisplay.innerText;
+
+                document.getElementById('modal_price_base').innerText = fmtVnd(basePrice);
+                document.getElementById('modal_price_adults').innerText = adultsCharge;
+                document.getElementById('modal_price_children').innerText = childrenCharge;
+                document.getElementById('modal_price_addons').innerText = addonsCharge;
+                document.getElementById('modal_final_per_night').innerText = finalPerNight;
+                document.getElementById('modal_nights_count').innerText = nights;
+                document.getElementById('modal_total_snapshot').innerText = total;
+                document.getElementById('modal_payable_now').innerText = deposit;
+
+                // Hiển thị modal
+                const modal = new bootstrap.Modal(document.getElementById('vnpayConfirmModal'));
+                modal.show();
+            }
+
+            // Xử lý khi người dùng xác nhận trong modal
+            document.getElementById('vnpayProceedBtn').addEventListener('click', async function() {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('vnpayConfirmModal'));
+                modal.hide();
+
+                const submitBtn = document.querySelector('#bookingForm button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.dataset.origHtml = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
+
+                // Thực hiện thanh toán VNPAY
+                const phongId = document.querySelector('input[name="phong_id"]').value;
+                const ngayNhan = fromInput.value;
+                const ngayTra = toInput.value;
+                const tongTien = document.getElementById('hidden_tong_tien').value;
+                const deposit = document.getElementById('hidden_deposit').value;
+                const adults = adultsInput.value;
+                const children = childrenInput.value;
+                const childrenAges = Array.from(document.querySelectorAll('input[name="children_ages[]"]')).map(el => el.value);
+                const addons = Array.from(document.querySelectorAll('input[name="addons[]"]:checked')).map(el => el.value);
+                const roomsCount = roomsInput.value;
+                const soKhach = Number(adults) + Number(children);
+
+                try {
+                    const response = await fetch("{{ route('payment.initiate') }}", {
+                        method: "POST",
+                        headers: {
+                            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                        },
+                        body: JSON.stringify({
+                            phong_id: phongId,
+                            ngay_nhan_phong: ngayNhan,
+                            ngay_tra_phong: ngayTra,
+                            amount: deposit,
+                            so_khach: soKhach,
+                            adults: adults,
+                            children: children,
+                            children_ages: childrenAges,
+                            addons: addons,
+                            rooms_count: roomsCount,
+                            total_amount: tongTien,
+                        }),
+                    });
+
+                    const data = await response.json();
+                    if (parseFloat(deposit) <= 0 || parseFloat(deposit) > parseFloat(tongTien)) {
+                        showToastInline('Deposit không hợp lệ.', true, 5000);
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                        return;
+                    }
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        showToastInline(data.error || 'Không thể khởi tạo thanh toán.', true, 5000);
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                    }
+                } catch (err) {
+                    showToastInline('Lỗi khi tạo thanh toán: ' + err.message, true, 5000);
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                }
+            });
+
             (function setupSubmitUx() {
                 const form = document.getElementById('bookingForm');
                 if (!form) return;
@@ -887,67 +1047,9 @@
 
                     const paymentMethod = paymentMethodSelect.value;
                     if (paymentMethod === 'vnpay') {
-                        submitBtn.disabled = true;
-                        submitBtn.dataset.origHtml = submitBtn.innerHTML;
-                        submitBtn.innerHTML =
-                            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
-
-                        const phongId = document.querySelector('input[name="phong_id"]').value;
-                        const ngayNhan = fromInput.value;
-                        const ngayTra = toInput.value;
-                        const tongTien = document.getElementById('hidden_tong_tien').value;
-                        const deposit = document.getElementById('hidden_deposit').value;
-                        const adults = adultsInput.value;
-                        const children = childrenInput.value;
-                        const childrenAges = Array.from(document.querySelectorAll(
-                            'input[name="children_ages[]"]')).map(el => el.value);
-                        const addons = Array.from(document.querySelectorAll(
-                            'input[name="addons[]"]:checked')).map(el => el.value);
-                        const roomsCount = roomsInput.value;
-                        const soKhach = Number(adults) + Number(children);
-
-                        try {
-                            const response = await fetch("{{ route('payment.initiate') }}", {
-                                method: "POST",
-                                headers: {
-                                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                                    "Content-Type": "application/json",
-                                    "Accept": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    phong_id: phongId,
-                                    ngay_nhan_phong: ngayNhan,
-                                    ngay_tra_phong: ngayTra,
-                                    amount: deposit,
-                                    so_khach: soKhach,
-                                    adults: adults,
-                                    children: children,
-                                    children_ages: childrenAges,
-                                    addons: addons,
-                                    rooms_count: roomsCount,
-                                    total_amount: tongTien,
-                                }),
-                            });
-
-                            const data = await response.json();
-                            if (parseFloat(deposit) <= 0 || parseFloat(deposit) > parseFloat(
-                                tongTien)) {
-                                showToastInline('Deposit không hợp lệ.', true, 5000);
-                                return;
-                            }
-                            if (data.redirect_url) {
-                                window.location.href = data.redirect_url;
-                            } else {
-                                showToastInline(data.error || 'Không thể khởi tạo thanh toán.', true,
-                                    5000);
-                                submitBtn.disabled = false;
-                                submitBtn.innerHTML = submitBtn.dataset.origHtml;
-                            }
-                        } catch (err) {
-                            showToastInline('Lỗi khi tạo thanh toán: ' + err.message, true, 5000);
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = submitBtn.dataset.origHtml;
-                        }
+                        // Hiển thị modal xác nhận trước khi thanh toán VNPAY
+                        showVNPAYConfirmModal();
+                        return;
                     } else {
                         submitBtn.disabled = true;
                         submitBtn.dataset.origHtml = submitBtn.innerHTML;
@@ -962,8 +1064,7 @@
                     if (el) el.addEventListener('change', () => {
                         if (submitBtn && submitBtn.disabled) {
                             submitBtn.disabled = false;
-                            if (submitBtn.dataset.origHtml) submitBtn.innerHTML = submitBtn.dataset
-                                .origHtml;
+                            if (submitBtn.dataset.origHtml) submitBtn.innerHTML = submitBtn.dataset.origHtml;
                         }
                     });
                 });
@@ -972,8 +1073,7 @@
             document.querySelectorAll('.addon-checkbox').forEach(chk => chk.addEventListener('change', updateSummary));
             if (Array.isArray(initialSelectedAddons) && initialSelectedAddons.length) {
                 document.querySelectorAll('.addon-checkbox').forEach(chk => {
-                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons
-                        .includes(Number(chk.value));
+                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons.includes(Number(chk.value));
                 });
             }
             if (adultsInput) adultsInput.addEventListener('input', updateSummary);
@@ -988,6 +1088,7 @@
             updateSummary();
             updateRoomsAvailability();
         })();
+
         // === Sticky Scroll cho Price Summary ===
         window.addEventListener('scroll', () => {
             const summary = document.querySelector('.card.shadow.rounded-2');
@@ -1003,3 +1104,4 @@
         });
     </script>
 @endpush
+                    

@@ -454,18 +454,14 @@
                     <!-- Hotel Policies (kept as-is) -->
                     <div class="card bg-transparent">
                         <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                            <h3 class="mb-0">Hotel Policies</h3>
+                            <h3 class="mb-0">Chính Sách Trong Khách Sạn</h3>
                         </div>
                         <div class="card-body pt-4 p-0">
                             <ul class="list-group list-group-borderless mb-2">
-                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Drinking
-                                    and smoking within controlled limits are permitted at the farmhouse but please do not
-                                    create a mess or ruckus at the house.</li>
-                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Drugs and
-                                    intoxicating illegal products are banned and not to be brought to the house or consumed.
+                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Được phép uống rượu và hút thuốc trong phạm vi được kiểm soát tại khu vực phòng nhưng vui lòng không gây bừa bộn hoặc ồn ào trong phòng</li>
+                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Ma túy và các sản phẩm bất hợp pháp gây say bị cấm và không được mang vào nhà hoặc tiêu thụ.
                                 </li>
-                                <li class="list-group-item d-flex"><i class="bi bi-x-circle-fill me-2"></i>For any update,
-                                    the customer shall pay applicable cancellation/modification charges.</li>
+                                <li class="list-group-item d-flex"><i class="bi bi-x-circle-fill me-2"></i>Đối với bất kỳ bản cập nhật nào, khách hàng sẽ phải trả phí hủy/sửa đổi áp dụng</li>
                             </ul>
 
                             <ul class="list-group list-group-borderless mb-2">
@@ -474,11 +470,11 @@
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
                                         class="bi bi-arrow-right me-2"></i>Check out: 12:00 am</li>
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Self-check-in with building staff</li>
+                                        class="bi bi-arrow-right me-2"></i>Tự làm thủ tục nhận phòng với nhân viên tòa khách sạn</li>
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>No pets</li>
+                                        class="bi bi-arrow-right me-2"></i>Thú Cưng</li>
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Smoking is allowed</li>
+                                        class="bi bi-arrow-right me-2"></i>Được sử dụng thuốc lá</li>
                             </ul>
                         </div>
                     </div>
