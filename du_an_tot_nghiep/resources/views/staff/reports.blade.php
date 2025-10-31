@@ -7,7 +7,7 @@
     <h2 class="mb-4 fw-bold text-dark">Báo Cáo Nhân Viên</h2>
 
     <div class="row g-4">
-        <!-- Doanh Thu Tháng -->
+      
         <div class="col-md-4">
             <div class="card shadow-lg border-0 text-white report-card" style="background: linear-gradient(135deg, #1e3c72, #2a5298);">
                 <div class="card-body d-flex align-items-center gap-3">
@@ -22,7 +22,7 @@
             </div>
         </div>
 
-        <!-- Booking Tháng -->
+      
         <div class="col-md-4">
             <div class="card shadow-lg border-0 text-white report-card" style="background: linear-gradient(135deg, #11998e, #38ef7d);">
                 <div class="card-body d-flex align-items-center gap-3">
@@ -37,7 +37,7 @@
             </div>
         </div>
 
-        <!-- Phòng Trống -->
+        
         <div class="col-md-4">
             <div class="card shadow-lg border-0 text-white report-card" style="background: linear-gradient(135deg, #ff7e5f, #feb47b);">
                 <div class="card-body d-flex align-items-center gap-3">
@@ -52,7 +52,7 @@
             </div>
         </div>
 
-        <!-- NEW: Card Doanh Thu Đặt Cọc Tháng -->
+      
         <div class="col-md-4">
             <div class="card shadow-lg border-0 text-white report-card" style="background: linear-gradient(135deg, #ff7e5f, #feb47b);">
                 <div class="card-body d-flex align-items-center gap-3">

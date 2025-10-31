@@ -18,35 +18,64 @@ class StaffController extends Controller
     public function index()
     {
         $today = now();
-        $weekRange = [now()->startOfWeek(), now()->endOfWeek()];
+        $weekRange = [$today->startOfWeek()->toDateString(), $today->endOfWeek()->toDateString()];
+        $month = $today->month;
+        $year = $today->year;
+
+
+        $activeStatus = ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'];
+        $activeQuery = DatPhong::whereIn('trang_thai', $activeStatus)
+            ->where('trang_thai', '!=', 'da_huy');
+
         $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
-        $todayCheckins = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereDate('ngay_nhan_phong', $today)->count();
-        $todayCheckouts = DatPhong::where('trang_thai', 'dang_o')
-            ->whereDate('ngay_tra_phong', $today)->count();
-        $todayRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereDate('ngay_nhan_phong', $today)
+
+
+        $todayCheckins = $activeQuery->clone()
+            ->whereRaw('DATE(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$today->toDateString()])
+            ->count();
+
+
+        $todayCheckouts = DatPhong::whereIn('trang_thai', ['dang_o', 'da_gan_phong'])
+            ->whereRaw('DATE(ngay_tra_phong) = ?', [$today->toDateString()])
+            ->count();
+
+        $todayRevenue = $activeQuery->clone()
+            ->whereRaw('DATE(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$today->toDateString()])
             ->sum('tong_tien');
-        $todayDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereDate('ngay_nhan_phong', $today)
-            ->sum('deposit_amount');
-        $weeklyDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereBetween('ngay_nhan_phong', $weekRange)
-            ->sum('deposit_amount');
-        $monthlyDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereMonth('ngay_nhan_phong', $today->month)
-            ->sum('deposit_amount');
-        $totalDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')->sum('deposit_amount');
-        $weeklyRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereBetween('ngay_nhan_phong', $weekRange)
+
+
+        $todayDeposit = $activeQuery->clone()
+            ->whereRaw('DATE(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$today->toDateString()])
+            ->sum(DB::raw('COALESCE(deposit_amount, 0)'));
+
+
+        $weeklyRevenue = $activeQuery->clone()
+            ->whereRaw('COALESCE(checked_in_at, ngay_nhan_phong) BETWEEN ? AND ?', $weekRange)
             ->sum('tong_tien');
-        $monthlyRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereMonth('ngay_nhan_phong', $today->month)
+        $weeklyDeposit = $activeQuery->clone()
+            ->whereRaw('COALESCE(checked_in_at, ngay_nhan_phong) BETWEEN ? AND ?', $weekRange)
+            ->sum(DB::raw('COALESCE(deposit_amount, 0)'));
+
+
+        $monthlyRevenue = $activeQuery->clone()
+            ->whereRaw('YEAR(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$year])
+            ->whereRaw('MONTH(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$month])
             ->sum('tong_tien');
-        $totalRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')->sum('tong_tien');
+        $monthlyDeposit = $activeQuery->clone()
+            ->whereRaw('YEAR(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$year])
+            ->whereRaw('MONTH(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$month])
+            ->sum(DB::raw('COALESCE(deposit_amount, 0)'));
+
+
+        $totalRevenue = $activeQuery->clone()->sum('tong_tien');
+        $totalDeposit = $activeQuery->clone()->sum(DB::raw('COALESCE(deposit_amount, 0)'));
+
+
         $availableRooms = Phong::where('trang_thai', 'trong')->count();
+
+
         $events = DatPhong::select('id', 'ma_tham_chieu', 'trang_thai', 'ngay_nhan_phong', 'ngay_tra_phong')
-            ->where('trang_thai', '!=', 'da_huy')
+            ->whereIn('trang_thai', $activeStatus)
             ->with('user:id,name')
             ->get()
             ->map(fn($b) => [
@@ -55,17 +84,33 @@ class StaffController extends Controller
                 'end' => $b->ngay_tra_phong,
                 'description' => "Khách: " . ($b->user->name ?? 'Ẩn danh') . " | " . ucfirst($b->trang_thai)
             ]);
-        $recentActivities = DatPhong::where('trang_thai', '!=', 'dang_cho')
+
+
+        $recentActivities = DatPhong::whereIn('trang_thai', $activeStatus)
             ->orderByDesc('updated_at')->take(20)->get();
+
         $chartLabels = [];
         $checkinData = [];
         $checkoutData = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = $today->copy()->subDays($i)->toDateString();
             $chartLabels[] = $today->copy()->subDays($i)->format('d/m');
-            $checkinData[] = DatPhong::where('trang_thai', 'da_xac_nhan')->whereDate('ngay_nhan_phong', $date)->count();
-            $checkoutData[] = DatPhong::where('trang_thai', 'dang_o')->whereDate('ngay_tra_phong', $date)->count();
+            $checkinData[] = $activeQuery->clone()
+                ->whereRaw('DATE(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$date])
+                ->count();
+            $checkoutData[] = DatPhong::whereIn('trang_thai', ['dang_o'])
+                ->whereRaw('DATE(ngay_tra_phong) = ?', [$date])
+                ->count();
         }
+
+
+        Log::info('Index Stats - ' . $today->format('Y-m-d'), [
+            'todayRevenue' => $todayRevenue,
+            'todayDeposit' => $todayDeposit,
+            'monthlyRevenue' => $monthlyRevenue,
+            'activeBookingsCount' => $activeQuery->count()
+        ]);
+
         return view('staff.index', compact(
             'pendingBookings',
             'todayCheckins',
@@ -89,43 +134,77 @@ class StaffController extends Controller
 
     public function reports()
     {
-        $month = now()->month;
-        $monthlyRevenue = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereMonth('ngay_nhan_phong', $month)
+        $today = now();
+        $month = $today->month;
+        $year = $today->year;
+        $startOfMonth = $today->copy()->startOfMonth();
+
+
+        $activeStatus = ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'];
+        $activeQuery = DatPhong::whereIn('trang_thai', $activeStatus)
+            ->where('trang_thai', '!=', 'da_huy');
+
+
+        $monthlyRevenue = $activeQuery->clone()
+            ->whereRaw('YEAR(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$year])
+            ->whereRaw('MONTH(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$month])
             ->sum('tong_tien');
-        $bookingsThisMonth = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereMonth('ngay_nhan_phong', $month)->count();
+
+
+        $bookingsThisMonth = $activeQuery->clone()
+            ->whereRaw('YEAR(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$year])
+            ->whereRaw('MONTH(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$month])
+            ->count();
+
+
         $availableRooms = Phong::where('trang_thai', 'trong')->count();
-        $monthlyDeposit = DatPhong::where('trang_thai', 'da_xac_nhan')
-        ->whereMonth('ngay_nhan_phong', $month)
-        ->sum('deposit_amount');
+
+
+        $monthlyDeposit = $activeQuery->clone()
+            ->whereRaw('YEAR(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$year])
+            ->whereRaw('MONTH(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$month])
+            ->sum(DB::raw('COALESCE(deposit_amount, 0)'));
+
+
         $weeklyRevenue = [];
         $weeklyBookings = [];
         $weeklyDeposit = [];
         for ($i = 0; $i < 4; $i++) {
-            $start = now()->startOfMonth()->addWeeks($i);
-            $end = $start->copy()->endOfWeek();
-            $weeklyRevenue[] = DatPhong::where('trang_thai', 'da_xac_nhan')
-                ->whereBetween('ngay_nhan_phong', [$start, $end])
+            $weekStart = $startOfMonth->copy()->addDays(7 * $i)->startOfWeek();
+            $weekEnd = $weekStart->copy()->endOfWeek();
+            $weekRange = [$weekStart->toDateString(), $weekEnd->toDateString()];
+
+            $weeklyRevenue[] = $activeQuery->clone()
+                ->whereRaw('COALESCE(checked_in_at, ngay_nhan_phong) BETWEEN ? AND ?', $weekRange)
                 ->sum('tong_tien');
-            $weeklyBookings[] = DatPhong::where('trang_thai', 'da_xac_nhan')
-                ->whereBetween('ngay_nhan_phong', [$start, $end])
+
+            $weeklyBookings[] = $activeQuery->clone()
+                ->whereRaw('COALESCE(checked_in_at, ngay_nhan_phong) BETWEEN ? AND ?', $weekRange)
                 ->count();
-          $weeklyDeposit[] = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereBetween('ngay_nhan_phong', [$start, $end])
-            ->sum('deposit_amount');
-    
+
+            $weeklyDeposit[] = $activeQuery->clone()
+                ->whereRaw('COALESCE(checked_in_at, ngay_nhan_phong) BETWEEN ? AND ?', $weekRange)
+                ->sum(DB::raw('COALESCE(deposit_amount, 0)'));
         }
+
+
+        Log::info('Reports Stats - ' . $today->format('Y-m-d'), [
+            'monthlyRevenue' => $monthlyRevenue,
+            'monthlyDeposit' => $monthlyDeposit,
+            'weeklyRevenue' => $weeklyRevenue,
+            'activeBookingsCount' => $activeQuery->count()
+        ]);
+
         return view('staff.reports', compact(
             'monthlyRevenue',
             'bookingsThisMonth',
             'availableRooms',
             'weeklyRevenue',
             'weeklyBookings',
-            'monthlyDeposit', 'weeklyDeposit'
+            'monthlyDeposit',
+            'weeklyDeposit'
         ));
     }
-
     public function roomOverview()
     {
         $rooms = Phong::with(['tang', 'loaiPhong'])
@@ -135,79 +214,78 @@ class StaffController extends Controller
         $floors = $rooms->groupBy(fn($room) => $room->tang->so_tang ?? $room->tang->id);
         return view('staff.room-overview', compact('floors'));
     }
+    public function checkinForm()
+    {
+        $bookings = DatPhong::with(['nguoiDung', 'giaoDichs' => function ($q) {
+            $q->where('trang_thai', 'thanh_cong');
+        }])
+            ->whereIn('trang_thai', ['da_xac_nhan', 'da_gan_phong'])
 
-  public function checkinForm()
-{
-    $bookings = DatPhong::with(['nguoiDung', 'giaoDichs' => function ($q) {
-        $q->where('trang_thai', 'thanh_cong');
-    }])
-    ->whereIn('trang_thai', ['da_xac_nhan', 'da_gan_phong'])
-   
-    ->orderBy('ngay_nhan_phong', 'asc')
-    ->get()
-    ->map(function ($booking) {
-        $paid      = $booking->giaoDichs->sum('so_tien');
-        $remaining = $booking->tong_tien - $paid;
+            ->orderBy('ngay_nhan_phong', 'asc')
+            ->get()
+            ->map(function ($booking) {
+                $paid      = $booking->giaoDichs->sum('so_tien');
+                $remaining = $booking->tong_tien - $paid;
 
-        $booking->paid       = $paid;
-        $booking->remaining  = $remaining;
-        $booking->can_checkin = $remaining <= 0;
+                $booking->paid       = $paid;
+                $booking->remaining  = $remaining;
+                $booking->can_checkin = $remaining <= 0;
 
-      
-        $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
-        $today       = \Carbon\Carbon::today();
 
-        $booking->checkin_status = $checkinDate->isToday()
-            ? 'Hôm nay'
-            : ($checkinDate->isFuture() ? 'Sắp tới' : 'Quá hạn');
+                $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+                $today       = \Carbon\Carbon::today();
 
-        $booking->checkin_date_diff = $checkinDate->isFuture()
-            ? $checkinDate->diffInDays($today) . ' ngày nữa'
-            : ($checkinDate->isPast() ? 'Quá ' . $checkinDate->diffInDays($today) . ' ngày' : '');
+                $booking->checkin_status = $checkinDate->isToday()
+                    ? 'Hôm nay'
+                    : ($checkinDate->isFuture() ? 'Sắp tới' : 'Quá hạn');
 
-        return $booking;
-    });
+                $booking->checkin_date_diff = $checkinDate->isFuture()
+                    ? $checkinDate->diffInDays($today) . ' ngày nữa'
+                    : ($checkinDate->isPast() ? 'Quá ' . $checkinDate->diffInDays($today) . ' ngày' : '');
 
-    Log::info('Checkin bookings loaded (ALL)', [
-        'count' => $bookings->count(),
-        'ids'   => $bookings->pluck('id')->toArray(),
-    ]);
+                return $booking;
+            });
 
-    return view('staff.checkin', compact('bookings'));
-}
-
-public function processCheckin(Request $request)
-{
-    $request->validate(['booking_id' => 'required|exists:dat_phong,id']);
-    
-    $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
-
-    if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
-        return redirect()->back()->with('error', 'Booking không thể check-in');
-    }
-
-    $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
-    $remaining = $booking->tong_tien - $paid;
-
-    if ($remaining > 0) {
-        return redirect()->back()->with('error', "Cần thanh toán còn lại " . number_format($remaining) . " VND trước khi check-in.");
-    }
-
-    DB::transaction(function () use ($booking) {
-        $booking->update([
-            'trang_thai' => 'dang_su_dung',
-            'checked_in_at' => now(),
+        Log::info('Checkin bookings loaded (ALL)', [
+            'count' => $bookings->count(),
+            'ids'   => $bookings->pluck('id')->toArray(),
         ]);
 
-        $phongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
-        if (!empty($phongIds)) {
-            Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
-        }
-    });
+        return view('staff.checkin', compact('bookings'));
+    }
 
-    return redirect()->route('staff.checkin')
-        ->with('success', 'Check-in thành công cho booking ' . $booking->ma_tham_chieu . ' lúc ' . now()->format('H:i d/m/Y'));
-}
+    public function processCheckin(Request $request)
+    {
+        $request->validate(['booking_id' => 'required|exists:dat_phong,id']);
+
+        $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
+
+        if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
+            return redirect()->back()->with('error', 'Booking không thể check-in');
+        }
+
+        $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+        $remaining = $booking->tong_tien - $paid;
+
+        if ($remaining > 0) {
+            return redirect()->back()->with('error', "Cần thanh toán còn lại " . number_format($remaining) . " VND trước khi check-in.");
+        }
+
+        DB::transaction(function () use ($booking) {
+            $booking->update([
+                'trang_thai' => 'dang_su_dung',
+                'checked_in_at' => now(),
+            ]);
+
+            $phongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
+            if (!empty($phongIds)) {
+                Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
+            }
+        });
+
+        return redirect()->route('staff.checkin')
+            ->with('success', 'Check-in thành công cho booking ' . $booking->ma_tham_chieu . ' lúc ' . now()->format('H:i d/m/Y'));
+    }
     public function checkoutForm()
     {
         $bookings = DatPhong::whereIn('trang_thai', ['da_gan_phong', 'dang_o'])
@@ -281,6 +359,10 @@ public function processCheckin(Request $request)
             return redirect()->back()->with('error', 'Booking không thể xác nhận.');
         }
         DB::transaction(function () use ($booking, $request) {
+
+            if (is_null($booking->deposit_amount) || $booking->deposit_amount == 0) {
+                $booking->deposit_amount = $request->deposit_amount ?? ($booking->tong_tien * 0.2);
+            }
             $booking->trang_thai = 'da_xac_nhan';
             $booking->save();
             $datPhongItem = $booking->datPhongItems->first();
@@ -338,32 +420,32 @@ public function processCheckin(Request $request)
         return ($overlappingBookings + $holds) == 0;
     }
 
-public function rooms(Request $request)
-{
-    $query = Phong::with(['tang', 'datPhongItems.datPhong.nguoiDung']);
+    public function rooms(Request $request)
+    {
+        $query = Phong::with(['tang', 'datPhongItems.datPhong.nguoiDung']);
 
-    // Lọc theo mã phòng
-    if ($ma_phong = $request->input('ma_phong')) {
-        $query->where('ma_phong', 'like', '%' . $ma_phong . '%');
-    }
-
-   
-    if ($trang_thai = $request->input('trang_thai')) {
-        if (in_array($trang_thai, ['dang_su_dung', 'dang_o', 'da_xac_nhan'])) {
-            
-            $query->whereHas('datPhongItems.datPhong', function ($q) use ($trang_thai) {
-                $q->where('trang_thai', $trang_thai);
-            });
-        } else {
-            
-            $query->where('trang_thai', $trang_thai);
+        // Lọc theo mã phòng
+        if ($ma_phong = $request->input('ma_phong')) {
+            $query->where('ma_phong', 'like', '%' . $ma_phong . '%');
         }
+
+
+        if ($trang_thai = $request->input('trang_thai')) {
+            if (in_array($trang_thai, ['dang_su_dung', 'dang_o', 'da_xac_nhan'])) {
+
+                $query->whereHas('datPhongItems.datPhong', function ($q) use ($trang_thai) {
+                    $q->where('trang_thai', $trang_thai);
+                });
+            } else {
+
+                $query->where('trang_thai', $trang_thai);
+            }
+        }
+
+        $rooms = $query->orderBy('ma_phong')->paginate(10);
+
+        return view('staff.rooms', compact('rooms'));
     }
-
-    $rooms = $query->orderBy('ma_phong')->paginate(10);
-
-    return view('staff.rooms', compact('rooms'));
-}
 
 
 

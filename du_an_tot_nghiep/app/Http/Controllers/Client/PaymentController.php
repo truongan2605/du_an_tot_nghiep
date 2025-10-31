@@ -46,13 +46,12 @@ class PaymentController extends Controller
                 return response()->json(['error' => 'Deposit không hợp lệ (phải khoảng 20% tổng)'], 400);
             }
 
-            // Lấy thông tin phòng
             $phong = Phong::findOrFail($validated['phong_id']);
 
-            // Tạo mã tham chiếu
+         
             $maThamChieu = 'DP' . strtoupper(Str::random(8));
 
-            // Chuẩn bị snapshot_meta - SỬA: Sử dụng tên trường đúng
+          
             $snapshotMeta = [
                 'phong_id' => $validated['phong_id'],
                 'loai_phong_id' => $phong->loai_phong_id,
@@ -65,15 +64,15 @@ class PaymentController extends Controller
                 'nights' => $this->calculateNights($validated['ngay_nhan_phong'], $validated['ngay_tra_phong']),  // SỬA: Truyền tên đúng
             ];
 
-            // Tạo giao dịch trong database
+       
             return DB::transaction(function () use ($validated, $maThamChieu, $snapshotMeta, $phong, $request) {
-                // Tạo bản ghi dat_phong - SỬA: Sử dụng tên trường đúng
+             
                 $dat_phong = DatPhong::create([
                     'ma_tham_chieu' => $maThamChieu,
                     'nguoi_dung_id' => Auth::id(),
                     'phong_id' => $validated['phong_id'],
-                    'ngay_nhan_phong' => $validated['ngay_nhan_phong'],  // SỬA
-                    'ngay_tra_phong' => $validated['ngay_tra_phong'],    // SỬA
+                    'ngay_nhan_phong' => $validated['ngay_nhan_phong'],  
+                    'ngay_tra_phong' => $validated['ngay_tra_phong'],   
                     'tong_tien' => $validated['total_amount'],
                     'deposit_amount' => $validated['amount'],
                     'so_khach' => $validated['so_khach'] ?? ($validated['adults'] + ($validated['children'] ?? 0)),
@@ -84,7 +83,7 @@ class PaymentController extends Controller
                     'snapshot_meta' => json_encode($snapshotMeta),
                 ]);
 
-                // Tạo bản ghi giu_phong - SỬA: Truyền tên đúng vào meta
+              
                 GiuPhong::create([
                     'dat_phong_id' => $dat_phong->id,
                     'loai_phong_id' => $phong->loai_phong_id,
@@ -93,16 +92,14 @@ class PaymentController extends Controller
                     'het_han_luc' => now()->addMinutes(15),
                     'released' => false,
                     'meta' => json_encode([
-                        'price_per_night' => $validated['amount'] / $this->calculateNights($validated['ngay_nhan_phong'], $validated['ngay_tra_phong']),  // SỬA
-                        'nights' => $this->calculateNights($validated['ngay_nhan_phong'], $validated['ngay_tra_phong']),  // SỬA
+                        'price_per_night' => $validated['amount'] / $this->calculateNights($validated['ngay_nhan_phong'], $validated['ngay_tra_phong']),  
+                        'nights' => $this->calculateNights($validated['ngay_nhan_phong'], $validated['ngay_tra_phong']), 
                         'addons' => $validated['addons'] ?? [],
                     ]),
-                    'spec_signature_hash' => $this->generateSpecSignatureHash($validated),  // SỬA: Truyền $validated đã cập nhật
+                    'spec_signature_hash' => $this->generateSpecSignatureHash($validated), 
                 ]);
 
-                // ... (phần tạo giao_dich và VNPAY URL giữ nguyên, không thay đổi)
-
-                // Tạo bản ghi giao_dich
+        
                 $giao_dich = GiaoDich::create([
                     'dat_phong_id' => $dat_phong->id,
                     'nha_cung_cap' => 'vnpay',
@@ -112,7 +109,6 @@ class PaymentController extends Controller
                     'ghi_chu' => "Thanh toán đặt cọc phòng:{$dat_phong->ma_tham_chieu}",
                 ]);
 
-                // Tạo URL thanh toán VNPAY (giữ nguyên)
                 $vnp_Url = env('VNPAY_URL');
                 $vnp_TmnCode = env('VNPAY_TMN_CODE');
                 $vnp_HashSecret = env('VNPAY_HASH_SECRET');
@@ -196,7 +192,7 @@ class PaymentController extends Controller
                     'can_xac_nhan' => true,
                 ]);
 
-                // Xử lý giu_phong
+             
                 $giu_phong = GiuPhong::where('dat_phong_id', $dat_phong->id)->first();
                 if ($giu_phong) {
                     $meta = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
@@ -229,7 +225,7 @@ class PaymentController extends Controller
                     ]);
                     \App\Models\DatPhongItem::create($itemPayload);
 
-                    // Cập nhật trạng thái phòng thành 'dang_o'
+                 
                     Phong::where('id', $giu_phong->phong_id)->update(['trang_thai' => 'dang_o']);
 
                     $giu_phong->delete();
@@ -296,7 +292,7 @@ class PaymentController extends Controller
                     'can_xac_nhan' => true,
                 ]);
 
-                // Xử lý giu_phong
+             
                 $giu_phong = GiuPhong::where('dat_phong_id', $dat_phong->id)->first();
                 if ($giu_phong) {
                     $meta = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
@@ -329,7 +325,7 @@ class PaymentController extends Controller
                     ]);
                     \App\Models\DatPhongItem::create($itemPayload);
 
-                    // Cập nhật trạng thái phòng thành 'dang_o'
+            
                     Phong::where('id', $giu_phong->phong_id)->update(['trang_thai' => 'dang_o']);
 
                     $giu_phong->delete();
@@ -618,7 +614,7 @@ public function handleRemainingCallback(Request $request)
     }
 
     return DB::transaction(function () use ($transaction, $inputData) {
-        // Cập nhật trạng thái giao dịch thành công
+       
         $transaction->update([
             'trang_thai'       => 'thanh_cong',
             'provider_txn_ref' => $inputData['vnp_TransactionNo'] ?? null,
@@ -642,8 +638,6 @@ public function handleRemainingCallback(Request $request)
             'current_status' => $booking->trang_thai,
             'ma_tham_chieu' => $booking->ma_tham_chieu,
         ]);
-
-        // Tính tổng tiền đã thanh toán
         $totalPaid = $booking->giaoDichs()
             ->where('trang_thai', 'thanh_cong')
             ->sum('so_tien');
@@ -656,10 +650,10 @@ public function handleRemainingCallback(Request $request)
             'remaining' => $booking->tong_tien - $totalPaid,
         ]);
 
-        // QUAN TRỌNG: Chỉ cập nhật nếu đã thanh toán đủ VÀ đang ở trạng thái cho phép
+      
         if ($totalPaid >= $booking->tong_tien) {
             
-            // Cập nhật trạng thái booking
+      
             $oldStatus = $booking->trang_thai;
             $booking->trang_thai = 'dang_su_dung';
             $booking->checked_in_at = now();

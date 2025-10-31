@@ -27,7 +27,7 @@
 
             <div class="card-body p-5">
                 <div class="row g-5">
-                    <!-- Cột 1: Thông tin khách hàng -->
+                  
                     <div class="col-lg-6">
                         <h6 class="text-primary fw-bold mb-4"><i class="bi bi-person-circle me-2"></i>Khách Hàng</h6>
                         <div class="ps-4">
@@ -122,7 +122,7 @@
                         </div>
                     </div>
 
-                    <!-- Cột 2: Thông tin đặt phòng -->
+                 
                     <div class="col-lg-6">
                         <h6 class="text-primary fw-bold mb-4"><i class="bi bi-calendar3 me-2"></i>Chi Tiết Đặt Phòng</h6>
                         <div class="ps-4">
@@ -176,7 +176,7 @@
                     </div>
                 </div>
 
-                <!-- Danh sách phòng -->
+              
                 <hr class="my-5">
 
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-door-open-fill me-2"></i>Phòng Đã Gán</h6>
@@ -206,7 +206,7 @@
                     </div>
                 @endforelse
 
-                <!-- Giao dịch -->
+              
                 @if ($booking->giaoDichs->count() > 0)
                     <hr class="my-5">
                     <h6 class="text-primary fw-bold mb-4"><i class="bi bi-receipt me-2"></i>Lịch Sử Giao Dịch</h6>
@@ -243,7 +243,7 @@
                     </div>
                 @endif
 
-                <!-- Action Buttons -->
+          
                 <hr class="my-5">
                 <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center">
                     <a href="{{ route('staff.rooms') }}" class="btn btn-outline-secondary btn-lg px-4">

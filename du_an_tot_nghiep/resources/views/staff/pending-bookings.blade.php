@@ -140,7 +140,7 @@ function handleAction(message, id, action) {
     }
 }
 
-// Initialize tooltips
+
 document.addEventListener('DOMContentLoaded', function () {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (el) {

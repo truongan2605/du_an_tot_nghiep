@@ -163,20 +163,20 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Initialize tooltips
+
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (el) {
         return new bootstrap.Tooltip(el);
     });
 
-    // Handle action buttons in dropdown
+
     window.handleAction = function(message, button, event) {
         event.preventDefault();
         event.stopPropagation();
         if (confirm(message)) {
             button.closest('form').submit();
         }
-        // Reopen dropdown if needed
+      
         const dropdown = button.closest('.dropdown');
         const dropdownInstance = bootstrap.Dropdown.getInstance(dropdown);
         if (dropdownInstance) {
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
-    // Filter functionality
+  
     const statusFilter = document.getElementById('statusFilter');
     const dateFilter = document.getElementById('dateFilter');
     const tableRows = document.querySelectorAll('#bookingsTableBody tr[data-status]');
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateValue = dateFilter.value;
         let visibleRows = 0;
 
-        // Filter booking rows
+      
         tableRows.forEach(row => {
             const rowStatus = row.dataset.status;
             const rowDate = row.dataset.date;
@@ -210,7 +210,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Show/hide no data row
         if (noDataRow) {
             if (visibleRows === 0) {
                 noDataRow.style.display = '';
@@ -223,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
     statusFilter.addEventListener('change', applyFilters);
     dateFilter.addEventListener('change', applyFilters);
 
-    // Apply initial filters (no default date)
+   
     applyFilters();
 });
 </script>

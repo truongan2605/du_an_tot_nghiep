@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', function () {
     searchInput.addEventListener('input', applyFilters);
     statusFilter.addEventListener('change', applyFilters);
 
-    // Smooth hover effects
+
     document.querySelectorAll('tbody tr').forEach(row => {
         row.addEventListener('mouseenter', () => {
             row.style.transform = 'translateY(-1px)';
