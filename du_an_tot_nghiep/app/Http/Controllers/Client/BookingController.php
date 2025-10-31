@@ -264,7 +264,7 @@ class BookingController extends Controller
             }
         }
 
-        $totalOccupied = count($occupiedSpecificIds) + $aggregateBooked + $aggregateHoldsForSignature;
+        $totalOccupied = $aggregateBooked + $aggregateHoldsForSignature;
 
         return max(0, $matchingAvailableCount - $totalOccupied);
     }

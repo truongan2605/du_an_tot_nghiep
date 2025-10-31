@@ -10,6 +10,7 @@ use App\Models\PhongDaDat;
 use App\Models\DatPhongItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 
 class StaffController extends Controller
@@ -135,19 +136,51 @@ class StaffController extends Controller
         return view('staff.room-overview', compact('floors'));
     }
 
-    public function checkinForm()
-    {
-        $bookings = DatPhong::where('trang_thai', 'da_xac_nhan')
-            ->whereDate('ngay_nhan_phong', '<=', now())
-            ->with('user', 'datPhongItems.loaiPhong')
-            ->get();
-        return view('staff.checkin', compact('bookings'));
-    }
+  public function checkinForm()
+{
+    $bookings = DatPhong::with(['nguoiDung', 'giaoDichs' => function ($q) {
+        $q->where('trang_thai', 'thanh_cong');
+    }])
+    ->whereIn('trang_thai', ['da_xac_nhan', 'da_gan_phong'])
+   
+    ->orderBy('ngay_nhan_phong', 'asc')
+    ->get()
+    ->map(function ($booking) {
+        $paid      = $booking->giaoDichs->sum('so_tien');
+        $remaining = $booking->tong_tien - $paid;
+
+        $booking->paid       = $paid;
+        $booking->remaining  = $remaining;
+        $booking->can_checkin = $remaining <= 0;
+
+      
+        $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+        $today       = \Carbon\Carbon::today();
+
+        $booking->checkin_status = $checkinDate->isToday()
+            ? 'Hôm nay'
+            : ($checkinDate->isFuture() ? 'Sắp tới' : 'Quá hạn');
+
+        $booking->checkin_date_diff = $checkinDate->isFuture()
+            ? $checkinDate->diffInDays($today) . ' ngày nữa'
+            : ($checkinDate->isPast() ? 'Quá ' . $checkinDate->diffInDays($today) . ' ngày' : '');
+
+        return $booking;
+    });
+
+    Log::info('Checkin bookings loaded (ALL)', [
+        'count' => $bookings->count(),
+        'ids'   => $bookings->pluck('id')->toArray(),
+    ]);
+
+    return view('staff.checkin', compact('bookings'));
+}
 
 public function processCheckin(Request $request)
 {
     $request->validate(['booking_id' => 'required|exists:dat_phong,id']);
-    $booking = DatPhong::with('datPhongItems')->findOrFail($request->booking_id);
+    
+    $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
 
     if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
         return redirect()->back()->with('error', 'Booking không thể check-in');
@@ -157,23 +190,23 @@ public function processCheckin(Request $request)
     $remaining = $booking->tong_tien - $paid;
 
     if ($remaining > 0) {
-        return redirect()->back()->with('error', "Cần thanh toán còn lại {$remaining} VND trước khi check-in.");
+        return redirect()->back()->with('error', "Cần thanh toán còn lại " . number_format($remaining) . " VND trước khi check-in.");
     }
 
     DB::transaction(function () use ($booking) {
-        $booking->trang_thai = 'dang_su_dung';
-        $booking->checked_in_at = now(); 
-        $booking->save();
+        $booking->update([
+            'trang_thai' => 'dang_su_dung',
+            'checked_in_at' => now(),
+        ]);
 
-       
         $phongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
         if (!empty($phongIds)) {
             Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
         }
-
     });
 
-    return redirect()->route('staff.index')->with('success', 'Check-in thành công tại ' . now()->format('Y-m-d H:i:s'));
+    return redirect()->route('staff.checkin')
+        ->with('success', 'Check-in thành công cho booking ' . $booking->ma_tham_chieu . ' lúc ' . now()->format('H:i d/m/Y'));
 }
     public function checkoutForm()
     {
