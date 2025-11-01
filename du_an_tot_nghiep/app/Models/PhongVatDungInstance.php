@@ -17,6 +17,7 @@ class PhongVatDungInstance extends Model
         'status',
         'note',
         'created_by',
+        'quantity',
     ];
 
     public function phong()

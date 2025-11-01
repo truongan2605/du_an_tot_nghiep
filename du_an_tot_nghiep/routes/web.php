@@ -2,9 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
-
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
@@ -30,6 +28,7 @@ use App\Http\Controllers\Admin\BatchNotificationController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 use App\Http\Controllers\Admin\PhongVatDungController;
 use App\Http\Controllers\Admin\PhongConsumptionController;
+use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\VatDungIncidentController;
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -127,6 +126,39 @@ Route::prefix('admin')
         Route::post('phong/incidents', [VatDungIncidentController::class, 'store'])->name('phong.incidents.store');
         Route::put('phong/incidents/{incident}', [VatDungIncidentController::class, 'update'])->name('phong.incidents.update');
         Route::delete('phong/incidents/{incident}', [VatDungIncidentController::class, 'destroy'])->name('phong.incidents.destroy');
+
+        // show modal / page để chọn đồ ăn cho 1 phòng/booking
+        Route::get('phong/{phong}/food-setup', [PhongVatDungController::class, 'showFoodSetup'])
+            ->name('phong.food-setup');
+
+        // create reservation (đặt trước, consumed_at = NULL)
+        Route::post('phong/{phong}/food-reserve', [PhongVatDungController::class, 'reserveFood'])
+            ->name('phong.food-reserve');
+
+        // PhongVatDungInstance routes
+        Route::get('phong/{phong}/vat-dung-instances', [PhongVatDungInstanceController::class, 'index'])
+            ->name('phong.vatdung.instances.index');
+
+        Route::post('phong/{phong}/vat-dung-instances', [PhongVatDungInstanceController::class, 'store'])
+            ->name('phong.vatdung.instances.store');
+
+        Route::patch('phong/vat-dung-instances/{instance}', [PhongVatDungInstanceController::class, 'update'])
+            ->name('phong.vatdung.instances.update');
+
+        Route::patch('phong/vat-dung-instances/{instance}/status', [PhongVatDungInstanceController::class, 'updateStatus'])
+            ->name('phong.vatdung.instances.update-status');
+
+        Route::delete('phong/vat-dung-instances/{instance}', [PhongVatDungInstanceController::class, 'destroy'])
+            ->name('phong.vatdung.instances.destroy');
+
+        Route::post('phong/vat-dung-instances/{instance}/mark-lost', [PhongVatDungInstanceController::class, 'markLost'])
+            ->name('phong.vatdung.instances.mark-lost');
+
+        // Route::post('phong/consumptions/{consumption}/consume', [PhongConsumptionController::class, 'markConsumed'])
+        //     ->name('phong.consumptions.consume');
+
+        Route::post('phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])
+            ->name('phong.consumptions.markConsumed');
     });
 
 // ==================== STAFF ====================

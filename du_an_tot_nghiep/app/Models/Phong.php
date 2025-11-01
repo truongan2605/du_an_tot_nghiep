@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class Phong extends Model
 {
@@ -56,11 +58,12 @@ class Phong extends Model
 
     public function vatDungs()
     {
-        return $this->belongsToMany(VatDung::class, 'phong_vat_dung', 'phong_id', 'vat_dung_id')
+        return $this->belongsToMany(\App\Models\VatDung::class, 'phong_vat_dung')
+            ->using(\App\Models\PhongVatDung::class)
             ->withPivot(['so_luong', 'da_tieu_thu', 'gia_override', 'tracked_instances'])
-            ->withTimestamps()
-            ->where('vat_dungs.active', true);
+            ->withTimestamps();
     }
+
 
     public function vatDungInstances()
     {
@@ -72,12 +75,7 @@ class Phong extends Model
         return $this->hasMany(\App\Models\VatDungIncident::class, 'phong_id');
     }
 
-    /**
-     * Tính tổng tiền đồ ăn tiêu thụ cho phòng (dùng khi checkout).
-     * Logic: cho mỗi pivot:
-     *   consumed = pivot->da_tieu_thu
-     *   unitPrice = pivot->gia_override ?? vat_dung.gia
-     */
+
     public function computeConsumableCharges(): float
     {
         $this->loadMissing(['vatDungs']);
@@ -102,6 +100,34 @@ class Phong extends Model
         });
     }
 
+    public function activeDatPhong(): ?\App\Models\DatPhong
+    {
+        if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
+            $dp = \App\Models\DatPhong::whereHas('datPhongItems', function ($q) {
+                $q->where('phong_id', $this->id);
+            })
+                ->whereIn('trang_thai', ['da_dat', 'dang_su_dung', 'da_xac_nhan'])
+                ->orderByDesc('id')
+                ->first();
+
+            if ($dp) return $dp;
+        }
+
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+            $row = DB::table('giu_phong')
+                ->where('phong_id', $this->id)
+                ->where('released', false)
+                ->where('het_han_luc', '>', now())
+                ->orderByDesc('id')
+                ->first();
+
+            if ($row && !empty($row->dat_phong_id)) {
+                return \App\Models\DatPhong::find($row->dat_phong_id);
+            }
+        }
+
+        return null;
+    }
 
     public function computeVatDungCharges(): float
     {
@@ -123,7 +149,8 @@ class Phong extends Model
 
     public function phongDaDats()
     {
-        return $this->hasMany(PhongDaDat::class);
+        // đã cập nhật
+        return $this->hasMany(DatPhong::class, 'phong_id');
     }
 
     public function wishlists()

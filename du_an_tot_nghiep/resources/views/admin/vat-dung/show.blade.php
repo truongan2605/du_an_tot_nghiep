@@ -74,8 +74,8 @@
                     <h5 class="fw-bold text-dark mb-3">Hình ảnh</h5>
                     @if ($vat_dung->icon && Storage::disk('public')->exists($vat_dung->icon))
                         <div class="border rounded p-2 bg-light shadow-sm d-inline-block">
-                            <img src="{{ Storage::url($vat_dung->icon) }}" alt="Ảnh vật dụng"
-                                class="img-fluid rounded" style="max-height: 260px; object-fit: contain;">
+                            <img src="{{ Storage::url($vat_dung->icon) }}" alt="Ảnh vật dụng" class="img-fluid rounded"
+                                style="max-height: 260px; object-fit: contain;">
                         </div>
                     @else
                         <p class="text-muted mt-3">Không có hình ảnh</p>
@@ -86,36 +86,38 @@
     </div>
 
     {{-- Loại phòng chứa vật dụng --}}
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-gradient bg-primary text-white">
-            <h5 class="mb-0"><i class="fas fa-door-open me-2"></i>Loại phòng có vật dụng này</h5>
-        </div>
-        <div class="card-body">
-            @if ($loaiPhongs->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Tên loại phòng</th>
-                                <th>Giá mặc định</th>
-                                <th>Ngày tạo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($loaiPhongs as $lp)
+    @if ($vat_dung->loai == 'do_dung')
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-gradient bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-door-open me-2"></i>Loại phòng có vật dụng này</h5>
+            </div>
+            <div class="card-body">
+                @if ($loaiPhongs->count() > 0)
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
                                 <tr>
-                                    <td>{{ $lp->ten }}</td>
-                                    <td>{{ number_format($lp->gia_mac_dinh, 0, ',', '.') }} ₫</td>
-                                    <td>{{ $lp->created_at->format('d/m/Y') }}</td>
+                                    <th>Tên loại phòng</th>
+                                    <th>Giá mặc định</th>
+                                    <th>Ngày tạo</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-3">{{ $loaiPhongs->links() }}</div>
-            @else
-                <p class="text-muted mb-0">Chưa có loại phòng nào sử dụng vật dụng này.</p>
-            @endif
+                            </thead>
+                            <tbody>
+                                @foreach ($loaiPhongs as $lp)
+                                    <tr>
+                                        <td>{{ $lp->ten }}</td>
+                                        <td>{{ number_format($lp->gia_mac_dinh, 0, ',', '.') }} ₫</td>
+                                        <td>{{ $lp->created_at->format('d/m/Y') }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3">{{ $loaiPhongs->links() }}</div>
+                @else
+                    <p class="text-muted mb-0">Chưa có loại phòng nào sử dụng vật dụng này.</p>
+                @endif
+            </div>
         </div>
-    </div>
+    @endif
 @endsection

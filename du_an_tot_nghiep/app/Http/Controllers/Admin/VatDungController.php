@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Models\Phong;
 use App\Models\LoaiPhong;
+use Illuminate\Support\Facades\Auth;
 
 class VatDungController extends Controller
 {
@@ -45,8 +46,14 @@ class VatDungController extends Controller
         ]);
 
         $data = $request->only(['ten', 'mo_ta', 'gia', 'loai']);
+        $newTracked = $request->boolean('tracked_instances', false);
+
+        if (($data['loai'] ?? null) === VatDung::LOAI_DO_AN && $newTracked) {
+            return back()->withInput()->withErrors(['tracked_instances' => 'Không được bật theo dõi bản (tracked_instances) cho vật dụng loại "Đồ ăn".']);
+        }
+
         $data['gia'] = $request->filled('gia') ? (float)$request->gia : ($data['gia'] ?? 0);
-        $data['tracked_instances'] = $request->boolean('tracked_instances', false);
+        $data['tracked_instances'] = $newTracked;
         $data['active'] = $request->boolean('active', true);
 
         if ($request->hasFile('icon')) {
@@ -87,9 +94,18 @@ class VatDungController extends Controller
             'active' => 'nullable|boolean',
         ]);
 
+        // Lấy dữ liệu đầu vào
+        $newLoai = $request->input('loai', $vatDung->loai);
+        $newTracked = $request->boolean('tracked_instances', $vatDung->tracked_instances ?? false);
+
+        // Không cho bật tracked_instances cho do_an
+        if ($newLoai === VatDung::LOAI_DO_AN && $newTracked) {
+            return back()->withInput()->withErrors(['tracked_instances' => 'Không được bật theo dõi bản (tracked_instances) cho vật dụng loại "Đồ ăn".']);
+        }
+
         $data = $request->only(['ten', 'mo_ta', 'loai']);
         $data['gia'] = $request->filled('gia') ? (float)$request->gia : ($vatDung->gia ?? 0);
-        $data['tracked_instances'] = $request->boolean('tracked_instances', $vatDung->tracked_instances ?? false);
+        $data['tracked_instances'] = $newTracked;
         $data['active'] = $request->boolean('active', $vatDung->active ?? true);
 
         if ($request->hasFile('icon')) {
@@ -97,13 +113,53 @@ class VatDungController extends Controller
                 try {
                     Storage::disk('public')->delete($vatDung->icon);
                 } catch (\Throwable $e) {
-                    // không block nếu xóa thất bại, chỉ log nếu cần
+                    // ignore
                 }
             }
             $data['icon'] = $request->file('icon')->store('vatdung_icons', 'public');
         }
 
-        $vatDung->update($data);
+        DB::transaction(function () use ($vatDung, $data) {
+            $oldTracked = (bool)$vatDung->tracked_instances;
+            $vatDung->update($data);
+            $newTracked = (bool)$data['tracked_instances'];
+
+            if (!$oldTracked && $newTracked) {
+                $pivots = DB::table('phong_vat_dung')->where('vat_dung_id', $vatDung->id)->get();
+                foreach ($pivots as $pv) {
+                    $qty = (int)($pv->so_luong ?? 0);
+                    for ($i = 0; $i < $qty; $i++) {
+                        DB::table('phong_vat_dung_instances')->insert([
+                            'phong_id' => $pv->phong_id,
+                            'vat_dung_id' => $vatDung->id,
+                            'serial' => null,
+                            'status' => 'ok',
+                            'created_by' => Auth::id() ?? null,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
+            }
+
+            if ($oldTracked && !$newTracked) {
+                $instances = DB::table('phong_vat_dung_instances')
+                    ->where('vat_dung_id', $vatDung->id)
+                    ->where('status', 'ok')
+                    ->get()
+                    ->groupBy('phong_id');
+
+                foreach ($instances as $phongId => $rows) {
+                    $aliveCount = count($rows);
+                    DB::table('phong_vat_dung')
+                        ->updateOrInsert(
+                            ['phong_id' => $phongId, 'vat_dung_id' => $vatDung->id],
+                            ['so_luong' => $aliveCount, 'updated_at' => now()]
+                        );
+                }
+                DB::table('phong_vat_dung_instances')->where('vat_dung_id', $vatDung->id)->update(['status' => 'archived', 'updated_at' => now()]);
+            }
+        });
 
         return redirect()
             ->route('admin.vat-dung.index')
@@ -155,25 +211,22 @@ class VatDungController extends Controller
     {
         if ($this->hasRelatedOccupiedRooms($vatDung)) {
             return redirect()->back()->withErrors([
-                'error' => 'Không thể xóa vật dụng này vì có ít nhất một phòng đang ở (dang_o) liên quan đến vật dụng.'
+                'error' => 'Không thể xóa vật dụng này vì có ít nhất một phòng đang ở liên quan đến vật dụng.'
             ]);
         }
 
         DB::beginTransaction();
         try {
-
             if ($vatDung->icon && Storage::disk('public')->exists($vatDung->icon)) {
                 Storage::disk('public')->delete($vatDung->icon);
             }
 
-            if (method_exists($vatDung, 'loaiPhongs')) {
-                $vatDung->loaiPhongs()->detach();
-            }
-            if (method_exists($vatDung, 'phongs')) {
-                $vatDung->phongs()->detach();
-            }
-
+            DB::table('phong_vat_dung_instances')->where('vat_dung_id', $vatDung->id)->delete();
+            DB::table('phong_vat_dung_consumptions')->where('vat_dung_id', $vatDung->id)->delete();
+            $vatDung->loaiPhongs()->detach();
+            $vatDung->phongs()->detach();
             $vatDung->delete();
+
             DB::commit();
 
             return redirect()->route('admin.vat-dung.index')

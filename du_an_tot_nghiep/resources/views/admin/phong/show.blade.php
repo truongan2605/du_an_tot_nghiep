@@ -156,20 +156,11 @@
                                     <tr>
                                         <td>Giá loại phòng</td>
                                         <td class="text-end"><strong>{{ number_format($typePrice, 0, ',', '.') }}
-                                                đ</strong>
-                                        </td>
+                                                đ</strong></td>
                                     </tr>
                                     <tr>
                                         <td>Tổng tiện nghi mặc định</td>
                                         <td class="text-end">{{ number_format($typeAmenitiesSum, 0, ',', '.') }} đ</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Tổng tiện nghi bổ sung</td>
-                                        <td class="text-end">{{ number_format($boSungSum, 0, ',', '.') }} đ</td>
-                                    </tr>
-                                    <tr class="table-active">
-                                        <td>Tổng tiện nghi</td>
-                                        <td class="text-end">{{ number_format($allAmenitiesSum, 0, ',', '.') }} đ</td>
                                     </tr>
                                     <tr class="table-active">
                                         <td>Tổng giá giường</td>
@@ -210,23 +201,15 @@
                 <!-- Tiện nghi -->
                 <div class="mt-4">
                     <h5 class="fw-bold">Tiện nghi</h5>
-                    <div class="row">
-                        @php
-                            $tienMacDinh = $phong->loaiPhong?->tienNghis ?? collect();
-                            $tienPhongAll = $phong->tienNghis ?? collect();
-                            $tienBoSung = $tienPhongAll->reject(function ($item) use ($tienMacDinh) {
-                                return $tienMacDinh->contains('id', $item->id);
-                            });
-                        @endphp
 
-                        <!-- Tiện nghi mặc định -->
-                        <div class="col-md-6">
+                    <div class="row">
+                        <div class="col-12">
                             <div class="card border-success">
-                                <div class="card-header bg-success text-white">Tiện nghi mặc định</div>
+                                <div class="card-header bg-success text-white">Tiện nghi</div>
                                 <div class="card-body">
-                                    @if ($tienMacDinh->count())
+                                    @if ($tienNghiLoaiPhong->count())
                                         <ul class="list-unstyled mb-0">
-                                            @foreach ($tienMacDinh as $tn)
+                                            @foreach ($tienNghiLoaiPhong as $tn)
                                                 <li>
                                                     ✔ {{ $tn->ten }}
                                                     <small class="text-muted"> —
@@ -240,96 +223,154 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Tiện nghi bổ sung -->
+                <!-- Vật dụng -->
+                <div class="mt-4">
+                    <h5 class="fw-bold">Vật dụng</h5>
+                    <div class="row gy-3">
+                        <!-- Đồ vật (do_dung) — danh sách theo loại phòng -->
                         <div class="col-md-6">
-                            <div class="card border-info">
-                                <div class="card-header bg-info text-white">Tiện nghi bổ sung</div>
+                            <div class="card border-dark">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <div>Đồ vật</div>
+                                    <a href="{{ route('admin.phong.vatdung.instances.index', ['phong' => $phong->id]) }}"
+                                        class="btn btn-sm btn-light">Quản lý bản thể</a>
+                                </div>
                                 <div class="card-body">
-                                    @if ($tienBoSung->count())
+                                    @if ($vatDungLoaiPhongDoDung->count())
                                         <ul class="list-unstyled mb-0">
-                                            @foreach ($tienBoSung as $tn)
-                                                <li>
-                                                    ➕ {{ $tn->ten }}
+                                            @foreach ($vatDungLoaiPhongDoDung as $vd)
+                                                @php
+                                                    $inst = $instancesMap[$vd->id] ?? null;
+                                                    $instCount = $inst['count'] ?? 0;
+                                                @endphp
+                                                <li class="mb-2">
+                                                    ✔ {{ $vd->ten }}
                                                     <small class="text-muted"> —
-                                                        {{ number_format($tn->gia ?? 0, 0, ',', '.') }} đ</small>
+                                                        {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ</small>
+                                                    @if ($instCount > 0)
+                                                        <span class="badge bg-info ms-2">Bản thể:
+                                                            {{ $instCount }}</span>
+                                                    @else
+                                                        <span class="text-muted ms-2">Không có bản thể</span>
+                                                    @endif
+
+                                                    @if ($vd->tracked_instances)
+                                                        <span class="badge bg-secondary ms-2">Theo dõi bản</span>
+                                                    @endif
+
+                                                    <!-- quick expand instances (if exist) -->
+                                                    @if (!empty($inst['rows']))
+                                                        <div class="mt-2">
+                                                            <small class="text-muted">Danh sách bản thể:</small>
+                                                            <ul class="mb-0">
+                                                                @foreach ($inst['rows'] as $row)
+                                                                    <li>
+                                                                        #{{ $row->id }} - {{ $row->serial ?? '-' }} -
+                                                                        <strong>{{ $row->status }}</strong>
+                                                                        <form
+                                                                            action="{{ route('admin.phong.vatdung.instances.update-status', $row->id) }}"
+                                                                            method="POST" class="d-inline ms-2">
+                                                                            @csrf @method('PATCH')
+                                                                            <input type="hidden" name="status"
+                                                                                value="lost">
+                                                                            <button
+                                                                                class="btn btn-sm btn-outline-danger btn-xs"
+                                                                                onclick="return confirm('Đánh dấu mất?')">Đánh
+                                                                                dấu mất</button>
+                                                                        </form>
+                                                                        <form
+                                                                            action="{{ route('admin.phong.vatdung.instances.update-status', $row->id) }}"
+                                                                            method="POST" class="d-inline ms-1">
+                                                                            @csrf @method('PATCH')
+                                                                            <input type="hidden" name="status"
+                                                                                value="ok">
+                                                                            <button
+                                                                                class="btn btn-sm btn-outline-success btn-xs">Đánh
+                                                                                OK</button>
+                                                                        </form>
+                                                                    </li>
+                                                                @endforeach
+                                                            </ul>
+                                                        </div>
+                                                    @endif
                                                 </li>
                                             @endforeach
                                         </ul>
                                     @else
-                                        <p><em>Chưa có tiện nghi bổ sung</em></p>
+                                        <p><em>Không có đồ vật mặc định cho loại phòng này.</em></p>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Đồ ăn (do_an) trong phòng + số lượng hiện tại -->
+                        <div class="col-md-6">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">Đồ ăn</div>
+                                <div class="card-body">
+                                    @if ($vatPhongDoAn->count())
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Tên</th>
+                                                    <th class="text-center">Configured</th>
+                                                    <th class="text-center">Reserved</th>
+                                                    <th class="text-center">Consumed</th>
+                                                    <th class="text-center">Available</th>
+                                                    <th class="text-center">Hành động</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($vatPhongDoAn as $vd)
+                                                    @php
+                                                        $pivotQty = (int) ($vd->pivot->so_luong ?? 0);
+                                                        $stats = $consMap[$vd->id] ?? [
+                                                            'reserved' => 0,
+                                                            'consumed' => 0,
+                                                        ];
+                                                        $reserved = (int) $stats['reserved'];
+                                                        $consumed = (int) $stats['consumed'];
+                                                        $available = max(0, $pivotQty - $reserved - $consumed);
+                                                    @endphp
+                                                    <tr>
+                                                        <td>{{ $vd->ten }}</td>
+                                                        <td class="text-center">{{ $pivotQty }}</td>
+                                                        <td class="text-center">{{ $reserved }}</td>
+                                                        <td class="text-center">{{ $consumed }}</td>
+                                                        <td class="text-center">{{ $available }}</td>
+                                                        <td class="text-center">
+
+                                                            @if (isset($existingReservations) && $existingReservations->has($vd->id))
+                                                                @php $row = $existingReservations->get($vd->id); @endphp
+                                                                <form
+                                                                    action="{{ route('admin.phong.consumptions.markConsumed', $row->id) }}"
+                                                                    method="POST" class="d-inline">
+                                                                    @csrf
+                                                                    {{-- nếu muốn truyền unit_price (ví dụ giá pivot) --}}
+                                                                    <input type="hidden" name="unit_price"
+                                                                        value="{{ $row->unit_price ?? '' }}" />
+                                                                    <button class="btn btn-sm btn-success" type="submit"
+                                                                        title="Đánh dấu đã tiêu thụ">Mark consumed</button>
+                                                                </form>
+                                                            @endif
+
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    @else
+                                        <p><em>Không có đồ ăn/consumables được cấu hình cho phòng này.</em></p>
                                     @endif
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-<!-- Vật dụng -->
-<div class="mt-4">
-    <h5 class="fw-bold">Vật dụng</h5>
-    <div class="row">
-        @php
-            // Lấy danh sách vật dụng mặc định theo loại phòng
-            $vatMacDinh = $vatDungLoaiPhong->where('trang_thai', 0) ?? collect();
-
-            // Lấy danh sách vật dụng theo phòng
-            $vatPhongAll = $vatDungPhong->where('trang_thai', 0) ?? collect();
-
-            // Tính vật dụng bổ sung (có trong phòng nhưng không có trong loại phòng)
-            $vatBoSung = $vatPhongAll->reject(function ($item) use ($vatMacDinh) {
-                return $vatMacDinh->contains('id', $item->id);
-            });
-        @endphp
-
-        <!-- Vật dụng mặc định -->
-        <div class="col-md-6">
-            <div class="card border-success">
-                <div class="card-header bg-success text-white">Vật dụng mặc định</div>
-                <div class="card-body">
-                    @if ($vatMacDinh->count())
-                        <ul class="list-unstyled mb-0">
-                            @foreach ($vatMacDinh as $vd)
-                                <li>
-                                    ✔ {{ $vd->ten }}
-                                    <small class="text-muted"> — 
-                                        {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ
-                                    </small>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @else
-                        <p><em>Không có vật dụng mặc định</em></p>
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        <!-- Vật dụng bổ sung -->
-        <div class="col-md-6">
-            <div class="card border-info">
-                <div class="card-header bg-info text-white">Vật dụng bổ sung</div>
-                <div class="card-body">
-                    @if ($vatBoSung->count())
-                        <ul class="list-unstyled mb-0">
-                            @foreach ($vatBoSung as $vd)
-                                <li>
-                                    ➕ {{ $vd->ten }}
-                                    <small class="text-muted"> — 
-                                        {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ
-                                    </small>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @else
-                        <p><em>Không có vật dụng bổ sung</em></p>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
 
                 <div class="mt-3 text-end">
                     <h5>Tổng giá phòng:

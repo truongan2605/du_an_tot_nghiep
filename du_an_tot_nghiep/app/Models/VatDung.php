@@ -44,19 +44,26 @@ class VatDung extends Model
     // Relationships
     public function phongs()
     {
-        return $this->belongsToMany(Phong::class, 'phong_vat_dung');
+        return $this->belongsToMany(Phong::class, 'phong_vat_dung')
+            ->using(\App\Models\PhongVatDung::class)
+            ->withPivot(['so_luong', 'da_tieu_thu', 'gia_override', 'tracked_instances'])
+            ->withTimestamps();
     }
+
 
     public function loaiPhongs()
     {
-        return $this->belongsToMany(LoaiPhong::class, 'loai_phong_vat_dung', 'vat_dung_id', 'loai_phong_id');
+        return $this->belongsToMany(LoaiPhong::class, 'loai_phong_vat_dung', 'vat_dung_id', 'loai_phong_id')
+            ->withPivot(['so_luong', 'tracked_instances'])
+            ->withTimestamps();
     }
+
 
     public function instances()
     {
         return $this->hasMany(\App\Models\PhongVatDungInstance::class, 'vat_dung_id');
     }
-    
+
     public function scopeActive($query)
     {
         return $query->where('active', true);

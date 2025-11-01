@@ -100,6 +100,29 @@ class LoaiPhongController extends Controller
                     ->toArray();
                 $loaiPhong->vatDungs()->sync($ids);
             }
+            if (!empty($ids)) {
+                $phongs = \App\Models\Phong::where('loai_phong_id', $loaiPhong->id)->get();
+                foreach ($phongs as $p) {
+                    foreach ($ids as $vdId) {
+                        $exists = DB::table('phong_vat_dung')
+                            ->where('phong_id', $p->id)
+                            ->where('vat_dung_id', $vdId)
+                            ->exists();
+                        if (! $exists) {
+                            DB::table('phong_vat_dung')->insert([
+                                'phong_id' => $p->id,
+                                'vat_dung_id' => $vdId,
+                                'so_luong' => 0,
+                                'gia_override' => null,
+                                'tracked_instances' => (bool) \App\Models\VatDung::find($vdId)->tracked_instances,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+                }
+            }
+
 
             $bedData = $request->input('bed_types', null);
 
@@ -177,7 +200,6 @@ class LoaiPhongController extends Controller
             'so_giuong' => 'nullable|integer|min:0',
             'gia_mac_dinh' => 'required|numeric',
             'so_luong_thuc_te' => 'required|integer',
-            // chấp nhận cả 2 tên input
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'exists:tien_nghi,id',
             'tien_nghi_ids' => 'nullable|array',
@@ -193,9 +215,9 @@ class LoaiPhongController extends Controller
 
         DB::beginTransaction();
         try {
-            $loaiphong = LoaiPhong::findOrFail($id);
+            $loaiPhong = LoaiPhong::findOrFail($id);
 
-            $loaiphong->update($request->only([
+            $loaiPhong->update($request->only([
                 'ma',
                 'ten',
                 'mo_ta',
@@ -204,7 +226,7 @@ class LoaiPhongController extends Controller
             ]));
 
             $tienNghiInput = $request->input('tien_nghi', $request->input('tien_nghi_ids', []));
-            $loaiphong->tienNghis()->sync($tienNghiInput);
+            $loaiPhong->tienNghis()->sync($tienNghiInput);
 
             $rawVatDungs = $request->input('vat_dungs', $request->input('vat_dung_ids', []));
             $vatIds = [];
@@ -214,7 +236,30 @@ class LoaiPhongController extends Controller
                     ->pluck('id')
                     ->toArray();
             }
-            $loaiphong->vatDungs()->sync($vatIds);
+            $loaiPhong->vatDungs()->sync($vatIds);
+            if (!empty($ids)) {
+                $phongs = \App\Models\Phong::where('loai_phong_id', $loaiPhong->id)->get();
+                foreach ($phongs as $p) {
+                    foreach ($ids as $vdId) {
+                        $exists = DB::table('phong_vat_dung')
+                            ->where('phong_id', $p->id)
+                            ->where('vat_dung_id', $vdId)
+                            ->exists();
+                        if (! $exists) {
+                            DB::table('phong_vat_dung')->insert([
+                                'phong_id' => $p->id,
+                                'vat_dung_id' => $vdId,
+                                'so_luong' => 0,
+                                'gia_override' => null,
+                                'tracked_instances' => (bool) \App\Models\VatDung::find($vdId)->tracked_instances,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                    }
+                }
+            }
+
 
             if ($request->has('bed_types')) {
                 $bedData = $request->input('bed_types', []);
@@ -240,11 +285,11 @@ class LoaiPhongController extends Controller
                     $sync[$bedTypeId] = ['quantity' => $qty, 'price' => $price];
                 }
 
-                $loaiphong->bedTypes()->sync($sync);
+                $loaiPhong->bedTypes()->sync($sync);
 
                 $totalCapacity = 0;
                 $totalBeds = 0;
-                $bedModels = $loaiphong->bedTypes()->get();
+                $bedModels = $loaiPhong->bedTypes()->get();
                 foreach ($bedModels as $b) {
                     $qty = (int) ($b->pivot->quantity ?? 0);
                     $cap = (int) ($b->capacity ?? 1);
@@ -252,13 +297,13 @@ class LoaiPhongController extends Controller
                     $totalBeds += $qty;
                 }
 
-                $loaiphong->suc_chua = $totalCapacity;
-                $loaiphong->so_giuong = $totalBeds;
-                $loaiphong->save();
+                $loaiPhong->suc_chua = $totalCapacity;
+                $loaiPhong->so_giuong = $totalBeds;
+                $loaiPhong->save();
             } else {
-                $loaiphong->suc_chua = (int) $request->input('suc_chua', $loaiphong->suc_chua);
-                $loaiphong->so_giuong = (int) $request->input('so_giuong', $loaiphong->so_giuong);
-                $loaiphong->save();
+                $loaiPhong->suc_chua = (int) $request->input('suc_chua', $loaiPhong->suc_chua);
+                $loaiPhong->so_giuong = (int) $request->input('so_giuong', $loaiPhong->so_giuong);
+                $loaiPhong->save();
             }
 
             DB::commit();
