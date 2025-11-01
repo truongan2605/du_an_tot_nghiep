@@ -8,15 +8,19 @@ class AddCheckedInAtToDatPhong extends Migration
 {
     public function up()
     {
-        Schema::table('dat_phong', function (Blueprint $table) {
-            $table->timestamp('checked_in_at')->nullable()->after('ngay_tra_phong');
-        });
+        if (! Schema::hasColumn('dat_phong', 'checked_in_at')) {
+            Schema::table('dat_phong', function (Blueprint $table) {
+                $table->timestamp('checked_in_at')->nullable()->after('ngay_tra_phong');
+            });
+        }
     }
 
     public function down()
     {
-        Schema::table('dat_phong', function (Blueprint $table) {
-            $table->dropColumn('checked_in_at');
-        });
+        if (Schema::hasColumn('dat_phong', 'checked_in_at')) {
+            Schema::table('dat_phong', function (Blueprint $table) {
+                $table->dropColumn('checked_in_at');
+            });
+        }
     }
 }

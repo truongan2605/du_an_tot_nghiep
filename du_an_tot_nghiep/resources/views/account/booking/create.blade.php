@@ -69,7 +69,7 @@
                         <p>Check-in: 2:00 pm</p>
                         <p>Check out: 12:00 am.</p>
                         <p>Tự làm thủ tục nhận phòng với nhân viên tòa khách sạn</p>
-                        <p>Thú Cưng.</p>
+                        <p>Không được phép mang vật nuôi bên ngoài khách sạn.</p>
                         <p>Được sử dụng thuốc lá.</p>
                     
                     </div>
