@@ -6,6 +6,48 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h2 class="mb-0">Danh sách Loại Phòng</h2>
+ <!-- Thêm link CSS & JS của Select2 -->
+
+
+<form action="{{ route('admin.loai_phong.index') }}" method="GET" class="row g-3 mb-4">
+    <!-- 🔹 Lọc theo tên loại phòng -->
+    <div class="col-md-4">
+        <label class="form-label fw-bold text-primary">Tên loại phòng</label>
+        <input type="text" 
+               name="ten" 
+               value="{{ request('ten') }}" 
+               class="form-control shadow-sm" 
+               placeholder="Nhập tên loại phòng...">
+    </div>
+
+    <!-- 🔹 Lọc theo tiện nghi -->
+    <div class="col-md-5">
+        <label class="form-label fw-bold text-primary">Tiện nghi</label>
+        <select name="tien_nghi_ids[]" class="form-select select2-multiple shadow-sm" multiple>
+            @foreach($dsTienNghis as $tn)
+                <option value="{{ $tn->id }}" 
+                    {{ collect(request('tien_nghi_ids'))->contains($tn->id) ? 'selected' : '' }}>
+                    {{ $tn->ten }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+
+    <!-- 🔹 Nút hành động -->
+    <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary shadow-sm me-2">
+            <i class="bi bi-funnel"></i> Lọc
+        </button>
+        <a href="{{ route('admin.loai_phong.index') }}" class="btn btn-outline-secondary shadow-sm">
+            <i class="bi bi-arrow-clockwise"></i> Làm mới
+        </a>
+    </div>
+</form>
+
+<!-- Kích hoạt Select2 -->
+
+
+
             <a href="{{ route('admin.loai_phong.create') }}" class="btn btn-primary">+ Thêm loại phòng</a>
         </div>
 
@@ -141,4 +183,14 @@
             }
         });
     </script>
+    <script>
+    $(document).ready(function() {
+        $('.select2-multiple').select2({
+            placeholder: "Chọn tiện nghi...",
+            allowClear: true,
+            width: '100%',
+            closeOnSelect: false
+        });
+    });
+</script>
 @endsection

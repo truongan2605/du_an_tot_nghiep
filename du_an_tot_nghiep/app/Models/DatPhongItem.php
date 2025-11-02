@@ -29,18 +29,20 @@ class DatPhongItem extends Model
         'taxes_amount' => 'decimal:2',
     ];
 
+    // Relationships
+  
     protected $attributes = [
         'so_dem' => 1,
     ];
 
     public function datPhong()
     {
-        return $this->belongsTo(DatPhong::class);
+        return $this->belongsTo(DatPhong::class, 'dat_phong_id');
     }
 
     public function loaiPhong()
     {
-        return $this->belongsTo(LoaiPhong::class);
+        return $this->belongsTo(LoaiPhong::class, 'loai_phong_id');
     }
 
      public function phong()
@@ -50,7 +52,7 @@ class DatPhongItem extends Model
 
     public function phongDaDats()
     {
-        return $this->hasMany(PhongDaDat::class);
+        return $this->hasMany(PhongDaDat::class, 'dat_phong_item_id');
     }
 
     // Accessors

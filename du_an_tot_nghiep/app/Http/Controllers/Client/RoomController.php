@@ -48,11 +48,13 @@ class RoomController extends Controller
             $query->whereBetween('gia_cuoi_cung', [$request->gia_min, $request->gia_max]);
         }
         // =============== Lọc theo tiện nghi ===============
-        if ($request->filled('amenities')) {
-    $query->whereHas('tienNghis', function ($q) use ($request) {
-        $q->whereIn('tien_nghi.id', $request->amenities);
-    });
-}
+        if ($request->filled('tien_nghi')) {
+            $tienNghiIds = (array)$request->tien_nghi;
+            $query->whereHas('tienNghis', function ($q) use ($tienNghiIds) {
+                $q->whereIn('tien_nghi.id', $tienNghiIds);
+            });
+        }
+        
         // ====== Lọc theo ngày Check-in / Check-out ======
     $checkIn = null;
     $checkOut = null;

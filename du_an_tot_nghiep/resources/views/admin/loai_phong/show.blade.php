@@ -49,6 +49,24 @@
                 @endif
             </td>
         </tr>
+        <tr>
+    <th>Vật dụng:</th>
+    <td>
+        @if($loaiphong->vatDungs->isNotEmpty())
+            <ul>
+                @foreach($loaiphong->vatDungs as $vatDung)
+                    <li>
+                        {{ $vatDung->ten }}
+                       
+                    </li>
+                @endforeach
+            </ul>
+        @else
+            <em>Chưa có vật dụng</em>
+        @endif
+    </td>
+</tr>
+        
     </table>
 
     <h5>Bed types cấu hình</h5>

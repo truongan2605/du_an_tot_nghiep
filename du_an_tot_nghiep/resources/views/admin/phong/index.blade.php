@@ -5,6 +5,40 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3>Danh sách phòng</h3>
+            <form method="GET" action="{{ route('admin.phong.index') }}" class="row g-3 mb-4">
+    <div class="col-md-3">
+        <input type="text" name="ma_phong" class="form-control" placeholder="Mã phòng"
+               value="{{ request('ma_phong') }}">
+    </div>
+    <div class="col-md-3">
+        <input type="text" name="name" class="form-control" placeholder="Tên phòng"
+               value="{{ request('name') }}">
+    </div>
+    <div class="col-md-3">
+        <select name="loai_phong_id" class="form-select">
+            <option value="">-- Chọn loại phòng --</option>
+            @foreach($loaiPhongs as $lp)
+                <option value="{{ $lp->id }}" {{ request('loai_phong_id') == $lp->id ? 'selected' : '' }}>
+                    {{ $lp->ten }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select name="tang_id" class="form-select">
+            <option value="">-- Chọn tầng --</option>
+            @foreach($tangs as $tang)
+                <option value="{{ $tang->id }}" {{ request('tang_id') == $tang->id ? 'selected' : '' }}>
+                    {{ $tang->ten }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+    <div class="col-md-1 d-flex gap-2">
+        <button type="submit" class="btn btn-primary w-100">Lọc</button>
+    </div>
+</form>
+
             <a href="{{ route('admin.phong.create') }}" class="btn btn-primary">+ Thêm phòng</a>
         </div>
 

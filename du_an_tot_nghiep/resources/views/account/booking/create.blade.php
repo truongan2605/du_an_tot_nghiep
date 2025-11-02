@@ -56,6 +56,20 @@
                                 <div class="card-body p-4">
                                     <form action="{{ route('account.booking.store') }}" method="POST" id="bookingForm">
                                         @csrf
+
+                                        {{-- server-side messages --}}
+                                        <div id="server_message_container" class="mb-3">
+                                            @if (session('success'))
+                                                <div id="server_success" data-message="{{ e(session('success')) }}"
+                                                    data-datphong="{{ session('dat_phong_id') ?? '' }}"></div>
+                                            @endif
+
+                                            @if ($errors->any())
+                                                {{-- ưu tiên hiển thị lỗi cụ thể trước --}}
+                                                <div id="server_error" data-message="{{ e($errors->first()) }}"></div>
+                                            @endif
+                                        </div>
+
                                         <input type="hidden" name="phong_id" value="{{ $phong->id }}">
                                         <input type="hidden" name="spec_signature_hash"
                                             value="{{ $phong->spec_signature_hash ?? $phong->specSignatureHash() }}">
@@ -67,17 +81,25 @@
                                                     <div
                                                         class="form-control-border form-control-transparent form-fs-md w-100">
                                                         <label class="form-label">Check in - Check out</label>
+
                                                         <input id="date_range" type="text" class="form-control flatpickr"
                                                             placeholder="Select date range" readonly>
+
                                                         <input type="hidden" name="ngay_nhan_phong" id="ngay_nhan_phong"
                                                             value="{{ old('ngay_nhan_phong', \Carbon\Carbon::today()->format('Y-m-d')) }}">
+
                                                         <input type="hidden" name="ngay_tra_phong" id="ngay_tra_phong"
                                                             value="{{ old('ngay_tra_phong', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}">
+
                                                         <small class="text-muted">Check-in time: 2:00 pm — Check-out time:
                                                             12:00 pm</small>
+
+                                                        <div id="availability_message" class="small mt-2"></div>
+
                                                         @error('ngay_nhan_phong')
                                                             <div class="text-danger small">{{ $message }}</div>
                                                         @enderror
+
                                                         @error('ngay_tra_phong')
                                                             <div class="text-danger small">{{ $message }}</div>
                                                         @enderror
@@ -132,7 +154,8 @@
                                                     </div>
 
                                                     <div class="mt-3">
-                                                        <strong>Room beds:</strong>
+                                                        <i class="fa-solid fa-bed"></i>
+                                                        <strong> Room beds:</strong>
                                                         <ul class="list-unstyled mb-2">
                                                             @forelse ($phong->bedTypes as $bt)
                                                                 <li class="mb-1">
@@ -157,6 +180,7 @@
                                                             @endforelse
                                                         </ul>
                                                     </div>
+
 
                                                     <input type="hidden" name="so_khach" id="so_khach"
                                                         value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
@@ -273,20 +297,46 @@
                                                 </div>
 
                                                 <div class="mb-3">
-                                                    <label class="form-label">Payment method</label>
-                                                    <select name="phuong_thuc" class="form-select" required>
-                                                        <option value="tien_mat"
-                                                            {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>Pay at
-                                                            the hotel (Cash)</option>
-                                                        <option value="vnpay"
-                                                            {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>VNPAY QR
-                                                        </option>
-                                                        <option value="chuyen_khoan"
-                                                            {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
-                                                            Bank transfer</option>
-                                                    </select>
+
+                                                    <input type="hidden" name="phong_id" value="{{ $phong->id }}">
+                                                    <input type="hidden" name="tong_tien" id="hidden_tong_tien"
+                                                        value="{{ $phong->tong_gia ?? ($phong->tong_tien ?? ($phong->gia_mac_dinh ?? 0)) }}">
+                                                    <input type="hidden" name="ngay_nhan"
+                                                        value="{{ $ngay_nhan ?? now()->format('Y-m-d') }}">
+                                                    <input type="hidden" name="ngay_tra"
+                                                        value="{{ $ngay_tra ?? now()->addDay()->format('Y-m-d') }}">
+
+
+
+                                                    <div class="mt-3" id="vnpay_button_wrapper" style="display:none;">
+                                                        <button type="button" class="btn btn-lg btn-success"
+                                                            id="pay_vnpay_btn">
+                                                            Pay with VNPAY
+                                                        </button>
+                                                    </div>
+
+                                                    <div class="mt-3">
+                                                        <label for="phuong_thuc" class="form-label">Payment method</label>
+                                                        <select name="phuong_thuc" id="phuong_thuc" class="form-select"
+                                                            required>
+                                                            <option value="">Select method</option>
+                                                            <option value="tien_mat"
+                                                                {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>
+                                                                Pay at the hotel (Cash)
+                                                            </option>
+                                                            <option value="vnpay">
+                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}
+                                                                Pay with VNPAY
+                                                            </option>
+                                                            <option value="chuyen_khoan"
+                                                                {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
+                                                                Bank transfer
+                                                            </option>
+                                                        </select>
+                                                    </div>
+
                                                 </div>
-                                                
+
                                                 <input type="hidden" name="final_per_night" id="final_per_night_input"
                                                     value="">
                                                 <input type="hidden" name="snapshot_total" id="snapshot_total_input"
@@ -404,12 +454,18 @@
             const totalDisplay = document.getElementById('total_snapshot_display');
             const payableDisplay = document.getElementById('payable_now_display');
 
+            const availDisplayEl = document.getElementById('available_rooms_display');
+            const availabilityMessageEl = document.getElementById('availability_message');
+
             const pricePerNight = Number({!! json_encode((float) ($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0))) !!});
             const baseCapacity = Number({{ $baseCapacity }});
 
             const ADULT_PRICE = {{ \App\Http\Controllers\Client\BookingController::ADULT_PRICE }};
             const CHILD_PRICE = {{ \App\Http\Controllers\Client\BookingController::CHILD_PRICE }};
             const CHILD_FREE_AGE = {{ \App\Http\Controllers\Client\BookingController::CHILD_FREE_AGE }};
+
+            // track latest availability result for use in validation
+            let currentAvailableRooms = Number(availDisplayEl ? (availDisplayEl.innerText || 0) : 0);
 
             function fmtVnd(num) {
                 return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
@@ -498,16 +554,106 @@
                     }
                     const data = await res.json();
                     const avail = Number(data.available || 0);
-                    const availDisplay = document.getElementById('available_rooms_display');
+                    currentAvailableRooms = avail;
+
+                    // update UI
+                    if (availDisplayEl) availDisplayEl.innerText = avail;
                     if (roomsInput) {
+                        // set max for rooms input; keep value within range (if avail==0 we keep value but disable submit via validation)
                         roomsInput.max = avail;
                         if (Number(roomsInput.value || 0) > avail) roomsInput.value = Math.max(1, avail);
                     }
-                    if (availDisplay) availDisplay.innerText = avail;
+
+                    // When no rooms available, show friendly suggestion (try to find next available start date)
+                    if (avail === 0) {
+                        showNoAvailabilityMessage(from, to);
+                    } else {
+                        clearAvailabilityMessage();
+                    }
+
                     updateSummary();
                 } catch (err) {
                     console.error('Availability check error', err);
                 }
+            }
+
+            function showNoAvailabilityMessage(fromStr, toStr) {
+                if (!availabilityMessageEl) return;
+                availabilityMessageEl.className = 'small mt-2 text-danger';
+                availabilityMessageEl.innerText =
+                    'There are currently no rooms available for the selected date range. Looking for the nearest available date...';
+                // try to find next available start (scan up to 30 days)
+                findNextAvailable(fromStr, 30).then(nextStart => {
+                    if (!nextStart) {
+                        availabilityMessageEl.innerText =
+                            'There are currently no rooms available for the next 30 days. Please choose a different period.';
+                    } else {
+                        availabilityMessageEl.innerHTML =
+                            `There are currently no rooms available for the selected date range. Please select a date starting from <strong>${nextStart}</strong> onwards.`;
+                    }
+                }).catch(() => {
+                    availabilityMessageEl.innerText =
+                        'There are currently no rooms available for the selected date range.';
+                });
+                // disable submit
+                toggleSubmit(false);
+            }
+
+            function clearAvailabilityMessage() {
+                if (!availabilityMessageEl) return;
+                availabilityMessageEl.innerText = '';
+                toggleSubmit(true);
+            }
+
+            async function findNextAvailable(fromStr, maxDays = 30) {
+                try {
+                    const loaiId = {{ $phong->loai_phong_id }};
+                    const phongId = {{ $phong->id }};
+                    const startDate = new Date(toInput.value + 'T00:00:00');
+                    for (let i = 0; i < maxDays; i++) {
+                        const cand = new Date(startDate);
+                        cand.setDate(startDate.getDate() + i);
+                        const candTo = new Date(cand);
+                        candTo.setDate(cand.getDate() + 1);
+                        const candFromStr = cand.toISOString().slice(0, 10);
+                        const candToStr = candTo.toISOString().slice(0, 10);
+                        const params = new URLSearchParams({
+                            loai_phong_id: String(loaiId),
+                            phong_id: String(phongId),
+                            from: candFromStr,
+                            to: candToStr
+                        }).toString();
+                        const url = '{{ route('booking.availability') }}' + '?' + params;
+                        try {
+                            const r = await fetch(url, {
+                                method: 'GET',
+                                headers: {
+                                    'Accept': 'application/json'
+                                }
+                            });
+                            if (!r.ok) continue;
+                            const d = await r.json();
+                            const a = Number(d.available || 0);
+                            if (a > 0) {
+                                return candFromStr;
+                            }
+                        } catch (e) {
+                            // ignore network errors for individual checks
+                            continue;
+                        }
+                    }
+                    return null;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            function toggleSubmit(enabled) {
+                const form = document.getElementById('bookingForm');
+                if (!form) return;
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (!submitBtn) return;
+                submitBtn.disabled = !enabled;
             }
 
             // render children ages
@@ -520,10 +666,10 @@
                     const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[i] !==
                         'undefined') ? Number(initialChildrenAges[i]) : 0;
                     wrapper.innerHTML = `
-                    <label class="form-label">Child ${i+1} age</label>
-                    <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
-                    <div class="small text-danger mt-1 age-error" style="display:none;"></div>
-                `;
+                <label class="form-label">Child ${i+1} age</label>
+                <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
+                <div class="small text-danger mt-1 age-error" style="display:none;"></div>
+            `;
                     childrenAgesContainer.appendChild(wrapper);
                 }
 
@@ -616,24 +762,44 @@
                 let existing = document.getElementById('guest_limit_error');
                 if (existing) existing.remove();
                 let ok = true;
-                if (countedPersons > totalMaxAllowed) {
+
+                // First, handle availability condition: if no rooms available -> show availability message and block submit
+                if (currentAvailableRooms <= 0) {
                     ok = false;
                     const err = document.createElement('div');
                     err.id = 'guest_limit_error';
                     err.className = 'alert alert-danger mt-3';
-                    err.innerText =
-                        `The number of guests exceeds the maximum allowed (${totalMaxAllowed}). Please reduce the number of guests or increase rooms. Note: Children under 7 years are free and not counted.`;
+                    // Use the same availabilityMessageEl text if set; otherwise generic
+                    if (availabilityMessageEl && availabilityMessageEl.innerText.trim()) {
+                        err.innerHTML = availabilityMessageEl.innerHTML;
+                    } else {
+                        err.innerText =
+                            'There are currently no rooms available for the selected date range. Please choose a different range.';
+                    }
                     const cardBody = form.querySelector('.card-body');
                     if (cardBody) cardBody.prepend(err);
-                } else if (childrenCount > Number(childrenInput.max || 2)) {
-                    ok = false;
-                    const err = document.createElement('div');
-                    err.id = 'guest_limit_error';
-                    err.className = 'alert alert-danger mt-3';
-                    err.innerText = `Tối đa ${childrenInput.max} trẻ em cho ${roomsInput.value || 1} phòng.`;
-                    const cardBody = form.querySelector('.card-body');
-                    if (cardBody) cardBody.prepend(err);
+                } else {
+                    // Only show guest-limit messages when rooms are available
+                    if (countedPersons > totalMaxAllowed) {
+                        ok = false;
+                        const err = document.createElement('div');
+                        err.id = 'guest_limit_error';
+                        err.className = 'alert alert-danger mt-3';
+                        err.innerText =
+                            `The number of guests exceeds the maximum allowed (${totalMaxAllowed}). Please reduce the number of guests or increase rooms. Note: Children under 7 years are free and not counted.`;
+                        const cardBody = form.querySelector('.card-body');
+                        if (cardBody) cardBody.prepend(err);
+                    } else if (childrenCount > Number(childrenInput.max || 2)) {
+                        ok = false;
+                        const err = document.createElement('div');
+                        err.id = 'guest_limit_error';
+                        err.className = 'alert alert-danger mt-3';
+                        err.innerText = `Tối đa ${childrenInput.max} trẻ em cho ${roomsInput.value || 1} phòng.`;
+                        const cardBody = form.querySelector('.card-body');
+                        if (cardBody) cardBody.prepend(err);
+                    }
                 }
+
                 const submitBtn = form.querySelector('button[type="submit"]');
                 if (submitBtn) submitBtn.disabled = !ok;
             }
@@ -704,11 +870,115 @@
                 payableDisplay.innerText = fmtVnd(total);
 
                 validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed);
+
                 const finalPerNightInput = document.getElementById('final_per_night_input');
                 const snapshotTotalInput = document.getElementById('snapshot_total_input');
                 if (finalPerNightInput) finalPerNightInput.value = finalPerNight;
                 if (snapshotTotalInput) snapshotTotalInput.value = total;
+
+                const hiddenTotalInput = document.getElementById('hidden_tong_tien');
+                if (hiddenTotalInput) hiddenTotalInput.value = total;
             }
+
+            // ==== Server message & submit UX helpers ====
+
+            function showToastInline(msg, isError = false, timeout = 2800) {
+                try {
+                    const d = document.createElement('div');
+                    d.className = 'alert ' + (isError ? 'alert-danger' : 'alert-success') + ' position-fixed';
+                    d.style.right = '20px';
+                    d.style.bottom = '20px';
+                    d.style.zIndex = 1150;
+                    d.style.minWidth = '200px';
+                    d.textContent = msg;
+                    document.body.appendChild(d);
+                    setTimeout(() => d.remove(), timeout);
+                } catch (e) {
+                    console.warn('Toast failed', e);
+                }
+            }
+
+            (function handleServerMessagesOnLoad() {
+                const successEl = document.getElementById('server_success');
+                const errorEl = document.getElementById('server_error');
+                const container = document.getElementById('server_message_container');
+
+                if (successEl) {
+                    const msg = successEl.getAttribute('data-message') || 'Booking created';
+                    const datPhongId = successEl.getAttribute('data-datphong') || '';
+                    // show inline banner at top of form
+                    if (container) {
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-success';
+                        let html = `<strong>Success:</strong> ${msg}`;
+                        if (datPhongId) {
+                            const url = "{{ route('account.booking.show', ['dat_phong' => '__ID__']) }}".replace(
+                                '__ID__', datPhongId);
+                            html +=
+                            ` <a href="${url}" class="btn btn-sm btn-outline-primary ms-2">View booking</a>`;
+                        }
+                        alert.innerHTML = html;
+                        container.appendChild(alert);
+                    }
+                    showToastInline(msg, false, 4000);
+                }
+
+                if (errorEl) {
+                    const msg = errorEl.getAttribute('data-message') || 'Could not create booking';
+                    if (container) {
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-danger';
+                        alert.textContent = msg;
+                        container.appendChild(alert);
+                    }
+                    showToastInline(msg, true, 5000);
+                }
+            })();
+
+            (function setupSubmitUx() {
+                const form = document.getElementById('bookingForm');
+                if (!form) return;
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (!submitBtn) return;
+
+                form.addEventListener('submit', function(e) {
+                    if (submitBtn.disabled) {
+                        e.preventDefault();
+                        return;
+                    }
+
+                    if (typeof currentAvailableRooms !== 'undefined' && Number(currentAvailableRooms) <=
+                        0) {
+                        e.preventDefault();
+                        if (availabilityMessageEl) {
+                            availabilityMessageEl.className = 'small mt-2 text-danger';
+                            if (!availabilityMessageEl.innerText.trim()) {
+                                availabilityMessageEl.innerText =
+                                    'Unable to book: There are currently no rooms available for the selected date range.';
+                            }
+                        }
+                        showToastInline('Unable to book: There are currently no rooms available for the selected date range.',
+                            true, 3500);
+                        return;
+                    }
+
+                    submitBtn.disabled = true;
+                    submitBtn.dataset.origHtml = submitBtn.innerHTML;
+                    submitBtn.innerHTML =
+                        '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
+                });
+
+                ['ngay_nhan_phong', 'ngay_tra_phong', 'rooms_count'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('change', () => {
+                        if (submitBtn && submitBtn.disabled) {
+                            submitBtn.disabled = false;
+                            if (submitBtn.dataset.origHtml) submitBtn.innerHTML = submitBtn.dataset
+                                .origHtml;
+                        }
+                    });
+                });
+            })();
 
             // bind events
             document.querySelectorAll('.addon-checkbox').forEach(chk => chk.addEventListener('change', updateSummary));
@@ -731,6 +1001,56 @@
             updateInputLimitsByRooms();
             renderChildrenAges();
             updateSummary();
+
+            updateRoomsAvailability();
         })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectMethod = document.querySelector('select[name="phuong_thuc"]');
+            const vnpayWrapper = document.getElementById('vnpay_button_wrapper');
+            const vnpayBtn = document.getElementById('pay_vnpay_btn');
+
+            selectMethod.addEventListener('change', function() {
+                vnpayWrapper.style.display = (this.value === 'vnpay') ? 'block' : 'none';
+            });
+
+            vnpayBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+
+                // 🔹 Lấy thông tin phòng từ form
+                const phongId = document.querySelector('input[name="phong_id"]')
+                    .value; // id phòng đang xem
+                const ngayNhan = document.querySelector('input[name="ngay_nhan"]').value;
+                const ngayTra = document.querySelector('input[name="ngay_tra"]').value;
+                const tongTien = document.getElementById('hidden_tong_tien').value;
+
+                try {
+                    const response = await fetch("{{ route('payment.initiate') }}", {
+                        method: "POST",
+                        headers: {
+                            "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                        },
+                        body: JSON.stringify({
+                            phong_id: phongId,
+                            ngay_nhan: ngayNhan,
+                            ngay_tra: ngayTra,
+                            amount: tongTien,
+                        }),
+                    });
+
+                    const data = await response.json();
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        alert(data.error || 'Không thể khởi tạo thanh toán.');
+                        console.error(data);
+                    }
+                } catch (err) {
+                    alert('Lỗi khi tạo thanh toán: ' + err.message);
+                }
+            });
+        });
     </script>
 @endpush

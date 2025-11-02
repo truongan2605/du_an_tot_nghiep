@@ -7,11 +7,13 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin Panel')</title>
-
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 
     <style>
@@ -61,6 +63,10 @@
                         href="{{ route('admin.tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Dịch vụ
                     </a>
+                     <a class="nav-link {{ request()->routeIs('admin.vat-dung.*') ? 'active' : '' }}"
+                        href="{{ route('admin.vat-dung.index') }}">
+                        <i class="fas fa-concierge-bell me-2"></i> Vật dụng
+                    </a>
                     <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}"
                         href="{{ route('admin.phong.index') }}">
                         <i class="fas fa-bed me-2"></i> Phòng
@@ -94,12 +100,10 @@
                         href="{{ route('admin.internal-notifications.index') }}">
                         <i class="fas fa-building me-2"></i> Thông Báo Nội Bộ
                     </a>
-                    <li class="nav-link {{ request()->routeIs('admin.blog.*') ? 'active' : '' }}">
-                        <a href="{{ route('admin.blog.posts.index') }}">
-                            <i class="fa-solid fa-newspaper me-2"></i> Blog
-                        </a>
-                    </li>
-
+                    <a class="nav-link {{ request()->routeIs('admin.blog.*') ? 'active' : '' }}" 
+                        href="{{ route('admin.blog.posts.index') }}">
+                        <i class="fa-solid fa-newspaper me-2"></i> Blog
+                    </a>
                 </nav>
             </div>
 
@@ -110,7 +114,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="mb-0">@yield('title', 'Admin Panel')</h5>
-                        </div>
+                        </div>  
                         <div class="d-flex align-items-center gap-3">
                             <!-- Notification Bell -->
                             <div class="dropdown">
@@ -169,20 +173,9 @@
                 </div>
                 
                 <div class="p-4">
-                    @if (session('success'))
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            {{ session('success') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
+                   
 
-                    @if (session('error'))
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            {{ session('error') }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    @endif
-
+                   
                     @yield('content')
                 </div>
             </div>
@@ -196,10 +189,23 @@
     <script>
         // Load admin notifications
         function loadAdminNotifications() {
-            fetch('/admin/api/admin-notifications/recent')
-                .then(response => response.json())
+            console.log('Loading admin notifications...');
+            fetch('/api/notifications/recent', {
+                credentials: 'include'
+            })
+                .then(response => {
+                    console.log('Admin notifications response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
-                    updateAdminNotificationList(data);
+                    console.log('Admin notifications response data:', data);
+                    if (data.success) {
+                        updateAdminNotificationList(data.data);
+                    } else {
+                        console.error('API error:', data.message);
+                        document.getElementById('adminNotificationList').innerHTML = 
+                            '<div class="text-center p-3 text-muted">Không thể tải thông báo</div>';
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading admin notifications:', error);
@@ -247,10 +253,21 @@
 
         // Load unread count
         function loadAdminUnreadCount() {
-            fetch('/admin/api/admin-notifications/unread-count')
-                .then(response => response.json())
+            console.log('Loading admin unread count...');
+            fetch('/api/notifications/unread-count', {
+                credentials: 'include'
+            })
+                .then(response => {
+                    console.log('Admin unread count response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
-                    updateAdminNotificationBadge(data.count);
+                    console.log('Admin unread count response data:', data);
+                    if (data.success) {
+                        updateAdminNotificationBadge(data.count);
+                    } else {
+                        console.error('API error:', data.message);
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading unread count:', error);
@@ -270,18 +287,21 @@
 
         // Mark all admin notifications as read
         function markAllAdminNotificationsAsRead() {
-            fetch('/admin/admin-notifications/mark-all-read', {
+            fetch('/api/notifications/mark-all-read', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include'
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     loadAdminNotifications();
                     loadAdminUnreadCount();
+                } else {
+                    console.error('API error:', data.message);
                 }
             })
             .catch(error => {
@@ -310,7 +330,7 @@
             setInterval(() => {
                 loadAdminNotifications();
                 loadAdminUnreadCount();
-            }, 30000);
+            }, 5000);
         });
     </script>
     

@@ -30,31 +30,31 @@ class TienNghiController extends Controller
     /**
      * Store a newly created resource in storage.
      */
- public function store(Request $request)
-{
-    $request->validate([
-        'ten' => 'required|string|max:255',
-        'mo_ta' => 'nullable|string',
-        'gia' => 'required|numeric|min:0',
-        'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        'active' => 'boolean'
-    ]);
+    public function store(Request $request)
+    {
+        $request->validate([
+            'ten' => 'required|string|max:255',
+            'mo_ta' => 'nullable|string',
+            'gia' => 'required|numeric|min:0',
+            'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'active' => 'boolean'
+        ]);
 
-    $data = $request->only(['ten','mo_ta','gia','active']);
+        $data = $request->only(['ten', 'mo_ta', 'gia', 'active']);
 
-    // Handle icon upload
-    if ($request->hasFile('icon')) {
-        $iconPath = $request->file('icon')->store('icons', 'public');
-        $data['icon'] = $iconPath;
+        // Handle icon upload
+        if ($request->hasFile('icon')) {
+            $iconPath = $request->file('icon')->store('icons', 'public');
+            $data['icon'] = $iconPath;
+        }
+
+        $data['active'] = $request->has('active');
+
+        TienNghi::create($data);
+
+        return redirect()->route('admin.tien-nghi.index')
+            ->with('success', 'Tiện nghi đã được tạo thành công!');
     }
-
-    $data['active'] = $request->has('active');
-
-    TienNghi::create($data);
-
-    return redirect()->route('admin.tien-nghi.index')
-        ->with('success', 'Tiện nghi đã được tạo thành công!');
-}
 
     /**
      * Display the specified resource.
@@ -91,14 +91,14 @@ class TienNghiController extends Controller
         ]);
 
         $data = $request->all();
-        
+
         // Handle icon upload
         if ($request->hasFile('icon')) {
             // Delete old icon if exists
             if ($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon)) {
                 Storage::disk('public')->delete($tienNghi->icon);
             }
-            
+
             $iconPath = $request->file('icon')->store('icons', 'public');
             $data['icon'] = $iconPath;
         }
@@ -133,10 +133,9 @@ class TienNghiController extends Controller
     public function toggleActive(TienNghi $tienNghi)
     {
         $tienNghi->update(['active' => !$tienNghi->active]);
-        
+
         $status = $tienNghi->active ? 'kích hoạt' : 'vô hiệu hóa';
         return redirect()->back()
             ->with('success', "Tiện nghi đã được {$status} thành công!");
     }
 }
-

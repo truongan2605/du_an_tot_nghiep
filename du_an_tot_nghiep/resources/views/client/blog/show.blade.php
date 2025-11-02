@@ -10,26 +10,49 @@
     border-radius: 1rem;
     overflow: hidden;
   }
+
   .post-hero img {
-    width: 100%; height: 420px; object-fit: cover;
+    width: 100%;
+    height: 600px; /* tăng chiều cao để ảnh hero rõ hơn */
+    object-fit: cover;
   }
+
+  /* Đẩy card xuống thấp hơn để không che ảnh */
   .post-overlay-card {
-    position: absolute; left: 1rem; right: 1rem; bottom: -1.5rem;
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    bottom: -4rem; /* tăng độ lùi xuống */
+    z-index: 10;
   }
-  .dropcap:first-letter{
-    float:left; font-size:3rem; line-height:1; padding:.25rem .5rem;
-    margin:.25rem .5rem .25rem 0; border-radius:.25rem;
+
+  /* Thêm khoảng trống phía trên nội dung bài viết */
+  .post-content {
+    margin-top: 6rem; /* để card và ảnh tách nhau rõ */
+  }
+
+  /* dropcap giữ nguyên */
+  .dropcap:first-letter {
+    float: left;
+    font-size: 3rem;
+    line-height: 1;
+    padding: .25rem .5rem;
+    margin: .25rem .5rem .25rem 0;
+    border-radius: .25rem;
     color: var(--bs-primary);
     background: rgba(var(--bs-primary-rgb), .1);
-    font-weight:700;
+    font-weight: 700;
   }
-  blockquote.hero-quote{
+
+  /* blockquote */
+  blockquote.hero-quote {
     background: var(--bs-light);
     border-radius: .75rem;
     padding: 1rem 1.25rem;
     text-align: center;
   }
 </style>
+
 
 <section class="pt-3 pt-md-4">
   <div class="container">
