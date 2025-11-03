@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
-use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
@@ -27,6 +26,7 @@ use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
+use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 
 // BLOG CONTROLLERS (admin + client)
 use App\Http\Controllers\Client\BlogController as ClientBlog;

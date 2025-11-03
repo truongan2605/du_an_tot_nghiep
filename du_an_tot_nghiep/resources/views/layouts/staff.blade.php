@@ -117,26 +117,38 @@
                 <span>Hotel Manager</span>
             </div>
             <nav class="nav flex-column">
-                @if(Auth::check() && in_array(Auth::user()->vai_tro, ['nhan_vien','admin']))
-                    <a href="{{ route('staff.index') }}" class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}">
+                @if (Auth::check() && in_array(Auth::user()->vai_tro, ['nhan_vien', 'admin']))
+                    <a href="{{ route('staff.index') }}"
+                        class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}">
                         <i class="bi bi-speedometer2 me-2"></i> Dashboard
                     </a>
-                    <a href="{{ route('staff.bookings') }}" class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}">
+                    <a href="{{ route('staff.bookings') }}"
+                        class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}">
                         <i class="bi bi-journal-text me-2"></i> Tổng quan booking
                     </a>
-                    <a href="{{ route('staff.pending-bookings') }}" class="nav-link {{ request()->routeIs('staff.pending-bookings') ? 'active' : '' }}">
-                        <i class="bi bi-calendar-check me-2"></i> Quản lý đặt phòng
+                    <a href="{{ route('staff.pending-bookings') }}"
+                        class="nav-link {{ request()->routeIs('staff.pending-bookings') ? 'active' : '' }}">
+                        <i class="bi bi-calendar-check me-2"></i> Danh Sách Booking Chờ Xác Nhận
                     </a>
-                    <a href="{{ route('staff.rooms') }}" class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}">
-                        <i class="bi bi-door-open me-2"></i> Danh sách trạng thái phòng
+                    <a href="{{ route('staff.rooms') }}"
+                        class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}">
+                        <i class="bi bi-door-open me-2"></i> Quản Lý Tình Trạng Phòng
                     </a>
-                    <a href="{{ route('payment.pending_payments') }}" class="nav-link {{ request()->routeIs('payment.pending-payments') ? 'active' : '' }}">
+                    <a href="{{ route('staff.checkin') }}"
+                        class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}">
+                        <i class="bi bi-person-check-fill me-2"></i> Danh Sách Booking Check-in
+                    </a>
+
+                    <a href="{{ route('payment.pending_payments') }}"
+                        class="nav-link {{ request()->routeIs('payment.pending-payments') ? 'active' : '' }}">
                         <i class="bi bi-credit-card me-2"></i> Chờ thanh toán
                     </a>
-                    <a href="{{ route('staff.room-overview') }}" class="nav-link {{ request()->routeIs('staff.room-overview') ? 'active' : '' }}">
+                    <a href="{{ route('staff.room-overview') }}"
+                        class="nav-link {{ request()->routeIs('staff.room-overview') ? 'active' : '' }}">
                         <i class="bi bi-house-fill me-2"></i> Tổng quan phòng
                     </a>
-                    <a href="{{ route('staff.reports') }}" class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}">
+                    <a href="{{ route('staff.reports') }}"
+                        class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}">
                         <i class="bi bi-bar-chart-line me-2"></i> Báo cáo nhân viên
                     </a>
                 @endif
@@ -147,7 +159,8 @@
         <div class="flex-grow-1 ms-3">
             <!-- Header -->
             <header class="bg-white shadow-sm p-3 d-flex justify-content-between align-items-center">
-                <button class="btn btn-outline-secondary d-md-none sidebar-toggle-btn" onclick="toggleSidebar()">☰</button>
+                <button class="btn btn-outline-secondary d-md-none sidebar-toggle-btn"
+                    onclick="toggleSidebar()">☰</button>
                 <div class="d-flex align-items-center gap-3">
                     <!-- Notifications -->
                     <button class="btn btn-light position-relative">
@@ -159,16 +172,21 @@
 
                     <!-- User dropdown -->
                     <div class="dropdown">
-                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            <img src="{{ auth()->user() && auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/avt.jpg') }}" alt="avatar" class="rounded-circle border border-light shadow-sm" width="40" height="40">
+                        <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle"
+                            id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="{{ auth()->user() && auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : asset('template/stackbros/assets/images/avatar/avt.jpg') }}"
+                                alt="avatar" class="rounded-circle border border-light shadow-sm" width="40"
+                                height="40">
                             <div class="ms-2 text-dark">
                                 <div class="fw-semibold">{{ Auth::user()->name }}</div>
                                 <small class="text-muted">{{ ucfirst(Auth::user()->vai_tro) }}</small>
                             </div>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
-                            <li><a class="dropdown-item" >Hồ sơ cá nhân</a></li>
-                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item">Hồ sơ cá nhân</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
                             <li>
                                 <form action="" method="POST">
                                     @csrf
@@ -195,9 +213,9 @@
         }
 
         // Enable all tooltips
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.map(function (el) {
+            tooltipTriggerList.map(function(el) {
                 return new bootstrap.Tooltip(el);
             });
         });

@@ -64,7 +64,10 @@ class Phong extends Model
             ->withPivot(['quantity', 'price'])
             ->withTimestamps();
     }
-
+    public function datPhongItems()
+    {
+        return $this->hasMany(DatPhongItem::class, 'phong_id');
+    }
     public function images()
     {
         return $this->hasMany(PhongImage::class, 'phong_id')->orderBy('id', 'asc');
