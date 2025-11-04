@@ -17,6 +17,41 @@
         </div>
     </div>
 
+    {{-- Flash messages and validation errors --}}
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {!! session('success') !!}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {!! session('error') !!}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="alert alert-warning">
+            <strong>Có lỗi:</strong>
+            <ul class="mb-0">
+                @foreach ($errors->all() as $err)
+                    <li>{{ $err }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    {{-- Informational notice about delete rules --}}
+    <div class="alert alert-info">
+        <h6 class="mb-1">Chú ý khi xóa vật dụng</h6>
+        <ul class="mb-0">
+            <li><strong>Đồ dùng</strong> (ví dụ: TV, tủ lạnh, bàn ghế): chỉ được <em>xóa hoàn toàn</em> khi <strong>không có</strong> bất kỳ <em>Loại phòng</em> nào chứa vật dụng này. Nếu còn liên kết với loại phòng, vui lòng gỡ khỏi loại phòng trước.</li>
+            <li><strong>Đồ ăn</strong> (tiêu thụ theo số lượng): nếu đã có <em>lịch sử tiêu thụ</em> (bản ghi trong lịch sử tiêu thụ), hệ thống sẽ <em>giữ lại lịch sử</em> và tự động <strong>đánh dấu vật dụng là không hoạt động</strong> (tên có hậu tố "(đã xóa)"). Nếu không có lịch sử, vật dụng sẽ bị xóa hoàn toàn.</li>
+        </ul>
+    </div>
+
     <div class="card">
         <div class="card-body">
             @if ($vatdungs->count() > 0)
@@ -30,7 +65,6 @@
                                 <th>Loại</th>
                                 <th>Giá</th>
                                 <th>Mô tả</th>
-                                <th>Theo dõi</th>
                                 <th>Trạng thái</th>
                                 <th>Ngày tạo</th>
                                 <th>Thao tác</th>
@@ -58,13 +92,6 @@
                                     </td>
                                     <td>{{ $vatdung->gia !== null ? number_format($vatdung->gia, 0, ',', '.') : '-' }}</td>
                                     <td>{{ Str::limit($vatdung->mo_ta, 50) }}</td>
-                                    <td>
-                                        @if (isset($vatdung->pivot) && isset($vatdung->pivot->tracked_instances))
-                                            {{ $vatdung->pivot->tracked_instances ? 'Có' : 'Không' }}
-                                        @else
-                                            {{ $vatdung->tracked_instances ?? 'Không' }}
-                                        @endif
-                                    </td>
                                     <td>
                                         <span class="badge {{ $vatdung->active ? 'bg-success' : 'bg-secondary' }}">
                                             {{ $vatdung->active ? 'Hoạt động' : 'Không hoạt động' }}

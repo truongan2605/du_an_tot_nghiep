@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,23 @@ class PhongVatDungInstance extends Model
     use HasFactory;
 
     protected $table = 'phong_vat_dung_instances';
+
+    public const STATUS_PRESENT = 'present';
+    public const STATUS_DAMAGED = 'damaged';
+    public const STATUS_MISSING = 'missing';
+    public const STATUS_LOST = 'lost';
+    public const STATUS_ARCHIVED = 'archived';
+
+    public static function allowedStatuses(): array
+    {
+        return [
+            self::STATUS_PRESENT,
+            self::STATUS_DAMAGED,
+            self::STATUS_MISSING,
+            self::STATUS_LOST,
+            self::STATUS_ARCHIVED,
+        ];
+    }
 
     protected $fillable = [
         'phong_id',

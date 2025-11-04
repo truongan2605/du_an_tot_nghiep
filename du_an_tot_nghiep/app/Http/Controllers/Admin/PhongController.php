@@ -12,6 +12,8 @@ use App\Models\TienNghi;
 use App\Models\VatDung;
 use App\Events\RoomCreated;
 use App\Events\RoomUpdated;
+use App\Models\HoaDon;
+use App\Models\HoaDonItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -254,7 +256,8 @@ class PhongController extends Controller
             } else {
                 // nếu không có input, đảm bảo ít nhất copy default từ loai_phong nếu pivot chưa có
                 $selectedLoai->load('vatDungs');
-                $missing = $selectedLoai->vatDungs->pluck('id')->diff($phong->vatDungs()->pluck('vat_dung_id')->toArray());
+                $phongVatIds = $phong->vatDungs()->pluck('id')->toArray();
+                $missing = $selectedLoai->vatDungs->pluck('id')->diff($phongVatIds);
                 if ($missing->isNotEmpty()) {
                     $add = [];
                     foreach ($selectedLoai->vatDungs as $vd) {
@@ -491,47 +494,61 @@ class PhongController extends Controller
                 ->filter(fn($v) => ($v->loai ?? '') === VatDung::LOAI_DO_DUNG);
         }
 
-        // Lấy tất cả vật dụng hiện có trên pivot phòng
+        // Lấy tất cả vật dụng hiện có trên pivot phòng (active)
         $vatPhongPivot = $phong->vatDungs()->where('active', 1)->get();
 
         // Tách pivot theo loại
         $vatPhongDoDung = $vatPhongPivot->filter(fn($v) => ($v->loai ?? '') === VatDung::LOAI_DO_DUNG);
         $vatPhongDoAnPivot = $vatPhongPivot->filter(fn($v) => ($v->loai ?? '') === VatDung::LOAI_DO_AN);
 
-        // Load consumption/reservation rows for this room (not billed)
-        $consRows = \App\Models\PhongVatDungConsumption::where('phong_id', $phong->id)
-            ->whereNull('billed_at')
-            ->get()
-            ->groupBy('vat_dung_id');
+        // Active booking (nếu có)
+        $activeDatPhong = $phong->activeDatPhong();
 
-        // Build consMap: reserved vs consumed counts (unbilled scope)
-        $consMap = [];
-        foreach ($consRows as $vdId => $rows) {
-            $reserved = $rows->whereNull('consumed_at')->sum('quantity'); // đặt trước, chưa tiêu thụ
-            $consumed = $rows->whereNotNull('consumed_at')->sum('quantity'); // đã tiêu thụ (chưa billed)
-            $consMap[$vdId] = [
-                'reserved' => (int)$reserved,
-                'consumed' => (int)$consumed,
-            ];
+        // --- 1) Lấy "Vật phẩm ban đầu" từ phong_vat_dung_consumptions (reserved, chưa consumed/billed)
+        $initialReservations = [];
+        if ($activeDatPhong) {
+            $initialReservations = \App\Models\PhongVatDungConsumption::where('dat_phong_id', $activeDatPhong->id)
+                ->where('phong_id', $phong->id)
+                ->whereNull('consumed_at')
+                ->whereNull('billed_at')
+                ->groupBy('vat_dung_id')
+                ->select('vat_dung_id', DB::raw('SUM(quantity) as qty'))
+                ->pluck('qty', 'vat_dung_id')
+                ->toArray();
         }
 
-        // Ensure we include any do_an items that exist only in reservations (not in pivot)
-        $reservedVatIds = array_keys($consMap);
-        // vatPhongDoAnPivot may not include some reservedVatIds; load missing VatDung models
+        // --- 2) Lấy "Vật phẩm đã tiêu thụ (hóa đơn)" từ hoa_don_items (tất cả các hóa đơn liên quan dat_phong)
+        $hoaDonItemsGrouped = [];
+        if ($activeDatPhong) {
+            $hoaDonIds = \App\Models\HoaDon::where('dat_phong_id', $activeDatPhong->id)
+                ->pluck('id')
+                ->toArray();
+
+            if (!empty($hoaDonIds)) {
+                $hoaDonItemsGrouped = \App\Models\HoaDonItem::whereIn('hoa_don_id', $hoaDonIds)
+                    ->where('type', 'consumption')
+                    ->groupBy('vat_dung_id')
+                    ->select('vat_dung_id', DB::raw('SUM(quantity) as qty'))
+                    ->pluck('qty', 'vat_dung_id')
+                    ->toArray();
+            }
+        }
+
+        // Nếu có một số vat_dung xuất hiện trong consumedTotals nhưng không có pivot (ví dụ admin đã ghi tiêu thụ thủ công)
         $pivotVatIds = $vatPhongDoAnPivot->pluck('id')->toArray();
-        $missingVatIds = array_diff($reservedVatIds, $pivotVatIds);
+        $missingVatIds = array_diff(array_keys($initialReservations), $pivotVatIds);
 
         $vatFromReservations = collect();
         if (!empty($missingVatIds)) {
             $vatFromReservations = VatDung::whereIn('id', $missingVatIds)->where('active', 1)->get();
         }
 
-        // Final do_an list to display: pivot items (with pivot data) + items only from reservations
-        // For items from reservations we won't have pivot fields; we will show pivotQty = 0
+        // Final do_an list to display: pivot items (with pivot data) + items only from consumption/reservation records
         $vatPhongDoAn = $vatPhongDoAnPivot->merge($vatFromReservations);
 
+        // Instances: only statuses allowed in your schema
         $instances = \App\Models\PhongVatDungInstance::where('phong_id', $phong->id)
-            ->where('status', '!=', 'archived')
+            ->whereIn('status', ['present', 'damaged', 'missing'])
             ->get()
             ->groupBy('vat_dung_id');
 
@@ -544,8 +561,7 @@ class PhongController extends Controller
             ];
         }
 
-        $activeDatPhong = $phong->activeDatPhong();
-
+        // existingReservations (keeps row models) - nếu cần elsewhere
         $existingReservations = collect();
         if ($activeDatPhong) {
             $existingReservations = \App\Models\PhongVatDungConsumption::where('dat_phong_id', $activeDatPhong->id)
@@ -556,7 +572,7 @@ class PhongController extends Controller
                 ->keyBy('vat_dung_id');
         }
 
-        // Return view with all prepared data
+        // Truyền thêm $initialReservations và $hoaDonItemsGrouped để view dùng
         return view('admin.phong.show', compact(
             'phong',
             'tienNghiLoaiPhong',
@@ -564,9 +580,11 @@ class PhongController extends Controller
             'vatDungLoaiPhongDoDung',
             'vatPhongDoDung',
             'vatPhongDoAn',
-            'consMap',
             'instancesMap',
-            'existingReservations'
+            'existingReservations',
+            'activeDatPhong',
+            'initialReservations',
+            'hoaDonItemsGrouped'
         ));
     }
 

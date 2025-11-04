@@ -30,7 +30,7 @@ class PhongVatDung extends Pivot
         $existsCount = DB::table('phong_vat_dung_instances')
             ->where('phong_id', $phongId)
             ->where('vat_dung_id', $vatDungId)
-            ->where('status', 'ok')
+            ->where('status', 'present')
             ->count();
 
         if ($existsCount < $targetQty) {
@@ -42,7 +42,7 @@ class PhongVatDung extends Pivot
                     'phong_id' => $phongId,
                     'vat_dung_id' => $vatDungId,
                     'serial' => null,
-                    'status' => 'ok',
+                    'status' => 'present',
                     'created_by' => $createdBy,
                     'created_at' => $now,
                     'updated_at' => $now,

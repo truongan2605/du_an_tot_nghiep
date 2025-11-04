@@ -102,20 +102,37 @@
                 <em>Chọn loại phòng để xem cấu hình giường.</em>
             </div>
 
-            <h6 class="mt-3">Tiện nghi</h6>
-            <div class="d-flex flex-wrap gap-2 mb-3" id="tienNghiList">
-                @foreach ($tienNghis as $tn)
-                    <div class="form-check form-check-inline">
-                        <input type="checkbox" name="tien_nghi[]" value="{{ $tn->id }}"
-                            class="form-check-input tienNghiCheckbox" id="tienNghi_{{ $tn->id }}"
-                            data-price="{{ $tn->gia }}"
-                            {{ in_array($tn->id, old('tien_nghi', [])) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="tienNghi_{{ $tn->id }}">
-                            <i class="{{ $tn->icon }}"></i> {{ $tn->ten }}
-                            ({{ number_format($tn->gia, 0, ',', '.') }} đ)
+            <h6 class="mt-3">Tiện nghi (theo loại phòng — không thể chỉnh ở cấp phòng)</h6>
+            <div class="mb-2">
+                {{-- Render checkbox nhưng disabled — JS sẽ check/uncheck theo loai phòng.
+                     Nút checkbox disabled nên sẽ không submit => tạo hidden inputs tương ứng --}}
+                <div id="amenities_checkbox_list" class="d-flex flex-wrap gap-2">
+                    @foreach ($tienNghis as $tn)
+                        @php
+                            // mark old selected only to keep UI when validation fails; JS will override according to selected loai
+                            $oldSelected = old('tien_nghi', []);
+                            $checked = in_array($tn->id, (array)$oldSelected);
+                        @endphp
+                        <label class="form-check form-check-inline amenity-label" data-amenity-id="{{ $tn->id }}">
+                            <input type="checkbox" class="form-check-input amenity-checkbox" value="{{ $tn->id }}"
+                                id="tienNghi_{{ $tn->id }}" {{ $checked ? 'checked' : '' }} disabled>
+                            <span class="form-check-label">
+                                <i class="{{ $tn->icon }}"></i> {{ $tn->ten }}
+                                <small class="d-inline-block ms-1">({{ number_format($tn->gia,0,',','.') }} đ)</small>
+                            </span>
                         </label>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Hidden inputs container: JS sẽ fill các input[name="tien_nghi[]"] tương ứng với tiện nghi thuộc loại phòng --}}
+            <div id="hidden_amenities_container">
+                {{-- nếu có old('tien_nghi') (ví dụ lỗi), giữ lại để không mất dữ liệu --}}
+                @if (old('tien_nghi'))
+                    @foreach (old('tien_nghi') as $id)
+                        <input type="hidden" name="tien_nghi[]" value="{{ $id }}" class="amenity-hidden-input-create">
+                    @endforeach
+                @endif
             </div>
 
             <div class="mb-2">
@@ -134,6 +151,19 @@
     </div>
 @endsection
 
+@section('styles')
+    <style>
+        /* không bắt mắt, chỉ làm mờ / bôi mờ những tiện nghi không thuộc loại phòng */
+        .amenity-label.not-in-type {
+            opacity: 0.55;
+            filter: grayscale(40%);
+        }
+        .amenity-label.in-type {
+            font-weight: 600;
+        }
+    </style>
+@endsection
+
 @section('scripts')
     <script>
         (function() {
@@ -143,10 +173,16 @@
             const gia_input = document.getElementById('gia_input');
             const totalDisplay = document.getElementById('total_display');
             const bedTypesContainer = document.getElementById('bed_types_container');
+            const amenitiesCheckboxList = document.getElementById('amenities_checkbox_list');
+            const hiddenAmenitiesContainer = document.getElementById('hidden_amenities_container');
+
+            // amenity price map for totals (blade provides $tienNghis)
+            const amenityPrices = @json($tienNghis->pluck('gia', 'id')->toArray());
 
             function parseNumber(v) {
                 if (v === null || v === undefined || v === '') return 0;
-                return Number(v);
+                const n = Number(String(v).replace(/\s+/g, ''));
+                return isNaN(n) ? 0 : n;
             }
 
             function renderBedTypes(list) {
@@ -169,49 +205,79 @@
                 bedTypesContainer.innerHTML = html;
             }
 
-            function resetAmenitiesChecks() {
-                document.querySelectorAll('.tienNghiCheckbox').forEach(cb => cb.checked = false);
+            function computeBedSumFromOption(opt) {
+                if (!opt) return 0;
+                const bedtypesJson = opt.dataset.bedtypes ?? '[]';
+                try {
+                    const bedlist = JSON.parse(bedtypesJson);
+                    if (Array.isArray(bedlist)) {
+                        return bedlist.reduce((s, b) => {
+                            const qty = parseNumber(b.quantity || 0);
+                            const price = parseNumber(b.price || 0);
+                            return s + qty * price;
+                        }, 0);
+                    }
+                } catch (e) {
+                    return 0;
+                }
+                return 0;
             }
 
-            function tickAmenitiesByIds(ids) {
-                resetAmenitiesChecks();
-                if (!Array.isArray(ids)) return;
-                ids.forEach(id => {
-                    const cb = document.getElementById('tienNghi_' + id);
-                    if (cb) cb.checked = true;
+            function computeAmenitySum(amenityIds) {
+                let s = 0;
+                (Array.isArray(amenityIds) ? amenityIds : []).forEach(id => {
+                    s += parseNumber(amenityPrices[id] || 0);
                 });
-                updateTotal();
+                return s;
             }
 
             function updateTotal() {
                 const opt = select.querySelector('option:checked');
                 const base = opt ? parseNumber(opt.dataset.gia) : 0;
-                let sumAmenities = 0;
-                document.querySelectorAll('.tienNghiCheckbox:checked').forEach(cb => {
-                    sumAmenities += parseNumber(cb.dataset.price || 0);
+                const bedSum = computeBedSumFromOption(opt);
+                // amenity ids read from hidden inputs we created
+                const hiddenEls = Array.from(document.querySelectorAll('.amenity-hidden-input-create'));
+                const amenityIds = hiddenEls.map(e => parseInt(e.value, 10)).filter(n => !isNaN(n));
+                const amenitySum = computeAmenitySum(amenityIds);
+                const total = Math.round(base + bedSum + amenitySum);
+                if (totalDisplay) totalDisplay.innerText = new Intl.NumberFormat('vi-VN').format(total) + ' đ';
+                if (gia_input) gia_input.value = Math.round(parseNumber(opt ? opt.dataset.gia : 0));
+            }
+
+            // set hidden inputs to match `amenityIds` (remove existing ones)
+            function setHiddenAmenityInputs(amenityIds) {
+                // clear
+                hiddenAmenitiesContainer.querySelectorAll('.amenity-hidden-input-create').forEach(n => n.remove());
+                const form = document.getElementById('phongCreateForm') || document.body;
+                (Array.isArray(amenityIds) ? amenityIds : []).forEach(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'tien_nghi[]';
+                    input.value = id;
+                    input.className = 'amenity-hidden-input-create';
+                    hiddenAmenitiesContainer.appendChild(input);
                 });
+            }
 
-                // tính tiền giường từ option hiện tại (data-bedtypes) nếu có
-                let bedSum = 0;
-                if (opt) {
-                    const bedtypesJson = opt.dataset.bedtypes ?? '[]';
-                    try {
-                        const bedlist = JSON.parse(bedtypesJson);
-                        if (Array.isArray(bedlist)) {
-                            bedlist.forEach(b => {
-                                const qty = parseNumber(b.quantity || 0);
-                                const price = parseNumber(b.price || 0);
-                                bedSum += qty * price;
-                            });
-                        }
-                    } catch (e) {
-                        // ignore
+            // mark checkboxes UI: in-type => checked + in-type class; not-in-type => unchecked + not-in-type class
+            function refreshAmenityCheckboxUI(inTypeIds) {
+                const labels = Array.from(amenitiesCheckboxList.querySelectorAll('.amenity-label'));
+                labels.forEach(lbl => {
+                    const id = parseInt(lbl.dataset.amenityId, 10);
+                    const chk = lbl.querySelector('.amenity-checkbox');
+                    if (inTypeIds.includes(id)) {
+                        chk.checked = true;
+                        // mark style
+                        lbl.classList.add('in-type');
+                        lbl.classList.remove('not-in-type');
+                    } else {
+                        chk.checked = false;
+                        lbl.classList.remove('in-type');
+                        lbl.classList.add('not-in-type');
                     }
-                }
-
-                const total = parseNumber(base) + sumAmenities + bedSum;
-                totalDisplay.innerText = new Intl.NumberFormat('vi-VN').format(Math.round(total)) + ' đ';
-                if (gia_input) gia_input.value = Math.round(parseNumber(base));
+                    // all disabled to prevent any manual edits
+                    chk.disabled = true;
+                });
             }
 
             function fillFromSelectedOption(opt) {
@@ -220,56 +286,68 @@
                     so_giuong_input.value = '';
                     gia_input.value = '';
                     renderBedTypes([]);
-                    resetAmenitiesChecks();
+                    // clear hidden inputs
+                    setHiddenAmenityInputs([]);
+                    refreshAmenityCheckboxUI([]);
                     updateTotal();
                     return;
                 }
                 const gia = opt.dataset.gia ?? 0;
                 const suc = opt.dataset.suc_chua ?? '';
                 const giuong = opt.dataset.so_giuong ?? '';
-                const amenitiesJson = opt.dataset.amenities ?? '[]';
                 const bedtypesJson = opt.dataset.bedtypes ?? '[]';
+                const amenitiesJson = opt.dataset.amenities ?? '[]';
 
                 gia_input.value = parseNumber(gia);
                 suc_chua_input.value = suc !== '' ? parseNumber(suc) : '';
                 so_giuong_input.value = giuong !== '' ? parseNumber(giuong) : '';
 
-                let ids = [];
+                // render bed types
                 try {
-                    ids = JSON.parse(amenitiesJson);
+                    const bedlist = JSON.parse(bedtypesJson);
+                    if (Array.isArray(bedlist)) renderBedTypes(bedlist);
+                    else renderBedTypes([]);
                 } catch (e) {
-                    ids = [];
+                    renderBedTypes([]);
                 }
-                tickAmenitiesByIds(ids);
 
-                let bedlist = [];
+                // parse amenity ids
+                let amenityIds = [];
                 try {
-                    bedlist = JSON.parse(bedtypesJson);
+                    amenityIds = JSON.parse(amenitiesJson || '[]');
+                    amenityIds = (Array.isArray(amenityIds) ? amenityIds.map(n => parseInt(n, 10)).filter(n => !isNaN(n)) : []);
                 } catch (e) {
-                    bedlist = [];
+                    amenityIds = [];
                 }
-                renderBedTypes(bedlist);
+
+                // set hidden inputs (these will be submitted)
+                setHiddenAmenityInputs(amenityIds);
+
+                // update UI checkboxes to reflect type membership
+                refreshAmenityCheckboxUI(amenityIds);
 
                 updateTotal();
             }
 
             document.addEventListener('DOMContentLoaded', function() {
-                document.querySelectorAll('.tienNghiCheckbox').forEach(cb => {
-                    cb.addEventListener('change', updateTotal);
-                });
-
                 const selectedOpt = select.querySelector('option:checked');
                 if (selectedOpt && selectedOpt.value) {
                     fillFromSelectedOption(selectedOpt);
                 } else {
-                    updateTotal();
+                    // if no selected option but old hidden inputs exist (eg form error), reflect them
+                    const oldHidden = Array.from(document.querySelectorAll('.amenity-hidden-input-create')).map(x => parseInt(x.value, 10)).filter(n => !isNaN(n));
+                    if (oldHidden.length) {
+                        refreshAmenityCheckboxUI(oldHidden);
+                        updateTotal();
+                    } else {
+                        updateTotal();
+                    }
                 }
-            });
 
-            select.addEventListener('change', function() {
-                const val = this.value;
-                const opt = this.querySelector('option[value="' + val + '"]');
-                fillFromSelectedOption(opt);
+                select.addEventListener('change', function() {
+                    const opt = select.options[select.selectedIndex];
+                    fillFromSelectedOption(opt);
+                });
             });
         })();
     </script>

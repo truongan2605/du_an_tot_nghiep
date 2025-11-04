@@ -240,7 +240,7 @@ class LoaiPhongController extends Controller
             if (!empty($ids)) {
                 $phongs = \App\Models\Phong::where('loai_phong_id', $loaiPhong->id)->get();
                 foreach ($phongs as $p) {
-                    foreach ($ids as $vdId) {
+                    foreach ($vatIds  as $vdId) {
                         $exists = DB::table('phong_vat_dung')
                             ->where('phong_id', $p->id)
                             ->where('vat_dung_id', $vdId)

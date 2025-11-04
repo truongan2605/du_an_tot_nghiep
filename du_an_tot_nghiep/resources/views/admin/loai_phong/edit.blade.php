@@ -48,22 +48,82 @@
             </div>
 
             {{-- Tiện nghi --}}
-<div class="mb-3">
-    <label>Tiện nghi</label>
-    <div class="d-flex flex-wrap">
-        @foreach ($tienNghis as $tn)
-            <div class="form-check me-3">
-                <input 
-                    type="checkbox" 
-                    name="tien_nghi_ids[]" 
-                    value="{{ $tn->id }}" 
-                    class="form-check-input"
-                    {{ in_array($tn->id, old('tien_nghi_ids', $loaiphong->tienNghis->pluck('id')->toArray())) ? 'checked' : '' }}>
-                <label class="form-check-label">{{ $tn->ten }}</label>
+            <div class="mb-3">
+                <label class="form-label">Tiện nghi</label>
+                <div class="card">
+                    <div class="card-body" style="max-height:260px; overflow-y:auto;">
+                        @php
+                            $selectedTienNghi = old(
+                                'tien_nghi_ids',
+                                isset($loaiphong) ? $loaiphong->tienNghis->pluck('id')->toArray() : [],
+                            );
+                        @endphp
+
+                        @if ($tienNghis->count() > 0)
+                            <div class="row">
+                                @foreach ($tienNghis as $tn)
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="tien_nghi_ids[]"
+                                                id="tn{{ $tn->id }}" value="{{ $tn->id }}"
+                                                {{ in_array($tn->id, (array) $selectedTienNghi) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="tn{{ $tn->id }}">
+                                                <strong>{{ $tn->ten }}</strong>
+                                                @if (isset($tn->gia))
+                                                    <small
+                                                        class="text-muted ms-2">({{ number_format($tn->gia, 0, ',', '.') }}
+                                                        đ)</small>
+                                                @endif
+                                            </label>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-muted mb-0">Chưa có tiện nghi nào.</p>
+                        @endif
+                    </div>
+                </div>
             </div>
-        @endforeach
-    </div>
-</div>
+
+            {{-- Vật dụng  --}}
+            <div class="mb-3">
+                <label class="form-label">Vật dụng (Đồ dùng)</label>
+                <div class="card">
+                    <div class="card-body" style="max-height:260px; overflow-y:auto;">
+                        @php
+                            $selectedVatDungs = old(
+                                'vat_dung_ids',
+                                isset($loaiphong) ? $loaiphong->vatDungs->pluck('id')->toArray() : [],
+                            );
+                        @endphp
+
+                        @if ($vatDungs->count() > 0)
+                            <div class="row">
+                                @foreach ($vatDungs as $vd)
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="vat_dung_ids[]"
+                                                id="vd{{ $vd->id }}" value="{{ $vd->id }}"
+                                                {{ in_array($vd->id, (array) $selectedVatDungs) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="vd{{ $vd->id }}">
+                                                <strong>{{ $vd->ten }}</strong>
+                                                @if (isset($vd->gia))
+                                                    <small class="text-muted ms-2">({{ number_format($vd->gia, 0, ',', '.') }}
+                                                        đ)</small>
+                                                @endif
+                                            </label>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-muted mb-0">Chưa có vật dụng (đồ dùng).</p>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
 
             <hr>
             <h5>Bed types (Cấu hình giường cho loại phòng)</h5>
@@ -95,37 +155,12 @@
                     </div>
                 </div>
             @endforeach
-        </div>
     </div>
-    <div class="mb-3">
-    <label>Vật dụng</label>
-    <div class="d-flex flex-wrap">
-        @foreach($vatDungs as $vd)
-            <div class="form-check me-3">
-                <input 
-                    type="checkbox" 
-                    name="vat_dung_ids[]" 
-                    value="{{ $vd->id }}" 
-                    class="form-check-input"
-                    {{ in_array($vd->id, old('vat_dung_ids', $loaiphong->vatDungs->pluck('id')->toArray() ?? [])) ? 'checked' : '' }}>
-                <label class="form-check-label">
-                    {{ $vd->ten }}
-                    @if($vd->tracked_instances)
-                        <span class="badge bg-warning text-dark small ms-2">Tracked</span>
-                    @endif
-                    <span class="badge {{ $vd->active ? 'bg-success' : 'bg-secondary' }} small ms-2">
-                        {{ $vd->active ? 'Present' : 'Inactive' }}
-                    </span>
-                </label>
-            </div>
-        @endforeach
-    </div>
-</div>
 
-            <div class="mt-3">
-                <button type="submit" class="btn btn-primary">Cập nhật</button>
-                <a href="{{ route('admin.loai_phong.index') }}" class="btn btn-secondary">Hủy</a>
-            </div>
-        </form>
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Cập nhật</button>
+        <a href="{{ route('admin.loai_phong.index') }}" class="btn btn-secondary">Hủy</a>
+    </div>
+    </form>
     </div>
 @endsection

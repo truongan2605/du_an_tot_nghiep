@@ -4,6 +4,19 @@
 
 @section('content')
     <div class="container-fluid">
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $err)
+                        <li>{{ $err }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="card shadow-lg border-0 rounded-3">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">Chi tiết phòng: {{ $phong->ma_phong }}</h4>
@@ -317,47 +330,64 @@
                                             <thead>
                                                 <tr>
                                                     <th>Tên</th>
-                                                    <th class="text-center">Configured</th>
-                                                    <th class="text-center">Reserved</th>
-                                                    <th class="text-center">Consumed</th>
-                                                    <th class="text-center">Available</th>
-                                                    <th class="text-center">Hành động</th>
+                                                    <th class="text-center">Vật phẩm ban đầu</th>
+                                                    <th class="text-center">Vật phẩm đã tiêu thụ (hóa đơn)</th>
+                                                    <th class="text-center">Còn lại</th>
+                                                    <th class="text-center">Đánh dấu đã tiêu thụ</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 @foreach ($vatPhongDoAn as $vd)
                                                     @php
-                                                        $pivotQty = (int) ($vd->pivot->so_luong ?? 0);
-                                                        $stats = $consMap[$vd->id] ?? [
-                                                            'reserved' => 0,
-                                                            'consumed' => 0,
-                                                        ];
-                                                        $reserved = (int) $stats['reserved'];
-                                                        $consumed = (int) $stats['consumed'];
-                                                        $available = max(0, $pivotQty - $reserved - $consumed);
+                                                        $vid = (int) $vd->id;
+                                                        $initial = (int) ($initialReservations[$vid] ?? 0);
+                                                        $consumedByInvoice = (int) ($hoaDonItemsGrouped[$vid] ?? 0);
+                                                        $remaining = max(0, $initial - $consumedByInvoice);
                                                     @endphp
                                                     <tr>
-                                                        <td>{{ $vd->ten }}</td>
-                                                        <td class="text-center">{{ $pivotQty }}</td>
-                                                        <td class="text-center">{{ $reserved }}</td>
-                                                        <td class="text-center">{{ $consumed }}</td>
-                                                        <td class="text-center">{{ $available }}</td>
+                                                        @php
+                                                            $vid = (int) $vd->id;
+                                                            $initial = (int) ($initialReservations[$vid] ?? 0); // from controller
+                                                            $consumedByInvoice = (int) ($hoaDonItemsGrouped[$vid] ?? 0); // from controller
+                                                            $remaining = max(0, $initial - $consumedByInvoice);
+                                                        @endphp
+                                                        <td >{{ $vd->ten }}</td>
+                                                        <td class="text-center">{{ $initial }}</td>
+                                                        <td class="text-center">{{ $consumedByInvoice }}</td>
+                                                        <td class="text-center">{{ $remaining }}</td>
                                                         <td class="text-center">
-
-                                                            @if (isset($existingReservations) && $existingReservations->has($vd->id))
-                                                                @php $row = $existingReservations->get($vd->id); @endphp
+                                                            @if (!empty($activeDatPhong))
                                                                 <form
-                                                                    action="{{ route('admin.phong.consumptions.markConsumed', $row->id) }}"
-                                                                    method="POST" class="d-inline">
+                                                                    action="{{ route('admin.phong.consumptions.store_and_bill', ['phong' => $phong->id]) }}"
+                                                                    method="POST" class="d-inline consume-form">
                                                                     @csrf
-                                                                    {{-- nếu muốn truyền unit_price (ví dụ giá pivot) --}}
-                                                                    <input type="hidden" name="unit_price"
-                                                                        value="{{ $row->unit_price ?? '' }}" />
-                                                                    <button class="btn btn-sm btn-success" type="submit"
-                                                                        title="Đánh dấu đã tiêu thụ">Mark consumed</button>
+                                                                    <input type="hidden" name="dat_phong_id"
+                                                                        value="{{ $activeDatPhong->id }}">
+                                                                    <input type="hidden" name="phong_id"
+                                                                        value="{{ $phong->id }}">
+                                                                    <input type="hidden" name="vat_dung_id"
+                                                                        value="{{ $vd->id }}">
+                                                                    <div class="input-group input-group-sm">
+                                                                        <input type="number" name="quantity"
+                                                                            min="1" max="{{ $remaining }}"
+                                                                            class="form-control form-control-sm qty-to-consume"
+                                                                            placeholder="Số lượng" style="width:90px;"
+                                                                            value="{{ $remaining > 0 ? 1 : 0 }}"
+                                                                            {{ $remaining <= 0 ? 'disabled' : '' }} />
+                                                                        <input type="hidden" name="unit_price"
+                                                                            value="{{ $vd->gia ?? 0 }}">
+                                                                        <button type="submit"
+                                                                            class="btn btn-sm btn-success ms-1"
+                                                                            {{ $remaining <= 0 ? 'disabled' : '' }}
+                                                                            onclick="return confirm('Xác nhận tiêu thụ và thêm vào hoá đơn?')">
+                                                                            Xác nhận
+                                                                        </button>
+                                                                    </div>
                                                                 </form>
+                                                            @else
+                                                                <button class="btn btn-sm btn-secondary" disabled>Không có
+                                                                    booking</button>
                                                             @endif
-
                                                         </td>
                                                     </tr>
                                                 @endforeach
@@ -369,6 +399,7 @@
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </div>
 
@@ -383,3 +414,33 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.consume-form').forEach(function(form) {
+                form.addEventListener('submit', function(e) {
+                    const qtyInput = form.querySelector('.qty-to-consume');
+                    if (!qtyInput || qtyInput.disabled) {
+                        e.preventDefault();
+                        alert('Không có hàng để tiêu thụ.');
+                        return;
+                    }
+                    const val = parseInt(qtyInput.value || '0', 10);
+                    const maxv = parseInt(qtyInput.getAttribute('max') || '0', 10);
+                    if (isNaN(val) || val <= 0) {
+                        e.preventDefault();
+                        alert('Vui lòng nhập số lượng lớn hơn 0.');
+                        return;
+                    }
+                    if (val > maxv) {
+                        e.preventDefault();
+                        alert('Số lượng vượt quá phần còn lại (' + maxv + ').');
+                        return;
+                    }
+                    // allow submit
+                });
+            });
+        });
+    </script>
+@endpush

@@ -262,6 +262,14 @@ class DatPhong extends Model
         );
     }
 
+    public const ALLOWED_FOR_CONSUMPTION = ['dang_cho_xac_nhan', 'da_xac_nhan', 'dang_su_dung'];
+
+    public function canSetupConsumables(): bool
+    {
+        return in_array($this->trang_thai, self::ALLOWED_FOR_CONSUMPTION);
+    }
+
+
     // Scopes
     public function scopeDangCho($query)
     {

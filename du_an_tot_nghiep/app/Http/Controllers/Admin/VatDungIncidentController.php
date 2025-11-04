@@ -19,14 +19,13 @@ class VatDungIncidentController extends Controller
             'vat_dung_id' => 'required|exists:vat_dungs,id',
             'serial' => 'nullable|string|max:255',
             'note' => 'nullable|string|max:1000',
-            'status' => ['nullable', Rule::in(['ok','lost','damaged','used','archived'])],
+            'status' => ['nullable', Rule::in(PhongVatDungInstance::allowedStatuses())],
         ]);
 
         $data['phong_id'] = $phongId;
         $data['created_by'] = Auth::id();
-        $data['status'] = $data['status'] ?? 'ok';
+        $data['status'] = $data['status'] ?? PhongVatDungInstance::STATUS_PRESENT;
 
-        // Tạo instance (model PhongVatDungInstance phải có fillable tương ứng)
         $instance = PhongVatDungInstance::create([
             'phong_id' => $data['phong_id'],
             'vat_dung_id' => (int)$data['vat_dung_id'],
@@ -49,43 +48,30 @@ class VatDungIncidentController extends Controller
             'type' => 'nullable|string|max:100',
             'description' => 'nullable|string|max:2000',
             'fee' => 'nullable|numeric|min:0',
-            'mark_instance_status' => ['nullable', Rule::in(['ok','lost','damaged','used','archived'])],
+            'mark_instance_status' => ['nullable', Rule::in(['damaged','missing','lost'])],
             'create_consumption' => 'nullable|boolean',
             'consumption_quantity' => 'nullable|integer|min:1',
         ]);
 
-        // normalize
         $data['reported_by'] = Auth::id();
         $createConsumption = (bool) ($data['create_consumption'] ?? false);
         $consumptionQty = isset($data['consumption_quantity']) ? (int)$data['consumption_quantity'] : 1;
 
         DB::beginTransaction();
         try {
-            // If an instance id provided, load it and ensure consistency
             $instance = null;
             if (!empty($data['phong_vat_dung_instance_id'])) {
                 $instance = PhongVatDungInstance::find($data['phong_vat_dung_instance_id']);
-                if (!$instance) {
-                    throw new \Exception('Instance không tồn tại');
-                }
-                // If vat_dung_id provided, ensure match
+                if (!$instance) throw new \Exception('Instance không tồn tại');
                 if (!empty($data['vat_dung_id']) && (int)$data['vat_dung_id'] !== (int)$instance->vat_dung_id) {
                     throw new \Exception('vat_dung_id không khớp với instance được cung cấp.');
                 }
-                // fill vat_dung_id from instance if not provided
                 $data['vat_dung_id'] = (int)$instance->vat_dung_id;
-                // also fill phong_id if missing
-                if (empty($data['phong_id'])) {
-                    $data['phong_id'] = $instance->phong_id;
-                }
+                if (empty($data['phong_id'])) $data['phong_id'] = $instance->phong_id;
             }
 
-            // If only vat_dung_id provided but phong_vat_dung_instance_id not, that's okay (incident about item type)
-            if (empty($data['vat_dung_id'])) {
-                throw new \Exception('vat_dung_id là bắt buộc nếu không có phong_vat_dung_instance_id.');
-            }
+            if (empty($data['vat_dung_id'])) throw new \Exception('vat_dung_id là bắt buộc nếu không có phong_vat_dung_instance_id.');
 
-            // Create incident
             $incident = VatDungIncident::create([
                 'phong_vat_dung_instance_id' => $data['phong_vat_dung_instance_id'] ?? null,
                 'phong_id' => $data['phong_id'] ?? null,
@@ -97,13 +83,17 @@ class VatDungIncidentController extends Controller
                 'reported_by' => $data['reported_by'],
             ]);
 
-            // If admin wants to mark instance status (e.g. lost/damaged), do it
             if ($instance && !empty($data['mark_instance_status'])) {
-                $instance->status = $data['mark_instance_status'];
+                // normalize mapping mark_instance_status -> instance status
+                $map = [
+                    'damaged' => PhongVatDungInstance::STATUS_DAMAGED,
+                    'missing' => PhongVatDungInstance::STATUS_MISSING,
+                    'lost' => PhongVatDungInstance::STATUS_LOST,
+                ];
+                $instance->status = $map[$data['mark_instance_status']] ?? $instance->status;
                 $instance->save();
             }
 
-            // Optionally create consumption (charge), e.g. when lost/damaged and you want to charge immediately
             if ($createConsumption) {
                 $vat = VatDung::find($incident->vat_dung_id);
                 $unitPrice = $vat ? ($vat->gia ?? 0) : 0;
@@ -116,8 +106,37 @@ class VatDungIncidentController extends Controller
                     'unit_price' => $unitPrice,
                     'note' => 'Auto-created from incident id=' . $incident->id,
                     'created_by' => Auth::id(),
-                    'consumed_at' => now(), // mark as already consumed
+                    'consumed_at' => now(),
                 ]);
+
+                // update pivot counters
+                $pivot = DB::table('phong_vat_dung')
+                    ->where('phong_id', $data['phong_id'] ?? ($instance->phong_id ?? null))
+                    ->where('vat_dung_id', $incident->vat_dung_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($pivot) {
+                    DB::table('phong_vat_dung')
+                        ->where('phong_id', $data['phong_id'] ?? ($instance->phong_id ?? null))
+                        ->where('vat_dung_id', $incident->vat_dung_id)
+                        ->update([
+                            'so_luong' => max(0, ((int)$pivot->so_luong) - $consumptionQty),
+                            'da_tieu_thu' => ((int)$pivot->da_tieu_thu) + $consumptionQty,
+                            'updated_at' => now()
+                        ]);
+                } else {
+                    DB::table('phong_vat_dung')->insert([
+                        'phong_id' => $data['phong_id'] ?? ($instance->phong_id ?? null),
+                        'vat_dung_id' => $incident->vat_dung_id,
+                        'so_luong' => 0,
+                        'da_tieu_thu' => $consumptionQty,
+                        'gia_override' => null,
+                        'tracked_instances' => false,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
 
             DB::commit();
@@ -128,10 +147,6 @@ class VatDungIncidentController extends Controller
         }
     }
 
-    /**
-     * Cập nhật một incident (chỉnh type/description/fee).
-     * Không cho phép đặt billed_at ở đây (để tránh thao tác vô tình) — billing nên có flow riêng.
-     */
     public function update(Request $request, VatDungIncident $incident)
     {
         $data = $request->validate([

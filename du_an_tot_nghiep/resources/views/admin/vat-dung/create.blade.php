@@ -31,32 +31,30 @@
                                 <label for="gia" class="form-label">Giá (VND)</label>
                                 <input type="number" step="0.01" class="form-control @error('gia') is-invalid @enderror"
                                     id="gia" name="gia" value="{{ old('gia') }}">
-                                @error('gia') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                @error('gia')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
                                 <div class="form-text">Để trống nếu không áp giá mặc định.</div>
                             </div>
 
                             <div class="col-md-6">
                                 <label for="loai" class="form-label">Loại</label>
                                 <select name="loai" id="loai" class="form-select">
-                                    <option value="do_dung" {{ old('loai') === 'do_dung' ? 'selected' : '' }}>Đồ dùng</option>
-                                    <option value="do_an" {{ old('loai') === 'do_an' ? 'selected' : '' }}>Đồ ăn</option>
+                                    <option value="do_dung" {{ old('loai') === 'do_dung' ? 'selected' : '' }}>Đồ dùng
+                                    </option>
+                                    <option value="do_an" {{ old('loai') === 'do_an' ? 'selected' : '' }}>Đồ tiêu thụ</option>
                                 </select>
-                                <div class="form-text">Chọn "Đồ ăn" nếu tính theo số lượng tiêu thụ.</div> 
-                                <div class="form-text">"Đồ dùng" nếu cần theo dõi trạng thái (mất/hỏng).</div>
+                                <div class="form-text">Chọn "Đồ tiêu thụ" nếu tính theo số lượng tiêu thụ.</div>
+                                <div class="form-text">Chọn "Đồ dùng" nếu cần theo dõi trạng thái (mất/hỏng).</div>
                             </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="mo_ta" class="form-label">Mô tả</label>
                             <textarea class="form-control @error('mo_ta') is-invalid @enderror" id="mo_ta" name="mo_ta" rows="4">{{ old('mo_ta') }}</textarea>
-                            @error('mo_ta') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        </div>
-
-                        <div class="mb-3 form-check">
-                            <input class="form-check-input" type="checkbox" id="tracked_instances" name="tracked_instances" value="1"
-                                {{ old('tracked_instances') ? 'checked' : '' }}>
-                            <label class="form-check-label" for="tracked_instances">Theo dõi từng bản (serial / instance)</label>
-                            <div class="form-text">Bật nếu vật dụng cần tracking từng bản (ví dụ: TV, tủ lạnh, điều hoà).</div>
+                            @error('mo_ta')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="mb-3 form-check">
@@ -71,14 +69,17 @@
                             <label for="icon" class="form-label">Icon</label>
                             <input type="file" class="form-control @error('icon') is-invalid @enderror" id="icon"
                                 name="icon" accept="image/*">
-                            @error('icon') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            @error('icon')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                             <div class="form-text">JPG, PNG, WEBP. Kích thước tối đa: 2MB.</div>
                         </div>
 
                         <div class="preview-container" id="preview-container" style="display: none;">
                             <label class="form-label">Xem trước:</label>
                             <div class="border rounded p-2 text-center">
-                                <img id="preview-image" src="" alt="Preview" class="img-fluid" style="max-height: 200px;">
+                                <img id="preview-image" src="" alt="Preview" class="img-fluid"
+                                    style="max-height: 200px;">
                             </div>
                         </div>
                     </div>

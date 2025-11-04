@@ -13,41 +13,84 @@ use Illuminate\Support\Facades\DB;
 
 class PhongVatDungController extends Controller
 {
+    protected function normalizeItemsArray($raw)
+    {
+        $items = [];
+        foreach ($raw as $k => $v) {
+            if (!is_array($v)) {
+                continue;
+            }
+
+            if (isset($v['vat_dung_id'])) {
+                // form used: items[][vat_dung_id] ... (indexed array)
+                $vdId = (int) $v['vat_dung_id'];
+
+                $qty = isset($v['so_luong']) ? (int)$v['so_luong']
+                    : (isset($v['quantity']) ? (int)$v['quantity'] : 0);
+
+                $items[$vdId] = [
+                    'so_luong' => $qty,
+                    'da_tieu_thu' => isset($v['da_tieu_thu']) ? (int)$v['da_tieu_thu'] : 0,
+                    'gia_override' => isset($v['gia_override']) ? (float)$v['gia_override']
+                        : (isset($v['unit_price']) ? (float)$v['unit_price'] : null),
+                    'tracked_instances' => isset($v['tracked_instances']) ? (bool)$v['tracked_instances'] : false,
+                ];
+            } else {
+                // keyed by vat_dung_id: items[<vat_dung_id>][quantity] ...
+                $vdId = (int) $k;
+
+                $qty = isset($v['so_luong']) ? (int)$v['so_luong']
+                    : (isset($v['quantity']) ? (int)$v['quantity'] : 0);
+
+                $items[$vdId] = [
+                    'so_luong' => $qty,
+                    'da_tieu_thu' => isset($v['da_tieu_thu']) ? (int)$v['da_tieu_thu'] : 0,
+                    'gia_override' => isset($v['gia_override']) ? (float)$v['gia_override']
+                        : (isset($v['unit_price']) ? (float)$v['unit_price'] : null),
+                    'tracked_instances' => isset($v['tracked_instances']) ? (bool)$v['tracked_instances'] : false,
+                ];
+            }
+        }
+        return $items;
+    }
+
     public function sync(Request $request, Phong $phong)
     {
-        $data = $request->validate([
+        $request->validate([
             'items' => 'required|array',
-            'items.*.vat_dung_id' => 'required|exists:vat_dungs,id',
-            'items.*.so_luong' => 'nullable|integer|min:0',
-            'items.*.da_tieu_thu' => 'nullable|integer|min:0',
-            'items.*.gia_override' => 'nullable|numeric|min:0',
-            'items.*.tracked_instances' => 'nullable|boolean',
         ]);
 
-        // verify types: không cho chỉnh đồ dùng (do_dung) ở cấp phòng
-        foreach ($data['items'] as $it) {
-            $vd = VatDung::find($it['vat_dung_id']);
-            if (!$vd) continue;
-            if ($vd->loai === VatDung::LOAI_DO_DUNG) {
+        $raw = $request->input('items', []);
+        $items = $this->normalizeItemsArray($raw);
+
+        // Verify: do not allow editing do_dung at room level
+        foreach ($items as $vdId => $vals) {
+            $vd = VatDung::find($vdId);
+            if ($vd && ($vd->loai ?? '') === VatDung::LOAI_DO_DUNG) {
                 return back()->withErrors([
                     'error' => "Không thể chỉnh vật dụng loại 'đồ dùng' ở cấp phòng. Vui lòng quản lý vật dụng này ở phần Loại phòng."
                 ]);
             }
         }
 
-        $attach = [];
-        foreach ($data['items'] as $it) {
-            $attach[$it['vat_dung_id']] = [
-                'so_luong' => $it['so_luong'] ?? 0,
-                'da_tieu_thu' => $it['da_tieu_thu'] ?? 0,
-                'gia_override' => isset($it['gia_override']) ? (float)$it['gia_override'] : null,
-                'tracked_instances' => isset($it['tracked_instances']) ? (bool)$it['tracked_instances'] : false,
-            ];
-        }
+        DB::transaction(function () use ($phong, $items) {
+            // prepare attach structure for sync
+            $attach = [];
+            $now = now();
+            foreach ($items as $vdId => $vals) {
+                $attach[$vdId] = [
+                    'so_luong' => $vals['so_luong'] ?? 0,
+                    'da_tieu_thu' => $vals['da_tieu_thu'] ?? 0,
+                    'gia_override' => $vals['gia_override'] ?? null,
+                    'tracked_instances' => $vals['tracked_instances'] ?? false,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
 
-        DB::transaction(function () use ($phong, $attach) {
             $phong->vatDungs()->sync($attach);
 
+            // ensure instances or archive if not tracked
             foreach ($attach as $vatDungId => $pivotData) {
                 $tracked = (bool)($pivotData['tracked_instances'] ?? false);
                 $soLuong = (int)($pivotData['so_luong'] ?? 0);
@@ -58,15 +101,14 @@ class PhongVatDungController extends Controller
                     DB::table('phong_vat_dung_instances')
                         ->where('phong_id', $phong->id)
                         ->where('vat_dung_id', $vatDungId)
-                        ->where('status', 'ok')
-                        ->update(['status' => 'archived', 'updated_at' => now()]);
+                        ->where('status', \App\Models\PhongVatDungInstance::STATUS_PRESENT)
+                        ->update(['status' => \App\Models\PhongVatDungInstance::STATUS_ARCHIVED, 'updated_at' => now()]);
                 }
             }
         });
 
         return back()->with('success', 'Cập nhật vật dụng phòng thành công');
     }
-
 
     public function showFoodSetup(Request $request, Phong $phong)
     {
@@ -75,26 +117,24 @@ class PhongVatDungController extends Controller
 
         $showAllowed = true;
         if ($datPhong) {
-            $showAllowed = in_array($datPhong->trang_thai, ['da_dat', 'dang_su_dung', 'da_xac_nhan']);
+            $showAllowed = $datPhong->canSetupConsumables();
         } else {
             $showAllowed = in_array($phong->trang_thai, ['da_dat', 'dang_o']);
         }
 
-        // Lấy danh sách đồ ăn
         $doAnList = VatDung::where('active', true)
             ->where('loai', VatDung::LOAI_DO_AN)
             ->orderBy('ten')
             ->get();
 
-        // Lấy các reservation hiện có (reserved = consumed_at IS NULL, not billed)
         $existingReservations = collect();
         if ($datPhong) {
             $existingReservations = PhongVatDungConsumption::where('dat_phong_id', $datPhong->id)
                 ->where('phong_id', $phong->id)
-                ->whereNull('consumed_at')    // reserved but not started yet
-                ->whereNull('billed_at')     // not billed yet
+                ->whereNull('consumed_at')
+                ->whereNull('billed_at')
                 ->get()
-                ->keyBy('vat_dung_id'); // keyed by vat_dung_id for easy lookup in view
+                ->keyBy('vat_dung_id');
         }
 
         return view('admin.phong.food-setup', [
@@ -108,78 +148,68 @@ class PhongVatDungController extends Controller
 
     public function reserveFood(Request $request, Phong $phong)
     {
-        // dat_phong_id required (we consider reservations attached to a booking)
-        $data = $request->validate([
+        $payload = $request->validate([
             'dat_phong_id' => 'required|exists:dat_phong,id',
             'items' => 'nullable|array',
-            'items.*.vat_dung_id' => 'required|exists:vat_dungs,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'nullable|numeric|min:0',
             'note' => 'nullable|string|max:1000',
         ]);
 
-        $datPhong = DatPhong::find($data['dat_phong_id']);
-        if (!$datPhong) {
-            return back()->withErrors(['error' => 'Booking không tồn tại.']);
-        }
+        $datPhong = DatPhong::findOrFail($payload['dat_phong_id']);
 
-        // Only allow setup for bookings in allowed states
-        if (! in_array($datPhong->trang_thai, ['da_dat', 'da_xac_nhan', 'dang_su_dung'])) {
+        if (!$datPhong->canSetupConsumables()) {
             return back()->withErrors(['error' => 'Không thể setup đồ ăn cho booking có trạng thái hiện tại.']);
         }
 
-        // Safety: ensure phong status align as well (optional)
-        if (! in_array($phong->trang_thai, ['da_dat', 'dang_o'])) {
-            return back()->withErrors(['error' => 'Không thể setup đồ ăn cho phòng có trạng thái hiện tại.']);
-        }
+        $raw = $request->input('items', []);
+        $items = $this->normalizeItemsArray($raw);
 
-        // incoming items keyed by vat_dung_id (because view uses items[vdId][])
-        $incoming = $request->input('items', []); // may be null/empty if all unchecked
-        $incomingIds = array_keys($incoming ?: []);
+        $positiveItems = array_filter($items, function ($v) {
+            $qty = (int)($v['so_luong'] ?? $v['quantity'] ?? 0);
+            return $qty > 0;
+        });
 
-        DB::transaction(function () use ($datPhong, $phong, $incoming, $incomingIds, $request) {
-            // load existing reservations (reserved but not consumed/billed)
+        DB::transaction(function () use ($datPhong, $phong, $positiveItems, $request) {
             $existing = PhongVatDungConsumption::where('dat_phong_id', $datPhong->id)
                 ->where('phong_id', $phong->id)
                 ->whereNull('consumed_at')
                 ->whereNull('billed_at')
+                ->lockForUpdate()
                 ->get()
                 ->keyBy('vat_dung_id');
 
-            // Upsert incoming items
-            foreach ($incoming as $vdId => $vals) {
-                // skip if malformed
-                $vatDungId = isset($vals['vat_dung_id']) ? (int)$vals['vat_dung_id'] : (int)$vdId;
-                $qty = (int)($vals['quantity'] ?? 0);
+            foreach ($positiveItems as $vdId => $vals) {
+                $qty = (int)($vals['so_luong'] ?? $vals['quantity'] ?? 0);
                 if ($qty <= 0) continue;
 
-                $unitPrice = isset($vals['unit_price']) ? (float)$vals['unit_price'] : null;
-                $note = $request->input('note', null);
+                $vat = VatDung::find($vdId);
+                if (! $vat) continue;
 
-                if ($existing->has($vatDungId)) {
-                    // update existing reservation
-                    $row = $existing->get($vatDungId);
+                $pivot = DB::table('phong_vat_dung')->where('phong_id', $phong->id)->where('vat_dung_id', $vdId)->first();
+                $unitPrice = $vals['gia_override'] ?? $vals['unit_price'] ?? ($pivot->gia_override ?? $vat->gia ?? 0);
+
+                if ($existing->has($vdId)) {
+                    $row = $existing->get($vdId);
                     $row->quantity = $qty;
-                    if ($unitPrice !== null) $row->unit_price = $unitPrice;
-                    if ($note !== null) $row->note = $note;
+                    $row->unit_price = $unitPrice;
+                    $row->note = $request->input('note', $row->note);
                     $row->save();
                 } else {
-                    // create new reservation (consumed_at = NULL)
                     PhongVatDungConsumption::create([
                         'dat_phong_id' => $datPhong->id,
                         'phong_id' => $phong->id,
-                        'vat_dung_id' => $vatDungId,
+                        'vat_dung_id' => $vdId,
                         'quantity' => $qty,
                         'unit_price' => $unitPrice,
-                        'note' => $note,
+                        'note' => $request->input('note', null),
                         'created_by' => Auth::id(),
                         'consumed_at' => null,
                     ]);
                 }
             }
 
-            // Delete any existing reservations that are no longer present in incoming items
+            $incomingIds = array_map('intval', array_keys($positiveItems));
             $toDelete = $existing->keys()->diff($incomingIds)->toArray();
+
             if (!empty($toDelete)) {
                 PhongVatDungConsumption::where('dat_phong_id', $datPhong->id)
                     ->where('phong_id', $phong->id)
@@ -194,6 +224,103 @@ class PhongVatDungController extends Controller
             'phong' => $phong->id,
             'dat_phong_id' => $datPhong->id,
         ])->with('success', 'Cập nhật setup đồ ăn thành công.');
+    }
+
+    public function storeItem(Request $request, Phong $phong)
+    {
+        $data = $request->validate([
+            'dat_phong_id' => 'required|exists:dat_phong,id',
+            'items' => 'required|array',
+        ]);
+
+        $datPhong = DatPhong::findOrFail($data['dat_phong_id']);
+        if (! $datPhong->canSetupConsumables()) {
+            return response()->json(['error' => 'Booking không hợp lệ'], 422);
+        }
+
+        $raw = $request->input('items', []);
+        $items = $this->normalizeItemsArray($raw);
+        $positive = array_filter($items, fn($v) => (int)($v['so_luong'] ?? $v['quantity'] ?? 0) > 0);
+
+        if (empty($positive)) {
+            return response()->json(['error' => 'No positive item provided'], 422);
+        }
+
+        $vdId = (int) array_keys($positive)[0];
+        $vals = $positive[$vdId];
+        $qty = (int) ($vals['so_luong'] ?? $vals['quantity'] ?? 0);
+
+        DB::transaction(function () use ($datPhong, $phong, $vdId, $qty, $vals) {
+            $existing = PhongVatDungConsumption::where('dat_phong_id', $datPhong->id)
+                ->where('phong_id', $phong->id)
+                ->whereNull('consumed_at')
+                ->whereNull('billed_at')
+                ->where('vat_dung_id', $vdId)
+                ->lockForUpdate()
+                ->first();
+
+            $vat = VatDung::find($vdId);
+            $pivot = DB::table('phong_vat_dung')->where('phong_id', $phong->id)->where('vat_dung_id', $vdId)->first();
+            $unitPrice = $vals['gia_override'] ?? $vals['unit_price'] ?? ($pivot->gia_override ?? ($vat->gia ?? 0));
+
+            if ($existing) {
+                $existing->quantity = $qty;
+                $existing->unit_price = $unitPrice;
+                $existing->save();
+            } else {
+                PhongVatDungConsumption::create([
+                    'dat_phong_id' => $datPhong->id,
+                    'phong_id' => $phong->id,
+                    'vat_dung_id' => $vdId,
+                    'quantity' => $qty,
+                    'unit_price' => $unitPrice,
+                    'created_by' => Auth::id(),
+                    'consumed_at' => null,
+                ]);
+            }
+        });
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function updateItem(Request $request, Phong $phong, PhongVatDungConsumption $consumption)
+    {
+        $data = $request->validate([
+            'quantity' => 'required|integer|min:0',
+            'unit_price' => 'nullable|numeric|min:0'
+        ]);
+
+        if ($consumption->billed_at) {
+            return response()->json(['error' => 'Đã billed'], 422);
+        }
+
+        $consumption->quantity = (int)$data['quantity'];
+        if (isset($data['unit_price'])) $consumption->unit_price = (float)$data['unit_price'];
+        $consumption->save();
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function destroyItem(Request $request, Phong $phong, $vatDungOrConsumptionId)
+    {
+        $cons = PhongVatDungConsumption::find($vatDungOrConsumptionId);
+        if ($cons) {
+            if ($cons->billed_at) return response()->json(['error' => 'Billed, cannot delete'], 422);
+            $cons->delete();
+            return response()->json(['ok' => true]);
+        }
+
+        $datPhongId = $request->input('dat_phong_id', null);
+        if (! $datPhongId) return response()->json(['error' => 'dat_phong_id required'], 422);
+
+        PhongVatDungConsumption::where('dat_phong_id', $datPhongId)
+            ->where('phong_id', $phong->id)
+            ->where('vat_dung_id', (int)$vatDungOrConsumptionId)
+            ->whereNull('consumed_at')
+            ->whereNull('billed_at')
+            ->delete();
+
+        return response()->json(['ok' => true]);
     }
 
     public function remove(Phong $phong, VatDung $vat_dung)

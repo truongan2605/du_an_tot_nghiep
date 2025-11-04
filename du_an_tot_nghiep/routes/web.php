@@ -68,10 +68,6 @@ Route::prefix('admin')
         // Phòng
         Route::resource('phong', PhongController::class);
         Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])->name('phong.image.destroy');
-        Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])
-            ->name('phong.image.destroy');
-        // loai phong
-        Route::resource('loai_phong', LoaiPhongController::class);
 
         // ---- Tầng ----
         Route::resource('tang', TangController::class);
@@ -135,6 +131,12 @@ Route::prefix('admin')
         Route::post('phong/{phong}/food-reserve', [PhongVatDungController::class, 'reserveFood'])
             ->name('phong.food-reserve');
 
+        // optional single-item endpoints
+        Route::post('/phong/{phong}/food-reserve-item', [PhongVatDungController::class, 'storeItem'])->name('admin.phong.food-reserve-item.store');
+        Route::put('/phong/{phong}/food-reserve-item/{consumption}', [PhongVatDungController::class, 'updateItem'])->name('admin.phong.food-reserve-item.update');
+        Route::delete('/phong/{phong}/food-reserve-item/{vatDungId}', [PhongVatDungController::class, 'destroyItem'])->name('admin.phong.food-reserve-item.destroy');
+
+
         // PhongVatDungInstance routes
         Route::get('phong/{phong}/vat-dung-instances', [PhongVatDungInstanceController::class, 'index'])
             ->name('phong.vatdung.instances.index');
@@ -159,6 +161,9 @@ Route::prefix('admin')
 
         Route::post('phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])
             ->name('phong.consumptions.markConsumed');
+
+        Route::post('phong/consumptions/store-and-bill/{phong}', [PhongConsumptionController::class, 'storeAndBill'])
+            ->name('phong.consumptions.store_and_bill');
     });
 
 // ==================== STAFF ====================

@@ -50,12 +50,6 @@
                             @error('mo_ta') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
 
-                        <div class="mb-3 form-check">
-                            <input class="form-check-input" type="checkbox" id="tracked_instances" name="tracked_instances" value="1"
-                                {{ old('tracked_instances', $vatDung->tracked_instances ?? false) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="tracked_instances">Theo dõi từng bản (serial)</label>
-                            <div class="form-text">Bật nếu cần quản lý từng bản riêng (ví dụ: TV, điều hòa).</div>
-                        </div>
 
                         <div class="mb-3 form-check">
                             <input class="form-check-input" type="checkbox" id="active" name="active" value="1"

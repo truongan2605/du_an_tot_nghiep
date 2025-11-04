@@ -53,9 +53,15 @@ class VatDung extends Model
 
     public function loaiPhongs()
     {
-        return $this->belongsToMany(LoaiPhong::class, 'loai_phong_vat_dung', 'vat_dung_id', 'loai_phong_id')
-            ->withPivot(['so_luong', 'tracked_instances'])
-            ->withTimestamps();
+        return $this->belongsToMany(
+            \App\Models\LoaiPhong::class,
+            'loai_phong_vat_dung',
+            'vat_dung_id',
+            'loai_phong_id'
+        )
+            ->withPivot(['so_luong'])
+            ->withTimestamps()
+            ->orderByDesc('loai_phong.id');
     }
 
 

@@ -289,11 +289,11 @@ class BookingController extends Controller
         if (Schema::hasTable('loai_phong') && Schema::hasColumn('loai_phong', 'so_luong_thuc_te')) {
             $totalRoomsOfType = (int) DB::table('loai_phong')->where('id', $loaiPhongId)->value('so_luong_thuc_te');
         }
-        if ($totalRoomsOfType <= 0) {
-            $totalRoomsOfType = Phong::where('loai_phong_id', $loaiPhongId)
-                ->where('trang_thai', 'trong')
-                ->count();
-        }
+        // if ($totalRoomsOfType <= 0) {
+        //     $totalRoomsOfType = Phong::where('loai_phong_id', $loaiPhongId)
+        //         ->where('trang_thai', 'trong')
+        //         ->count();
+        // }
 
         $remainingAcrossType = max(0, $totalRoomsOfType - $aggregateBooked - $aggregateHoldsForSignature);
         $availableForSignature = max(0, min($matchingAvailableCount, $remainingAcrossType));

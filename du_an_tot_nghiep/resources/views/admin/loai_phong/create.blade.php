@@ -44,53 +44,84 @@
                     dưới.</div>
             </div>
 
-            {{-- Tiện nghi --}}
+            {{-- Tiện nghi (shared block for create & edit) --}}
             <div class="mb-3">
-                <label>Tiện nghi</label><br>
-                @foreach ($tienNghis as $tn)
-                    <div class="form-check form-check-inline">
-                        <input type="checkbox" name="tien_nghi_ids[]" value="{{ $tn->id }}" class="form-check-input"
-                            {{ in_array($tn->id, old('tien_nghi_ids', [])) ? 'checked' : '' }}>
-                        <label class="form-check-label">{{ $tn->ten }}</label>
-                    </div>
-                @endforeach
-            </div>
+                <label class="form-label">Tiện nghi</label>
+                <div class="card">
+                    <div class="card-body" style="max-height:260px; overflow-y:auto;">
+                        @php
+                            // oldList có thể là array từ request; nếu không có, fallback sang $loaiphong->tienNghis (edit) hoặc []
+                            $selectedTienNghi = old(
+                                'tien_nghi_ids',
+                                isset($loaiphong) ? $loaiphong->tienNghis->pluck('id')->toArray() : [],
+                            );
+                        @endphp
 
-            {{-- Vật dụng: show durable items with status and tracked flag --}}
-            <div class="col-md-12 mb-3">
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-success text-white fw-bold">
-                        Chọn Vật Dụng (Đồ dùng)
-                    </div>
-                    <div class="card-body" style="max-height: 360px; overflow-y: auto;">
-                        @if ($vatDungs->count() > 0)
+                        @if ($tienNghis->count() > 0)
                             <div class="row">
-                                @foreach ($vatDungs as $item)
+                                @foreach ($tienNghis as $tn)
                                     <div class="col-md-6 mb-2">
-                                        <label class="d-flex align-items-center gap-2">
-                                            <input class="form-check-input" type="checkbox" name="vat_dung_ids[]"
-                                                value="{{ $item->id }}" id="vatDung{{ $item->id }}"
-                                                {{ in_array($item->id, old('vat_dung_ids', [])) ? 'checked' : '' }}>
-
-                                            <span class="flex-grow-1">{{ $item->ten }}</span>
-
-                                            @if($item->tracked_instances)
-                                                <span class="badge bg-warning text-dark small">Tracked</span>
-                                            @endif
-
-                                            <span class="badge {{ $item->active ? 'bg-success' : 'bg-secondary' }} small">
-                                                {{ $item->active ? 'Present' : 'Inactive' }}
-                                            </span>
-                                        </label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="tien_nghi_ids[]"
+                                                id="tn{{ $tn->id }}" value="{{ $tn->id }}"
+                                                {{ in_array($tn->id, (array) $selectedTienNghi) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="tn{{ $tn->id }}">
+                                                <strong>{{ $tn->ten }}</strong>
+                                                @if (isset($tn->gia))
+                                                    <small
+                                                        class="text-muted ms-2">({{ number_format($tn->gia, 0, ',', '.') }}
+                                                        đ)</small>
+                                                @endif
+                                            </label>
+                                        </div>
                                     </div>
                                 @endforeach
                             </div>
                         @else
-                            <p class="text-muted mb-0">Chưa có vật dụng nào.</p>
+                            <p class="text-muted mb-0">Chưa có tiện nghi nào.</p>
                         @endif
                     </div>
                 </div>
             </div>
+
+            {{-- Vật dụng (Đồ dùng) — same UI as Tiện nghi --}}
+            <div class="mb-3">
+                <label class="form-label">Vật dụng (Đồ dùng)</label>
+                <div class="card">
+                    <div class="card-body" style="max-height:260px; overflow-y:auto;">
+                        @php
+                            $selectedVatDungs = old(
+                                'vat_dung_ids',
+                                isset($loaiphong) ? $loaiphong->vatDungs->pluck('id')->toArray() : [],
+                            );
+                        @endphp
+
+                        @if ($vatDungs->count() > 0)
+                            <div class="row">
+                                @foreach ($vatDungs as $vd)
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="vat_dung_ids[]"
+                                                id="vd{{ $vd->id }}" value="{{ $vd->id }}"
+                                                {{ in_array($vd->id, (array) $selectedVatDungs) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="vd{{ $vd->id }}">
+                                                <strong>{{ $vd->ten }}</strong>
+                                                @if (isset($vd->gia))
+                                                    <small class="text-muted ms-2">({{ number_format($vd->gia, 0, ',', '.') }}
+                                                        đ)</small>
+                                                @endif
+                                            </label>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-muted mb-0">Chưa có vật dụng (đồ dùng).</p>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
 
             <hr>
             <h5>Loại giường</h5>
