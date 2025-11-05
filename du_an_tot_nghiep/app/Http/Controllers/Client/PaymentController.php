@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Schema;
 
 class PaymentController extends Controller
 {
-   
+
     public const ADULT_PRICE = 150000;
     public const CHILD_PRICE = 60000;
     public const CHILD_FREE_AGE = 6;
@@ -34,8 +34,8 @@ class PaymentController extends Controller
         try {
             $validated = $request->validate([
                 'phong_id' => 'required|exists:phong,id',
-                'ngay_nhan_phong' => 'required|date|after_or_equal:today',  
-                'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',  
+                'ngay_nhan_phong' => 'required|date|after_or_equal:today',
+                'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
                 'amount' => 'required|numeric|min:1',
                 'total_amount' => 'required|numeric|min:1|gte:amount',
                 'so_khach' => 'nullable|integer|min:1',
@@ -45,6 +45,10 @@ class PaymentController extends Controller
                 'children_ages.*' => 'integer|min:0|max:12',
                 'addons' => 'nullable|array',
                 'rooms_count' => 'required|integer|min:1',
+                'phuong_thuc' => 'required|in:vnpay',
+                'name' => 'required|string|max:255|min:2',
+                'address' => 'required|string|max:500|min:5',
+                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,' . Auth::id(),
             ]);
 
             $expectedDeposit = $validated['total_amount'] * 0.2;
@@ -125,6 +129,10 @@ class PaymentController extends Controller
                 'nights' => $nights,
                 'rooms_count' => $roomsCount,
                 'tong_tien' => $snapshotTotalServer,
+                'phuong_thuc' => $validated['phuong_thuc'],
+                'contact_name' => $validated['name'],
+                'contact_address' => $validated['address'],
+                'contact_phone' => $validated['phone'],
             ];
 
             return DB::transaction(function () use ($validated, $maThamChieu, $snapshotMeta, $phong, $request, $from, $to, $nights, $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons) {
@@ -132,8 +140,8 @@ class PaymentController extends Controller
                     'ma_tham_chieu' => $maThamChieu,
                     'nguoi_dung_id' => Auth::id(),
                     'phong_id' => $validated['phong_id'],
-                    'ngay_nhan_phong' => $validated['ngay_nhan_phong'],  
-                    'ngay_tra_phong' => $validated['ngay_tra_phong'],   
+                    'ngay_nhan_phong' => $validated['ngay_nhan_phong'],
+                    'ngay_tra_phong' => $validated['ngay_tra_phong'],
                     'tong_tien' => $snapshotTotalServer,
                     'deposit_amount' => $validated['amount'],
                     'so_khach' => $validated['so_khach'] ?? ($validated['adults'] + ($validated['children'] ?? 0)),
@@ -142,9 +150,19 @@ class PaymentController extends Controller
                     'can_xac_nhan' => false,
                     'created_by' => Auth::id(),
                     'snapshot_meta' => json_encode($snapshotMeta),
+                    'phuong_thuc' => $validated['phuong_thuc'],
+                    'contact_name' => $validated['name'],
+                    'contact_address' => $validated['address'],
+                    'contact_phone' => $validated['phone'],
+                ]);
+                Log::info('Payment booking created with contact', [
+                    'dat_phong_id' => $dat_phong->id,
+                    'phuong_thuc' => $dat_phong->phuong_thuc,
+                    'contact_name' => $dat_phong->contact_name,
+                    'contact_phone' => $dat_phong->contact_phone,
+                    'validated_data' => $validated,
                 ]);
 
-                
                 if (Schema::hasTable('loai_phong')) {
                     DB::table('loai_phong')->where('id', $phong->loai_phong_id)->lockForUpdate()->first();
                 }
@@ -233,7 +251,7 @@ class PaymentController extends Controller
                     }
                 }
 
-               
+
                 $stillNeeded = max(0, $roomsCount - $requestedReserved);
                 $selectedIds = [];
                 if ($stillNeeded > 0) {
@@ -275,7 +293,7 @@ class PaymentController extends Controller
                     }
                 }
 
-               
+
                 if ($roomsCount - $reservedCount > 0 && Schema::hasColumn('giu_phong', 'phong_id')) {
                     $aggRow = $holdBase;
                     $aggRow['so_luong'] = $roomsCount - $reservedCount;
@@ -372,7 +390,7 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
 
-        
+
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
@@ -387,7 +405,7 @@ class PaymentController extends Controller
                     'can_xac_nhan' => true,
                 ]);
 
-              
+
                 $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
                 $phongIdsToOccupy = [];
                 foreach ($giu_phongs as $giu_phong) {
@@ -482,7 +500,7 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return response()->json(['RspCode' => '02', 'Message' => 'Booking not found']);
 
-    
+
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
@@ -657,7 +675,7 @@ class PaymentController extends Controller
     /**
      * Tính số đêm
      */
-    private function calculateNights($ngayNhanPhong, $ngayTraPhong)  
+    private function calculateNights($ngayNhanPhong, $ngayTraPhong)
     {
         $from = new \DateTime($ngayNhanPhong);
         $to = new \DateTime($ngayTraPhong);
@@ -683,7 +701,7 @@ class PaymentController extends Controller
         return md5(json_encode($specArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
-  
+
     private function computeAvailableRoomsCount(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, ?string $requiredSignature = null): int
     {
         $requestedStart = $fromDate->copy()->setTime(14, 0, 0);
@@ -821,7 +839,7 @@ class PaymentController extends Controller
         return (int) $availableForSignature;
     }
 
-  
+
     private function computeAvailableRoomIds(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, int $limit = 1, ?string $requiredSignature = null): array
     {
         $requestedStart = $fromDate->copy()->setTime(14, 0, 0);
@@ -969,7 +987,7 @@ class PaymentController extends Controller
 
         $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
         unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
-        
+
         ksort($inputData);
         $hashData = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
         $localHash = strtoupper(hash_hmac('sha512', $hashData, $vnp_HashSecret));
@@ -1021,9 +1039,9 @@ class PaymentController extends Controller
                 'trang_thai' => 'that_bai',
                 'ghi_chu'    => 'VNPay lỗi: ' . $vnp_ResponseCode,
             ]);
-            
+
             Log::warning('Payment failed', ['response_code' => $vnp_ResponseCode]);
-            
+
             return redirect()->route('staff.checkin')
                 ->with('error', 'Thanh toán thất bại. Mã lỗi: ' . $vnp_ResponseCode);
         }
@@ -1037,7 +1055,7 @@ class PaymentController extends Controller
         }
 
         return DB::transaction(function () use ($transaction, $inputData) {
-           
+
             $transaction->update([
                 'trang_thai'       => 'thanh_cong',
                 'provider_txn_ref' => $inputData['vnp_TransactionNo'] ?? null,
@@ -1073,15 +1091,15 @@ class PaymentController extends Controller
                 'remaining' => $booking->tong_tien - $totalPaid,
             ]);
 
-          
+
             if ($totalPaid >= $booking->tong_tien) {
-                
-          
+
+
                 $oldStatus = $booking->trang_thai;
                 $booking->trang_thai = 'dang_su_dung';
                 $booking->checked_in_at = now();
                 $booking->save();
-                
+
                 Log::info('Booking status updated AFTER save', [
                     'booking_id' => $booking->id,
                     'old_status' => $oldStatus,
@@ -1089,11 +1107,11 @@ class PaymentController extends Controller
                     'checked_in_at' => $booking->checked_in_at,
                 ]);
 
-          
+
                 $phongIds = $booking->datPhongItems()->pluck('phong_id')->filter()->toArray();
                 if (!empty($phongIds)) {
                     Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
-                    
+
                     Log::info('Room status updated', [
                         'phong_ids' => $phongIds,
                         'new_status' => 'dang_o',
@@ -1119,12 +1137,12 @@ class PaymentController extends Controller
     {
         $vnp_TmnCode    = env('VNPAY_TMN_CODE');
         $vnp_HashSecret = env('VNPAY_HASH_SECRET');
-        $vnp_Url        = env('VNPAY_URL'); 
+        $vnp_Url        = env('VNPAY_URL');
         $vnp_ReturnUrl  = route('payment.remaining.callback');
 
         $vnp_TxnRef = (string)$transaction->id;
         $vnp_OrderInfo = 'Thanh toán phần còn lại booking #' . $transaction->dat_phong_id;
-        $vnp_Amount = $amount * 100; 
+        $vnp_Amount = $amount * 100;
 
         $inputData = [
             "vnp_Version"    => "2.1.0",
