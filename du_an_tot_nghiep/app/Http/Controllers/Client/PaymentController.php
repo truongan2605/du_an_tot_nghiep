@@ -49,6 +49,7 @@ class PaymentController extends Controller
                 'name' => 'required|string|max:255|min:2',
                 'address' => 'required|string|max:500|min:5',
                 'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,',
+                'ghi_chu' => 'nullable|string|max:500',
             ]);
 
             $expectedDeposit = $validated['total_amount'] * 0.2;
@@ -132,6 +133,7 @@ class PaymentController extends Controller
                 'contact_name' => $validated['name'],
                 'contact_address' => $validated['address'],
                 'contact_phone' => $validated['phone'],
+                'ghi_chu' => $validated['ghi_chu'] ?? '',
             ];
 
             return DB::transaction(function () use ($validated, $maThamChieu, $snapshotMeta, $phong, $request, $from, $to, $nights, $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons) {
@@ -153,6 +155,7 @@ class PaymentController extends Controller
                     'contact_name' => $validated['name'],
                     'contact_address' => $validated['address'],
                     'contact_phone' => $validated['phone'],
+                    'ghi_chu' => $validated['ghi_chu'] ?? null,
                 ]);
                 Log::info('Payment booking created with contact', [
                     'dat_phong_id' => $dat_phong->id,

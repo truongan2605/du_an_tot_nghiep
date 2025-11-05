@@ -1013,6 +1013,7 @@
                             name: name,
                             address: address,
                             phone: phone,
+                            ghi_chu: document.querySelector('textarea[name="ghi_chu"]').value.trim() || '',
                         }),
                     });
 
