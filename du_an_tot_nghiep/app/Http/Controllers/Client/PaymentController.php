@@ -48,7 +48,7 @@ class PaymentController extends Controller
                 'phuong_thuc' => 'required|in:vnpay',
                 'name' => 'required|string|max:255|min:2',
                 'address' => 'required|string|max:500|min:5',
-                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,' . Auth::id(),
+                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,',
             ]);
 
             $expectedDeposit = $validated['total_amount'] * 0.2;
@@ -60,7 +60,6 @@ class PaymentController extends Controller
 
             $maThamChieu = 'DP' . strtoupper(Str::random(8));
 
-            // FIXED: Snapshot meta chi tiết, tính toán giá server-side giống Booking
             $from = Carbon::parse($validated['ngay_nhan_phong']);
             $to = Carbon::parse($validated['ngay_tra_phong']);
             $nights = $this->calculateNights($validated['ngay_nhan_phong'], $validated['ngay_tra_phong']);
@@ -390,7 +389,6 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
 
-
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
@@ -404,7 +402,6 @@ class PaymentController extends Controller
                     'trang_thai' => 'dang_cho_xac_nhan',
                     'can_xac_nhan' => true,
                 ]);
-
 
                 $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
                 $phongIdsToOccupy = [];
@@ -424,6 +421,33 @@ class PaymentController extends Controller
                     $nights = $meta['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                     $price_per_night = $meta['final_per_night'] ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
 
+                    $specSignatureHash = null;
+                    $source = 'none';
+                    if (Schema::hasColumn('giu_phong', 'spec_signature_hash') && $giu_phong->spec_signature_hash) {
+                        $specSignatureHash = $giu_phong->spec_signature_hash;
+                        $source = 'hold_db_column';
+                        Log::debug('Spec hash from hold DB column', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
+                    } elseif (isset($meta['spec_signature_hash']) && !empty($meta['spec_signature_hash'])) {
+                        $specSignatureHash = $meta['spec_signature_hash'];
+                        $source = 'hold_meta';
+                        Log::debug('Spec hash from hold meta', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
+                    } else {
+
+                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+                        if (is_array($snapshotMeta) && isset($snapshotMeta['loai_phong_id'])) {
+
+                            $specSignatureHash = $this->generateSpecSignatureHash($snapshotMeta, null);
+                            $source = 'fallback_calculated';
+                            Log::debug('Spec hash fallback calculated from snapshot', ['hash' => $specSignatureHash, 'dat_phong_id' => $dat_phong->id]);
+                        } else {
+
+                            $defaultLoaiId = $snapshotMeta['loai_phong_id'] ?? $giu_phong->loai_phong_id ?? 0;
+                            $specSignatureHash = md5('loai_phong_id:' . $defaultLoaiId);
+                            $source = 'default_fallback';
+                            Log::warning('Spec hash default fallback (snapshot invalid)', ['hash' => $specSignatureHash, 'loai_id' => $defaultLoaiId, 'dat_phong_id' => $dat_phong->id]);
+                        }
+                    }
+
                     $itemPayload = [
                         'dat_phong_id' => $dat_phong->id,
                         'phong_id' => $giu_phong->phong_id ?? null,
@@ -432,10 +456,14 @@ class PaymentController extends Controller
                         'so_luong' => $giu_phong->so_luong ?? 1,
                         'gia_tren_dem' => $price_per_night,
                         'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+
+                        'spec_signature_hash' => Schema::hasColumn('dat_phong_item', 'spec_signature_hash') ? $specSignatureHash : null,
                     ];
-                    Log::debug('Inserting dat_phong_item', [
+                    Log::debug('Inserting dat_phong_item with spec hash', [
                         'dat_phong_id' => $dat_phong->id,
                         'payload' => $itemPayload,
+                        'spec_hash' => $specSignatureHash,
+                        'source' => $source,
                     ]);
                     \App\Models\DatPhongItem::create($itemPayload);
 
@@ -500,7 +528,6 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return response()->json(['RspCode' => '02', 'Message' => 'Booking not found']);
 
-
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
@@ -526,6 +553,34 @@ class PaymentController extends Controller
                     $nights = $meta['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                     $price_per_night = $meta['final_per_night'] ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
 
+
+                    $specSignatureHash = null;
+                    $source = 'none';
+                    if (Schema::hasColumn('giu_phong', 'spec_signature_hash') && $giu_phong->spec_signature_hash) {
+                        $specSignatureHash = $giu_phong->spec_signature_hash;
+                        $source = 'hold_db_column';
+                        Log::debug('Spec hash from hold DB column', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
+                    } elseif (isset($meta['spec_signature_hash']) && !empty($meta['spec_signature_hash'])) {
+                        $specSignatureHash = $meta['spec_signature_hash'];
+                        $source = 'hold_meta';
+                        Log::debug('Spec hash from hold meta', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
+                    } else {
+
+                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+                        if (is_array($snapshotMeta) && isset($snapshotMeta['loai_phong_id'])) {
+
+                            $specSignatureHash = $this->generateSpecSignatureHash($snapshotMeta, null);
+                            $source = 'fallback_calculated';
+                            Log::debug('Spec hash fallback calculated from snapshot', ['hash' => $specSignatureHash, 'dat_phong_id' => $dat_phong->id]);
+                        } else {
+
+                            $defaultLoaiId = $snapshotMeta['loai_phong_id'] ?? $giu_phong->loai_phong_id ?? 0;
+                            $specSignatureHash = md5('loai_phong_id:' . $defaultLoaiId);
+                            $source = 'default_fallback';
+                            Log::warning('Spec hash default fallback (snapshot invalid)', ['hash' => $specSignatureHash, 'loai_id' => $defaultLoaiId, 'dat_phong_id' => $dat_phong->id]);
+                        }
+                    }
+
                     $itemPayload = [
                         'dat_phong_id' => $dat_phong->id,
                         'phong_id' => $giu_phong->phong_id ?? null,
@@ -534,10 +589,14 @@ class PaymentController extends Controller
                         'so_luong' => $giu_phong->so_luong ?? 1,
                         'gia_tren_dem' => $price_per_night,
                         'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+
+                        'spec_signature_hash' => Schema::hasColumn('dat_phong_item', 'spec_signature_hash') ? $specSignatureHash : null,
                     ];
-                    Log::debug('Inserting dat_phong_item', [
+                    Log::debug('Inserting dat_phong_item with spec hash', [
                         'dat_phong_id' => $dat_phong->id,
                         'payload' => $itemPayload,
+                        'spec_hash' => $specSignatureHash,
+                        'source' => $source,
                     ]);
                     \App\Models\DatPhongItem::create($itemPayload);
 
@@ -559,7 +618,6 @@ class PaymentController extends Controller
             return response()->json(['RspCode' => '99', 'Message' => 'Payment failed']);
         });
     }
-
     /**
      * Danh sách thanh toán đang chờ
      */
@@ -685,15 +743,27 @@ class PaymentController extends Controller
     /**
      * Tạo hash cho spec_signature_hash
      */
-    private function generateSpecSignatureHash($data, $phong)
+    private function generateSpecSignatureHash($data, $phong = null)
     {
-        $baseTienNghi = method_exists($phong, 'effectiveTienNghiIds') ? $phong->effectiveTienNghiIds() : [];
+        $baseTienNghi = [];
+        $bedSpec = [];
+        $loaiPhongId = 0;
+
+        if ($phong) {
+            $baseTienNghi = method_exists($phong, 'effectiveTienNghiIds') ? $phong->effectiveTienNghiIds() : [];
+            $bedSpec = method_exists($phong, 'effectiveBedSpec') ? $phong->effectiveBedSpec() : [];
+            $loaiPhongId = (int)$phong->loai_phong_id;
+        } else {
+
+            $loaiPhongId = (int)($data['loai_phong_id'] ?? 0);
+        }
+
         $selectedAddonIdsArr = $data['addons'] ?? [];
         $mergedTienNghi = array_values(array_unique(array_merge($baseTienNghi, $selectedAddonIdsArr)));
         sort($mergedTienNghi, SORT_NUMERIC);
-        $bedSpec = method_exists($phong, 'effectiveBedSpec') ? $phong->effectiveBedSpec() : [];
+
         $specArray = [
-            'loai_phong_id' => $phong->loai_phong_id,
+            'loai_phong_id' => $loaiPhongId,
             'tien_nghi' => $mergedTienNghi,
             'beds' => $bedSpec,
         ];
