@@ -104,12 +104,9 @@
 
             <h6 class="mt-3">Tiện nghi (theo loại phòng — không thể chỉnh ở cấp phòng)</h6>
             <div class="mb-2">
-                {{-- Render checkbox nhưng disabled — JS sẽ check/uncheck theo loai phòng.
-                     Nút checkbox disabled nên sẽ không submit => tạo hidden inputs tương ứng --}}
                 <div id="amenities_checkbox_list" class="d-flex flex-wrap gap-2">
                     @foreach ($tienNghis as $tn)
                         @php
-                            // mark old selected only to keep UI when validation fails; JS will override according to selected loai
                             $oldSelected = old('tien_nghi', []);
                             $checked = in_array($tn->id, (array)$oldSelected);
                         @endphp
@@ -125,9 +122,7 @@
                 </div>
             </div>
 
-            {{-- Hidden inputs container: JS sẽ fill các input[name="tien_nghi[]"] tương ứng với tiện nghi thuộc loại phòng --}}
             <div id="hidden_amenities_container">
-                {{-- nếu có old('tien_nghi') (ví dụ lỗi), giữ lại để không mất dữ liệu --}}
                 @if (old('tien_nghi'))
                     @foreach (old('tien_nghi') as $id)
                         <input type="hidden" name="tien_nghi[]" value="{{ $id }}" class="amenity-hidden-input-create">
@@ -153,7 +148,6 @@
 
 @section('styles')
     <style>
-        /* không bắt mắt, chỉ làm mờ / bôi mờ những tiện nghi không thuộc loại phòng */
         .amenity-label.not-in-type {
             opacity: 0.55;
             filter: grayscale(40%);

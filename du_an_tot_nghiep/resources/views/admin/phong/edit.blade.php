@@ -92,7 +92,7 @@
                         value="{{ old('so_giuong', $phong->so_giuong) }}" readonly>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label>Giá (Loại)</label>
+                    <label>Giá mặc định của loại phòng</label>
                     <input type="number" id="gia_input_edit" class="form-control"
                         value="{{ old('gia_mac_dinh', $phong->gia_mac_dinh) }}" readonly>
                 </div>
@@ -122,29 +122,50 @@
 
             <h6 class="mt-3">Tiện nghi</h6>
 
-            @php
-                $amenityPrices = $tienNghis->pluck('gia', 'id')->toArray();
-            @endphp
-
             <div class="mb-2">
-                {{-- Hiển thị mỗi tiện nghi dưới dạng badge; nếu thuộc $allChecked thì là badge nổi bật --}}
-                <div id="amenities_display_edit" class="d-flex flex-wrap gap-2">
+                <div id="amenities_checkbox_list_edit" class="d-flex flex-wrap gap-2">
+                    @php
+                        $roomAmenityIds = $phong->tienNghis->pluck('id')->toArray();
+                        $typeAmenityIds = $phong->loaiPhong?->tienNghis->pluck('id')->toArray() ?? [];
+                    @endphp
+
                     @foreach ($tienNghis as $tn)
-                        @php $is = in_array($tn->id, $allChecked); @endphp
-                        <span class="badge {{ $is ? 'bg-primary' : 'bg-light text-muted' }}" data-id="{{ $tn->id }}"
-                            data-price="{{ $tn->gia ?? 0 }}">
-                            <i class="{{ $tn->icon }}"></i> {{ $tn->ten }}
-                            <small class="d-inline-block ms-1">({{ number_format($tn->gia, 0, ',', '.') }} đ)</small>
-                        </span>
+                        @php
+                            $inType = in_array($tn->id, $typeAmenityIds);
+                            $inRoom = in_array($tn->id, $roomAmenityIds);
+                        @endphp
+                        <label
+                            class="form-check form-check-inline amenity-label-edit {{ $inType ? 'in-type' : ($inRoom ? 'extra' : 'not-in-type') }}"
+                            data-amenity-id="{{ $tn->id }}">
+                            <input type="checkbox" class="form-check-input amenity-checkbox-edit"
+                                value="{{ $tn->id }}" id="tienNghi_edit_{{ $tn->id }}"
+                                {{ $inType || $inRoom ? 'checked' : '' }} disabled>
+                            <span class="form-check-label ms-1">
+                                <i class="{{ $tn->icon }}"></i> {{ $tn->ten }}
+                                <small class="d-inline-block ms-1">({{ number_format($tn->gia, 0, ',', '.') }} đ)</small>
+                            </span>
+                        </label>
                     @endforeach
                 </div>
             </div>
 
-            {{-- Giữ giá trị để submit: tạo hidden input cho từng tiện nghi được chọn --}}
-            @foreach ($allChecked as $id)
-                <input type="hidden" name="tien_nghi[]" value="{{ $id }}" class="amenity-hidden-input-edit">
-            @endforeach
+            @php
+                $allCheckedServer = $allChecked ?? $roomAmenityIds;
+            @endphp
 
+            <div id="hidden_amenities_container_edit">
+                @if (old('tien_nghi'))
+                    @foreach (old('tien_nghi') as $id)
+                        <input type="hidden" name="tien_nghi[]" value="{{ $id }}"
+                            class="amenity-hidden-input-edit">
+                    @endforeach
+                @else
+                    @foreach ($allCheckedServer as $id)
+                        <input type="hidden" name="tien_nghi[]" value="{{ $id }}"
+                            class="amenity-hidden-input-edit">
+                    @endforeach
+                @endif
+            </div>
 
             <div class="mb-2">
                 <strong>Tổng tạm tính: </strong>
@@ -174,6 +195,29 @@
     </div>
 @endsection
 
+@section('styles')
+    <style>
+        .amenity-label-edit.not-in-type {
+            opacity: 0.55;
+            filter: grayscale(40%);
+        }
+
+        .amenity-label-edit.in-type {
+            font-weight: 600;
+            background: rgba(13, 110, 253, 0.06);
+            padding: .25rem .5rem;
+            border-radius: .5rem;
+        }
+
+        .amenity-label-edit.extra {
+            font-weight: 600;
+            background: rgba(255, 193, 7, 0.06);
+            padding: .25rem .5rem;
+            border-radius: .5rem;
+        }
+    </style>
+@endsection
+
 @section('scripts')
     @php
         $roomBedList = $phong->bedTypes
@@ -194,151 +238,201 @@
 
     <script>
         (function() {
-            // amenityPrices map từ server
-            const amenityPrices = @json($tienNghis->pluck('gia', 'id') ?? []);
-            // helper: lấy danh sách amenity id đang "được chọn" trên UI (dựa vào hidden inputs)
-            function getSelectedAmenityIds(mode = 'edit') {
-                // mode 'edit' -> class .amenity-hidden-input-edit
-                // mode 'create' -> .amenity-hidden-input-create
-                const selector = mode === 'edit' ? '.amenity-hidden-input-edit' : '.amenity-hidden-input-create';
-                const els = Array.from(document.querySelectorAll(selector));
-                return els.map(e => parseInt(e.value, 10)).filter(n => !isNaN(n));
+            const editSelect = document.getElementById('loai_phong_select_edit');
+            const giaInput = document.getElementById('gia_input_edit');
+            const bedTypesContainer = document.getElementById('bed_types_container_edit');
+            const amenitiesDisplay = document.getElementById('amenities_display_edit');
+            const form = document.getElementById('phongEditForm');
+            const totalDisp = document.getElementById('total_display');
+
+            const initialRoomAmenityIds = @json($roomAmenityIds || []);
+
+            // helper
+            function toInt(v) {
+                const n = parseInt(v, 10);
+                return isNaN(n) ? 0 : n;
             }
 
-            // compute amenity sum from selected ids
-            function computeAmenitySum(mode = 'edit') {
-                const ids = getSelectedAmenityIds(mode);
+            function toFloat(v) {
+                if (v === null || v === undefined) return 0;
+                // remove commas or non-number chars
+                const s = String(v).replace(/[^\d\.\-]/g, '');
+                const f = parseFloat(s);
+                return isNaN(f) ? 0 : f;
+            }
+
+            function parseAmenityIdsFromOption(opt) {
+                if (!opt) return [];
+                try {
+                    const raw = opt.dataset.amenities ?? '[]';
+                    const arr = JSON.parse(raw);
+                    if (!Array.isArray(arr)) return [];
+                    return arr.map(x => toInt(x)).filter(x => x > 0);
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function parseBedlistFromOption(opt) {
+                if (!opt) return [];
+                try {
+                    const raw = opt.dataset.bedtypes ?? '[]';
+                    const arr = JSON.parse(raw);
+                    return Array.isArray(arr) ? arr : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function renderBedTypes(list) {
+                if (!bedTypesContainer) return;
+                if (!Array.isArray(list) || list.length === 0) {
+                    bedTypesContainer.innerHTML = '<em>Không có cấu hình giường cho loại phòng này.</em>';
+                    return;
+                }
+                let html =
+                    '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Loại giường</th><th class="text-center">Số lượng</th><th class="text-center">Sức chứa/giường</th><th class="text-end">Giá/giường</th></tr></thead><tbody>';
+                list.forEach(b => {
+                    html += `<tr>
+                        <td>${b.name}</td>
+                        <td class="text-center">${b.quantity}</td>
+                        <td class="text-center">${b.capacity}</td>
+                        <td class="text-end">${new Intl.NumberFormat('vi-VN').format(Math.round(b.price || 0))} đ</td>
+                    </tr>`;
+                });
+                html += '</tbody></table></div>';
+                bedTypesContainer.innerHTML = html;
+            }
+
+            function setHiddenAmenityInputs(ids) {
+                // remove old
+                document.querySelectorAll('.amenity-hidden-input-edit').forEach(n => n.remove());
+                const target = form || document.body;
+                (ids || []).forEach(id => {
+                    const inp = document.createElement('input');
+                    inp.type = 'hidden';
+                    inp.name = 'tien_nghi[]';
+                    inp.value = id;
+                    inp.className = 'amenity-hidden-input-edit';
+                    target.appendChild(inp);
+                });
+            }
+
+            function getHiddenAmenityIds() {
+                return Array.from(document.querySelectorAll('.amenity-hidden-input-edit'))
+                    .map(i => toInt(i.value))
+                    .filter(n => n > 0);
+            }
+
+            function computeBedSum(opt) {
+                const list = parseBedlistFromOption(opt);
                 let s = 0;
-                ids.forEach(id => {
-                    const p = amenityPrices[id] ?? 0;
-                    s += Number(p || 0);
+                (list || []).forEach(b => {
+                    const qty = toInt(b.quantity || 0);
+                    const price = toFloat(b.price || 0);
+                    s += qty * price;
                 });
                 return s;
             }
 
-            // Update total_display: used in both create & edit
-            function updateTotalGeneric(mode = 'edit') {
-                // Get base from current selected loai_phong option (same selectors as your file)
-                const loaiOpt = document.querySelector('#loai_phong_select' + (mode === 'edit' ? '_edit' : '') +
-                    ' option:checked');
-                const base = loaiOpt ? Number(loaiOpt.dataset.gia || 0) : 0;
+            function badgePriceById(id) {
+                if (!amenitiesDisplay) return 0;
+                const sel = amenitiesDisplay.querySelector('[data-id="' + id + '"]');
+                if (!sel) return 0;
+                return toFloat(sel.dataset.price || sel.getAttribute('data-price') || 0);
+            }
 
-                // compute bedSum: reuse your existing bed parsing logic (if any)
-                // For simplicity, try to compute from current rendered bed table prices (optional)
-                let bedSum = 0;
+            function unionArrays(a, b) {
+                return Array.from(new Set([...(a || []), ...(b || [])])).map(x => toInt(x)).filter(x => x > 0);
+            }
+
+            function updateTotalDisplay() {
                 try {
-                    // if you have a global currentBedList variable, you can compute like earlier
-                    if (typeof currentBedList !== 'undefined' && Array.isArray(currentBedList)) {
-                        currentBedList.forEach(b => {
-                            const qty = Number(b.quantity || 0);
-                            const price = Number(b.price || 0);
-                            bedSum += qty * price;
+                    const opt = editSelect ? editSelect.options[editSelect.selectedIndex] : null;
+                    const base = opt ? toFloat(opt.dataset.gia || 0) : 0;
+                    if (giaInput && opt) giaInput.value = Math.round(base);
+
+                    const bedSum = computeBedSum(opt);
+
+                    const typeIds = parseAmenityIdsFromOption(opt); // from loai_phong
+                    const hiddenIds = getHiddenAmenityIds(); // from hidden inputs
+                    const unionIds = unionArrays(typeIds, unionArrays(hiddenIds, initialRoomAmenityIds));
+
+                    console.debug('DEBUG amenity calc:', {
+                        typeIds,
+                        hiddenIds,
+                        initialRoomAmenityIds,
+                        unionIds
+                    });
+
+                    let amenitySum = 0;
+                    unionIds.forEach(id => {
+                        const p = badgePriceById(id);
+                        amenitySum += p;
+                    });
+
+                    const total = Math.round(base + bedSum + amenitySum);
+                    if (totalDisp) totalDisp.innerText = new Intl.NumberFormat('vi-VN').format(total) + ' đ';
+
+                    if (amenitiesDisplay) {
+                        const badges = amenitiesDisplay.querySelectorAll('span[data-id]');
+                        badges.forEach(b => {
+                            const id = toInt(b.dataset.id || b.getAttribute('data-id'));
+                            b.classList.remove('bg-primary', 'bg-light', 'text-muted');
+                            if (typeIds.includes(id)) {
+                                b.classList.add('bg-primary');
+                            } else if (unionIds.includes(id)) {
+                                b.classList.add('bg-light');
+                            } else {
+                                b.classList.add('bg-light', 'text-muted');
+                            }
                         });
-                    } else {
-                        // fallback: 0
-                        bedSum = 0;
                     }
                 } catch (e) {
-                    bedSum = 0;
+                    console.error('Error updateTotalDisplay:', e);
                 }
-
-                const amenitySum = computeAmenitySum(mode);
-                const total = Math.round(Number(base) + Number(amenitySum) + Number(bedSum));
-                const disp = document.getElementById('total_display');
-                if (disp) disp.innerText = new Intl.NumberFormat('vi-VN').format(total) + ' đ';
             }
 
-            // When loai_phong select changes we need to set hidden inputs to the default amenities from option.data
-            function setHiddenAmenitiesFromOption(opt, mode = 'edit') {
-                if (!opt) return;
-                let ids = [];
-                try {
-                    ids = JSON.parse(opt.dataset.amenities || '[]');
-                } catch (e) {
-                    ids = [];
-                }
-                // remove existing hidden inputs
-                const selector = mode === 'edit' ? '.amenity-hidden-input-edit' : '.amenity-hidden-input-create';
-                document.querySelectorAll(selector).forEach(n => n.remove());
-
-                // append new hidden inputs to the form
-                const form = document.getElementById(mode === 'edit' ? 'phongEditForm' : 'phongCreateForm');
-                if (!form) {
-                    // fallback: append to body
-                    ids.forEach(id => {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = 'tien_nghi[]';
-                        input.value = id;
-                        input.className = mode === 'edit' ? 'amenity-hidden-input-edit' :
-                            'amenity-hidden-input-create';
-                        document.body.appendChild(input);
-                    });
-                } else {
-                    ids.forEach(id => {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = 'tien_nghi[]';
-                        input.value = id;
-                        input.className = mode === 'edit' ? 'amenity-hidden-input-edit' :
-                            'amenity-hidden-input-create';
-                        form.appendChild(input);
-                    });
-                }
-
-                // update badges UI: add selected class for badges that match ids
-                const dispId = mode === 'edit' ? 'amenities_display_edit' : 'amenities_display_create';
-                const disp = document.getElementById(dispId);
-                if (disp) {
-                    disp.querySelectorAll('span[data-id]').forEach(sp => {
-                        const id = parseInt(sp.dataset.id, 10);
-                        if (ids.indexOf(id) !== -1) {
-                            sp.classList.remove('bg-light', 'text-muted');
-                            sp.classList.add('bg-primary');
-                        } else {
-                            sp.classList.remove('bg-primary');
-                            sp.classList.add('bg-light', 'text-muted');
-                        }
-                    });
-                }
-
-                // recalc total
-                updateTotalGeneric(mode);
-            }
-
-            // Hook up on DOM ready
             document.addEventListener('DOMContentLoaded', function() {
-                // Wire loai_phong select change to update hidden amenity inputs
-                // For edit: selector #loai_phong_select_edit ; create: #loai_phong_select
-                const editSelect = document.getElementById('loai_phong_select_edit');
-                if (editSelect) {
-                    editSelect.addEventListener('change', function() {
-                        const opt = editSelect.options[editSelect.selectedIndex];
-                        setHiddenAmenitiesFromOption(opt, 'edit');
-                    });
-                    // initial fill from selected option (so total correct)
-                    const opt0 = editSelect.options[editSelect.selectedIndex];
-                    if (opt0) setHiddenAmenitiesFromOption(opt0, 'edit');
-                }
+                try {
+                    const opt0 = editSelect ? editSelect.options[editSelect.selectedIndex] : null;
+                    renderBedTypes(parseBedlistFromOption(opt0));
 
-                const createSelect = document.getElementById('loai_phong_select');
-                if (createSelect) {
-                    createSelect.addEventListener('change', function() {
-                        const opt = createSelect.options[createSelect.selectedIndex];
-                        setHiddenAmenitiesFromOption(opt, 'create');
-                    });
-                    const opt1 = createSelect.options[createSelect.selectedIndex];
-                    if (opt1) setHiddenAmenitiesFromOption(opt1, 'create');
-                }
+                    const existHidden = getHiddenAmenityIds();
+                    if (!existHidden.length) {
+                        setHiddenAmenityInputs(initialRoomAmenityIds);
+                    }
 
-                // Also call updateTotalGeneric on load so total_display is correct
-                updateTotalGeneric('edit');
-                updateTotalGeneric('create');
+                    updateTotalDisplay();
+
+                    if (editSelect) {
+                        editSelect.addEventListener('change', function() {
+                            const opt = editSelect.options[editSelect.selectedIndex];
+                            const typeIds = parseAmenityIdsFromOption(opt);
+                            renderBedTypes(parseBedlistFromOption(opt));
+                            // overwrite hidden inputs with option amenities
+                            setHiddenAmenityInputs(typeIds);
+                            updateTotalDisplay();
+                        });
+                    }
+
+                    const observer = new MutationObserver(() => {
+                        updateTotalDisplay();
+                    });
+                    observer.observe(form || document.body, {
+                        childList: true,
+                        subtree: true
+                    });
+
+                    window.__roomAmenityDebug = {
+                        updateTotalDisplay,
+                        getHiddenAmenityIds,
+                        parseAmenityIdsFromOption,
+                    };
+                } catch (e) {
+                    console.error('INIT error (amenities script):', e);
+                }
             });
-
-            // expose methods to global if needed
-            window.updateAmenityTotals = updateTotalGeneric;
         })();
     </script>
-
 @endsection
