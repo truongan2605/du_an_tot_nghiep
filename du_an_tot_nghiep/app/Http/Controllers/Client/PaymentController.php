@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Schema;
 
 class PaymentController extends Controller
 {
-    // FIXED: Constants từ BookingController cho tính giá extras
+   
     public const ADULT_PRICE = 150000;
     public const CHILD_PRICE = 60000;
     public const CHILD_FREE_AGE = 6;
@@ -144,7 +144,7 @@ class PaymentController extends Controller
                     'snapshot_meta' => json_encode($snapshotMeta),
                 ]);
 
-                // FIXED: Lock loai_phong và check availability
+                
                 if (Schema::hasTable('loai_phong')) {
                     DB::table('loai_phong')->where('id', $phong->loai_phong_id)->lockForUpdate()->first();
                 }
@@ -190,7 +190,6 @@ class PaymentController extends Controller
                 $requestedPhongId = $phong->id;
                 $requestedReserved = 0;
 
-                // FIXED: Hold specific cho phòng đầu tiên
                 if (Schema::hasColumn('giu_phong', 'phong_id')) {
                     $isBooked = false;
                     if (Schema::hasTable('dat_phong_item')) {
@@ -234,7 +233,7 @@ class PaymentController extends Controller
                     }
                 }
 
-                // FIXED: Lấy thêm rooms specific
+               
                 $stillNeeded = max(0, $roomsCount - $requestedReserved);
                 $selectedIds = [];
                 if ($stillNeeded > 0) {
@@ -276,7 +275,7 @@ class PaymentController extends Controller
                     }
                 }
 
-                // FIXED: Aggregate chỉ nếu còn thiếu
+               
                 if ($roomsCount - $reservedCount > 0 && Schema::hasColumn('giu_phong', 'phong_id')) {
                     $aggRow = $holdBase;
                     $aggRow['so_luong'] = $roomsCount - $reservedCount;
@@ -373,7 +372,7 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
 
-        // FIXED: Lấy rooms_count từ meta cho tính toán
+        
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
@@ -388,7 +387,7 @@ class PaymentController extends Controller
                     'can_xac_nhan' => true,
                 ]);
 
-                // FIXED: Loop multiple giu_phong
+              
                 $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
                 $phongIdsToOccupy = [];
                 foreach ($giu_phongs as $giu_phong) {
@@ -483,7 +482,7 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return response()->json(['RspCode' => '02', 'Message' => 'Booking not found']);
 
-        // FIXED: Lấy rooms_count từ meta
+    
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
@@ -684,9 +683,7 @@ class PaymentController extends Controller
         return md5(json_encode($specArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
-    /**
-     * FIXED: Copy computeAvailableRoomsCount từ BookingController
-     */
+  
     private function computeAvailableRoomsCount(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, ?string $requiredSignature = null): int
     {
         $requestedStart = $fromDate->copy()->setTime(14, 0, 0);
@@ -824,9 +821,7 @@ class PaymentController extends Controller
         return (int) $availableForSignature;
     }
 
-    /**
-     * FIXED: Copy computeAvailableRoomIds từ BookingController
-     */
+  
     private function computeAvailableRoomIds(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, int $limit = 1, ?string $requiredSignature = null): array
     {
         $requestedStart = $fromDate->copy()->setTime(14, 0, 0);
