@@ -21,6 +21,7 @@ class DatPhong extends Model
         'nguoi_dung_id',
         'trang_thai',
         'ngay_nhan_phong',
+        'checked_in_at',
         'ngay_tra_phong',
         'so_khach',
         'tong_tien',
@@ -38,11 +39,13 @@ class DatPhong extends Model
         'contact_name',
         'contact_address',
         'contact_phone',
+        'deposit_amount',
     ];
 
 
     protected $casts = [
         'ngay_nhan_phong' => 'date',
+        'checked_in_at' => 'datetime',
         'ngay_tra_phong' => 'date',
         'so_khach' => 'integer',
         'tong_tien' => 'decimal:2',
@@ -52,6 +55,7 @@ class DatPhong extends Model
         'can_thanh_toan' => 'boolean',
         'can_xac_nhan' => 'boolean',
         'checked_in_at' => 'datetime',
+        'deposit_amount' => 'decimal:2',
     ];
 
     // Relationships
