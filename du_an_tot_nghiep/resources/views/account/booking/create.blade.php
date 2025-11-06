@@ -408,7 +408,15 @@
                                             </li>
                                         </ul>
                                     </div>
-
+                                    <div class="card p-3 mt-4">
+                                        <h6 class="fw-bold mb-3">Áp dụng mã giảm giá</h6>
+                                        <div class="d-flex gap-2">
+                                            <input type="text" id="voucher_code" class="form-control"
+                                                placeholder="Nhập mã giảm giá">
+                                            <button id="apply_voucher" class="btn btn-success">Áp dụng</button>
+                                        </div>
+                                        <p id="voucher_message" class="text-success mt-2"></p>
+                                    </div>
                                     <div class="card-footer border-top">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <span class="h5 mb-0">Payable Now</span>
@@ -915,7 +923,7 @@
                             const url = "{{ route('account.booking.show', ['dat_phong' => '__ID__']) }}".replace(
                                 '__ID__', datPhongId);
                             html +=
-                            ` <a href="${url}" class="btn btn-sm btn-outline-primary ms-2">View booking</a>`;
+                                ` <a href="${url}" class="btn btn-sm btn-outline-primary ms-2">View booking</a>`;
                         }
                         alert.innerHTML = html;
                         container.appendChild(alert);
@@ -957,7 +965,8 @@
                                     'Unable to book: There are currently no rooms available for the selected date range.';
                             }
                         }
-                        showToastInline('Unable to book: There are currently no rooms available for the selected date range.',
+                        showToastInline(
+                            'Unable to book: There are currently no rooms available for the selected date range.',
                             true, 3500);
                         return;
                     }

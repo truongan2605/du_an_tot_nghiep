@@ -24,4 +24,17 @@ class Voucher extends Model
         'usage_limit_per_user',
         'active'
     ];
+        public function getConHieuLucAttribute()
+    {
+        $today = now()->toDateString();
+        return $this->active && $this->start_date <= $today && $this->end_date >= $today;
+    }
+
+    // Format giá trị hiển thị
+    public function getGiaTriHienThiAttribute()
+    {
+        return $this->type === 'phan_tram'
+            ? $this->value . '%'
+            : number_format($this->gia_tri, 0, ',', '.') . 'đ';
+    }
 }

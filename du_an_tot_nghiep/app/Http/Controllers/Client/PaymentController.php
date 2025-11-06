@@ -44,6 +44,8 @@ class PaymentController extends Controller
                 'can_thanh_toan'  => true,
                 'can_xac_nhan'    => false,
                 'created_by'      => Auth::id(),
+                'voucher_code' => $request->voucher_code,
+                'discount_amount' => $request->discount_amount ?? 0,
             ]);
 
             $giao_dich = GiaoDich::create([

@@ -39,7 +39,7 @@ class BookingController extends Controller
          $completed = DatPhong::where('nguoi_dung_id', $user->id)
         ->where('trang_thai', 'hoan_thanh')
         ->with([
-            'datPhongItems.phong.tang',  
+            'datPhongItems.phong.tang',
             'datPhongItems.loaiPhong'
         ])
         ->orderBy('ngay_nhan_phong', 'desc')
@@ -416,6 +416,8 @@ class BookingController extends Controller
             'name' => 'required|string|max:255',
             'address' => 'required|string|max:1000',
             'phone' => 'nullable|string|max:50',
+            'voucher_code' => 'nullable|string|max:255',
+            'discount_amount' => 'nullable|numeric|min:0',
         ]);
 
         Log::debug('Booking: validation passed');

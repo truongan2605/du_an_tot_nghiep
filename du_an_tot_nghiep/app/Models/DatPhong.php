@@ -28,6 +28,7 @@ class DatPhong extends Model
         'created_by',
         'phuong_thuc',
         'ma_voucher',
+        'voucher_code',
         'discount_amount',
         'snapshot_total',
         'snapshot_meta',
@@ -108,10 +109,10 @@ class DatPhong extends Model
         return $this->hasManyThrough(
             PhongDaDat::class,
             DatPhongItem::class,
-            'dat_phong_id',       
-            'dat_phong_item_id',  
-            'id',                 
-            'id'                  
+            'dat_phong_id',
+            'dat_phong_item_id',
+            'id',
+            'id'
         );
     }
 
