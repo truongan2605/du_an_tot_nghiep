@@ -50,13 +50,13 @@ class Phong extends Model
     public function tienNghis()
     {
         return $this->belongsToMany(TienNghi::class, 'phong_tien_nghi')
-        ->where('tien_nghi.active', true);
+            ->where('tien_nghi.active', true);
     }
     public function vatDungs()
-{
-    return $this->belongsToMany(VatDung::class, 'phong_vat_dung', 'phong_id', 'vat_dung_id')
-                ->where('vat_dungs.active', true);
-}
+    {
+        return $this->belongsToMany(VatDung::class, 'phong_vat_dung', 'phong_id', 'vat_dung_id')
+            ->where('vat_dungs.active', true);
+    }
 
     public function bedTypes()
     {
@@ -280,8 +280,15 @@ class Phong extends Model
         return md5(json_encode($sig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
     public function danhGias()
-{
-    return $this->hasManyThrough(DanhGia::class, DatPhong::class, 'phong_id', 'dat_phong_id', 'id', 'id');
+    {
+        return $this->hasManyThrough(DanhGia::class, DatPhong::class, 'phong_id', 'dat_phong_id', 'id', 'id');
+    }
+    public function datPhongs()
+    {
+        return $this->hasMany(DatPhong::class, 'phong_id');
+    }
+    public function datPhongItems() {
+    return $this->hasMany(DatPhongItem::class, 'phong_id');
 }
     protected static function booted()
     {

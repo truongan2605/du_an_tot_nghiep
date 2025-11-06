@@ -6,9 +6,11 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\Phong;
 use App\Models\DanhGia;
+use App\Models\DatPhongItem;
 use App\Models\LoaiPhong;
 use App\Models\TienNghi;
 use App\Models\Wishlist;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,12 +19,12 @@ class RoomController extends Controller
     public function index(Request $request)
     {
         $query = Phong::with(['loaiPhong', 'tang', 'images'])
-        ->orderByDesc('created_at');
+            ->orderByDesc('created_at');
 
-    if ($request->filled('loai_phong_id')) {
-        $query->where('loai_phong_id', $request->loai_phong_id);
-    }
-     // Lọc theo khoảng giá
+        if ($request->filled('loai_phong_id')) {
+            $query->where('loai_phong_id', $request->loai_phong_id);
+        }
+        // Lọc theo khoảng giá
         if ($request->filled('gia_khoang')) {
             switch ($request->gia_khoang) {
                 case '1':
@@ -39,7 +41,7 @@ class RoomController extends Controller
                     break;
             }
         }
-    // =============== Lọc theo loại phòng ===============
+        // =============== Lọc theo loại phòng ===============
         if ($request->filled('loai_phong_id')) {
             $query->where('loai_phong_id', $request->loai_phong_id);
         }
@@ -54,27 +56,53 @@ class RoomController extends Controller
                 $q->whereIn('tien_nghi.id', $tienNghiIds);
             });
         }
-        
-        // ====== Lọc theo ngày Check-in / Check-out ======
-    $checkIn = null;
-    $checkOut = null;
-    if ($request->filled('check_in_out')) {
-        $dates = explode(' to ', $request->check_in_out);
-        if (count($dates) === 2) {
-            $checkIn = trim($dates[0]);
-            $checkOut = trim($dates[1]);
-        }
-    }
 
-    // Không lọc theo trạng thái nữa → hiển thị tất cả
-    $phongs = $query->paginate(9)->withQueryString();
-    $phongs = $query->paginate(9);
-    $loaiPhongs = LoaiPhong::all();
-    $tienNghis = TienNghi::where('active', 1)->get();
-    $giaMin =   0;
-    $giaMax = Phong::max('gia_cuoi_cung') ;
-    return view('list-room', compact('phongs', 'loaiPhongs','tienNghis','giaMin',
-    'giaMax'));
+        // ====== Lọc theo ngày Check-in / Check-out ======
+$checkIn = null;
+$checkOut = null;
+
+if ($request->filled('check_in_out')) {
+    $dates = explode(' to ', $request->check_in_out);
+    if (count($dates) === 2) {
+        $checkIn = trim($dates[0]);
+        $checkOut = trim($dates[1]);
+    }
+}
+
+if ($checkIn && $checkOut) {
+    // Lấy danh sách phong_id đã được đặt trong khoảng thời gian đó
+    $phongDaDatIds = DatPhongItem::whereHas('datPhong', function ($q) use ($checkIn, $checkOut) {
+        $q->whereIn('trang_thai', ['dang_cho_xac_nhan','da_xac_nhan','da_gan_phong','hoan_thanh'])
+            ->where(function ($w) use ($checkIn, $checkOut) {
+                $w->whereBetween('ngay_nhan_phong', [$checkIn, $checkOut])
+                  ->orWhereBetween('ngay_tra_phong', [$checkIn, $checkOut])
+                  ->orWhere(function ($o) use ($checkIn, $checkOut) {
+                      $o->where('ngay_nhan_phong', '<=', $checkIn)
+                        ->where('ngay_tra_phong', '>=', $checkOut);
+                  });
+            });
+    })->pluck('phong_id')->toArray();
+
+    // Loại bỏ các phòng đã đặt khỏi kết quả
+    $query->whereNotIn('id', $phongDaDatIds);
+}
+
+        // Không lọc theo trạng thái nữa → hiển thị tất cả
+        $phongs = $query->paginate(9)->withQueryString();
+        $phongs = $query->paginate(9);
+        $loaiPhongs = LoaiPhong::all();
+        $tienNghis = TienNghi::where('active', 1)->get();
+        $giaMin =   0;
+        $giaMax = Phong::max('gia_cuoi_cung');
+        return view('list-room', compact(
+            'phongs',
+            'loaiPhongs',
+            'tienNghis',
+            'giaMin',
+            'giaMax',
+            'checkIn',
+            'checkOut'
+        ));
     }
     public function show($id)
     {

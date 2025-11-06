@@ -4,7 +4,7 @@
 
 @section('content')
     <!-- =======================
-                            Banner START -->
+                                            Banner START -->
     <section class="position-relative overflow-hidden rounded-4 mt-4 mx-auto"
         style="height: 360px; width: 90%; max-width: 1200px;">
         <!-- Background Image -->
@@ -25,7 +25,7 @@
         </div>
     </section>
     <!-- =======================
-                            Banner END -->
+                                            Banner END -->
 
 
 
@@ -59,8 +59,13 @@
 
                             {{-- Check in-out --}}
                             <h6>Check in - out</h6>
+                            {{-- <input type="text" class="form-control flatpickr mb-3" data-mode="range"
+                                placeholder="Select date" name="date_range"> --}}
                             <input type="text" class="form-control flatpickr mb-3" data-mode="range"
-                                placeholder="Select date" name="date_range">
+                                placeholder="Chọn ngày" name="check_in_out"
+                                value="{{ old('check_in_out', request('check_in_out', $checkIn && $checkOut ? $checkIn . ' to ' . $checkOut : '')) }}">
+
+
 
                             <h6>Price (VNĐ)</h6>
                             <div class="mb-3">
@@ -236,11 +241,7 @@
                                                             {{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }} VNĐ
                                                             <span class="small fw-normal text-muted">/Night</span>
                                                         </h4>
-                                                        {{-- @if ($phong->gia_mac_dinh ?? false)
-                                    <small class="text-decoration-line-through text-muted">
-                                        {{ number_format($phong->gia_mac_dinh, 0, ',', '.') }} VNĐ
-                                    </small>
-                                @endif --}}
+
 
                                                     </div>
                                                     @if ($phong->trang_thai == 'trong')
@@ -276,9 +277,15 @@
     </section>
     @push('scripts')
         <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
         <link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css" rel="stylesheet">
 
         <script>
+            flatpickr('.flatpickr', {
+                mode: 'range',
+                dateFormat: 'd M Y',
+            });
             document.addEventListener('DOMContentLoaded', function() {
                 var priceSlider = document.getElementById('price-slider');
                 var minInput = document.getElementById('gia_min');
