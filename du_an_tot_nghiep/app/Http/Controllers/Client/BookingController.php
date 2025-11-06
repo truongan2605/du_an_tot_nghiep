@@ -128,7 +128,7 @@ class BookingController extends Controller
         if ($request->boolean('debug')) {
             $candidates = Phong::with(['tienNghis', 'bedTypes', 'activeOverrides'])
                 ->where('loai_phong_id', $loaiId)
-                ->where('trang_thai', 'trong')
+                // ->where('trang_thai', 'trong')
                 ->get();
 
             $roomSignatures = $candidates->mapWithKeys(function ($r) {
@@ -152,16 +152,16 @@ class BookingController extends Controller
         $requestedEnd = $toDate->copy()->setTime(12, 0, 0);
         $reqStartStr = $requestedStart->toDateTimeString();
         $reqEndStr = $requestedEnd->toDateTimeString();
-
+// ->where('trang_thai', 'trong')
         if ($requiredSignature === null) {
-            $sample = Phong::where('loai_phong_id', $loaiPhongId)->where('trang_thai', 'trong')->first();
+            $sample = Phong::where('loai_phong_id', $loaiPhongId)->first();
             if (!$sample) return 0;
             $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
         }
 
         // All candidate rooms of this type+signature and in usable state
         $matchingRoomIds = Phong::where('loai_phong_id', $loaiPhongId)
-            ->where('trang_thai', 'trong')
+            // ->where('trang_thai', 'trong')
             ->where('spec_signature_hash', $requiredSignature)
             ->pluck('id')->toArray();
 
@@ -292,11 +292,11 @@ class BookingController extends Controller
         if (Schema::hasTable('loai_phong') && Schema::hasColumn('loai_phong', 'so_luong_thuc_te')) {
             $totalRoomsOfType = (int) DB::table('loai_phong')->where('id', $loaiPhongId)->value('so_luong_thuc_te');
         }
-        if ($totalRoomsOfType <= 0) {
-            $totalRoomsOfType = Phong::where('loai_phong_id', $loaiPhongId)
-                ->where('trang_thai', 'trong')
-                ->count();
-        }
+        // if ($totalRoomsOfType <= 0) {
+        //     $totalRoomsOfType = Phong::where('loai_phong_id', $loaiPhongId)
+        //         ->where('trang_thai', 'trong')
+        //         ->count();
+        // }
 
         $remainingAcrossType = max(0, $totalRoomsOfType - $aggregateBooked - $aggregateHoldsForSignature);
         $availableForSignature = max(0, min($matchingAvailableCount, $remainingAcrossType));
@@ -311,7 +311,8 @@ class BookingController extends Controller
         $reqEndStr = $requestedEnd->toDateTimeString();
 
         if ($requiredSignature === null) {
-            $sample = Phong::where('loai_phong_id', $loaiPhongId)->where('trang_thai', 'trong')->first();
+            // ->where('trang_thai', 'trong')
+            $sample = Phong::where('loai_phong_id', $loaiPhongId)->first();
             if (!$sample) return [];
             $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
         }
@@ -369,7 +370,7 @@ class BookingController extends Controller
         $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
 
         $query = Phong::where('loai_phong_id', $loaiPhongId)
-            ->where('trang_thai', 'trong')
+            // ->where('trang_thai', 'trong')
             ->where('spec_signature_hash', $requiredSignature)
             ->when(!empty($excluded), function ($q) use ($excluded) {
                 $q->whereNotIn('id', $excluded);
