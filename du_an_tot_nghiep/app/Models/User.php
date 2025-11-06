@@ -1,17 +1,20 @@
 <?php
 
 namespace App\Models;
-
 use App\Models\DanhGia;
+
 use App\Models\DatPhong;
+use Laravel\Sanctum\HasApiTokens;
+
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'name',
