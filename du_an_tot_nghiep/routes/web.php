@@ -118,6 +118,10 @@ Route::prefix('admin')
 
         // ==================== BLOG (ADMIN) ====================
         Route::prefix('blog')->name('blog.')->group(function () {
+            // [NEW] xóa 1 ảnh phụ của bài viết
+            // Route::delete('posts/photo/{photo}', [AdminPost::class, 'deletePhoto'])
+            // ->name('posts.delete-photo'); 
+            
             // Thùng rác, restore, force delete
             Route::get('posts/trash', [AdminPost::class, 'trash'])->name('posts.trash');
             Route::post('posts/{id}/restore', [AdminPost::class, 'restore'])->name('posts.restore');

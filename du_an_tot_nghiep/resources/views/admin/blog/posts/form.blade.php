@@ -90,6 +90,32 @@
                                 @endif
                             </div>
 
+                            {{-- [NEW] Album hình ảnh nhiều ảnh --}}
+                            <div class="mb-3">
+                                <label class="form-label">Album hình ảnh (có thể chọn nhiều)</label>
+                                <input type="file" name="photo_albums[]" class="form-control" multiple accept="image/*">
+
+                                @if ($post->photoAlbums && $post->photoAlbums->count())
+                                    <div class="row mt-2 g-2">
+                                        @foreach ($post->photoAlbums as $photo)
+                                            <div class="col-4 position-relative">
+                                                <img src="{{ asset('storage/' . $photo->image) }}"
+                                                    class="img-fluid rounded shadow-sm" alt="">
+                                                {{-- <form action="{{ route('admin.blog.posts.delete-photo', $photo->id) }}"
+                                                    method="POST" class="position-absolute top-0 end-0"
+                                                    onsubmit="return confirm('Xóa ảnh này?')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-danger m-1 p-1">
+                                                        Xóa ảnh <i class="bi bi-x-lg"></i>
+                                                    </button>
+                                                </form> --}}
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label">SEO Title</label>
                                 {{-- ✅ meta_title --}}
@@ -112,49 +138,4 @@
         </form>
     </div>
 
-    {{-- Upload anh trong noi dung cua bai viet --}}
-    {{-- @push('scripts')
-        <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
-        <script>
-            tinymce.init({
-                selector: '#editor',
-                height: 520,
-                menubar: false,
-                plugins: 'image link media code lists table paste autolink',
-                toolbar: 'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist | link image media table | code',
-                paste_data_images: true,
-                relative_urls: false,
-                remove_script_host: false,
-                document_base_url: '{{ config('app.url') }}/',
-                setup: (editor) => {
-                    editor.on('change', () => editor.save());
-                },
-                images_upload_handler: (blobInfo, progress) => new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', '{{ route('admin.blog.posts.upload-image') }}');
-                    xhr.setRequestHeader('X-CSRF-TOKEN', '{{ csrf_token() }}');
-
-                    xhr.upload.onprogress = (e) => progress(e.loaded / e.total * 100);
-
-                    xhr.onload = () => {
-                        if (xhr.status < 200 || xhr.status >= 300) return reject('HTTP Error: ' + xhr
-                            .status);
-                        let json = {};
-                        try {
-                            json = JSON.parse(xhr.responseText);
-                        } catch (e) {}
-                        if (!json || typeof json.location !== 'string') return reject('Invalid JSON: ' + xhr
-                            .responseText);
-                        resolve(json.location);
-                    };
-
-                    xhr.onerror = () => reject('Image upload failed due to a XHR Transport error.');
-
-                    const formData = new FormData();
-                    formData.append('file', blobInfo.blob(), blobInfo.filename());
-                    xhr.send(formData);
-                }),
-            });
-        </script>
-    @endpush --}}
 @endsection

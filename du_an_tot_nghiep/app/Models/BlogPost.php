@@ -55,4 +55,9 @@ class BlogPost extends Model
     {
         return $q->where('status', 'published');
     }
+    public function photoAlbums()
+    {
+        return $this->hasMany(BlogPostPhoto::class, 'post_id');
+    }
+
 }
