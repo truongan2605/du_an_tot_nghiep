@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LoaiPhong;
 use App\Models\Phong;
 use App\Models\Wishlist;
 use Illuminate\Support\Facades\Auth;
@@ -14,12 +15,13 @@ class HomeController extends Controller
             ->orderByDesc('created_at')
             ->take(8)
             ->get();
-
+        $loaiPhongs = LoaiPhong::all();
         $favoriteIds = [];
         if (Auth::check()) {
             $favoriteIds = Wishlist::where('user_id', Auth::id())->pluck('phong_id')->toArray();
         }
-
-        return view('home', compact('phongs', 'favoriteIds'));
+        $giaMin = 0;
+        $giaMax = Phong::max('gia_cuoi_cung') ?? 1000000;
+        return view('home', compact('loaiPhongs','phongs', 'favoriteIds','giaMin', 'giaMax'));
     }
 }
