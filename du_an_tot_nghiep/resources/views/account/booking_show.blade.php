@@ -27,6 +27,7 @@
                                     $statusMap = [
                                         'dang_cho' => ['label' => 'Pending', 'class' => 'bg-warning text-dark border-warning'],
                                         'dang_cho_xac_nhan' => ['label' => 'Pending', 'class' => 'bg-warning text-dark border-warning'],
+                                         'dang_su_dung' => ['label' => 'Đang Sử Dụng', 'class' => 'bg-warning text-dark border-warning'],
                                         'da_xac_nhan' => ['label' => 'Confirmed', 'class' => 'bg-primary text-white border-primary'],
                                         'da_huy' => ['label' => 'Cancelled', 'class' => 'bg-danger text-white border-danger'],
                                         'hoan_thanh' => ['label' => 'Completed', 'class' => 'bg-success text-white border-success'],

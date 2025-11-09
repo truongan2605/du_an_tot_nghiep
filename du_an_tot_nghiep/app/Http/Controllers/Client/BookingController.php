@@ -33,7 +33,7 @@ class BookingController extends Controller
         }
 
         $upcoming = DatPhong::where('nguoi_dung_id', $user->id)
-            ->whereIn('trang_thai', ['dang_cho','dang_cho_xac_nhan', 'da_xac_nhan'])
+            ->whereIn('trang_thai', ['dang_cho','dang_cho_xac_nhan', 'da_xac_nhan','dang_su_dung'])
             ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
             ->orderBy('ngay_nhan_phong', 'asc')
             ->get();
