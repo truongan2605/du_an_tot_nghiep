@@ -1,11 +1,13 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\HoaDon;
+use App\Models\HoaDonItem;
 use Illuminate\Http\Request;
 use App\Models\VatDungIncident;
 use App\Models\PhongVatDungInstance;
-use App\Models\PhongVatDungConsumption;
 use App\Models\VatDung;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -48,14 +50,33 @@ class VatDungIncidentController extends Controller
             'type' => 'nullable|string|max:100',
             'description' => 'nullable|string|max:2000',
             'fee' => 'nullable|numeric|min:0',
-            'mark_instance_status' => ['nullable', Rule::in(['damaged','missing','lost'])],
-            'create_consumption' => 'nullable|boolean',
+            'mark_instance_status' => ['nullable', Rule::in(['damaged', 'missing', 'lost'])],
             'consumption_quantity' => 'nullable|integer|min:1',
         ]);
 
         $data['reported_by'] = Auth::id();
-        $createConsumption = (bool) ($data['create_consumption'] ?? false);
         $consumptionQty = isset($data['consumption_quantity']) ? (int)$data['consumption_quantity'] : 1;
+
+        $map = [
+            'damaged' => 'damage',
+            'missing' => 'loss',
+            'lost' => 'loss',
+        ];
+
+        $providedType = isset($data['type']) ? trim($data['type']) : null;
+        if ($providedType) {
+            $allowed = ['damage', 'loss', 'other'];
+            if (!in_array($providedType, $allowed, true)) {
+                $lower = strtolower($providedType);
+                $data['type'] = $map[$lower] ?? 'other';
+            }
+        } else {
+            if (!empty($data['mark_instance_status']) && isset($map[$data['mark_instance_status']])) {
+                $data['type'] = $map[$data['mark_instance_status']];
+            } else {
+                $data['type'] = 'other';
+            }
+        }
 
         DB::beginTransaction();
         try {
@@ -72,44 +93,72 @@ class VatDungIncidentController extends Controller
 
             if (empty($data['vat_dung_id'])) throw new \Exception('vat_dung_id là bắt buộc nếu không có phong_vat_dung_instance_id.');
 
+            $datPhongId = $data['dat_phong_id'] ?? null;
+            if (empty($datPhongId) && !empty($data['phong_id'])) {
+                $phongModel = \App\Models\Phong::find($data['phong_id']);
+                if ($phongModel) {
+                    $active = $phongModel->activeDatPhong();
+                    $datPhongId = $active ? $active->id : null;
+                }
+            }
+
             $incident = VatDungIncident::create([
                 'phong_vat_dung_instance_id' => $data['phong_vat_dung_instance_id'] ?? null,
                 'phong_id' => $data['phong_id'] ?? null,
-                'dat_phong_id' => $data['dat_phong_id'] ?? null,
+                'dat_phong_id' => $datPhongId ?? null,
                 'vat_dung_id' => (int)$data['vat_dung_id'],
-                'type' => $data['type'] ?? null,
+                'type' => $data['type'] ?? 'other',
                 'description' => $data['description'] ?? null,
                 'fee' => isset($data['fee']) ? (float)$data['fee'] : null,
                 'reported_by' => $data['reported_by'],
             ]);
 
             if ($instance && !empty($data['mark_instance_status'])) {
-                // normalize mapping mark_instance_status -> instance status
-                $map = [
+                $mapInst = [
                     'damaged' => PhongVatDungInstance::STATUS_DAMAGED,
                     'missing' => PhongVatDungInstance::STATUS_MISSING,
                     'lost' => PhongVatDungInstance::STATUS_LOST,
                 ];
-                $instance->status = $map[$data['mark_instance_status']] ?? $instance->status;
+                $instance->status = $mapInst[$data['mark_instance_status']] ?? $instance->status;
                 $instance->save();
             }
 
-            if ($createConsumption) {
+            if (!empty($datPhongId)) {
                 $vat = VatDung::find($incident->vat_dung_id);
-                $unitPrice = $vat ? ($vat->gia ?? 0) : 0;
+                $unitPrice = $incident->fee ?? ($vat->gia ?? 0);
+                $qty = max(1, $consumptionQty);
+                $amount = round($unitPrice * $qty, 2);
 
-                PhongVatDungConsumption::create([
-                    'dat_phong_id' => $data['dat_phong_id'] ?? null,
-                    'phong_id' => $data['phong_id'] ?? ($instance->phong_id ?? null),
+                $hoaDon = HoaDon::where('dat_phong_id', $datPhongId)
+                    ->where('trang_thai', '!=', 'da_thanh_toan')
+                    ->orderByDesc('id')
+                    ->first();
+
+                if (!$hoaDon) {
+                    $hoaDon = HoaDon::create([
+                        'dat_phong_id' => $datPhongId,
+                        'so_hoa_don' => 'HD' . time(),
+                        'tong_thuc_thu' => 0,
+                        'don_vi' => 'VND',
+                        'trang_thai' => 'tao',
+                    ]);
+                }
+
+                $item = HoaDonItem::create([
+                    'hoa_don_id' => $hoaDon->id,
+                    'type' => 'incident',
+                    'ref_id' => $incident->id,
                     'vat_dung_id' => $incident->vat_dung_id,
-                    'quantity' => $consumptionQty,
+                    'name' => $vat->ten ?? ('Charge #' . $incident->id),
+                    'quantity' => $qty,
                     'unit_price' => $unitPrice,
-                    'note' => 'Auto-created from incident id=' . $incident->id,
-                    'created_by' => Auth::id(),
-                    'consumed_at' => now(),
+                    'amount' => $amount,
+                    'note' => $incident->description ?? null,
                 ]);
 
-                // update pivot counters
+                $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $amount;
+                $hoaDon->save();
+
                 $pivot = DB::table('phong_vat_dung')
                     ->where('phong_id', $data['phong_id'] ?? ($instance->phong_id ?? null))
                     ->where('vat_dung_id', $incident->vat_dung_id)
@@ -121,8 +170,8 @@ class VatDungIncidentController extends Controller
                         ->where('phong_id', $data['phong_id'] ?? ($instance->phong_id ?? null))
                         ->where('vat_dung_id', $incident->vat_dung_id)
                         ->update([
-                            'so_luong' => max(0, ((int)$pivot->so_luong) - $consumptionQty),
-                            'da_tieu_thu' => ((int)$pivot->da_tieu_thu) + $consumptionQty,
+                            'so_luong' => max(0, ((int)$pivot->so_luong) - $qty),
+                            'da_tieu_thu' => ((int)$pivot->da_tieu_thu) + $qty,
                             'updated_at' => now()
                         ]);
                 } else {
@@ -130,17 +179,24 @@ class VatDungIncidentController extends Controller
                         'phong_id' => $data['phong_id'] ?? ($instance->phong_id ?? null),
                         'vat_dung_id' => $incident->vat_dung_id,
                         'so_luong' => 0,
-                        'da_tieu_thu' => $consumptionQty,
+                        'da_tieu_thu' => $qty,
                         'gia_override' => null,
                         'tracked_instances' => false,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
                 }
+
+                // mark incident as billed (optional): you may want to set billed_at on incident
+                $incident->billed_at = now();
+                $incident->save();
+            } else {
+                // no booking found: we do not create invoice — but since buttons should be disabled,
+                // typically this branch won't run. Keep the incident record only.
             }
 
             DB::commit();
-            return back()->with('success', 'Ghi nhận sự cố thành công');
+            return back()->with('success', 'Ghi nhận sự cố thành công' . (!empty($datPhongId) ? ' và đã tính vào hoá đơn.' : '.'));
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withInput()->withErrors(['error' => 'Không thể ghi nhận sự cố: ' . $e->getMessage()]);

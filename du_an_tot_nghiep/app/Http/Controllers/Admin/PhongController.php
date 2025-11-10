@@ -256,7 +256,8 @@ class PhongController extends Controller
             } else {
                 // nếu không có input, đảm bảo ít nhất copy default từ loai_phong nếu pivot chưa có
                 $selectedLoai->load('vatDungs');
-                $phongVatIds = $phong->vatDungs()->pluck('id')->toArray();
+                // sửa thành:
+                $phongVatIds = $phong->vatDungs()->pluck('vat_dungs.id')->toArray();
                 $missing = $selectedLoai->vatDungs->pluck('id')->diff($phongVatIds);
                 if ($missing->isNotEmpty()) {
                     $add = [];

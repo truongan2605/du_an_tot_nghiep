@@ -136,7 +136,7 @@
                         @endphp
                         <label
                             class="form-check form-check-inline amenity-label-edit {{ $inType ? 'in-type' : ($inRoom ? 'extra' : 'not-in-type') }}"
-                            data-amenity-id="{{ $tn->id }}">
+                            data-amenity-id="{{ $tn->id }}" data-price="{{ $tn->gia ?? 0 }}">
                             <input type="checkbox" class="form-check-input amenity-checkbox-edit"
                                 value="{{ $tn->id }}" id="tienNghi_edit_{{ $tn->id }}"
                                 {{ $inType || $inRoom ? 'checked' : '' }} disabled>
@@ -241,13 +241,13 @@
             const editSelect = document.getElementById('loai_phong_select_edit');
             const giaInput = document.getElementById('gia_input_edit');
             const bedTypesContainer = document.getElementById('bed_types_container_edit');
-            const amenitiesDisplay = document.getElementById('amenities_display_edit');
+            const amenitiesContainer = document.getElementById('amenities_checkbox_list_edit');
+            const hiddenAmenityContainer = document.getElementById('hidden_amenities_container_edit');
             const form = document.getElementById('phongEditForm');
             const totalDisp = document.getElementById('total_display');
 
             const initialRoomAmenityIds = @json($roomAmenityIds || []);
 
-            // helper
             function toInt(v) {
                 const n = parseInt(v, 10);
                 return isNaN(n) ? 0 : n;
@@ -255,7 +255,6 @@
 
             function toFloat(v) {
                 if (v === null || v === undefined) return 0;
-                // remove commas or non-number chars
                 const s = String(v).replace(/[^\d\.\-]/g, '');
                 const f = parseFloat(s);
                 return isNaN(f) ? 0 : f;
@@ -305,21 +304,21 @@
             }
 
             function setHiddenAmenityInputs(ids) {
-                // remove old
-                document.querySelectorAll('.amenity-hidden-input-edit').forEach(n => n.remove());
-                const target = form || document.body;
+                if (!hiddenAmenityContainer) return;
+                hiddenAmenityContainer.querySelectorAll('.amenity-hidden-input-edit').forEach(n => n.remove());
                 (ids || []).forEach(id => {
                     const inp = document.createElement('input');
                     inp.type = 'hidden';
                     inp.name = 'tien_nghi[]';
                     inp.value = id;
                     inp.className = 'amenity-hidden-input-edit';
-                    target.appendChild(inp);
+                    hiddenAmenityContainer.appendChild(inp);
                 });
             }
 
             function getHiddenAmenityIds() {
-                return Array.from(document.querySelectorAll('.amenity-hidden-input-edit'))
+                if (!hiddenAmenityContainer) return [];
+                return Array.from(hiddenAmenityContainer.querySelectorAll('.amenity-hidden-input-edit'))
                     .map(i => toInt(i.value))
                     .filter(n => n > 0);
             }
@@ -336,14 +335,28 @@
             }
 
             function badgePriceById(id) {
-                if (!amenitiesDisplay) return 0;
-                const sel = amenitiesDisplay.querySelector('[data-id="' + id + '"]');
+                if (!amenitiesContainer) return 0;
+                const sel = amenitiesContainer.querySelector('[data-amenity-id="' + id + '"]');
                 if (!sel) return 0;
-                return toFloat(sel.dataset.price || sel.getAttribute('data-price') || 0);
+                const p = sel.dataset.price ?? sel.getAttribute('data-price') ?? 0;
+                return toFloat(p || 0);
+            }
+
+            function ensureArray(x) {
+                if (Array.isArray(x)) return x;
+                if (x === null || x === undefined) return [];
+                if (typeof x === 'number' || typeof x === 'string') return [x];
+                try {
+                    return Array.from(x);
+                } catch (e) {
+                    return [];
+                }
             }
 
             function unionArrays(a, b) {
-                return Array.from(new Set([...(a || []), ...(b || [])])).map(x => toInt(x)).filter(x => x > 0);
+                const A = ensureArray(a).map(x => toInt(x)).filter(n => n > 0);
+                const B = ensureArray(b).map(x => toInt(x)).filter(n => n > 0);
+                return Array.from(new Set([...A, ...B]));
             }
 
             function updateTotalDisplay() {
@@ -354,37 +367,36 @@
 
                     const bedSum = computeBedSum(opt);
 
-                    const typeIds = parseAmenityIdsFromOption(opt); // from loai_phong
-                    const hiddenIds = getHiddenAmenityIds(); // from hidden inputs
+                    const typeIds = parseAmenityIdsFromOption(opt);
+                    const hiddenIds =
+                        getHiddenAmenityIds();
                     const unionIds = unionArrays(typeIds, unionArrays(hiddenIds, initialRoomAmenityIds));
-
-                    console.debug('DEBUG amenity calc:', {
-                        typeIds,
-                        hiddenIds,
-                        initialRoomAmenityIds,
-                        unionIds
-                    });
 
                     let amenitySum = 0;
                     unionIds.forEach(id => {
-                        const p = badgePriceById(id);
-                        amenitySum += p;
+                        amenitySum += badgePriceById(id);
                     });
 
                     const total = Math.round(base + bedSum + amenitySum);
                     if (totalDisp) totalDisp.innerText = new Intl.NumberFormat('vi-VN').format(total) + ' đ';
 
-                    if (amenitiesDisplay) {
-                        const badges = amenitiesDisplay.querySelectorAll('span[data-id]');
+                    if (amenitiesContainer) {
+                        const badges = amenitiesContainer.querySelectorAll('[data-amenity-id]');
                         badges.forEach(b => {
-                            const id = toInt(b.dataset.id || b.getAttribute('data-id'));
+                            const id = toInt(b.dataset.amenityId || b.getAttribute('data-amenity-id'));
                             b.classList.remove('bg-primary', 'bg-light', 'text-muted');
                             if (typeIds.includes(id)) {
                                 b.classList.add('bg-primary');
+                                const cb = b.querySelector('.amenity-checkbox-edit');
+                                if (cb) cb.checked = true;
                             } else if (unionIds.includes(id)) {
                                 b.classList.add('bg-light');
+                                const cb = b.querySelector('.amenity-checkbox-edit');
+                                if (cb) cb.checked = true;
                             } else {
                                 b.classList.add('bg-light', 'text-muted');
+                                const cb = b.querySelector('.amenity-checkbox-edit');
+                                if (cb) cb.checked = false;
                             }
                         });
                     }
@@ -410,7 +422,6 @@
                             const opt = editSelect.options[editSelect.selectedIndex];
                             const typeIds = parseAmenityIdsFromOption(opt);
                             renderBedTypes(parseBedlistFromOption(opt));
-                            // overwrite hidden inputs with option amenities
                             setHiddenAmenityInputs(typeIds);
                             updateTotalDisplay();
                         });
@@ -419,10 +430,12 @@
                     const observer = new MutationObserver(() => {
                         updateTotalDisplay();
                     });
-                    observer.observe(form || document.body, {
-                        childList: true,
-                        subtree: true
-                    });
+                    if (hiddenAmenityContainer) {
+                        observer.observe(hiddenAmenityContainer, {
+                            childList: true,
+                            subtree: true
+                        });
+                    }
 
                     window.__roomAmenityDebug = {
                         updateTotalDisplay,

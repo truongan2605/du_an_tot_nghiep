@@ -250,7 +250,7 @@
                                     class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                                     <div>Đồ vật</div>
                                     <a href="{{ route('admin.phong.vatdung.instances.index', ['phong' => $phong->id]) }}"
-                                        class="btn btn-sm btn-light">Quản lý bản thể</a>
+                                        class="btn btn-sm btn-light">Quản lý chi tiết</a>
                                 </div>
                                 <div class="card-body">
                                     @if ($vatDungLoaiPhongDoDung->count())
@@ -259,57 +259,29 @@
                                                 @php
                                                     $inst = $instancesMap[$vd->id] ?? null;
                                                     $instCount = $inst['count'] ?? 0;
+                                                    $activeBooking = $activeDatPhong ?? null;
+                                                    $canOperate =
+                                                        $activeBooking &&
+                                                        in_array($activeBooking->trang_thai, [
+                                                            'da_dat',
+                                                            'dang_su_dung',
+                                                            'da_xac_nhan',
+                                                            'dang_cho_xac_nhan',
+                                                        ]);
                                                 @endphp
+
                                                 <li class="mb-2">
                                                     ✔ {{ $vd->ten }}
                                                     <small class="text-muted"> —
                                                         {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ</small>
                                                     @if ($instCount > 0)
-                                                        <span class="badge bg-info ms-2">Bản thể:
+                                                        <span class="badge bg-info ms-2">Số lượng:
                                                             {{ $instCount }}</span>
                                                     @else
                                                         <span class="text-muted ms-2">Không có bản thể</span>
                                                     @endif
 
-                                                    @if ($vd->tracked_instances)
-                                                        <span class="badge bg-secondary ms-2">Theo dõi bản</span>
-                                                    @endif
 
-                                                    <!-- quick expand instances (if exist) -->
-                                                    @if (!empty($inst['rows']))
-                                                        <div class="mt-2">
-                                                            <small class="text-muted">Danh sách bản thể:</small>
-                                                            <ul class="mb-0">
-                                                                @foreach ($inst['rows'] as $row)
-                                                                    <li>
-                                                                        #{{ $row->id }} - {{ $row->serial ?? '-' }} -
-                                                                        <strong>{{ $row->status }}</strong>
-                                                                        <form
-                                                                            action="{{ route('admin.phong.vatdung.instances.update-status', $row->id) }}"
-                                                                            method="POST" class="d-inline ms-2">
-                                                                            @csrf @method('PATCH')
-                                                                            <input type="hidden" name="status"
-                                                                                value="lost">
-                                                                            <button
-                                                                                class="btn btn-sm btn-outline-danger btn-xs"
-                                                                                onclick="return confirm('Đánh dấu mất?')">Đánh
-                                                                                dấu mất</button>
-                                                                        </form>
-                                                                        <form
-                                                                            action="{{ route('admin.phong.vatdung.instances.update-status', $row->id) }}"
-                                                                            method="POST" class="d-inline ms-1">
-                                                                            @csrf @method('PATCH')
-                                                                            <input type="hidden" name="status"
-                                                                                value="ok">
-                                                                            <button
-                                                                                class="btn btn-sm btn-outline-success btn-xs">Đánh
-                                                                                OK</button>
-                                                                        </form>
-                                                                    </li>
-                                                                @endforeach
-                                                            </ul>
-                                                        </div>
-                                                    @endif
                                                 </li>
                                             @endforeach
                                         </ul>
@@ -351,7 +323,7 @@
                                                             $consumedByInvoice = (int) ($hoaDonItemsGrouped[$vid] ?? 0); // from controller
                                                             $remaining = max(0, $initial - $consumedByInvoice);
                                                         @endphp
-                                                        <td >{{ $vd->ten }}</td>
+                                                        <td>{{ $vd->ten }}</td>
                                                         <td class="text-center">{{ $initial }}</td>
                                                         <td class="text-center">{{ $consumedByInvoice }}</td>
                                                         <td class="text-center">{{ $remaining }}</td>
@@ -394,7 +366,7 @@
                                             </tbody>
                                         </table>
                                     @else
-                                        <p><em>Không có đồ ăn/consumables được cấu hình cho phòng này.</em></p>
+                                        <p><em>Không có đồ ăn được cấu hình cho phòng này.</em></p>
                                     @endif
                                 </div>
                             </div>

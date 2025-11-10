@@ -185,7 +185,7 @@ class PhongVatDungController extends Controller
                 if (! $vat) continue;
 
                 $pivot = DB::table('phong_vat_dung')->where('phong_id', $phong->id)->where('vat_dung_id', $vdId)->first();
-                $unitPrice = $vals['gia_override'] ?? $vals['unit_price'] ?? ($pivot->gia_override ?? $vat->gia ?? 0);
+                $unitPrice = $vals['gia_override'] ?? $vals['unit_price'] ?? (optional($pivot)->gia_override ?? $vat->gia ?? 0);
 
                 if ($existing->has($vdId)) {
                     $row = $existing->get($vdId);
