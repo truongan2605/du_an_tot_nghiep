@@ -156,8 +156,6 @@ Route::prefix('admin')
         Route::post('phong/vat-dung-instances/{instance}/mark-lost', [PhongVatDungInstanceController::class, 'markLost'])
             ->name('phong.vatdung.instances.mark-lost');
 
-        // Route::post('phong/consumptions/{consumption}/consume', [PhongConsumptionController::class, 'markConsumed'])
-        //     ->name('phong.consumptions.consume');
 
         Route::post('phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])
             ->name('phong.consumptions.markConsumed');
