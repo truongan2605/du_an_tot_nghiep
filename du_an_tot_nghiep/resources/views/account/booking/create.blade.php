@@ -357,15 +357,15 @@
                                                         <select name="phuong_thuc" id="phuong_thuc" class="form-select"
                                                             required>
                                                             <option value="">Select method</option>
-                                                            <option value="tien_mat"
+                                                            {{-- <option value="tien_mat"
                                                                 {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>
-                                                                Pay at the hotel (Cash)</option>
+                                                                Pay at the hotel (Cash)</option> --}}
                                                             <option value="vnpay"
                                                                 {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Pay
                                                                 with VNPAY</option>
-                                                            <option value="chuyen_khoan"
+                                                            {{-- <option value="chuyen_khoan"
                                                                 {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
-                                                                Bank transfer</option>
+                                                                Bank transfer</option> --}}
                                                         </select>
                                                     </div>
                                                 </div>
@@ -1013,6 +1013,7 @@
                             name: name,
                             address: address,
                             phone: phone,
+                            ghi_chu: document.querySelector('textarea[name="ghi_chu"]').value.trim() || '',
                         }),
                     });
 

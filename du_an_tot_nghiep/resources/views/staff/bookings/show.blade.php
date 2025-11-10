@@ -27,7 +27,7 @@
 
             <div class="card-body p-5">
                 <div class="row g-5">
-                  
+
                     <div class="col-lg-6">
                         <h6 class="text-primary fw-bold mb-4"><i class="bi bi-person-circle me-2"></i>Khách Hàng</h6>
                         <div class="ps-4">
@@ -52,7 +52,7 @@
                                 <i class="bi bi-envelope-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Email</small>
-                                    <p class="mb-0">{{ $booking->email ?? 'N/A' }}</p>
+                                    <p class="mb-0">{{ $booking->nguoiDung?->email ?? ($booking->email ?? 'N/A') }}</p>
                                 </div>
                             </div>
 
@@ -60,10 +60,23 @@
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Số Điện Thoại</small>
-                                    <p class="mb-0">{{ $booking->phone ?? 'N/A' }}</p>
+                                    <p class="mb-0">{{ $booking->contact_phone ?? ($booking->phone ?? 'N/A') }}</p>
                                 </div>
                             </div>
-
+                              <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-telephone-fill text-muted me-3"></i>
+                                <div>
+                                    <small class="text-muted">Địa chỉ</small>
+                                    <p class="mb-0">{{ $booking->contact_address ?? ($booking->address ?? 'N/A') }}</p>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-telephone-fill text-muted me-3"></i>
+                                <div>
+                                    <small class="text-muted">Ghi chú</small>
+                                    <p class="mb-0">{{ $booking->ghi_chu ?? ($booking->ghi_chu ?? '...') }}</p>
+                                </div>
+                            </div>
                             <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-patch-check-fill text-muted me-3 fs-5"></i>
                                 <div>
@@ -122,7 +135,7 @@
                         </div>
                     </div>
 
-                 
+
                     <div class="col-lg-6">
                         <h6 class="text-primary fw-bold mb-4"><i class="bi bi-calendar3 me-2"></i>Chi Tiết Đặt Phòng</h6>
                         <div class="ps-4">
@@ -176,7 +189,7 @@
                     </div>
                 </div>
 
-              
+
                 <hr class="my-5">
 
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-door-open-fill me-2"></i>Phòng Đã Gán</h6>
@@ -206,7 +219,7 @@
                     </div>
                 @endforelse
 
-              
+
                 @if ($booking->giaoDichs->count() > 0)
                     <hr class="my-5">
                     <h6 class="text-primary fw-bold mb-4"><i class="bi bi-receipt me-2"></i>Lịch Sử Giao Dịch</h6>
@@ -243,7 +256,7 @@
                     </div>
                 @endif
 
-          
+
                 <hr class="my-5">
                 <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center">
                     <a href="{{ route('staff.rooms') }}" class="btn btn-outline-secondary btn-lg px-4">
