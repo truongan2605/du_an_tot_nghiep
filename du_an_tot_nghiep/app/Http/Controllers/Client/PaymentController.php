@@ -389,7 +389,7 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use ($vnp_ResponseCode, $vnp_Amount, $inputData, $giao_dich, $dat_phong, $roomsCount) {
@@ -433,7 +433,7 @@ class PaymentController extends Controller
                         Log::debug('Spec hash from hold meta', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
                     } else {
 
-                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
                         if (is_array($snapshotMeta) && isset($snapshotMeta['loai_phong_id'])) {
 
                             $specSignatureHash = $this->generateSpecSignatureHash($snapshotMeta, null);
@@ -578,7 +578,7 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return response()->json(['RspCode' => '02', 'Message' => 'Booking not found']);
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use ($giao_dich, $dat_phong, $vnp_ResponseCode, $vnp_Amount, $inputData, $roomsCount) {
@@ -616,7 +616,7 @@ class PaymentController extends Controller
                         Log::debug('Spec hash from hold meta', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
                     } else {
 
-                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
                         if (is_array($snapshotMeta) && isset($snapshotMeta['loai_phong_id'])) {
 
                             $specSignatureHash = $this->generateSpecSignatureHash($snapshotMeta, null);
