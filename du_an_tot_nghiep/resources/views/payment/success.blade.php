@@ -27,6 +27,9 @@
         <a href="{{ url('/') }}" class="btn btn-primary mt-4 py-2" style="font-size: 1.1rem; border-radius: 8px;">
             Về trang chủ
         </a>
+        <a href="{{ url('account/bookings') }}" class="btn btn-primary mt-4 py-2" style="font-size: 1.1rem; border-radius: 8px;">
+            Về trang đặt phòng của bạn 
+        </a>
     </div>
 </div>
 @endsection

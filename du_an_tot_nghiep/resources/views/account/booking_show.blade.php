@@ -3,194 +3,220 @@
 @section('title', 'Booking Detail')
 
 @section('content')
-    <section class="pt-3">
+    <section class="py-3">
         <div class="container">
             <div class="row">
                 <div class="col-12">
-                    <div class="card border mb-4">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <div>
-                                <h4 class="mb-0">{{ $booking->ma_tham_chieu }}</h4>
-                                <div class="text-muted small">Created:
-                                    {{ optional($booking->created_at)->format('d M Y H:i') }}</div>
+                    {{-- Booking Header --}}
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-white border-0 p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            {{-- Left: Booking Info --}}
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
+                                    <i class="bi bi-receipt fs-5"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-1 text-dark">{{ $booking->ma_tham_chieu }}</h5>
+                                    <div class="text-muted small">Created: {{ optional($booking->created_at)->format('d M Y H:i') }}</div>
+                                </div>
                             </div>
 
-                            <div class="text-end">
+                            {{-- Right: Status + Actions --}}
+                            <div class="text-end d-flex flex-column align-items-end gap-2">
                                 @php
                                     $statusMap = [
-                                        'dang_cho' => ['label' => 'Pending', 'class' => 'text-warning'],
-                                        'da_xac_nhan' => ['label' => 'Confirmed', 'class' => 'text-primary'],
-                                        'da_huy' => ['label' => 'Cancelled', 'class' => 'text-danger'],
-                                        'hoan_thanh' => ['label' => 'Completed', 'class' => 'text-success'],
+                                        'dang_cho' => ['label' => 'Pending', 'class' => 'bg-warning text-dark border-warning'],
+                                        'dang_cho_xac_nhan' => ['label' => 'Pending', 'class' => 'bg-warning text-dark border-warning'],
+                                         'dang_su_dung' => ['label' => 'Đang Sử Dụng', 'class' => 'bg-warning text-dark border-warning'],
+                                        'da_xac_nhan' => ['label' => 'Confirmed', 'class' => 'bg-primary text-white border-primary'],
+                                        'da_huy' => ['label' => 'Cancelled', 'class' => 'bg-danger text-white border-danger'],
+                                        'hoan_thanh' => ['label' => 'Completed', 'class' => 'bg-success text-white border-success'],
                                     ];
                                     $s = $statusMap[$booking->trang_thai] ?? [
                                         'label' => ucfirst(str_replace('_', ' ', $booking->trang_thai)),
-                                        'class' => 'text-secondary',
+                                        'class' => 'bg-secondary text-white border-secondary',
                                     ];
                                 @endphp
-                                <div class="d-flex flex-column align-items-end">
-                                    <div class="fw-bold" style="font-size:1.25rem;">
-                                        <span class="{{ $s['class'] }}">{{ $s['label'] }}</span>
-                                    </div>
-                                    <div class="mt-2">
-                                        <a href="{{ route('account.booking.index') }}"
-                                            class="btn btn-outline-secondary">Back to bookings</a>
-                                    </div>
+
+                                {{-- Status Badge --}}
+                                <span class="badge px-3 py-2 fs-6 fw-semibold {{ $s['class'] }}">{{ $s['label'] }}</span>
+
+                                {{-- Action Buttons --}}
+                                <div class="d-flex gap-1">
+                                    <a href="{{ route('account.booking.index') }}" class="btn btn-outline-secondary btn-sm px-3">
+                                        <i class="bi bi-arrow-left me-1"></i> Back
+                                    </a>
+
+                                    @if (in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan']))
+                                        <form action="" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn hủy đặt phòng này không?')">
+                                            @csrf
+                                            <button type="submit" class="btn btn-danger btn-sm px-3">
+                                                <i class="bi bi-x-circle me-1"></i> Cancel
+                                            </button>
+                                        </form>
+                                    @endif
                                 </div>
                             </div>
                         </div>
 
-                        <div class="card-body">
-
-                            <div class="row mb-3">
+                        {{-- Booking Body --}}
+                        <div class="card-body p-4">
+                            {{-- Dates & Total --}}
+                            <div class="row mb-4 g-3">
                                 <div class="col-md-4">
-                                    <strong>Check in</strong>
-                                    <div>{{ optional($booking->ngay_nhan_phong)->format('D, d M Y') }}</div>
+                                    <div class="text-center text-md-start">
+                                        <div class="text-muted small mb-1"><i class="bi bi-calendar-check me-1"></i> Check-in</div>
+                                        <div class="h6 mb-0 fw-bold">{{ optional($booking->ngay_nhan_phong)->format('D, d M Y') }}</div>
+                                    </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <strong>Check out</strong>
-                                    <div>{{ optional($booking->ngay_tra_phong)->format('D, d M Y') }}</div>
+                                    <div class="text-center text-md-start">
+                                        <div class="text-muted small mb-1"><i class="bi bi-calendar-x me-1"></i> Check-out</div>
+                                        <div class="h6 mb-0 fw-bold">{{ optional($booking->ngay_tra_phong)->format('D, d M Y') }}</div>
+                                    </div>
                                 </div>
                                 <div class="col-md-4">
-                                    <strong>Total</strong>
-                                    <div>
-                                        {{ number_format($booking->snapshot_total ?? ($booking->tong_tien ?? 0), 0, ',', '.') }}
-                                        VND</div>
+                                    <div class="text-center text-md-end">
+                                        <div class="text-muted small mb-1"><i class="bi bi-currency-dollar me-1"></i> Total</div>
+                                        <div class="h5 mb-0 fw-bold text-primary">{{ number_format($booking->snapshot_total ?? ($booking->tong_tien ?? 0), 0, ',', '.') }} VND</div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <h5 class="mb-2">Rooms</h5>
-
-                            @if ($booking->datPhongItems && $booking->datPhongItems->count())
-                                <div class="table-responsive">
-                                    <table class="table table-sm mb-0 table-no-bottom">
-                                        <thead>
-                                            <tr>
-                                                <th>Room name</th>
-                                                <th class="text-end">Price/night</th>
-                                                <th class="text-end">Nights</th>
-                                                <th class="text-end">Subtotal</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($booking->datPhongItems as $it)
-                                                @php
-                                                    $roomName =
-                                                        $it->phong && isset($it->phong->name)
-                                                            ? $it->phong->name
-                                                            : ($it->loai_phong && isset($it->loai_phong->name)
-                                                                ? $it->loai_phong->name
-                                                                : 'Room ' . ($it->phong_id ?? 'N/A'));
-                                                    $pricePer = $it->gia_tren_dem ?? 0;
-                                                    $nights = $it->so_dem ?? 1;
-                                                    $qty = $it->so_luong ?? 1;
-                                                    $subtotal = $it->tong_item ?? $pricePer * $nights * $qty;
-                                                @endphp
+                            {{-- Rooms Table --}}
+                            <div class="mb-4">
+                                <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-door-open-fill me-2 text-primary"></i> Rooms</h6>
+                                @if ($booking->datPhongItems && $booking->datPhongItems->count())
+                                    <div class="table-responsive">
+                                        <table class="table table-hover table-sm mb-0">
+                                            <thead class="table-light">
                                                 <tr>
-                                                    <td class="align-middle">
-                                                        <i class="bi bi-door-open-fill me-2"></i>
-                                                        <strong>{{ $roomName }}</strong>
-                                                        <div class="small text-muted">{{ $qty }} x room(s)</div>
-                                                    </td>
-                                                    <td class="text-end align-middle">
-                                                        {{ number_format($pricePer, 0, ',', '.') }}</td>
-                                                    <td class="text-end align-middle">{{ $nights }}</td>
-                                                    <td class="text-end align-middle">
-                                                        {{ number_format($subtotal, 0, ',', '.') }}</td>
+                                                    <th>Room</th>
+                                                    <th class="text-end">Price/Night</th>
+                                                    <th class="text-end">Nights</th>
+                                                    <th class="text-end">Subtotal</th>
+                                                    <th class="text-end">Deposit (20%)</th>
                                                 </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @else
-                                <div class="alert alert-info">No room items recorded.</div>
-                            @endif
-
-                            <div class="my-4"></div> {{-- Do not delete this div --}}
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($booking->datPhongItems as $it)
+                                                    @php
+                                                        $roomName = $it->phong->name ?? ($it->loai_phong->name ?? 'Room ' . ($it->phong_id ?? 'N/A'));
+                                                        $pricePer = $it->gia_tren_dem ?? 0;
+                                                        $nights = $it->so_dem ?? 1;
+                                                        $qty = $it->so_luong ?? 1;
+                                                        $subtotal = $it->tong_item ?? $pricePer * $nights * $qty;
+                                                        $deposit_amount = (float) ($it->datPhong->deposit_amount ?? 0);
+                                                    @endphp
+                                                    <tr>
+                                                        <td>
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bi bi-door-closed-fill text-muted me-2"></i>
+                                                                <div>
+                                                                    <strong class="text-dark">{{ $roomName }}</strong>
+                                                                    <div class="small text-muted">{{ $qty }} room{{ $qty > 1 ? 's' : '' }}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-end text-muted small">{{ number_format($pricePer, 0, ',', '.') }} VND</td>
+                                                        <td class="text-end fw-semibold">{{ $nights }}</td>
+                                                        <td class="text-end fw-semibold text-primary">{{ number_format($subtotal, 0, ',', '.') }} VND</td>
+                                                        <td class="text-end text-success fw-semibold">{{ number_format($deposit_amount, 0, ',', '.') }} VND</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @else
+                                    <div class="alert alert-info d-flex align-items-center py-2">
+                                        <i class="bi bi-info-circle me-2"></i> No room items recorded.
+                                    </div>
+                                @endif
+                            </div>
 
                             {{-- Addons --}}
                             @if ($booking->datPhongAddons && $booking->datPhongAddons->count())
-                                <ul class="list-unstyled">
-                                    @foreach ($booking->datPhongAddons as $a)
-                                        <li>
-                                            <i class="bi bi-plus-circle me-2"></i>
-                                            {{ $a->name ?? 'Addon' }} — {{ number_format($a->price ?? 0, 0, ',', '.') }}
-                                            VND
-                                            <small class="text-muted"> (qty: {{ $a->qty ?? 1 }})</small>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            @else
-                                <div class="text-muted small">No addons recorded.</div>
+                                <div class="mb-4">
+                                    <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-plus-circle-fill me-2 text-info"></i> Add-ons</h6>
+                                    <div class="row g-2">
+                                        @foreach ($booking->datPhongAddons as $a)
+                                            <div class="col-12 col-md-6">
+                                                <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="bi bi-tag-fill text-info me-2"></i>
+                                                        <span class="fw-semibold">{{ $a->name ?? 'Addon' }}</span>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="fw-bold text-primary">{{ number_format($a->price ?? 0, 0, ',', '.') }} VND</div>
+                                                        <small class="text-muted">Qty: {{ $a->qty ?? 1 }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
                             @endif
 
-                            <hr>
-
-                            <h5 class="mb-2">Overview</h5>
-                            <div class="row g-3 overview">
-                                <div class="col-md-3">
-                                    <div class="p-3 border rounded">
-                                        <div class="d-flex align-items-center">
-                                            <i class="bi bi-people-fill icon-uniform me-3" aria-hidden="true"></i>
-                                            <div>
-                                                <div class="small text-muted">Adults</div>
-                                                <div class="fw-bold">
-                                                    {{ $meta['adults_input'] ?? ($meta['computed_adults'] ?? ($meta['guests_adults'] ?? 0)) }}
-                                                </div>
-                                            </div>
-                                        </div>
+                            {{-- Overview --}}
+                            <hr class="my-4">
+                            <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-list-check me-2 text-success"></i> Overview</h6>
+                            <div class="row g-3 mb-4">
+                                @php
+                                    $adults = $meta['adults_input'] ?? ($meta['computed_adults'] ?? ($meta['guests_adults'] ?? 0));
+                                    $children = $meta['children_input'] ?? ($meta['chargeable_children'] ?? 0);
+                                    $nights = $meta['nights'] ?? ($booking->datPhongItems->first()->so_dem ?? 1);
+                                    $total = $booking->snapshot_total ?? ($booking->tong_tien ?? 0);
+                                @endphp
+                                <div class="col-md-3 col-6">
+                                    <div class="card border-0 bg-light h-100 text-center p-3">
+                                        <i class="bi bi-people-fill text-primary fs-2 mb-2 d-block"></i>
+                                        <div class="small text-muted">Adults</div>
+                                        <div class="h6 fw-bold text-dark">{{ $adults }}</div>
                                     </div>
                                 </div>
-
-                                <div class="col-md-3">
-                                    <div class="p-3 border rounded">
-                                        <div class="d-flex align-items-center">
-                                            <i class="fa-solid fa-child icon-uniform me-3" aria-hidden="true"></i>
-                                            <div>
-                                                <div class="small text-muted">Children</div>
-                                                <div class="fw-bold">
-                                                    {{ $meta['children_input'] ?? ($meta['chargeable_children'] ?? 0) }}
-                                                </div>
-                                            </div>
-                                        </div>
+                                <div class="col-md-3 col-6">
+                                    <div class="card border-0 bg-light h-100 text-center p-3">
+                                        <i class="bi bi-person-bounding-box text-info fs-2 mb-2 d-block"></i>
+                                        <div class="small text-muted">Children</div>
+                                        <div class="h6 fw-bold text-dark">{{ $children }}</div>
                                     </div>
                                 </div>
-
-                                <div class="col-md-3">
-                                    <div class="p-3 border rounded">
-                                        <div class="d-flex align-items-center">
-                                            <i class="bi bi-calendar-check icon-uniform me-3" aria-hidden="true"></i>
-                                            <div>
-                                                <div class="small text-muted">Nights</div>
-                                                <div class="fw-bold">
-                                                    {{ $meta['nights'] ?? ($booking->datPhongItems->first()->so_dem ?? 1) }}
-                                                </div>
-                                            </div>
-                                        </div>
+                                <div class="col-md-3 col-6">
+                                    <div class="card border-0 bg-light h-100 text-center p-3">
+                                        <i class="bi bi-calendar3-event text-warning fs-2 mb-2 d-block"></i>
+                                        <div class="small text-muted">Nights</div>
+                                        <div class="h6 fw-bold text-dark">{{ $nights }}</div>
                                     </div>
                                 </div>
-
-                                <div class="col-md-3">
-                                    <div class="p-3 border rounded">
-                                        <div class="d-flex align-items-center">
-                                            <i class="bi bi-currency-dollar icon-uniform me-3" aria-hidden="true"></i>
-                                            <div>
-                                                <div class="small text-muted">Total</div>
-                                                <div class="fw-bold">
-                                                    {{ number_format($booking->snapshot_total ?? ($booking->tong_tien ?? 0), 0, ',', '.') }}
-                                                    VND</div>
-                                            </div>
-                                        </div>
+                                <div class="col-md-3 col-6">
+                                    <div class="card border-0 bg-light h-100 text-center p-3">
+                                        <i class="bi bi-currency-dollar text-success fs-2 mb-2 d-block"></i>
+                                        <div class="small text-muted">Total</div>
+                                        <div class="h6 fw-bold text-primary">{{ number_format($total, 0, ',', '.') }} VND</div>
                                     </div>
                                 </div>
                             </div>
 
-
-
+                            {{-- Refund Policy --}}
+                            <hr class="my-4">
+                            <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-shield-check me-2 text-secondary"></i> Refund Policy</h6>
+                            <div class="row g-3">
+                                <div class="col-12 col-md-6">
+                                    <div class="alert alert-success border-0 p-3">
+                                        <i class="bi bi-check-circle-fill me-2"></i>
+                                        <strong>Within 24 hours:</strong> 100% deposit refund.
+                                    </div>
+                                </div>
+                                <div class="col-12 col-md-6">
+                                    <div class="alert alert-warning border-0 p-3">
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                        <strong>After 24 hours:</strong> 50% deposit refund.
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <!-- Main column END -->
             </div>
         </div>
     </section>
@@ -198,35 +224,12 @@
 
 @push('styles')
     <style>
-        .icon-uniform {
-            font-size: 1.975rem;
-            line-height: 1;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 1.8rem;
-            height: 1.8rem;
-        }
-
-        .icon-uniform svg {
-            width: 1em;
-            height: 1em;
-        }
-
-        .icon-uniform.fa-solid {
-            font-weight: 900;
-        }
-
-        @media (max-width: 576px) {
-            .icon-uniform {
-                font-size: 1.125rem;
-                width: 1.5rem;
-                height: 1.5rem;
-            }
-        }
-
-        .table-no-bottom tbody tr:last-child td {
-            border-bottom: 0 !important;
+        .card { border-radius: 12px; }
+        .table-hover tbody tr:hover { background-color: rgba(0,0,0,.03); }
+        .badge { min-width: 100px; }
+        @media (max-width: 768px) {
+            .card-header { flex-direction: column; align-items: stretch !important; text-align: center; }
+            .card-header .text-end { text-align: center !important; }
         }
     </style>
 @endpush

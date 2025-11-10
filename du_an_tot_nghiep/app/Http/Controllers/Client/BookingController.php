@@ -33,7 +33,7 @@ class BookingController extends Controller
         }
 
         $upcoming = DatPhong::where('nguoi_dung_id', $user->id)
-            ->whereIn('trang_thai', ['dang_cho', 'da_xac_nhan'])
+            ->whereIn('trang_thai', ['dang_cho','dang_cho_xac_nhan', 'da_xac_nhan','dang_su_dung'])
             ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
             ->orderBy('ngay_nhan_phong', 'asc')
             ->get();
@@ -64,7 +64,7 @@ class BookingController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $dat_phong->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'datPhongAddons', 'voucherUsages']);
+        $dat_phong->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'datPhongAddons', 'voucherUsages','datPhongItems.datPhong']);
 
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (json_decode($dat_phong->snapshot_meta, true) ?: []);
 
