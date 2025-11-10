@@ -52,7 +52,7 @@
                                 <i class="bi bi-envelope-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Email</small>
-                                    <p class="mb-0">{{ $booking->customer_email ?? 'N/A' }}</p>
+                                    <p class="mb-0">{{ $booking->email ?? 'N/A' }}</p>
                                 </div>
                             </div>
 
@@ -60,7 +60,7 @@
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Số Điện Thoại</small>
-                                    <p class="mb-0">{{ $booking->customer_phone ?? 'N/A' }}</p>
+                                    <p class="mb-0">{{ $booking->phone ?? 'N/A' }}</p>
                                 </div>
                             </div>
 

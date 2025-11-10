@@ -19,7 +19,8 @@ class DatPhongItem extends Model
         'gia_tren_dem',
         'so_dem',
         'taxes_amount',
-        'tong_item'
+        'tong_item',
+        'spec_signature_hash',
     ];
 
     protected $casts = [

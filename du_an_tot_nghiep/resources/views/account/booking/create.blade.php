@@ -36,10 +36,10 @@
                             </li>
                             <li class="list-group-item d-flex justify-content-between">
                                 <span>Phí trẻ em thêm / đêm</span>
-                                <span  id="modal_price_children"></span>
+                                <span id="modal_price_children"></span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between" hidden>
-                                <span hidden >Dịch vụ bổ sung / đêm</span>
+                                <span hidden>Dịch vụ bổ sung / đêm</span>
                                 <span hidden id="modal_price_addons"></span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between">
@@ -62,8 +62,9 @@
                         <hr>
                         <h6 class="fw-bold">Nội Quy Hoàn Tiền</h6>
                         <p>Hoàn tiền 100% trong vòng 24h khi đặt cọc trước khi check-in.</p>
-                         <h6 class="fw-bold">Chính Sách Trong Khách Sạn</h6>
-                        <p>Được phép uống rượu và hút thuốc trong phạm vi được kiểm soát tại khu vực phòng nhưng vui lòng không gây bừa bộn hoặc ồn ào trong phòng.</p>
+                        <h6 class="fw-bold">Chính Sách Trong Khách Sạn</h6>
+                        <p>Được phép uống rượu và hút thuốc trong phạm vi được kiểm soát tại khu vực phòng nhưng vui lòng
+                            không gây bừa bộn hoặc ồn ào trong phòng.</p>
                         <p>Ma túy và các sản phẩm bất hợp pháp gây say bị cấm và không được mang vào nhà hoặc tiêu thụ.</p>
                         <p>Đối với bất kỳ bản cập nhật nào, khách hàng sẽ phải trả phí hủy/sửa đổi áp dụng</p>
                         <p>Check-in: 2:00 pm</p>
@@ -71,7 +72,7 @@
                         <p>Tự làm thủ tục nhận phòng với nhân viên tòa khách sạn</p>
                         <p>Không được phép mang vật nuôi bên ngoài khách sạn.</p>
                         <p>Được sử dụng thuốc lá.</p>
-                    
+
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
@@ -420,8 +421,9 @@
                                                 <span class="h6 fw-light mb-0">Đêm</span>
                                                 <span class="fs-5" id="nights_count_display">-</span>
                                             </li>
-                                            <li hidden class="list-group-item d-flex justify-content-between align-items-center" >
-                                                <span hidden  class="h6 fw-light mb-0">Dịch vụ bổ sung</span>
+                                            <li hidden
+                                                class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span hidden class="h6 fw-light mb-0">Dịch vụ bổ sung</span>
                                                 <span hidden class="fs-6" id="price_addons_display">-</span>
                                             </li>
                                             <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -965,7 +967,8 @@
                 const submitBtn = document.querySelector('#bookingForm button[type="submit"]');
                 submitBtn.disabled = true;
                 submitBtn.dataset.origHtml = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
+                submitBtn.innerHTML =
+                    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
 
                 // Thực hiện thanh toán VNPAY
                 const phongId = document.querySelector('input[name="phong_id"]').value;
@@ -975,10 +978,16 @@
                 const deposit = document.getElementById('hidden_deposit').value;
                 const adults = adultsInput.value;
                 const children = childrenInput.value;
-                const childrenAges = Array.from(document.querySelectorAll('input[name="children_ages[]"]')).map(el => el.value);
-                const addons = Array.from(document.querySelectorAll('input[name="addons[]"]:checked')).map(el => el.value);
+                const childrenAges = Array.from(document.querySelectorAll('input[name="children_ages[]"]'))
+                    .map(el => el.value);
+                const addons = Array.from(document.querySelectorAll('input[name="addons[]"]:checked')).map(
+                    el => el.value);
                 const roomsCount = roomsInput.value;
                 const soKhach = Number(adults) + Number(children);
+                const name = document.querySelector('input[name="name"]').value.trim();
+                const address = document.querySelector('input[name="address"]').value.trim();
+                const phone = document.querySelector('input[name="phone"]').value.trim();
+                const phuongThuc = 'vnpay';
 
                 try {
                     const response = await fetch("{{ route('payment.initiate') }}", {
@@ -1000,6 +1009,10 @@
                             addons: addons,
                             rooms_count: roomsCount,
                             total_amount: tongTien,
+                            phuong_thuc: phuongThuc,
+                            name: name,
+                            address: address,
+                            phone: phone,
                         }),
                     });
 
@@ -1064,7 +1077,8 @@
                     if (el) el.addEventListener('change', () => {
                         if (submitBtn && submitBtn.disabled) {
                             submitBtn.disabled = false;
-                            if (submitBtn.dataset.origHtml) submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                            if (submitBtn.dataset.origHtml) submitBtn.innerHTML = submitBtn.dataset
+                                .origHtml;
                         }
                     });
                 });
@@ -1073,7 +1087,8 @@
             document.querySelectorAll('.addon-checkbox').forEach(chk => chk.addEventListener('change', updateSummary));
             if (Array.isArray(initialSelectedAddons) && initialSelectedAddons.length) {
                 document.querySelectorAll('.addon-checkbox').forEach(chk => {
-                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons.includes(Number(chk.value));
+                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons
+                        .includes(Number(chk.value));
                 });
             }
             if (adultsInput) adultsInput.addEventListener('input', updateSummary);
@@ -1104,4 +1119,3 @@
         });
     </script>
 @endpush
-                    
