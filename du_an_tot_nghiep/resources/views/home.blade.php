@@ -27,8 +27,7 @@
                         </span>
                     </h1>
                     <!-- Info -->
-                    <p class="mb-4">We bring you not only a stay option, but an experience in your budget to enjoy the
-                        luxury.</p>
+                    <p class="mb-4">We bring you not only a stay option, but an experience in your budget to enjoy the luxury.</p>
 
                     <!-- Buttons -->
                     <div class="hstack gap-4 flex-wrap align-items-center">
@@ -328,8 +327,7 @@
                 <!-- Right side START -->
                 <div class="col-lg-6">
                     <h2 class="mb-3 mb-lg-5">The Best Holidays Start Here!</h2>
-                    <p class="mb-3 mb-lg-5">Book your hotel with us and don't forget to grab an awesome hotel deal to save
-                        massive on your stay.</p>
+                    <p class="mb-3 mb-lg-5">Book your hotel with us and don't forget to grab an awesome hotel deal to save massive on your stay.</p>
 
                     <!-- Features START -->
                     <div class="row g-4">
@@ -338,8 +336,7 @@
                             <div class="icon-lg bg-success bg-opacity-10 text-success rounded-circle"><i
                                     class="fa-solid fa-utensils"></i></div>
                             <h5 class="mt-2">Quality Food</h5>
-                            <p class="mb-0">Departure defective arranging rapturous did. Conduct denied adding worthy
-                                little.</p>
+                            <p class="mb-0">Departure defective arranging rapturous did. Conduct denied adding worthy little.</p>
                         </div>
                         <!-- Item -->
                         <div class="col-sm-6">

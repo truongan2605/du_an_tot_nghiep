@@ -18,6 +18,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use App\Services\PaymentNotificationService;
 
 
 class PaymentController extends Controller
@@ -486,6 +487,14 @@ class PaymentController extends Controller
                         ->queue(new PaymentSuccess($dat_phong, $dat_phong->nguoiDung->name));
                 }
 
+                // Gửi thông báo thanh toán tiền cọc
+                // Kiểm tra xem đây có phải là thanh toán tiền cọc không (số tiền bằng hoặc gần bằng deposit_amount)
+                $isDepositPayment = abs($giao_dich->so_tien - ($dat_phong->deposit_amount ?? 0)) < 1000;
+                if ($isDepositPayment) {
+                    $notificationService = new PaymentNotificationService();
+                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
+                }
+
                 return view('payment.success', compact('dat_phong'));
             } else {
                 $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Mã lỗi: ' . $vnp_ResponseCode]);
@@ -612,6 +621,14 @@ class PaymentController extends Controller
 
                 if (!empty($phongIdsToOccupy)) {
                     Phong::whereIn('id', array_unique($phongIdsToOccupy))->update(['trang_thai' => 'dang_o']);
+                }
+
+                // Gửi thông báo thanh toán tiền cọc (IPN)
+                // Kiểm tra xem đây có phải là thanh toán tiền cọc không
+                $isDepositPayment = abs($giao_dich->so_tien - ($dat_phong->deposit_amount ?? 0)) < 1000;
+                if ($isDepositPayment) {
+                    $notificationService = new PaymentNotificationService();
+                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
                 }
 
                 return response()->json(['RspCode' => '00', 'Message' => 'Confirm Success']);
@@ -1035,6 +1052,10 @@ class PaymentController extends Controller
                     'trang_thai'    => 'dang_su_dung',
                     'checked_in_at' => now(),
                 ]);
+                
+                // Gửi thông báo thanh toán tiền phòng (tiền mặt)
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
             }
 
             return $giaoDich;
@@ -1191,9 +1212,17 @@ class PaymentController extends Controller
                     ]);
                 }
 
+                // Gửi thông báo thanh toán tiền phòng thành công
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendRoomPaymentNotification($booking, $transaction);
+
                 return redirect()->route('staff.checkin')
                     ->with('success', 'Thanh toán thành công! Phòng đã được chuyển sang trạng thái đang sử dụng.');
             }
+
+            // Gửi thông báo thanh toán tiền phòng (chưa đủ)
+            $notificationService = new PaymentNotificationService();
+            $notificationService->sendRoomPaymentNotification($booking, $transaction);
 
             Log::warning('Payment not complete yet', [
                 'booking_id' => $booking->id,
