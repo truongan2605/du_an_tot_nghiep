@@ -398,8 +398,8 @@ class PaymentController extends Controller
                     'provider_txn_ref' => $inputData['vnp_TransactionNo'] ?? '',
                 ]);
                 $dat_phong->update([
-                    'trang_thai' => 'dang_cho_xac_nhan',
-                    'can_xac_nhan' => true,
+                    'trang_thai' => 'da_xac_nhan',
+                    'can_xac_nhan' => false,
                 ]);
 
                 $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
@@ -579,8 +579,8 @@ class PaymentController extends Controller
                     'provider_txn_ref' => $inputData['vnp_TransactionNo'] ?? '',
                 ]);
                 $dat_phong->update([
-                    'trang_thai' => 'dang_cho_xac_nhan',
-                    'can_xac_nhan' => true,
+                    'trang_thai' => 'da_xac_nhan',
+                    'can_xac_nhan' => false,
                 ]);
 
                 $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();

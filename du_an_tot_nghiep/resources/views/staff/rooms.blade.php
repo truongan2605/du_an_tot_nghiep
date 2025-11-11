@@ -1,4 +1,4 @@
-@extends('layouts.staff')
+@extends('layouts.admin')
 @section('title', 'Quản Lý Phòng')
 
 @section('content')

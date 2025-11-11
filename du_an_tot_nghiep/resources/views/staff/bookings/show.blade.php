@@ -1,4 +1,4 @@
-@extends('layouts.staff')
+@extends('layouts.admin')
 
 @section('title', 'Chi Tiết Booking:' . $booking->ma_tham_chieu)
 
