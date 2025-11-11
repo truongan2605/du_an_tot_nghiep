@@ -48,7 +48,7 @@
         <h6 class="mb-1">Chú ý khi xóa vật dụng</h6>
         <ul class="mb-0">
             <li><strong>Đồ dùng</strong> (ví dụ: TV, tủ lạnh, bàn ghế): chỉ được <em>xóa hoàn toàn</em> khi <strong>không có</strong> bất kỳ <em>Loại phòng</em> nào chứa vật dụng này. Nếu còn liên kết với loại phòng, vui lòng gỡ khỏi loại phòng trước.</li>
-            <li><strong>Đồ ăn</strong> (tiêu thụ theo số lượng): nếu đã có <em>lịch sử tiêu thụ</em> (bản ghi trong lịch sử tiêu thụ), hệ thống sẽ <em>giữ lại lịch sử</em> và tự động <strong>đánh dấu vật dụng là không hoạt động</strong> (tên có hậu tố "(đã xóa)"). Nếu không có lịch sử, vật dụng sẽ bị xóa hoàn toàn.</li>
+            <li><strong>Dịch vụ gọi thêm</strong> (tiêu thụ theo số lượng): nếu đã có <em>lịch sử tiêu thụ</em> (bản ghi trong lịch sử tiêu thụ), hệ thống sẽ <em>giữ lại lịch sử</em> và tự động <strong>đánh dấu vật dụng là không hoạt động</strong> (tên có hậu tố "(đã xóa)"). Nếu không có lịch sử, vật dụng sẽ bị xóa hoàn toàn.</li>
         </ul>
     </div>
 
@@ -85,7 +85,7 @@
                                     <td>{{ $vatdung->ten }}</td>
                                     <td>
                                         @if ($vatdung->loai === \App\Models\VatDung::LOAI_DO_AN)
-                                            <span class="badge bg-info">Đồ ăn</span>
+                                            <span class="badge bg-info">Đồ ăn gọi thêm</span>
                                         @else
                                             <span class="badge bg-secondary">Đồ dùng</span>
                                         @endif

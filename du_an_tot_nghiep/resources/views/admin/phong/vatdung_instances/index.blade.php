@@ -239,7 +239,6 @@
                                                         class="form-select">
                                                         <option value="damaged">Hỏng</option>
                                                         <option value="missing">Mất</option>
-                                                        <option value="lost">Mất (vĩnh viễn)</option>
                                                     </select>
                                                 </div>
 

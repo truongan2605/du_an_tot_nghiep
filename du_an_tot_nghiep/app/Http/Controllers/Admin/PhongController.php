@@ -593,15 +593,30 @@ class PhongController extends Controller
     {
         DB::beginTransaction();
         try {
-            $hasBookings = $phong->phongDaDats()->exists();
-            if ($hasBookings) {
-                return back()->withErrors(['error' => 'Không thể xóa phòng vì đã có booking liên quan.']);
+            if ($phong->hasBookings()) {
+                return back()->withErrors(['error' => 'Không thể xóa phòng vì có booking/giữ phòng hoặc dữ liệu liên quan. Vui lòng kiểm tra dat_phong_item / giu_phong / dat_phong.']);
             }
 
             $phong->tienNghis()->detach();
-            $phong->bedTypes()->detach();
 
-            $phong->wishlists()->delete();
+            if (\Illuminate\Support\Facades\Schema::hasTable('phong_vat_dung_instances')) {
+                $instances = $phong->vatDungInstances()->get();
+                foreach ($instances as $ins) {
+                    try {
+                        DB::table('phong_vat_dung')
+                            ->where('phong_id', $ins->phong_id)
+                            ->where('vat_dung_id', $ins->vat_dung_id)
+                            ->decrement('so_luong', (int)($ins->quantity ?? 1));
+                    } catch (\Throwable $e) {
+                        // ignore
+                    }
+                    $ins->delete();
+                }
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('phong_vat_dung')) {
+                DB::table('phong_vat_dung')->where('phong_id', $phong->id)->delete();
+            }
 
             foreach ($phong->images as $img) {
                 if (Storage::disk('public')->exists($img->image_path)) {
@@ -613,12 +628,12 @@ class PhongController extends Controller
             $phong->delete();
 
             if ($phong->loai_phong_id) {
-                LoaiPhong::refreshSoLuongThucTe($phong->loai_phong_id);
+                \App\Models\LoaiPhong::refreshSoLuongThucTe($phong->loai_phong_id);
             }
 
             DB::commit();
-            return redirect()->route('admin.phong.index')
-                ->with('success', 'Xóa phòng thành công');
+
+            return redirect()->route('admin.phong.index')->with('success', 'Xóa phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Lỗi xóa: ' . $e->getMessage()]);

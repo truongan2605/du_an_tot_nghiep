@@ -33,9 +33,9 @@
                             <td class="fw-semibold">Loại:</td>
                             <td>
                                 @if ($vat_dung->loai === \App\Models\VatDung::LOAI_DO_AN)
-                                    Đồ ăn (tiêu thụ)
+                                    Dịch vụ gọi thêm
                                 @else
-                                    Đồ dùng (theo dõi)
+                                    Đồ dùng
                                 @endif
                             </td>
                         </tr>

@@ -197,23 +197,60 @@
 
 @section('styles')
     <style>
-        .amenity-label-edit.not-in-type {
-            opacity: 0.55;
-            filter: grayscale(40%);
+        .type-badge {
+            color: #0d6efd;
+            font-weight: 600;
         }
 
-        .amenity-label-edit.in-type {
+        /* blue text */
+        .extra-badge {
+            color: #856404;
             font-weight: 600;
-            background: rgba(13, 110, 253, 0.06);
-            padding: .25rem .5rem;
-            border-radius: .5rem;
         }
 
-        .amenity-label-edit.extra {
-            font-weight: 600;
-            background: rgba(255, 193, 7, 0.06);
-            padding: .25rem .5rem;
-            border-radius: .5rem;
+        /* amber/brownish text */
+        .muted-badge {
+            color: #6c757d;
+            font-weight: 400;
+            opacity: .85;
+            filter: grayscale(20%);
+        }
+
+        .amenity-label-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .12rem .3rem;
+            border-radius: .25rem;
+        }
+
+        .amenity-label-edit .form-check-label {
+            margin: 0;
+            cursor: default;
+        }
+
+        /* checkbox accent color for modern browsers */
+        .amenity-checkbox-edit {
+            width: 1.08rem;
+            height: 1.08rem;
+            margin-top: 0.06rem;
+            accent-color: #6c757d;
+        }
+
+        .type-badge~.amenity-checkbox-edit,
+        .amenity-label-edit.in-type .amenity-checkbox-edit {
+            accent-color: #0d6efd;
+        }
+
+        /* checked style */
+        .extra-badge~.amenity-checkbox-edit,
+        .amenity-label-edit.extra .amenity-checkbox-edit {
+            accent-color: #ffc107;
+        }
+
+        .muted-badge~.amenity-checkbox-edit,
+        .amenity-label-edit.not-in-type .amenity-checkbox-edit {
+            accent-color: #6c757d;
         }
     </style>
 @endsection
@@ -384,21 +421,27 @@
                         const badges = amenitiesContainer.querySelectorAll('[data-amenity-id]');
                         badges.forEach(b => {
                             const id = toInt(b.dataset.amenityId || b.getAttribute('data-amenity-id'));
-                            b.classList.remove('bg-primary', 'bg-light', 'text-muted');
+                            const labelSpan = b.querySelector('.form-check-label');
+                            const cb = b.querySelector('.amenity-checkbox-edit');
+
+                            // clear previous "visual" classes from inner span (we won't use bg-primary/bg-light)
+                            if (labelSpan) {
+                                labelSpan.classList.remove('type-badge', 'extra-badge', 'muted-badge');
+                            }
+
+                            // apply new semantic classes to the inner span only (no full-row background)
                             if (typeIds.includes(id)) {
-                                b.classList.add('bg-primary');
-                                const cb = b.querySelector('.amenity-checkbox-edit');
+                                if (labelSpan) labelSpan.classList.add('type-badge');
                                 if (cb) cb.checked = true;
                             } else if (unionIds.includes(id)) {
-                                b.classList.add('bg-light');
-                                const cb = b.querySelector('.amenity-checkbox-edit');
+                                if (labelSpan) labelSpan.classList.add('extra-badge');
                                 if (cb) cb.checked = true;
                             } else {
-                                b.classList.add('bg-light', 'text-muted');
-                                const cb = b.querySelector('.amenity-checkbox-edit');
+                                if (labelSpan) labelSpan.classList.add('muted-badge');
                                 if (cb) cb.checked = false;
                             }
                         });
+
                     }
                 } catch (e) {
                     console.error('Error updateTotalDisplay:', e);

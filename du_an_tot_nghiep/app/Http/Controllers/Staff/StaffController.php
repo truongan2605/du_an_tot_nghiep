@@ -205,6 +205,7 @@ class StaffController extends Controller
             'weeklyDeposit'
         ));
     }
+    
     public function roomOverview()
     {
         $rooms = Phong::with(['tang', 'loaiPhong'])
@@ -214,6 +215,7 @@ class StaffController extends Controller
         $floors = $rooms->groupBy(fn($room) => $room->tang->so_tang ?? $room->tang->id);
         return view('staff.room-overview', compact('floors'));
     }
+
     public function checkinForm()
     {
         $bookings = DatPhong::with(['nguoiDung', 'giaoDichs' => function ($q) {
@@ -295,28 +297,28 @@ class StaffController extends Controller
         return view('staff.checkout', compact('bookings'));
     }
 
-    public function processCheckout(Request $request)
-    {
-        $request->validate([
-            'booking_id' => 'required|exists:dat_phong,id'
-        ]);
-        $booking = DatPhong::findOrFail($request->booking_id);
-        if (!in_array($booking->trang_thai, ['da_gan_phong', 'dang_o'])) {
-            return redirect()->back()->with('error', 'Booking không thể check-out');
-        }
-        DB::transaction(function () use ($booking) {
-            $booking->update([
-                'trang_thai' => 'hoan_thanh',
-                'can_xac_nhan' => false,
-            ]);
-            $phongIds = $booking->datPhongItems->pluck('phong_id')->toArray();
-            Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_don_dep']);
-            PhongDaDat::whereIn('phong_id', $phongIds)
-                ->whereIn('dat_phong_item_id', $booking->datPhongItems->pluck('id'))
-                ->update(['trang_thai' => 'hoan_thanh']);
-        });
-        return redirect()->route('staff.rooms')->with('success', 'Check-out thành công cho booking #' . $booking->ma_tham_chieu);
-    }
+    // public function processCheckout(Request $request)
+    // {
+    //     $request->validate([
+    //         'booking_id' => 'required|exists:dat_phong,id'
+    //     ]);
+    //     $booking = DatPhong::findOrFail($request->booking_id);
+    //     if (!in_array($booking->trang_thai, ['da_gan_phong', 'dang_o'])) {
+    //         return redirect()->back()->with('error', 'Booking không thể check-out');
+    //     }
+    //     DB::transaction(function () use ($booking) {
+    //         $booking->update([
+    //             'trang_thai' => 'hoan_thanh',
+    //             'can_xac_nhan' => false,
+    //         ]);
+    //         $phongIds = $booking->datPhongItems->pluck('phong_id')->toArray();
+    //         Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_don_dep']);
+    //         PhongDaDat::whereIn('phong_id', $phongIds)
+    //             ->whereIn('dat_phong_item_id', $booking->datPhongItems->pluck('id'))
+    //             ->update(['trang_thai' => 'hoan_thanh']);
+    //     });
+    //     return redirect()->route('staff.rooms')->with('success', 'Check-out thành công cho booking #' . $booking->ma_tham_chieu);
+    // }
 
     public function pendingPayments()
     {
