@@ -7,13 +7,13 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin Panel')</title>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 
     <style>
@@ -63,7 +63,7 @@
                         href="{{ route('admin.tien-nghi.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Dịch vụ
                     </a>
-                     <a class="nav-link {{ request()->routeIs('admin.vat-dung.*') ? 'active' : '' }}"
+                    <a class="nav-link {{ request()->routeIs('admin.vat-dung.*') ? 'active' : '' }}"
                         href="{{ route('admin.vat-dung.index') }}">
                         <i class="fas fa-concierge-bell me-2"></i> Vật dụng
                     </a>
@@ -100,9 +100,9 @@
                         href="{{ route('admin.internal-notifications.index') }}">
                         <i class="fas fa-building me-2"></i> Thông Báo Nội Bộ
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.blog.*') ? 'active' : '' }}" 
+                    <a class="nav-link {{ request()->routeIs('admin.blog.*') ? 'active' : '' }}"
                         href="{{ route('admin.blog.posts.index') }}">
-                        <i class="fa-solid fa-newspaper me-2"></i> Blog
+                        <i class="fa-solid fa-newspaper me-2"></i> Bài viết
                     </a>
                 </nav>
             </div>
@@ -114,20 +114,24 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="mb-0">@yield('title', 'Admin Panel')</h5>
-                        </div>  
+                        </div>
                         <div class="d-flex align-items-center gap-3">
                             <!-- Notification Bell -->
                             <div class="dropdown">
-                                <button class="btn btn-outline-primary position-relative" type="button" id="adminNotificationDropdown" data-bs-toggle="dropdown">
+                                <button class="btn btn-outline-primary position-relative" type="button"
+                                    id="adminNotificationDropdown" data-bs-toggle="dropdown">
                                     <i class="fas fa-bell"></i>
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="adminNotificationBadge" style="display: none;">
+                                    <span
+                                        class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                        id="adminNotificationBadge" style="display: none;">
                                         0
                                     </span>
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-end" style="width: 350px;">
                                     <div class="dropdown-header d-flex justify-content-between align-items-center">
                                         <span>Thông báo</span>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="markAllAdminNotificationsAsRead()">
+                                        <button class="btn btn-sm btn-outline-primary"
+                                            onclick="markAllAdminNotificationsAsRead()">
                                             <i class="fas fa-check-double"></i> Đánh dấu tất cả đã đọc
                                         </button>
                                     </div>
@@ -141,23 +145,27 @@
                                     </div>
                                     <div class="dropdown-divider"></div>
                                     <div class="text-center p-2">
-                                        <a href="{{ route('admin.admin-notifications.index') }}" class="btn btn-sm btn-primary">
+                                        <a href="{{ route('admin.admin-notifications.index') }}"
+                                            class="btn btn-sm btn-primary">
                                             <i class="fas fa-eye me-1"></i>Xem tất cả thông báo
                                         </a>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- User Info -->
                             <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown">
                                     <i class="fas fa-user me-1"></i>{{ auth()->user()->name }}
                                 </button>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" href="{{ route('home') }}">
-                                        <i class="fas fa-home me-2"></i>Về trang chủ
-                                    </a></li>
-                                    <li><hr class="dropdown-divider"></li>
+                                            <i class="fas fa-home me-2"></i>Về trang chủ
+                                        </a></li>
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
                                     <li>
                                         <form method="POST" action="{{ route('logout') }}" class="d-inline">
                                             @csrf
@@ -171,11 +179,39 @@
                         </div>
                     </div>
                 </div>
-                
-                <div class="p-4">
-                   
 
-                   
+                <div class="p-4">
+                    {{-- FLASH MESSAGES --}}
+                    @if (session('success'))
+                        <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+                            {{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="Đóng"></button>
+                        </div>
+                    @endif
+
+                    @if (session('error'))
+                        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                            {{ session('error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="Đóng"></button>
+                        </div>
+                    @endif
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                            <strong>Đã có lỗi:</strong>
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $e)
+                                    <li>{{ $e }}</li>
+                                @endforeach
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="Đóng"></button>
+                        </div>
+                    @endif
+
+
                     @yield('content')
                 </div>
             </div>
@@ -184,15 +220,15 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- Admin Notification Scripts -->
     <script>
         // Load admin notifications
         function loadAdminNotifications() {
             console.log('Loading admin notifications...');
             fetch('/api/notifications/recent', {
-                credentials: 'include'
-            })
+                    credentials: 'include'
+                })
                 .then(response => {
                     console.log('Admin notifications response status:', response.status);
                     return response.json();
@@ -203,13 +239,13 @@
                         updateAdminNotificationList(data.data);
                     } else {
                         console.error('API error:', data.message);
-                        document.getElementById('adminNotificationList').innerHTML = 
+                        document.getElementById('adminNotificationList').innerHTML =
                             '<div class="text-center p-3 text-muted">Không thể tải thông báo</div>';
                     }
                 })
                 .catch(error => {
                     console.error('Error loading admin notifications:', error);
-                    document.getElementById('adminNotificationList').innerHTML = 
+                    document.getElementById('adminNotificationList').innerHTML =
                         '<div class="text-center p-3 text-muted">Không thể tải thông báo</div>';
                 });
         }
@@ -217,7 +253,7 @@
         // Update admin notification list
         function updateAdminNotificationList(notifications) {
             const listContainer = document.getElementById('adminNotificationList');
-            
+
             if (notifications.length === 0) {
                 listContainer.innerHTML = '<div class="text-center p-3 text-muted">Không có thông báo nào</div>';
                 return;
@@ -226,11 +262,14 @@
             let html = '';
             notifications.forEach(notification => {
                 // Payload is already processed by the model
-                const payload = notification.payload || { title: 'Thông báo', message: 'Nội dung không hợp lệ' };
-                
+                const payload = notification.payload || {
+                    title: 'Thông báo',
+                    message: 'Nội dung không hợp lệ'
+                };
+
                 const isUnread = notification.trang_thai !== 'read';
                 const timeAgo = getTimeAgo(notification.created_at);
-                
+
                 html += `
                     <div class="dropdown-item ${isUnread ? 'bg-light' : ''}" style="white-space: normal;">
                         <div class="d-flex align-items-start">
@@ -247,7 +286,7 @@
                     </div>
                 `;
             });
-            
+
             listContainer.innerHTML = html;
         }
 
@@ -255,8 +294,8 @@
         function loadAdminUnreadCount() {
             console.log('Loading admin unread count...');
             fetch('/api/notifications/unread-count', {
-                credentials: 'include'
-            })
+                    credentials: 'include'
+                })
                 .then(response => {
                     console.log('Admin unread count response status:', response.status);
                     return response.json();
@@ -288,25 +327,25 @@
         // Mark all admin notifications as read
         function markAllAdminNotificationsAsRead() {
             fetch('/api/notifications/mark-all-read', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    loadAdminNotifications();
-                    loadAdminUnreadCount();
-                } else {
-                    console.error('API error:', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error marking all as read:', error);
-            });
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadAdminNotifications();
+                        loadAdminUnreadCount();
+                    } else {
+                        console.error('API error:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error marking all as read:', error);
+                });
         }
 
         // Get time ago
@@ -314,7 +353,7 @@
             const date = new Date(dateString);
             const now = new Date();
             const diffInSeconds = Math.floor((now - date) / 1000);
-            
+
             if (diffInSeconds < 60) return 'Vừa xong';
             if (diffInSeconds < 3600) return Math.floor(diffInSeconds / 60) + ' phút trước';
             if (diffInSeconds < 86400) return Math.floor(diffInSeconds / 3600) + ' giờ trước';
@@ -325,7 +364,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadAdminNotifications();
             loadAdminUnreadCount();
-            
+
             // Refresh every 30 seconds
             setInterval(() => {
                 loadAdminNotifications();
@@ -333,7 +372,7 @@
             }, 5000);
         });
     </script>
-    
+
     @yield('scripts')
 </body>
 
