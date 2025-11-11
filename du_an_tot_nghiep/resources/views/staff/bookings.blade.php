@@ -14,8 +14,7 @@
                 <option value="">Tất cả Trạng Thái</option>
                 <option value="dang_cho">Chờ Xác Nhận</option>
                 <option value="da_xac_nhan">Đã Xác Nhận Đặt Cọc</option>
-                <option value="da_gan_phong">Đã Gán Phòng</option>
-                <option value="dang_o">Đang Ở</option>
+                <option value="dang_su_dung">Đang sử dụng</option>
                 <option value="da_huy">Đã Hủy</option>
                 <option value="hoan_thanh">Hoàn Thành</option>
             </select>
@@ -33,7 +32,7 @@
                             <th class="py-3" style="width: 120px;">Phòng</th>
                             <th class="py-3" style="width: 150px;">Khách Hàng</th>
                             <th class="py-3 text-center" style="width: 100px;">Trạng Thái</th>
-                            <th class="py-3" style="width: 120px;">Mã TC</th>
+                            <th class="py-3" style="width: 120px;">Mã đặt phòng</th>
                             <th class="py-3" style="width: 140px;">Ngày Nhận</th>
                             <th class="py-3" style="width: 140px;">Ngày Trả</th>
                             <th class="py-3 text-end" style="width: 100px;">Tổng Tiền</th>
@@ -72,17 +71,16 @@
                                     $statusColors = [
                                         'dang_cho' => 'bg-warning text-dark',
                                         'da_xac_nhan' => 'bg-primary text-white',
-                                        'da_gan_phong' => 'bg-success text-white',
-                                        'dang_o' => 'bg-info text-white',
+                                        'dang_su_dung' => 'bg-info text-white',
                                         'da_huy' => 'bg-secondary text-white',
                                         'hoan_thanh' => 'bg-primary text-white',
                                     ];
                                     $statusLabels = [
                                         'dang_cho' => 'Chờ Xác Nhận',
+                                        'dang_cho_xac_nhan' => 'Đang chờ xác nhận',
                                         'da_xac_nhan' => 'Đã Xác Nhận Đặt Cọc',
-                                        'da_gan_phong' => 'Đã Gán',
-                                        'dang_o' => 'Đang Ở',
                                         'da_huy' => 'Đã Hủy',
+                                        'dang_su_dung' => 'Đang sử dụng',
                                         'hoan_thanh' => 'Hoàn Thành',
                                     ];
                                 @endphp
@@ -122,12 +120,12 @@
                                             </li>
                                         @elseif (in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong', 'dang_o']) && \Carbon\Carbon::parse($booking->ngay_tra_phong)->isToday())
                                             <li>
-                                                <form action="{{ route('staff.checkout.process', $booking->id) }}" method="POST" class="d-inline" id="checkout-form-{{ $booking->id }}">
+                                                {{-- <form action="{{ route('staff.checkout.process', $booking->id) }}" method="POST" class="d-inline" id="checkout-form-{{ $booking->id }}">
                                                     @csrf
                                                     <button type="button" class="dropdown-item small text-warning" onclick="handleAction('Xác nhận check-out?', this, event)">
                                                         <i class="bi bi-box-arrow-left me-1"></i> Check-out
                                                     </button>
-                                                </form>
+                                                </form> --}}
                                             </li>
                                             <li><a class="dropdown-item small text-success" href="{{ route('staff.rooms') }}"><i class="bi bi-house me-1"></i> Xem Phòng</a></li>
                                         @elseif ($booking->trang_thai === 'da_huy' || $booking->trang_thai === 'hoan_thanh')

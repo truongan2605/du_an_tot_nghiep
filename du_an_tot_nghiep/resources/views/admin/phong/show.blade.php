@@ -4,6 +4,19 @@
 
 @section('content')
     <div class="container-fluid">
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="alert alert-danger">
+                <ul class="mb-0">
+                    @foreach ($errors->all() as $err)
+                        <li>{{ $err }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="card shadow-lg border-0 rounded-3">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">Chi tiết phòng: {{ $phong->ma_phong }}</h4>
@@ -156,20 +169,11 @@
                                     <tr>
                                         <td>Giá loại phòng</td>
                                         <td class="text-end"><strong>{{ number_format($typePrice, 0, ',', '.') }}
-                                                đ</strong>
-                                        </td>
+                                                đ</strong></td>
                                     </tr>
                                     <tr>
                                         <td>Tổng tiện nghi mặc định</td>
                                         <td class="text-end">{{ number_format($typeAmenitiesSum, 0, ',', '.') }} đ</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Tổng tiện nghi bổ sung</td>
-                                        <td class="text-end">{{ number_format($boSungSum, 0, ',', '.') }} đ</td>
-                                    </tr>
-                                    <tr class="table-active">
-                                        <td>Tổng tiện nghi</td>
-                                        <td class="text-end">{{ number_format($allAmenitiesSum, 0, ',', '.') }} đ</td>
                                     </tr>
                                     <tr class="table-active">
                                         <td>Tổng giá giường</td>
@@ -210,23 +214,15 @@
                 <!-- Tiện nghi -->
                 <div class="mt-4">
                     <h5 class="fw-bold">Tiện nghi</h5>
-                    <div class="row">
-                        @php
-                            $tienMacDinh = $phong->loaiPhong?->tienNghis ?? collect();
-                            $tienPhongAll = $phong->tienNghis ?? collect();
-                            $tienBoSung = $tienPhongAll->reject(function ($item) use ($tienMacDinh) {
-                                return $tienMacDinh->contains('id', $item->id);
-                            });
-                        @endphp
 
-                        <!-- Tiện nghi mặc định -->
-                        <div class="col-md-6">
+                    <div class="row">
+                        <div class="col-12">
                             <div class="card border-success">
-                                <div class="card-header bg-success text-white">Tiện nghi mặc định</div>
+                                <div class="card-header bg-success text-white">Tiện nghi</div>
                                 <div class="card-body">
-                                    @if ($tienMacDinh->count())
+                                    @if ($tienNghiLoaiPhong->count())
                                         <ul class="list-unstyled mb-0">
-                                            @foreach ($tienMacDinh as $tn)
+                                            @foreach ($tienNghiLoaiPhong as $tn)
                                                 <li>
                                                     ✔ {{ $tn->ten }}
                                                     <small class="text-muted"> —
@@ -240,96 +236,144 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Tiện nghi bổ sung -->
+                <!-- Vật dụng -->
+                <div class="mt-4">
+                    <h5 class="fw-bold">Vật dụng</h5>
+                    <div class="row gy-3">
+                        <!-- Đồ vật (do_dung) — danh sách theo loại phòng -->
                         <div class="col-md-6">
-                            <div class="card border-info">
-                                <div class="card-header bg-info text-white">Tiện nghi bổ sung</div>
+                            <div class="card border-dark">
+                                <div
+                                    class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                                    <div>Đồ vật</div>
+                                    <a href="{{ route('admin.phong.vatdung.instances.index', ['phong' => $phong->id]) }}"
+                                        class="btn btn-sm btn-light">Quản lý chi tiết</a>
+                                </div>
                                 <div class="card-body">
-                                    @if ($tienBoSung->count())
+                                    @if ($vatDungLoaiPhongDoDung->count())
                                         <ul class="list-unstyled mb-0">
-                                            @foreach ($tienBoSung as $tn)
-                                                <li>
-                                                    ➕ {{ $tn->ten }}
+                                            @foreach ($vatDungLoaiPhongDoDung as $vd)
+                                                @php
+                                                    $inst = $instancesMap[$vd->id] ?? null;
+                                                    $instCount = $inst['count'] ?? 0;
+                                                    $activeBooking = $activeDatPhong ?? null;
+                                                    $canOperate =
+                                                        $activeBooking &&
+                                                        in_array($activeBooking->trang_thai, [
+                                                            'da_dat',
+                                                            'dang_su_dung',
+                                                            'da_xac_nhan',
+                                                            'dang_cho_xac_nhan',
+                                                        ]);
+                                                @endphp
+
+                                                <li class="mb-2">
+                                                    ✔ {{ $vd->ten }}
                                                     <small class="text-muted"> —
-                                                        {{ number_format($tn->gia ?? 0, 0, ',', '.') }} đ</small>
+                                                        {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ</small>
+                                                    @if ($instCount > 0)
+                                                        <span class="badge bg-info ms-2">Số lượng:
+                                                            {{ $instCount }}</span>
+                                                    @else
+                                                        <span class="text-muted ms-2">Không có bản thể</span>
+                                                    @endif
+
+
                                                 </li>
                                             @endforeach
                                         </ul>
                                     @else
-                                        <p><em>Chưa có tiện nghi bổ sung</em></p>
+                                        <p><em>Không có đồ vật mặc định cho loại phòng này.</em></p>
                                     @endif
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Đồ ăn (do_an) trong phòng + số lượng hiện tại -->
+                        <div class="col-md-6">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">Đồ ăn</div>
+                                <div class="card-body">
+                                    @if ($vatPhongDoAn->count())
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Tên</th>
+                                                    <th class="text-center">Vật phẩm ban đầu</th>
+                                                    <th class="text-center">Vật phẩm đã tiêu thụ (hóa đơn)</th>
+                                                    <th class="text-center">Còn lại</th>
+                                                    <th class="text-center">Đánh dấu đã tiêu thụ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach ($vatPhongDoAn as $vd)
+                                                    @php
+                                                        $vid = (int) $vd->id;
+                                                        $initial = (int) ($initialReservations[$vid] ?? 0);
+                                                        $consumedByInvoice = (int) ($hoaDonItemsGrouped[$vid] ?? 0);
+                                                        $remaining = max(0, $initial - $consumedByInvoice);
+                                                    @endphp
+                                                    <tr>
+                                                        @php
+                                                            $vid = (int) $vd->id;
+                                                            $initial = (int) ($initialReservations[$vid] ?? 0); // from controller
+                                                            $consumedByInvoice = (int) ($hoaDonItemsGrouped[$vid] ?? 0); // from controller
+                                                            $remaining = max(0, $initial - $consumedByInvoice);
+                                                        @endphp
+                                                        <td>{{ $vd->ten }}</td>
+                                                        <td class="text-center">{{ $initial }}</td>
+                                                        <td class="text-center">{{ $consumedByInvoice }}</td>
+                                                        <td class="text-center">{{ $remaining }}</td>
+                                                        <td class="text-center">
+                                                            @if (!empty($activeDatPhong))
+                                                                <form
+                                                                    action="{{ route('admin.phong.consumptions.store_and_bill', ['phong' => $phong->id]) }}"
+                                                                    method="POST" class="d-inline consume-form">
+                                                                    @csrf
+                                                                    <input type="hidden" name="dat_phong_id"
+                                                                        value="{{ $activeDatPhong->id }}">
+                                                                    <input type="hidden" name="phong_id"
+                                                                        value="{{ $phong->id }}">
+                                                                    <input type="hidden" name="vat_dung_id"
+                                                                        value="{{ $vd->id }}">
+                                                                    <div class="input-group input-group-sm">
+                                                                        <input type="number" name="quantity"
+                                                                            min="1" max="{{ $remaining }}"
+                                                                            class="form-control form-control-sm qty-to-consume"
+                                                                            placeholder="Số lượng" style="width:90px;"
+                                                                            value="{{ $remaining > 0 ? 1 : 0 }}"
+                                                                            {{ $remaining <= 0 ? 'disabled' : '' }} />
+                                                                        <input type="hidden" name="unit_price"
+                                                                            value="{{ $vd->gia ?? 0 }}">
+                                                                        <button type="submit"
+                                                                            class="btn btn-sm btn-success ms-1"
+                                                                            {{ $remaining <= 0 ? 'disabled' : '' }}
+                                                                            onclick="return confirm('Xác nhận tiêu thụ và thêm vào hoá đơn?')">
+                                                                            Xác nhận
+                                                                        </button>
+                                                                    </div>
+                                                                </form>
+                                                            @else
+                                                                <button class="btn btn-sm btn-secondary" disabled>Không có
+                                                                    booking</button>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    @else
+                                        <p><em>Không có đồ ăn được cấu hình cho phòng này.</em></p>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
-<!-- Vật dụng -->
-<div class="mt-4">
-    <h5 class="fw-bold">Vật dụng</h5>
-    <div class="row">
-        @php
-            // Lấy danh sách vật dụng mặc định theo loại phòng
-            $vatMacDinh = $vatDungLoaiPhong->where('trang_thai', 0) ?? collect();
-
-            // Lấy danh sách vật dụng theo phòng
-            $vatPhongAll = $vatDungPhong->where('trang_thai', 0) ?? collect();
-
-            // Tính vật dụng bổ sung (có trong phòng nhưng không có trong loại phòng)
-            $vatBoSung = $vatPhongAll->reject(function ($item) use ($vatMacDinh) {
-                return $vatMacDinh->contains('id', $item->id);
-            });
-        @endphp
-
-        <!-- Vật dụng mặc định -->
-        <div class="col-md-6">
-            <div class="card border-success">
-                <div class="card-header bg-success text-white">Vật dụng mặc định</div>
-                <div class="card-body">
-                    @if ($vatMacDinh->count())
-                        <ul class="list-unstyled mb-0">
-                            @foreach ($vatMacDinh as $vd)
-                                <li>
-                                    ✔ {{ $vd->ten }}
-                                    <small class="text-muted"> — 
-                                        {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ
-                                    </small>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @else
-                        <p><em>Không có vật dụng mặc định</em></p>
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        <!-- Vật dụng bổ sung -->
-        <div class="col-md-6">
-            <div class="card border-info">
-                <div class="card-header bg-info text-white">Vật dụng bổ sung</div>
-                <div class="card-body">
-                    @if ($vatBoSung->count())
-                        <ul class="list-unstyled mb-0">
-                            @foreach ($vatBoSung as $vd)
-                                <li>
-                                    ➕ {{ $vd->ten }}
-                                    <small class="text-muted"> — 
-                                        {{ number_format($vd->gia ?? 0, 0, ',', '.') }} đ
-                                    </small>
-                                </li>
-                            @endforeach
-                        </ul>
-                    @else
-                        <p><em>Không có vật dụng bổ sung</em></p>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-
 
                 <div class="mt-3 text-end">
                     <h5>Tổng giá phòng:
@@ -342,3 +386,33 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.consume-form').forEach(function(form) {
+                form.addEventListener('submit', function(e) {
+                    const qtyInput = form.querySelector('.qty-to-consume');
+                    if (!qtyInput || qtyInput.disabled) {
+                        e.preventDefault();
+                        alert('Không có hàng để tiêu thụ.');
+                        return;
+                    }
+                    const val = parseInt(qtyInput.value || '0', 10);
+                    const maxv = parseInt(qtyInput.getAttribute('max') || '0', 10);
+                    if (isNaN(val) || val <= 0) {
+                        e.preventDefault();
+                        alert('Vui lòng nhập số lượng lớn hơn 0.');
+                        return;
+                    }
+                    if (val > maxv) {
+                        e.preventDefault();
+                        alert('Số lượng vượt quá phần còn lại (' + maxv + ').');
+                        return;
+                    }
+                    // allow submit
+                });
+            });
+        });
+    </script>
+@endpush

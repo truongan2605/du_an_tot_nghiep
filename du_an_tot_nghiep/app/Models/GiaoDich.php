@@ -26,7 +26,7 @@ class GiaoDich extends Model
     ];
 
     // Relationships
-  public function dat_phong()
+    public function dat_phong()
     {
         return $this->belongsTo(DatPhong::class, 'dat_phong_id', 'id');
     }

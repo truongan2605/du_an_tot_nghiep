@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Quản lý khách sạn')</title>
+    
+    <!-- CSRF Token for AJAX -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -162,13 +165,44 @@
                 <button class="btn btn-outline-secondary d-md-none sidebar-toggle-btn"
                     onclick="toggleSidebar()">☰</button>
                 <div class="d-flex align-items-center gap-3">
+                    <!-- Admin Panel Button -->
+                    @if(Auth::check() && Auth::user()->vai_tro === 'admin')
+                    <a href="{{ route('admin.loai_phong.index') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-shield-check me-1"></i>Admin Panel
+                    </a>
+                    @endif
+                    
                     <!-- Notifications -->
-                    <button class="btn btn-light position-relative">
-                        🔔
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                            {{ $notificationsCount ?? 0 }}
-                        </span>
-                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-light position-relative" type="button" id="staffNotificationDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-bell"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="staffNotificationBadge" style="display: none;">
+                                0
+                            </span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end" style="width: 350px; max-height: 500px; overflow-y: auto;">
+                            <div class="dropdown-header d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">Thông báo</span>
+                                <button class="btn btn-sm btn-outline-primary" onclick="markAllStaffNotificationsAsRead()" title="Đánh dấu tất cả đã đọc">
+                                    <i class="bi bi-check-all"></i>
+                                </button>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <div id="staffNotificationList">
+                                <div class="text-center p-3">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Đang tải...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="dropdown-divider"></div>
+                            <div class="text-center p-2">
+                                <a href="{{ route('admin.admin-notifications.index') ?? '#' }}" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye me-1"></i>Xem tất cả thông báo
+                                </a>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- User dropdown -->
                     <div class="dropdown">
@@ -218,6 +252,198 @@
             tooltipTriggerList.map(function(el) {
                 return new bootstrap.Tooltip(el);
             });
+        });
+
+        // Staff Notification Scripts
+        // Load staff notifications
+        function loadStaffNotifications() {
+            fetch('/api/notifications/recent', {
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        updateStaffNotificationList(data.data);
+                    } else {
+                        console.error('API error:', data.message);
+                        document.getElementById('staffNotificationList').innerHTML = 
+                            '<div class="text-center p-3 text-muted">Không thể tải thông báo</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading staff notifications:', error);
+                    document.getElementById('staffNotificationList').innerHTML = 
+                        '<div class="text-center p-3 text-muted">Không thể tải thông báo</div>';
+                });
+        }
+
+        // Update staff notification list
+        function updateStaffNotificationList(notifications) {
+            const listContainer = document.getElementById('staffNotificationList');
+            
+            if (!notifications || notifications.length === 0) {
+                listContainer.innerHTML = '<div class="text-center p-3 text-muted">Không có thông báo nào</div>';
+                return;
+            }
+
+            let html = '';
+            notifications.forEach(notification => {
+                const payload = notification.payload || { title: 'Thông báo', message: 'Nội dung không hợp lệ' };
+                const isUnread = notification.trang_thai !== 'read';
+                const timeAgo = getTimeAgo(notification.created_at);
+                const link = payload.link || '#';
+                
+                html += `
+                    <a href="${link}" class="dropdown-item ${isUnread ? 'bg-light' : ''}" style="white-space: normal; text-decoration: none; color: inherit;" onclick="markNotificationAsRead(${notification.id}, event)">
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0 me-2">
+                                <i class="bi bi-bell text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold ${isUnread ? 'text-primary' : ''}">${escapeHtml(payload.title || 'Thông báo')}</div>
+                                <div class="small text-muted">${escapeHtml(payload.message || '')}</div>
+                                <div class="small text-muted mt-1">${timeAgo}</div>
+                            </div>
+                            ${isUnread ? '<div class="flex-shrink-0"><span class="badge bg-primary rounded-pill">Mới</span></div>' : ''}
+                        </div>
+                    </a>
+                    <div class="dropdown-divider"></div>
+                `;
+            });
+            
+            listContainer.innerHTML = html;
+        }
+
+        // Load unread count
+        function loadStaffUnreadCount() {
+            fetch('/api/notifications/unread-count', {
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                }
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        updateStaffNotificationBadge(data.count);
+                    } else {
+                        console.error('API error:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading unread count:', error);
+                });
+        }
+
+        // Update notification badge
+        function updateStaffNotificationBadge(count) {
+            const badge = document.getElementById('staffNotificationBadge');
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // Mark notification as read
+        function markNotificationAsRead(notificationId, event) {
+            // Don't prevent default if it's a link
+            fetch(`/api/notifications/${notificationId}/read`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadStaffNotifications();
+                    loadStaffUnreadCount();
+                }
+            })
+            .catch(error => {
+                console.error('Error marking notification as read:', error);
+            });
+        }
+
+        // Mark all staff notifications as read
+        function markAllStaffNotificationsAsRead() {
+            fetch('/api/notifications/mark-all-read', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadStaffNotifications();
+                    loadStaffUnreadCount();
+                } else {
+                    console.error('API error:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error marking all as read:', error);
+            });
+        }
+
+        // Get time ago
+        function getTimeAgo(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) return 'Vừa xong';
+            if (diffInSeconds < 3600) return Math.floor(diffInSeconds / 60) + ' phút trước';
+            if (diffInSeconds < 86400) return Math.floor(diffInSeconds / 3600) + ' giờ trước';
+            return Math.floor(diffInSeconds / 86400) + ' ngày trước';
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStaffNotifications();
+            loadStaffUnreadCount();
+            
+            // Refresh every 30 seconds
+            setInterval(() => {
+                loadStaffNotifications();
+                loadStaffUnreadCount();
+            }, 30000);
         });
     </script>
 </body>

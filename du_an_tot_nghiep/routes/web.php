@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
+// ===== Controllers =====
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
@@ -28,19 +29,23 @@ use App\Http\Controllers\Admin\BatchNotificationController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 
-// BLOG CONTROLLERS (admin + client)
+// Vật dụng/phòng (mở rộng)
+use App\Http\Controllers\Admin\PhongVatDungController;
+use App\Http\Controllers\Admin\PhongConsumptionController;
+use App\Http\Controllers\Admin\PhongVatDungInstanceController;
+use App\Http\Controllers\Admin\VatDungIncidentController;
+
+// BLOG (Admin + Client)
 use App\Http\Controllers\Client\BlogController as ClientBlog;
 use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
 use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
-
 
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::get('/list-room', [RoomController::class, 'index'])->name('list-room.index');
 Route::get('/list-room/{id}', [RoomController::class, 'show'])->name('list-room.show');
-
 Route::get('/detail-room/{id}', [RoomController::class, 'show'])->name('rooms.show');
 
 // Google login
@@ -49,7 +54,6 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 
 // ==================== BOOKING ====================
 Route::get('/booking/availability', [BookingController::class, 'availability'])->name('booking.availability');
-
 
 // ==================== ADMIN ====================
 Route::prefix('admin')
@@ -76,10 +80,10 @@ Route::prefix('admin')
         Route::resource('phong', PhongController::class);
         Route::delete('phong-image/{image}', [PhongController::class, 'destroyImage'])->name('phong.image.destroy');
 
-        // ---- Tầng ----
+        // Tầng
         Route::resource('tang', TangController::class);
 
-        // ---- Người dùng ----
+        // Người dùng
         Route::get('user/create', [UserController::class, 'create'])->name('user.create');
         Route::post('user', [UserController::class, 'store'])->name('user.store');
         Route::get('user', [UserController::class, 'index'])->name('user.index');
@@ -88,18 +92,18 @@ Route::prefix('admin')
         Route::put('user/{user}', [UserController::class, 'update'])->name('user.update');
         Route::patch('user/{user}/toggle', [UserController::class, 'toggleActive'])->name('user.toggle');
 
-        // ---- Nhân viên ----
+        // Nhân viên
         Route::resource('nhan-vien', NhanVienController::class);
         Route::patch('nhan-vien/{user}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
 
-        // ---- Voucher ----
+        // Voucher
         Route::resource('voucher', VoucherController::class);
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])->name('voucher.toggle-active');
 
-        // ---- Giường ----
+        // Giường
         Route::resource('bed-types', BedTypeController::class);
 
-        // ---- Thông báo (Notifications) ----
+        // Thông báo (Notifications)
         Route::get('customer-notifications', [CustomerNotificationController::class, 'index'])->name('customer-notifications.index');
         Route::get('customer-notifications/create', [CustomerNotificationController::class, 'create'])->name('customer-notifications.create');
         Route::post('customer-notifications', [CustomerNotificationController::class, 'store'])->name('customer-notifications.store');
@@ -109,68 +113,86 @@ Route::prefix('admin')
         Route::delete('customer-notifications/{notification}', [CustomerNotificationController::class, 'destroy'])->name('customer-notifications.destroy');
         Route::post('customer-notifications/{notification}/resend', [CustomerNotificationController::class, 'resend'])->name('customer-notifications.resend');
 
-        Route::resource('internal-notifications', InternalNotificationController::class);
-        Route::post('internal-notifications/{internal_notification}/resend', [InternalNotificationController::class, 'resend'])
+        Route::resource('internal-notifications', InternalNotificationController::class)
+            ->parameters(['internal-notifications' => 'notification']);
+        Route::post('internal-notifications/{notification}/resend', [InternalNotificationController::class, 'resend'])
             ->name('internal-notifications.resend');
 
         Route::resource('admin-notifications', AdminNotificationController::class);
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
 
+        // ===== Vật dụng trong phòng / tiêu hao / instance / sự cố =====
+        // Gán/bỏ gán vật dụng bền theo phòng
+        Route::post('phong/{phong}/vat-dung/sync', [PhongVatDungController::class, 'sync'])->name('phong.vatdung.sync');
+        Route::post('phong/{phong}/vat-dung/remove/{vat_dung}', [PhongVatDungController::class, 'remove'])->name('phong.vatdung.remove');
+
+        // Đồ ăn/đồ tiêu hao theo booking (consumptions)
+        Route::post('phong/consumptions', [PhongConsumptionController::class, 'store'])->name('phong.consumptions.store');
+        Route::put('phong/consumptions/{consumption}', [PhongConsumptionController::class, 'update'])->name('phong.consumptions.update');
+        Route::delete('phong/consumptions/{consumption}', [PhongConsumptionController::class, 'destroy'])->name('phong.consumptions.destroy');
+        Route::post('phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])->name('phong.consumptions.markConsumed');
+        Route::post('phong/consumptions/store-and-bill/{phong}', [PhongConsumptionController::class, 'storeAndBill'])->name('phong.consumptions.store_and_bill');
+
+        // Instances & incidents cho vật dụng bền
+        Route::post('phong/{phong}/instances', [VatDungIncidentController::class, 'createInstance'])->name('phong.instances.store');
+        Route::post('phong/incidents', [VatDungIncidentController::class, 'store'])->name('phong.incidents.store');
+        Route::put('phong/incidents/{incident}', [VatDungIncidentController::class, 'update'])->name('phong.incidents.update');
+        Route::delete('phong/incidents/{incident}', [VatDungIncidentController::class, 'destroy'])->name('phong.incidents.destroy');
+
+        // Thiết lập đồ ăn theo phòng/booking
+        Route::get('phong/{phong}/food-setup', [PhongVatDungController::class, 'showFoodSetup'])->name('phong.food-setup');
+        Route::post('phong/{phong}/food-reserve', [PhongVatDungController::class, 'reserveFood'])->name('phong.food-reserve');
+        Route::post('/phong/{phong}/food-reserve-item', [PhongVatDungController::class, 'storeItem'])->name('admin.phong.food-reserve-item.store');
+        Route::put('/phong/{phong}/food-reserve-item/{consumption}', [PhongVatDungController::class, 'updateItem'])->name('admin.phong.food-reserve-item.update');
+        Route::delete('/phong/{phong}/food-reserve-item/{vatDungId}', [PhongVatDungController::class, 'destroyItem'])->name('admin.phong.food-reserve-item.destroy');
+
+        // Quản lý instance của vật dụng bền theo phòng
+        Route::get('phong/{phong}/vat-dung-instances', [PhongVatDungInstanceController::class, 'index'])->name('phong.vatdung.instances.index');
+        Route::post('phong/{phong}/vat-dung-instances', [PhongVatDungInstanceController::class, 'store'])->name('phong.vatdung.instances.store');
+        Route::patch('phong/vat-dung-instances/{instance}', [PhongVatDungInstanceController::class, 'update'])->name('phong.vatdung.instances.update');
+        Route::patch('phong/vat-dung-instances/{instance}/status', [PhongVatDungInstanceController::class, 'updateStatus'])->name('phong.vatdung.instances.update-status');
+        Route::delete('phong/vat-dung-instances/{instance}', [PhongVatDungInstanceController::class, 'destroy'])->name('phong.vatdung.instances.destroy');
+        Route::post('phong/vat-dung-instances/{instance}/mark-lost', [PhongVatDungInstanceController::class, 'markLost'])->name('phong.vatdung.instances.mark-lost');
+
         // ==================== BLOG (ADMIN) ====================
         Route::prefix('blog')->name('blog.')->group(function () {
-            // [NEW] xóa 1 ảnh phụ của bài viết
-            // Route::delete('posts/photo/{photo}', [AdminPost::class, 'deletePhoto'])
-            // ->name('posts.delete-photo'); 
-            
-            // Thùng rác, restore, force delete
             Route::get('posts/trash', [AdminPost::class, 'trash'])->name('posts.trash');
             Route::post('posts/{id}/restore', [AdminPost::class, 'restore'])->name('posts.restore');
             Route::delete('posts/{id}/force', [AdminPost::class, 'forceDelete'])->name('posts.force');
 
-            // CRUD bài viết
-            Route::resource('posts', AdminPost::class)->parameters([
-                'posts' => 'post',
-            ]);
-
-            // CRUD danh mục & tag
-            Route::resource('categories', AdminCategory::class)->parameters([
-                'categories' => 'category',
-            ]);
-            Route::resource('tags', AdminTag::class)->parameters([
-                'tags' => 'tag',
-            ]);
-
-            // (Optional) upload ảnh trong nội dung bài viết
-            // Route::post('posts/upload-image', [AdminPost::class, 'uploadContentImage'])->name('posts.upload-image');
+            Route::resource('posts', AdminPost::class)->parameters(['posts' => 'post']);
+            Route::resource('categories', AdminCategory::class)->parameters(['categories' => 'category']);
+            Route::resource('tags', AdminTag::class)->parameters(['tags' => 'tag']);
         });
     });
-
 
 // ==================== STAFF ====================
 Route::middleware(['auth', 'role:nhan_vien|admin'])
     ->prefix('staff')
     ->name('staff.')
     ->group(function () {
+        // Dashboard
         Route::get('/', [StaffController::class, 'index'])->name('index');
+
+        // Booking chờ xác nhận
         Route::get('/pending-bookings', [StaffController::class, 'pendingBookings'])->name('pending-bookings');
-        Route::get('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRoomsForm'])->name('assign-rooms');
-        Route::post('/assign-rooms/{dat_phong_id}', [StaffController::class, 'assignRooms'])->name('assign-rooms.post');
-        Route::get('/rooms', [StaffController::class, 'rooms'])->name('rooms');
         Route::post('/confirm/{id}', [StaffController::class, 'confirm'])->name('confirm');
-        Route::get('/bookings', [StaffController::class, 'bookings'])->name('bookings');
         Route::delete('/cancel/{id}', [StaffController::class, 'cancel'])->name('cancel');
+        Route::get('/bookings', [StaffController::class, 'bookings'])->name('bookings');
+        Route::get('/bookings/{booking}', [StaffController::class, 'showBooking'])->name('bookings.show');
+
+        // Quản lý phòng
+        Route::get('/rooms', [StaffController::class, 'rooms'])->name('rooms');
+        Route::patch('/rooms/{room}', [StaffController::class, 'updateRoom'])->name('rooms.update');
 
         // Checkin / Checkout
         Route::get('/checkin', [StaffController::class, 'checkinForm'])->name('checkin');
-        Route::post('/checkin', [StaffController::class, 'processCheckin'])->name('checkin.process');
-        Route::get('/checkout', [StaffController::class, 'checkoutForm'])->name('checkout');
-        Route::post('/checkout', [StaffController::class, 'processCheckout'])->name('checkout.process');
+        Route::post('/process-checkin', [StaffController::class, 'processCheckin'])->name('processCheckin');
 
-        // Báo cáo / Tổng quan phòng
+        // Báo cáo / Tổng quan
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
     });
-
 
 // ==================== ACCOUNT (client profile area) ====================
 Route::middleware('auth')
@@ -189,17 +211,15 @@ Route::middleware('auth')
         Route::post('wishlist/clear', [WishlistController::class, 'clear'])->name('wishlist.clear');
 
         // Booking cá nhân
-        Route::get('/booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
-        Route::post('/booking', [BookingController::class, 'store'])->name('booking.store');
+        Route::get('booking/{phong}/create', [BookingController::class, 'create'])->name('booking.create');
+        Route::post('booking', [BookingController::class, 'store'])->name('booking.store');
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
     });
 
-
 // ==================== BLOG (CLIENT) ====================
 Route::get('/blog', [ClientBlog::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [ClientBlog::class, 'show'])->name('blog.show');
-
 
 // ==================== PAYMENT ====================
 Route::middleware(['auth'])->group(function () {
@@ -208,9 +228,12 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/payment/initiate', [PaymentController::class, 'initiateVNPay'])->name('payment.initiate');
     Route::post('/confirm-payment/{dat_phong_id}', [ConfirmPaymentController::class, 'confirm'])->name('api.confirm-payment');
     Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
+
+    // Thanh toán phần còn lại
+    Route::post('/payment/remaining/{dat_phong_id}', [PaymentController::class, 'initiateRemainingPayment'])->name('payment.remaining');
+    Route::get('/payment/remaining/callback', [PaymentController::class, 'handleRemainingCallback'])->name('payment.remaining.callback');
 });
 Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
-
 
 // ==================== NOTIFICATIONS ====================
 Route::middleware('auth')->group(function () {
@@ -230,9 +253,7 @@ Route::middleware('auth')->group(function () {
 // ==================== TEST ====================
 Route::get('/test-notifications', function () {
     $user = Auth::user();
-    if (!$user) {
-        return response()->json(['error' => 'Not authenticated']);
-    }
+    if (!$user) return response()->json(['error' => 'Not authenticated']);
 
     $unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
         ->where('kenh', 'in_app')
@@ -256,13 +277,8 @@ Route::get('/test-notifications', function () {
 
 Route::get('/test-admin-notifications', function () {
     $user = Auth::user();
-    if (!$user) {
-        return response()->json(['error' => 'Not authenticated']);
-    }
-
-    if ($user->vai_tro !== 'admin') {
-        return response()->json(['error' => 'Admin access required']);
-    }
+    if (!$user) return response()->json(['error' => 'Not authenticated']);
+    if ($user->vai_tro !== 'admin') return response()->json(['error' => 'Admin access required']);
 
     $unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', $user->id)
         ->where('kenh', 'in_app')
@@ -283,7 +299,6 @@ Route::get('/test-admin-notifications', function () {
         'recent_notifications' => $recentNotifications
     ]);
 })->middleware(['auth', 'admin']);
-
 
 // ==================== AUTH ====================
 require __DIR__ . '/auth.php';

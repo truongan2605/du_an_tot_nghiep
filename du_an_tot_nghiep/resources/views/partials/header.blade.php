@@ -22,50 +22,33 @@
                 <span class="d-none d-sm-inline-block small">Menu</span>
             </button>
 
-            <!-- Responsive category toggler -->
-            <button class="navbar-toggler ms-sm-auto mx-3 me-md-0 p-0 p-sm-2" type="button" data-bs-toggle="collapse"
-                data-bs-target="#navbarCategoryCollapse" aria-controls="navbarCategoryCollapse" aria-expanded="false"
-                aria-label="Toggle navigation">
-                <i class="bi bi-grid-3x3-gap-fill fa-fw"></i><span
-                    class="d-none d-sm-inline-block small">Category</span>
-            </button>
+			<!-- Responsive category toggler -->
+			<button class="navbar-toggler ms-sm-auto mx-3 me-md-0 p-0 p-sm-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCategoryCollapse" aria-controls="navbarCategoryCollapse" aria-expanded="false" aria-label="Toggle navigation">
+				<i class="bi bi-grid-3x3-gap-fill fa-fw"></i><span class="d-none d-sm-inline-block small">Danh mục</span>
+			</button>
 
             <!-- Main navbar START -->
             <div class="navbar-collapse collapse" id="navbarCollapse">
                 <ul class="navbar-nav navbar-nav-scroll me-auto">
 
-                    <!-- Nav item Listing -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown"
-                            aria-haspopup="true" aria-expanded="false">Listings</a>
-                        <ul class="dropdown-menu" aria-labelledby="listingMenu">
-                            <!-- Dropdown submenu -->
-                            <li class="dropdown-submenu dropend">
-                                <a class="dropdown-item dropdown-toggle" href="#">Hotel</a>
-                                <ul class="dropdown-menu" data-bs-popper="none">
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/index.html') }}">Hotel Home</a></li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/index-hotel-chain.html') }}">Hotel
-                                            Chain</a></li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/index-resort.html') }}">Hotel Resort</a>
-                                    </li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/hotel-grid.html') }}">Hotel Grid</a></li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/hotel-list.html') }}">Hotel List</a></li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/hotel-detail.html') }}">Hotel Detail</a>
-                                    </li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/room-detail.html') }}">Room Detail</a>
-                                    </li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/hotel-booking.html') }}">Hotel
-                                            Booking</a></li>
-                                </ul>
-                            </li>
+					<!-- Nav item Listing -->
+					<li class="nav-item dropdown">
+						<a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Danh sách</a>
+						<ul class="dropdown-menu" aria-labelledby="listingMenu">
+							<!-- Dropdown submenu -->
+							<li class="dropdown-submenu dropend">
+								<a class="dropdown-item dropdown-toggle" href="#">Khách sạn</a>
+								<ul class="dropdown-menu" data-bs-popper="none">
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/index.html') }}">Hotel Home</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/index-hotel-chain.html') }}">Hotel Chain</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/index-resort.html') }}">Hotel Resort</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/hotel-grid.html') }}">Hotel Grid</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/hotel-list.html') }}">Hotel List</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/hotel-detail.html') }}">Hotel Detail</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/room-detail.html') }}">Room Detail</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/hotel-booking.html') }}">Hotel Booking</a></li>
+								</ul>
+							</li>
 
                             <li> <a class="dropdown-item"
                                     href="{{ asset('template/stackbros/booking-confirm.html') }}">Booking Confirmed</a>
@@ -78,68 +61,53 @@
                         </ul>
                     </li>
 
-                    <!-- Nav item Pages -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="pagesMenu" data-bs-toggle="dropdown"
-                            aria-haspopup="true" aria-expanded="false">Pages</a>
-                        <ul class="dropdown-menu" aria-labelledby="pagesMenu">
+					<!-- Nav item Pages -->
+					<li class="nav-item dropdown">
+						<a class="nav-link dropdown-toggle" href="#" id="pagesMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Trang</a>
+						<ul class="dropdown-menu" aria-labelledby="pagesMenu">
 
-                            <li> <a class="dropdown-item" href="{{ asset('template/stackbros/about.html') }}">About</a>
-                            </li>
-                            <li> <a class="dropdown-item"
-                                    href="{{ asset('template/stackbros/contact.html') }}">Contact</a></li>
-                            <li> <a class="dropdown-item"
-                                    href="{{ asset('template/stackbros/contact-2.html') }}">Contact 2</a></li>
-                            <li> <a class="dropdown-item" href="{{ asset('template/stackbros/team.html') }}">Our
-                                    Team</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/about.html') }}">Giới thiệu</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/contact.html') }}">Liên hệ</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/contact-2.html') }}">Liên hệ 2</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/team.html') }}">Đội ngũ của chúng tôi</a></li>
 
-                            <!-- Dropdown submenu -->
-                            <li class="dropdown-submenu dropend">
-                                <a class="dropdown-item dropdown-toggle" href="#">Authentication</a>
-                                <ul class="dropdown-menu" data-bs-popper="none">
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/sign-in.html') }}">Sign In</a></li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/sign-up.html') }}">Sign Up</a></li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/forgot-password.html') }}">Forgot
-                                            Password</a></li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/two-factor-auth.html') }}">Two factor
-                                            authentication</a></li>
-                                </ul>
-                            </li>
+							<!-- Dropdown submenu -->
+							<li class="dropdown-submenu dropend">
+								<a class="dropdown-item dropdown-toggle" href="#">Xác thực</a>
+								<ul class="dropdown-menu" data-bs-popper="none">
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/sign-in.html') }}">Sign In</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/sign-up.html') }}">Sign Up</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/forgot-password.html') }}">Forgot Password</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/two-factor-auth.html') }}">Two factor authentication</a></li>
+								</ul>
+							</li>
 
+							<!-- Dropdown submenu -->
+							<li class="dropdown-submenu dropend">
+								<a class="dropdown-item dropdown-toggle" href="#">Blog</a>
+								<ul class="dropdown-menu" data-bs-popper="none">
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/blog.html') }}">Blog</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/blog-detail.html') }}">Blog Detail</a></li>
+								</ul>
+							</li>
 
-                            <!-- Dropdown submenu -->
-                            <li class="dropdown-submenu dropend">
-                                <a class="dropdown-item dropdown-toggle" href="#">Help</a>
-                                <ul class="dropdown-menu" data-bs-popper="none">
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/help-center.html') }}">Help Center</a>
-                                    </li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/help-detail.html') }}">Help Detail</a>
-                                    </li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/privacy-policy.html') }}">Privacy
-                                            Policy</a></li>
-                                    <li> <a class="dropdown-item"
-                                            href="{{ asset('template/stackbros/terms-of-service.html') }}">Terms of
-                                            Service</a></li>
-                                </ul>
-                            </li>
+							<!-- Dropdown submenu -->
+							<li class="dropdown-submenu dropend">
+								<a class="dropdown-item dropdown-toggle" href="#">Trợ giúp</a>
+								<ul class="dropdown-menu" data-bs-popper="none">
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/help-center.html') }}">Help Center</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/help-detail.html') }}">Help Detail</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/privacy-policy.html') }}">Privacy Policy</a></li>
+									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/terms-of-service.html') }}">Terms of Service</a></li>
+								</ul>
+							</li>
 
-                            <li> <a class="dropdown-item"
-                                    href="{{ asset('template/stackbros/pricing.html') }}">Pricing</a></li>
-                            <li> <a class="dropdown-item" href="{{ asset('template/stackbros/faq.html') }}">FAQs</a>
-                            </li>
-                            <li> <a class="dropdown-item" href="{{ asset('template/stackbros/error.html') }}">Error
-                                    404</a></li>
-                            <li> <a class="dropdown-item"
-                                    href="{{ asset('template/stackbros/coming-soon.html') }}">Coming Soon</a></li>
-                        </ul>
-                    </li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/pricing.html') }}">Pricing</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/faq.html') }}">FAQs</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/error.html') }}">Error 404</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/coming-soon.html') }}">Coming Soon</a></li>
+						</ul>
+					</li>
 
 
                     <!-- Dropdown submenu -->
@@ -340,39 +308,34 @@
                                 <hr class="dropdown-divider">
                             </li>
 
-                            <!-- Logout (POST) -->
-                            <li class="px-3">
-                                <form method="POST" action="{{ route('logout') }}">
-                                    @csrf
-                                    <button type="submit" class="dropdown-item bg-danger-soft-hover">
-                                        <i class="bi bi-power fa-fw me-2"></i>Sign Out
-                                    </button>
-                                </form>
-                            </li>
-                        @endauth
+						<!-- Logout (POST) -->
+						<li class="px-3">
+							<form method="POST" action="{{ route('logout') }}">
+								@csrf
+								<button type="submit" class="dropdown-item bg-danger-soft-hover">
+									<i class="bi bi-power fa-fw me-2"></i>Đăng xuất</button>
+							</form>
+						</li>
+						@endauth
 
-                        @guest
-                            <li class="px-3 mb-2">
-                                <div class="d-flex align-items-center">
-                                    <div>
-                                        <a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Guest</a>
-                                        <p class="small m-0">Login to use all features</p>
-                                    </div>
-                                </div>
-                            </li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item" href="{{ route('login') }}"><i
-                                        class="bi bi-box-arrow-in-right me-2"></i>Sign In</a></li>
-                            <li><a class="dropdown-item" href="{{ route('register') }}"><i
-                                        class="bi bi-person-plus me-2"></i>Sign Up</a></li>
-                        @endguest
-                    </ul>
-                </li>
-            </ul>
-        </div>
-    </nav>
+						@guest
+						<li class="px-3 mb-2">
+							<div class="d-flex align-items-center">
+								<div>
+									<a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Khách</a>
+									<p class="small m-0">Đăng nhập để sử dụng tất cả tính năng</p>
+								</div>
+							</div>
+						</li>
+						<li> <hr class="dropdown-divider"></li>
+						<li><a class="dropdown-item" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i>Đăng nhập</a></li>
+						<li><a class="dropdown-item" href="{{ route('register') }}"><i class="bi bi-person-plus me-2"></i>Đăng ký</a></li>
+						@endguest
+					</ul>
+				</li>
+			</ul>
+		</div>
+	</nav>
 </header>
 
 <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel"
@@ -434,39 +397,34 @@
                     <button class="btn btn-sm btn-outline-warning" onclick="location.reload()">
                         <i class="fas fa-refresh me-1"></i>Thử lại
                     </button>
-                    <button class="btn btn-sm btn-outline-info ms-2" onclick="testRoute(${currentNotificationId})">
-                        <i class="fas fa-bug me-1"></i>Test Route
-                    </button>
                 </div>
             `;
-            }, 5000);
-
-            fetch(`/thong-bao/${currentNotificationId}/modal`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                            .getAttribute('content')
-                    }
-                })
-                .then(response => {
-                    clearTimeout(timeoutId);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
-                    if (data.success) {
-                        modalBody.innerHTML = data.html;
-
-                        if (data.isUnread) {
-                            markAsReadBtn.style.display = 'inline-block';
-                        }
-                    } else {
-                        modalBody.innerHTML = `
+        }, 5000);
+        
+        fetch(`/thong-bao/${currentNotificationId}/modal`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+        })
+        .then(response => {
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                modalBody.innerHTML = data.html;
+                
+                if (data.isUnread) {
+                    markAsReadBtn.style.display = 'inline-block';
+                }
+            } else {
+                modalBody.innerHTML = `
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-triangle me-1"></i>
                         Không thể tải thông tin thông báo: ${data.message || 'Lỗi không xác định'}
@@ -488,55 +446,34 @@
                     </button>
                 </div>
             `;
-                });
         });
-
-        // Test route function
-        window.testRoute = function(notificationId) {
-            console.log('Testing route for notification:', notificationId);
-            fetch(`/test-notification/${notificationId}`)
-                .then(response => response.json())
-                .then(data => {
-                    console.log('Test response:', data);
-                    document.getElementById('notificationModalBody').innerHTML = data.html;
-                })
-                .catch(error => {
-                    console.error('Test route error:', error);
-                    document.getElementById('notificationModalBody').innerHTML = `
-                    <div class="alert alert-danger">
-                        Test route failed: ${error.message}
-                    </div>
-                `;
-                });
-        };
-
-        markAsReadBtn.addEventListener('click', function() {
-            if (currentNotificationId) {
-                fetch(`/thong-bao/${currentNotificationId}/read`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                                .getAttribute('content')
-                        }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        markAsReadBtn.style.display = 'none';
-
-                        const notificationItem = document.querySelector(
-                            `[data-notification-id="${currentNotificationId}"]`);
-                        if (notificationItem) {
-                            notificationItem.classList.remove('notif-unread');
-                        }
-
-                        // Update badge count
-                        updateNotificationBadge();
-
-                        // Show success message
-                        const alert = document.createElement('div');
-                        alert.className = 'alert alert-success alert-dismissible fade show';
-                        alert.innerHTML = `
+    });
+    
+    markAsReadBtn.addEventListener('click', function() {
+        if (currentNotificationId) {
+            fetch(`/thong-bao/${currentNotificationId}/read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                markAsReadBtn.style.display = 'none';
+                
+                const notificationItem = document.querySelector(`[data-notification-id="${currentNotificationId}"]`);
+                if (notificationItem) {
+                    notificationItem.classList.remove('notif-unread');
+                }
+                
+                // Update badge count
+                updateNotificationBadge();
+                
+                // Show success message
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show';
+                alert.innerHTML = `
                     <i class="fas fa-check me-1"></i>Đã đánh dấu thông báo là đã đọc
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
@@ -550,75 +487,28 @@
                     <i class="fas fa-exclamation-triangle me-1"></i>Lỗi khi đánh dấu đã đọc
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
-                        modalBody.insertBefore(alert, modalBody.firstChild);
-                    });
-            }
-        });
-
-        function updateNotificationBadge() {
-            fetch('/api/notifications/unread-count')
-                .then(response => response.json())
-                .then(data => {
-                    const badge = document.querySelector('.notif-badge');
-                    if (badge) {
-                        if (data.count > 0) {
-                            badge.style.display = 'block';
-                            badge.textContent = data.count;
-                        } else {
-                            badge.style.display = 'none';
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error updating badge:', error);
-                });
+                modalBody.insertBefore(alert, modalBody.firstChild);
+            });
         }
-
-        // Test client broadcast function
-        window.testClientBroadcast = function() {
-            fetch('/test-client-broadcast', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute(
-                            'content')
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('Test client notification sent:', data);
-                        // Show success message
-                        const alert = document.createElement('div');
-                        alert.className =
-                            'alert alert-success alert-dismissible fade show position-fixed';
-                        alert.style.cssText =
-                            'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-                        alert.innerHTML = `
-                    <i class="fas fa-check me-1"></i>Test client notification sent! Check console for Echo logs.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                        document.body.appendChild(alert);
-
-                        // Auto remove after 5 seconds
-                        setTimeout(() => {
-                            if (alert.parentNode) {
-                                alert.remove();
-                            }
-                        }, 5000);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error sending test client notification:', error);
-                    const alert = document.createElement('div');
-                    alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
-                    alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-                    alert.innerHTML = `
-                <i class="fas fa-exclamation-triangle me-1"></i>Error sending test client notification
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-                    document.body.appendChild(alert);
-                });
-        };
     });
+    
+    function updateNotificationBadge() {
+        fetch('/api/notifications/unread-count')
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.querySelector('.notif-badge');
+                if (badge) {
+                    if (data.count > 0) {
+                        badge.style.display = 'block';
+                        badge.textContent = data.count;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error updating badge:', error);
+            });
+    }
+});
 </script>

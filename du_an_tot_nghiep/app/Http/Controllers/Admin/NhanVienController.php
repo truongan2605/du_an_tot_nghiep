@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
+use App\Events\StaffCreated;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -40,7 +41,10 @@ class NhanVienController extends Controller
         $validated['password'] = bcrypt($validated['password']);
         $validated['is_active'] = true;
 
-        User::create($validated);
+        $staff = User::create($validated);
+
+        // Dispatch event for automatic notifications
+        event(new StaffCreated($staff));
         return redirect()->route('admin.nhan-vien.index')->with('success', 'Nhân viên mới đã được thêm!');
     }
 
