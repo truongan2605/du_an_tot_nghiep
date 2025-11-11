@@ -18,9 +18,9 @@
         <!-- Text -->
         <div
             class="position-relative z-2 text-center text-white d-flex flex-column justify-content-center align-items-center h-100">
-            <h1 class="display-5 fw-bold mb-3" style="color: #ddd">List of available rooms</h1>
+            <h1 class="display-5 fw-bold mb-3" style="color: #ddd">Danh sách phòng khả dụng</h1>
             <p class="lead mb-0" style="max-width: 600px;">
-                Explore active rooms in our system
+                Khám phá các phòng đang hoạt động trong hệ thống của chúng tôi
             </p>
         </div>
     </section>
@@ -38,12 +38,12 @@
                     <form method="GET" action="{{ route('list-room.index') }}" class="card border-0 shadow-sm">
                         <div class="filter-box sidebar-filter">
                             {{-- Room Type --}}
-                            <h6 class="fw-bold mb-3">Room Type</h6>
+                            <h6 class="fw-bold mb-3">Loại phòng</h6>
                             <ul class="list-unstyled">
                                 <li>
                                     <input type="radio" name="loai_phong_id" id="type_all" value=""
                                         {{ request('loai_phong_id') == '' ? 'checked' : '' }}>
-                                    <label for="type_all">All Room Type</label>
+                                    <label for="type_all">Tất cả loại phòng</label>
                                 </li>
 
                                 @foreach ($loaiPhongs as $loai)
@@ -58,11 +58,11 @@
 
 
                             {{-- Check in-out --}}
-                            <h6>Check in - out</h6>
+                            <h6>Nhận phòng - Trả phòng</h6>
                             <input type="text" class="form-control flatpickr mb-3" data-mode="range"
-                                placeholder="Select date" name="date_range">
+                                placeholder="Chọn ngày" name="date_range">
 
-                            <h6>Price (VNĐ)</h6>
+                            <h6>Giá (VNĐ)</h6>
                             <div class="mb-3">
                                 <div id="price-slider"></div>
                                 <div class="d-flex justify-content-between mt-2">
@@ -80,7 +80,7 @@
                             <div class="filter-divider"></div>
 
                             {{-- Rating Star --}}
-                            <h6 class="fw-bold mb-3">Rating Star</h6>
+                            <h6 class="fw-bold mb-3">Đánh giá sao</h6>
                             <ul class="list-unstyled mb-3">
                                 @for ($i = 5; $i >= 1; $i--)
                                     <li class="mb-1">
@@ -99,12 +99,12 @@
                                 <li>
                                     <input type="radio" name="diem" id="all_rating" value=""
                                         {{ request('diem') == '' ? 'checked' : '' }}>
-                                    <label for="all_rating">All ratings</label>
+                                    <label for="all_rating">Tất cả đánh giá</label>
                                 </li>
                             </ul>
 
                             {{-- Amenities --}}
-                            <h6>Amenities</h6>
+                            <h6>Tiện nghi</h6>
                             <ul class="list-unstyled">
                                 @php
                                     $selectedTienNghi = (array) request('tien_nghi', []);
@@ -121,7 +121,7 @@
                             </ul>
 
                             <div class="mt-3">
-                                <button type="submit" class="filter-submit-btn">Search</button>
+                                <button type="submit" class="filter-submit-btn">Tìm kiếm</button>
                             </div>
                         </div>
 
@@ -220,7 +220,7 @@
 
                                                         @if ($phong->tienNghis->count() > 3)
                                                             <a href="{{ route('rooms.show', $phong->id) }}"
-                                                                class="text-decoration-none">More+</a>
+                                                                class="text-decoration-none">Xem thêm+</a>
                                                         @endif
                                                     @else
                                                         <span>Chưa có tiện nghi</span>
@@ -234,7 +234,7 @@
                                                     <div>
                                                         <h4 class="fw-bold text-primary mb-0">
                                                             {{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }} VNĐ
-                                                            <span class="small fw-normal text-muted">/Night</span>
+                                                            <span class="small fw-normal text-muted">/Đêm</span>
                                                         </h4>
                                                         {{-- @if ($phong->gia_mac_dinh ?? false)
                                     <small class="text-decoration-line-through text-muted">
@@ -246,11 +246,11 @@
                                                     @if ($phong->trang_thai == 'trong')
                                                         <a href="{{ route('rooms.show', $phong->id) }}"
                                                             class="btn btn-dark rounded-pill px-4 py-2 transition-all">
-                                                            Select Room
+                                                            Chọn phòng
                                                         </a>
                                                     @else
                                                         <button class="btn btn-secondary rounded-pill px-4 py-2" disabled>
-                                                            Full Room
+                                                            Phòng đầy
                                                         </button>
                                                     @endif
                                                 </div>
@@ -263,7 +263,7 @@
                             <div class="text-center py-5">
                                 <p class="mt-3 mb-0">
                                     <i class="fa-regular fa-eye-slash"></i>
-                                    No suitable rooms were found.
+                                    Không tìm thấy phòng phù hợp.
                                 </p>
                             </div>
                         @endforelse

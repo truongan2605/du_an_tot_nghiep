@@ -112,6 +112,11 @@
                             <h5 class="mb-0">@yield('title', 'Admin Panel')</h5>
                         </div>
                         <div class="d-flex align-items-center gap-3">
+                            <!-- Staff Panel Button -->
+                            <a href="{{ route('staff.index') }}" class="btn btn-outline-success">
+                                <i class="fas fa-user-tie me-1"></i>Staff Panel
+                            </a>
+                            
                             <!-- Notification Bell -->
                             <div class="dropdown">
                                 <button class="btn btn-outline-primary position-relative" type="button"
@@ -193,16 +198,13 @@
     <script>
         // Load admin notifications
         function loadAdminNotifications() {
-            console.log('Loading admin notifications...');
             fetch('/api/notifications/recent', {
                     credentials: 'include'
                 })
                 .then(response => {
-                    console.log('Admin notifications response status:', response.status);
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Admin notifications response data:', data);
                     if (data.success) {
                         updateAdminNotificationList(data.data);
                     } else {
@@ -260,16 +262,13 @@
 
         // Load unread count
         function loadAdminUnreadCount() {
-            console.log('Loading admin unread count...');
             fetch('/api/notifications/unread-count', {
                     credentials: 'include'
                 })
                 .then(response => {
-                    console.log('Admin unread count response status:', response.status);
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Admin unread count response data:', data);
                     if (data.success) {
                         updateAdminNotificationBadge(data.count);
                     } else {

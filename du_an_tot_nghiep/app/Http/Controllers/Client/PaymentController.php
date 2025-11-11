@@ -18,6 +18,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use App\Services\PaymentNotificationService;
 
 class PaymentController extends Controller
 {
@@ -388,7 +389,7 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use ($vnp_ResponseCode, $vnp_Amount, $inputData, $giao_dich, $dat_phong, $roomsCount) {
@@ -432,7 +433,7 @@ class PaymentController extends Controller
                         Log::debug('Spec hash from hold meta', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
                     } else {
 
-                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
                         if (is_array($snapshotMeta) && isset($snapshotMeta['loai_phong_id'])) {
 
                             $specSignatureHash = $this->generateSpecSignatureHash($snapshotMeta, null);
@@ -480,6 +481,14 @@ class PaymentController extends Controller
                 if ($dat_phong->nguoiDung) {
                     Mail::to($dat_phong->nguoiDung->email)
                         ->queue(new PaymentSuccess($dat_phong, $dat_phong->nguoiDung->name));
+                }
+
+                // Gửi thông báo thanh toán tiền cọc
+                // Kiểm tra xem đây có phải là thanh toán tiền cọc không (số tiền bằng hoặc gần bằng deposit_amount)
+                $isDepositPayment = abs($giao_dich->so_tien - ($dat_phong->deposit_amount ?? 0)) < 1000;
+                if ($isDepositPayment) {
+                    $notificationService = new PaymentNotificationService();
+                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
                 }
 
                 return view('payment.success', compact('dat_phong'));
@@ -569,7 +578,7 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return response()->json(['RspCode' => '02', 'Message' => 'Booking not found']);
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use ($giao_dich, $dat_phong, $vnp_ResponseCode, $vnp_Amount, $inputData, $roomsCount) {
@@ -607,7 +616,7 @@ class PaymentController extends Controller
                         Log::debug('Spec hash from hold meta', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
                     } else {
 
-                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
                         if (is_array($snapshotMeta) && isset($snapshotMeta['loai_phong_id'])) {
 
                             $specSignatureHash = $this->generateSpecSignatureHash($snapshotMeta, null);
@@ -650,6 +659,14 @@ class PaymentController extends Controller
 
                 if (!empty($phongIdsToOccupy)) {
                     Phong::whereIn('id', array_unique($phongIdsToOccupy))->update(['trang_thai' => 'dang_o']);
+                }
+
+                // Gửi thông báo thanh toán tiền cọc (IPN)
+                // Kiểm tra xem đây có phải là thanh toán tiền cọc không
+                $isDepositPayment = abs($giao_dich->so_tien - ($dat_phong->deposit_amount ?? 0)) < 1000;
+                if ($isDepositPayment) {
+                    $notificationService = new PaymentNotificationService();
+                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
                 }
 
                 return response()->json(['RspCode' => '00', 'Message' => 'Confirm Success']);
@@ -1110,6 +1127,10 @@ class PaymentController extends Controller
                     'trang_thai'    => 'dang_su_dung',
                     'checked_in_at' => now(),
                 ]);
+                
+                // Gửi thông báo thanh toán tiền phòng (tiền mặt)
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
             }
 
             return $giaoDich;
@@ -1321,14 +1342,17 @@ class PaymentController extends Controller
                     ]);
                 }
 
-                $user = $booking->nguoiDung;
-                if ($user && $user->email) {
-                    Mail::to($user->email)->queue(new PaymentSuccess($booking, $user->name));
-                }
+                // Gửi thông báo thanh toán tiền phòng thành công
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendRoomPaymentNotification($booking, $transaction);
 
                 return redirect()->route('staff.checkin')
                     ->with('success', 'Thanh toán thành công! Phòng đã được chuyển sang trạng thái đang sử dụng.');
             }
+
+            // Gửi thông báo thanh toán tiền phòng (chưa đủ)
+            $notificationService = new PaymentNotificationService();
+            $notificationService->sendRoomPaymentNotification($booking, $transaction);
 
             Log::warning('Payment not complete yet', [
                 'booking_id' => $booking->id,
