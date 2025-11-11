@@ -94,9 +94,8 @@ Route::prefix('admin')
 
         // Nhân viên
         Route::resource('nhan-vien', NhanVienController::class);
-        Route::patch('nhan-vien/{user}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
-
-        // Voucher
+      Route::patch('nhan-vien/{nhan_vien}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
+        // ---- Voucher ----
         Route::resource('voucher', VoucherController::class);
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])->name('voucher.toggle-active');
 

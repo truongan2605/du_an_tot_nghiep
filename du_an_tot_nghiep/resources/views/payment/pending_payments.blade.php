@@ -1,4 +1,4 @@
-@extends('layouts.staff')
+@extends('layouts.admin')
 
 @section('content')
 <div class="container-fluid px-3 py-4">
