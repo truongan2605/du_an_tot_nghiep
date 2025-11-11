@@ -11,26 +11,28 @@ class ManageUsers
 {
     public function handle(Request $request, Closure $next): Response
     {
-   
+        // Kiểm tra đăng nhập và quyền admin
         if (!Auth::check() || Auth::user()->vai_tro !== 'admin') {
             abort(403, 'Bạn không có quyền quản lý!');
         }
 
-        $nhan_vien = $request->route('nhan_vien');  
+        
+        $user = $request->route('user');
 
-        if ($nhan_vien && in_array($request->route()->getName(), ['admin.nhan-vien.toggle', 'admin.nhan-vien.destroy'])) {
+        if ($user && in_array($request->route()->getName(), ['admin.nhan-vien.toggle', 'admin.nhan-vien.destroy'])) {
             
-       
-            if ($nhan_vien->id === Auth::id()) {
+            // Không cho thao tác chính mình
+            if ($user->id === Auth::id()) {
                 return redirect()->back()->with('error', 'Không thể thay đổi/xóa chính bạn!');
             }
 
-            if ($nhan_vien->vai_tro === 'admin') {  
+            // Không cho thao tác với admin khác
+            if ($user->vai_tro === 'admin') {
                 return redirect()->back()->with('error', 'Không thể thay đổi/xóa admin khác!');
             }
 
             // Đảm bảo chỉ áp dụng cho nhân viên
-            if ($nhan_vien->vai_tro !== 'nhan_vien') {  
+            if ($user->vai_tro !== 'nhan_vien') {
                 return redirect()->back()->with('error', 'Đây không phải nhân viên hợp lệ!');
             }
         }
