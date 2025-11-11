@@ -14,7 +14,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-      <!-- Bootstrap 5 -->
+        <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Bootstrap Icons -->
@@ -163,7 +163,7 @@
             pointer-events: none;
         }
 
-       
+        /* Read-only mode styling (tùy chọn, disable buttons nếu session read_only_mode) */
         @if(session('read_only_mode'))
         .readonly-mode .btn:not([disabled]) {
             pointer-events: none;
@@ -405,9 +405,9 @@
             <!-- Content Area -->
             <div class="content-area" id="contentArea">
                 {{-- Thêm class readonly-mode nếu session có --}}
-                <div class="@if(session('read_only_mode'))readonly-mode @endif">
-                    @yield('content')
-                </div>
+                <div class="@if(session('read_only_mode') && !request()->routeIs('staff.*')) readonly-mode @endif">
+        @yield('content')
+    </div>
             </div>
         </div>
     </div>
