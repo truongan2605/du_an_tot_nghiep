@@ -637,7 +637,7 @@ class BookingController extends Controller
 
                         if (!$isBooked && !$isHeld) {
                             $locked = Phong::where('id', $requestedPhongId)
-                                ->where('trang_thai', 'trong')
+                                ->whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
                                 ->lockForUpdate()
                                 ->first();
 
@@ -683,7 +683,7 @@ class BookingController extends Controller
 
                         if (!empty($selectedIds)) {
                             $locked = Phong::whereIn('id', $selectedIds)
-                                ->where('trang_thai', 'trong')
+                                ->whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
                                 ->lockForUpdate()
                                 ->get(['id'])
                                 ->pluck('id')
