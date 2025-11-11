@@ -23,44 +23,29 @@ class NotificationManager {
     setupEventListeners() {
         // Listen for new notifications (if using WebSockets or Server-Sent Events)
         if (typeof window.Echo !== 'undefined' && window.userId) {
-            console.log('Setting up Echo listeners for user:', window.userId);
-            console.log('Echo instance:', window.Echo);
-            
             // Listen to user-specific channel
             window.Echo.private(`user.${window.userId}`)
                 .listen('NotificationCreated', (e) => {
-                    console.log('Received notification:', e);
                     this.handleNewNotification(e.notification);
                 })
                 .listen('NotificationSent', (e) => {
-                    console.log('Notification sent:', e);
                     this.handleNewNotification(e.notification);
                 });
                 
             // Listen to room updates channel
             window.Echo.channel('room-updates')
                 .listen('RoomCreated', (e) => {
-                    console.log('Room created:', e);
                     this.showRoomUpdateNotification(e.room, 'created');
                 })
                 .listen('RoomUpdated', (e) => {
-                    console.log('Room updated:', e);
                     this.showRoomUpdateNotification(e.room, 'updated');
                 });
                 
             // Listen to booking updates channel
             window.Echo.channel('booking-updates')
                 .listen('BookingCreated', (e) => {
-                    console.log('Booking created:', e);
                     this.showBookingUpdateNotification(e.booking, 'created');
                 });
-                
-            console.log('Echo listeners set up successfully');
-        } else {
-            console.log('Echo not available or userId not set:', {
-                echo: typeof window.Echo,
-                userId: window.userId
-            });
         }
         
         // Listen for page visibility changes
@@ -81,7 +66,6 @@ class NotificationManager {
     
     async loadUnreadCount() {
         try {
-            console.log('Loading unread count...');
             const response = await fetch('/api/notifications/unread-count', {
                 method: 'GET',
                 headers: {
@@ -91,24 +75,15 @@ class NotificationManager {
                 credentials: 'include'
             });
             
-            console.log('Response status:', response.status);
-            console.log('Response headers:', response.headers);
-            
             if (response.ok) {
                 const data = await response.json();
-                console.log('Response data:', data);
                 if (data.success) {
                     this.updateBadge(data.count);
                     this.unreadCount = data.count;
-                    console.log('Updated badge with count:', data.count);
                 }
-            } else {
-                console.error('API error:', response.status, response.statusText);
-                const errorText = await response.text();
-                console.error('Error response:', errorText);
             }
         } catch (error) {
-            console.error('Error loading unread count:', error);
+            // Silent error handling
         }
     }
     
@@ -357,7 +332,6 @@ class NotificationManager {
         });
         
         // Log to console
-        console.log(`Room ${action}:`, room);
     }
     
     showBookingUpdateNotification(booking, action) {
@@ -371,7 +345,6 @@ class NotificationManager {
         });
         
         // Log to console
-        console.log(`Booking ${action}:`, booking);
     }
     
     showToast(data) {

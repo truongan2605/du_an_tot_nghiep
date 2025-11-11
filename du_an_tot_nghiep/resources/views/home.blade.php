@@ -13,8 +13,8 @@
                 <!-- Content -->
                 <div class="col-lg-6 position-relative mb-4 mb-md-0">
                     <!-- Title -->
-                    <h1 class="mb-4 mt-md-5 display-5">Find the top
-                        <span class="position-relative z-index-9">Hotels nearby.
+                    <h1 class="mb-4 mt-md-5 display-5">Tìm trải nghiệm
+                        <span class="position-relative z-index-9">Tuyệt vời nhất.
                             <!-- SVG START -->
                             <span
                                 class="position-absolute top-50 start-50 translate-middle z-index-n1 d-none d-md-block mt-4">
@@ -27,13 +27,12 @@
                         </span>
                     </h1>
                     <!-- Info -->
-                    <p class="mb-4">We bring you not only a stay option, but an experience in your budget to enjoy the
-                        luxury.</p>
+                    <p class="mb-4">Chúng tôi mang đến cho bạn không chỉ một lựa chọn lưu trú mà còn là một trải nghiệm tận hưởng sự sang trọng trong tầm giá của bạn.</p>
 
                     <!-- Buttons -->
                     <div class="hstack gap-4 flex-wrap align-items-center">
                         <!-- Button -->
-                        <a href="#" class="btn btn-primary-soft mb-0">Discover Now</a>
+                        <a href="#" class="btn btn-primary-soft mb-0">Khám phá ngay</a>
                         <!-- Story button -->
                         <a data-glightbox="" data-gallery="office-tour" href="https://www.youtube.com/embed/tXHviS-4ygo"
                             class="d-block">
@@ -48,7 +47,7 @@
                                 </div>
                             </div>
                             <div class="align-middle d-inline-block">
-                                <h6 class="fw-normal small mb-0">Watch our story</h6>
+                                <h6 class="fw-normal small mb-0">Theo dõi câu chuyện của chúng tôi</h6>
                             </div>
                         </a>
                     </div>
@@ -72,7 +71,7 @@
                             <!-- Title -->
                             <i class="bi bi-headset text-danger fs-3"></i>
                             <h5 class="text-dark mb-1">24 / 7</h5>
-                            <h6 class="text-dark fw-light small mb-0">Guide Supports</h6>
+                            <h6 class="text-dark fw-light small mb-0">Hướng dẫn hỗ trợ</h6>
                         </div>
                     </div>
 
@@ -327,9 +326,8 @@
 
                 <!-- Right side START -->
                 <div class="col-lg-6">
-                    <h2 class="mb-3 mb-lg-5">The Best Holidays Start Here!</h2>
-                    <p class="mb-3 mb-lg-5">Book your hotel with us and don't forget to grab an awesome hotel deal to save
-                        massive on your stay.</p>
+                    <h2 class="mb-3 mb-lg-5">Kỳ nghỉ tuyệt vời nhất bắt đầu từ đây!</h2>
+                    <p class="mb-3 mb-lg-5">Đặt phòng khách sạn với chúng tôi và đừng quên nắm bắt ưu đãi khách sạn tuyệt vời để tiết kiệm đáng kể cho kỳ nghỉ của bạn.</p>
 
                     <!-- Features START -->
                     <div class="row g-4">
@@ -337,30 +335,29 @@
                         <div class="col-sm-6">
                             <div class="icon-lg bg-success bg-opacity-10 text-success rounded-circle"><i
                                     class="fa-solid fa-utensils"></i></div>
-                            <h5 class="mt-2">Quality Food</h5>
-                            <p class="mb-0">Departure defective arranging rapturous did. Conduct denied adding worthy
-                                little.</p>
+                            <h5 class="mt-2">Đồ ăn chất lượng</h5>
+                            <p class="mb-0">Đảm bảo chất lượng đồ ăn đẳng cấp 5 sao từ những đầu bếp hàng đầu</p>
                         </div>
                         <!-- Item -->
                         <div class="col-sm-6">
                             <div class="icon-lg bg-danger bg-opacity-10 text-danger rounded-circle"><i
                                     class="bi bi-stopwatch-fill"></i></div>
-                            <h5 class="mt-2">Quick Services</h5>
-                            <p class="mb-0">Supposing so be resolving breakfast am or perfectly. </p>
+                            <h5 class="mt-2">Phục vụ nhanh chóng</h5>
+                            <p class="mb-0">Đảm bảo chất lượng phục vụ nhanh chóng 24/7</p>
                         </div>
                         <!-- Item -->
                         <div class="col-sm-6">
                             <div class="icon-lg bg-orange bg-opacity-10 text-orange rounded-circle"><i
                                     class="bi bi-shield-fill-check"></i></div>
-                            <h5 class="mt-2">High Security</h5>
-                            <p class="mb-0">Arranging rapturous did believe him all had supported. </p>
+                            <h5 class="mt-2">Bảo mật khách hàng</h5>
+                            <p class="mb-0">Thông tin khách hàng được bảo mật tuyệt đối</p>
                         </div>
                         <!-- Item -->
                         <div class="col-sm-6">
                             <div class="icon-lg bg-info bg-opacity-10 text-info rounded-circle"><i
                                     class="bi bi-lightning-fill"></i></div>
-                            <h5 class="mt-2">24 Hours Alert</h5>
-                            <p class="mb-0">Rapturous did believe him all had supported.</p>
+                            <h5 class="mt-2">Bảo vệ 24/7</h5>
+                            <p class="mb-0">Có lực lượng bảo vệ hoạt động 24/7 đảm bảo an toàn khách hàng</p>
                         </div>
                     </div>
                     <!-- Features END -->
@@ -380,7 +377,7 @@
             <!-- Title -->
             <div class="row mb-4">
                 <div class="col-12 text-center">
-                    <h2 class="mb-0">Featured Hotels</h2>
+                    <h2 class="mb-0">Các phòng nổi bật</h2>
                 </div>
             </div>
 
@@ -497,8 +494,8 @@
                     <div class="bg-body d-flex rounded-3 h-100 p-4">
                         <h3><i class="fa-solid fa-hand-holding-heart"></i></h3>
                         <div class="ms-3">
-                            <h5>24x7 Help</h5>
-                            <p class="mb-0">If we fall short of your expectation in any way, let us know</p>
+                            <h5>Hỗ trợ 24/7 </h5>
+                            <p class="mb-0">Nếu chúng tôi không đáp ứng được kỳ vọng của bạn theo bất kỳ cách nào, hãy cho chúng tôi biết</p>
                         </div>
                     </div>
                 </div>
@@ -508,8 +505,8 @@
                     <div class="bg-body d-flex rounded-3 h-100 p-4">
                         <h3><i class="fa-solid fa-hand-holding-usd"></i></h3>
                         <div class="ms-3">
-                            <h5>Payment Trust</h5>
-                            <p class="mb-0">All refunds come with no questions asked guarantee</p>
+                            <h5>Thanh toán minh bạch</h5>
+                            <p class="mb-0">Tất cả các khoản hoàn tiền đều đi kèm với đảm bảo minh bạch</p>
                         </div>
                     </div>
                 </div>
@@ -518,8 +515,8 @@
                     <div class="bg-body d-flex rounded-3 h-100 p-4">
                         <h3><i class="fa-solid fa-shield"></i></i></h3>
                         <div class="ms-3">
-                            <h5>Privacy policy</h5>
-                            <p class="mb-0">Clear privacy policy ensures customer information security</p>
+                            <h5>Chính sách bảo mật</h5>
+                            <p class="mb-0">Chính sách bảo mật rõ ràng đảm bảo an toàn thông tin khách hàng</p>
                         </div>
                     </div>
                 </div>

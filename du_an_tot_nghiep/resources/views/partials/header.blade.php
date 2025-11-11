@@ -21,7 +21,7 @@
 
 			<!-- Responsive category toggler -->
 			<button class="navbar-toggler ms-sm-auto mx-3 me-md-0 p-0 p-sm-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCategoryCollapse" aria-controls="navbarCategoryCollapse" aria-expanded="false" aria-label="Toggle navigation">
-				<i class="bi bi-grid-3x3-gap-fill fa-fw"></i><span class="d-none d-sm-inline-block small">Category</span>
+				<i class="bi bi-grid-3x3-gap-fill fa-fw"></i><span class="d-none d-sm-inline-block small">Danh mục</span>
 			</button>
 
 			<!-- Main navbar START -->
@@ -30,11 +30,11 @@
 
 					<!-- Nav item Listing -->
 					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Listings</a>
+						<a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Danh sách</a>
 						<ul class="dropdown-menu" aria-labelledby="listingMenu">
 							<!-- Dropdown submenu -->
 							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Hotel</a>
+								<a class="dropdown-item dropdown-toggle" href="#">Khách sạn</a>
 								<ul class="dropdown-menu" data-bs-popper="none">
 									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/index.html') }}">Hotel Home</a></li>
 									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/index-hotel-chain.html') }}">Hotel Chain</a></li>
@@ -55,17 +55,17 @@
 
 					<!-- Nav item Pages -->
 					<li class="nav-item dropdown">
-						<a class="nav-link dropdown-toggle" href="#" id="pagesMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Pages</a>
+						<a class="nav-link dropdown-toggle" href="#" id="pagesMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Trang</a>
 						<ul class="dropdown-menu" aria-labelledby="pagesMenu">
 
-							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/about.html') }}">About</a></li>
-							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/contact.html') }}">Contact</a></li>
-							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/contact-2.html') }}">Contact 2</a></li>
-							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/team.html') }}">Our Team</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/about.html') }}">Giới thiệu</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/contact.html') }}">Liên hệ</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/contact-2.html') }}">Liên hệ 2</a></li>
+							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/team.html') }}">Đội ngũ của chúng tôi</a></li>
 
 							<!-- Dropdown submenu -->
 							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Authentication</a>
+								<a class="dropdown-item dropdown-toggle" href="#">Xác thực</a>
 								<ul class="dropdown-menu" data-bs-popper="none">
 									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/sign-in.html') }}">Sign In</a></li>
 									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/sign-up.html') }}">Sign Up</a></li>
@@ -85,7 +85,7 @@
 
 							<!-- Dropdown submenu -->
 							<li class="dropdown-submenu dropend">
-								<a class="dropdown-item dropdown-toggle" href="#">Help</a>
+								<a class="dropdown-item dropdown-toggle" href="#">Trợ giúp</a>
 								<ul class="dropdown-menu" data-bs-popper="none">
 									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/help-center.html') }}">Help Center</a></li>
 									<li> <a class="dropdown-item" href="{{ asset('template/stackbros/help-detail.html') }}">Help Detail</a></li>
@@ -205,11 +205,6 @@
 								<button class="btn btn-sm btn-link mb-0 p-0" onclick="notificationManager.markAllAsRead()">
 									<i class="fas fa-check-double me-1"></i>Đánh dấu tất cả đã đọc
 								</button>
-								@auth
-								<button class="btn btn-sm btn-outline-primary ms-2" onclick="testClientBroadcast()">
-									<i class="fas fa-bell me-1"></i>Test Client
-								</button>
-								@endauth
 							</div>
 						</div>
 					</div>
@@ -247,10 +242,10 @@
 
 						<!-- Links -->
 						<li> <hr class="dropdown-divider"></li>
-						<li><a class="dropdown-item" href="{{ url('/account/bookings') }}"><i class="bi bi-bookmark-check fa-fw me-2"></i>My Bookings</a></li>
-						<li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i class="bi bi-heart fa-fw me-2"></i>My Wishlist</a></li>
-						<li><a class="dropdown-item" href="{{ route('account.settings') }}"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
-						<li><a class="dropdown-item" href="{{ url('/help') }}"><i class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>
+						<li><a class="dropdown-item" href="{{ url('/account/bookings') }}"><i class="bi bi-bookmark-check fa-fw me-2"></i>Đặt phòng của tôi</a></li>
+						<li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i class="bi bi-heart fa-fw me-2"></i>Yêu thích của tôi</a></li>
+						<li><a class="dropdown-item" href="{{ route('account.settings') }}"><i class="bi bi-gear fa-fw me-2"></i>Cài đặt</a></li>
+						<li><a class="dropdown-item" href="{{ url('/help') }}"><i class="bi bi-info-circle fa-fw me-2"></i>Trung tâm trợ giúp</a></li>
 
 						<li> <hr class="dropdown-divider"></li>
 
@@ -259,8 +254,7 @@
 							<form method="POST" action="{{ route('logout') }}">
 								@csrf
 								<button type="submit" class="dropdown-item bg-danger-soft-hover">
-									<i class="bi bi-power fa-fw me-2"></i>Sign Out
-								</button>
+									<i class="bi bi-power fa-fw me-2"></i>Đăng xuất</button>
 							</form>
 						</li>
 						@endauth
@@ -269,14 +263,14 @@
 						<li class="px-3 mb-2">
 							<div class="d-flex align-items-center">
 								<div>
-									<a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Guest</a>
-									<p class="small m-0">Login to use all features</p>
+									<a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Khách</a>
+									<p class="small m-0">Đăng nhập để sử dụng tất cả tính năng</p>
 								</div>
 							</div>
 						</li>
 						<li> <hr class="dropdown-divider"></li>
-						<li><a class="dropdown-item" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i>Sign In</a></li>
-						<li><a class="dropdown-item" href="{{ route('register') }}"><i class="bi bi-person-plus me-2"></i>Sign Up</a></li>
+						<li><a class="dropdown-item" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i>Đăng nhập</a></li>
+						<li><a class="dropdown-item" href="{{ route('register') }}"><i class="bi bi-person-plus me-2"></i>Đăng ký</a></li>
 						@endguest
 					</ul>
 				</li>
@@ -343,9 +337,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button class="btn btn-sm btn-outline-warning" onclick="location.reload()">
                         <i class="fas fa-refresh me-1"></i>Thử lại
                     </button>
-                    <button class="btn btn-sm btn-outline-info ms-2" onclick="testRoute(${currentNotificationId})">
-                        <i class="fas fa-bug me-1"></i>Test Route
-                    </button>
                 </div>
             `;
         }, 5000);
@@ -366,7 +357,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            console.log('Response data:', data);
             if (data.success) {
                 modalBody.innerHTML = data.html;
                 
@@ -398,25 +388,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
     });
-    
-    // Test route function
-    window.testRoute = function(notificationId) {
-        console.log('Testing route for notification:', notificationId);
-        fetch(`/test-notification/${notificationId}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log('Test response:', data);
-                document.getElementById('notificationModalBody').innerHTML = data.html;
-            })
-            .catch(error => {
-                console.error('Test route error:', error);
-                document.getElementById('notificationModalBody').innerHTML = `
-                    <div class="alert alert-danger">
-                        Test route failed: ${error.message}
-                    </div>
-                `;
-            });
-    };
     
     markAsReadBtn.addEventListener('click', function() {
         if (currentNotificationId) {
@@ -479,49 +450,5 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error updating badge:', error);
             });
     }
-    
-    // Test client broadcast function
-    window.testClientBroadcast = function() {
-        fetch('/test-client-broadcast', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Test client notification sent:', data);
-                // Show success message
-                const alert = document.createElement('div');
-                alert.className = 'alert alert-success alert-dismissible fade show position-fixed';
-                alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-                alert.innerHTML = `
-                    <i class="fas fa-check me-1"></i>Test client notification sent! Check console for Echo logs.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                document.body.appendChild(alert);
-                
-                // Auto remove after 5 seconds
-                setTimeout(() => {
-                    if (alert.parentNode) {
-                        alert.remove();
-                    }
-                }, 5000);
-            }
-        })
-        .catch(error => {
-            console.error('Error sending test client notification:', error);
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
-            alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-            alert.innerHTML = `
-                <i class="fas fa-exclamation-triangle me-1"></i>Error sending test client notification
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.body.appendChild(alert);
-        });
-    };
 });
 </script>

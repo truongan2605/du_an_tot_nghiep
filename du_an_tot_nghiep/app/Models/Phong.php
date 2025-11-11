@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class Phong extends Model
 {
@@ -50,13 +52,88 @@ class Phong extends Model
     public function tienNghis()
     {
         return $this->belongsToMany(TienNghi::class, 'phong_tien_nghi')
-        ->where('tien_nghi.active', true);
+            ->where('tien_nghi.active', true);
     }
+
+
     public function vatDungs()
-{
-    return $this->belongsToMany(VatDung::class, 'phong_vat_dung', 'phong_id', 'vat_dung_id')
-                ->where('vat_dungs.active', true);
-}
+    {
+        return $this->belongsToMany(\App\Models\VatDung::class, 'phong_vat_dung')
+            ->using(\App\Models\PhongVatDung::class)
+            ->withPivot(['so_luong', 'da_tieu_thu', 'gia_override', 'tracked_instances'])
+            ->withTimestamps();
+    }
+
+
+    public function vatDungInstances()
+    {
+        return $this->hasMany(\App\Models\PhongVatDungInstance::class, 'phong_id');
+    }
+
+    public function vatDungIncidents()
+    {
+        return $this->hasMany(\App\Models\VatDungIncident::class, 'phong_id');
+    }
+
+
+    public function computeConsumableCharges(): float
+    {
+        $this->loadMissing(['vatDungs']);
+
+        $total = 0.0;
+        foreach ($this->vatDungs as $vd) {
+            if (! $vd->isConsumable()) continue;
+            $consumed = (int) ($vd->pivot->da_tieu_thu ?? 0);
+            if ($consumed <= 0) continue;
+            $unitPrice = $vd->pivot->gia_override !== null ? (float) $vd->pivot->gia_override : (float) ($vd->gia ?? 0);
+            $total += $consumed * $unitPrice;
+        }
+        return (float) $total;
+    }
+
+    public function computeIncidentCharges(): float
+    {
+        // eager load incidents
+        $this->loadMissing(['vatDungIncidents']);
+        return (float) $this->vatDungIncidents->sum(function ($inc) {
+            return (float) ($inc->fee ?? 0);
+        });
+    }
+
+    public function activeDatPhong(): ?\App\Models\DatPhong
+    {
+        if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
+            $dp = \App\Models\DatPhong::whereHas('datPhongItems', function ($q) {
+                $q->where('phong_id', $this->id);
+            })
+                ->whereIn('trang_thai', ['da_dat', 'dang_su_dung', 'da_xac_nhan'])
+                ->orderByDesc('id')
+                ->first();
+
+            if ($dp) return $dp;
+        }
+
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+            $row = DB::table('giu_phong')
+                ->where('phong_id', $this->id)
+                ->where('released', false)
+                ->where('het_han_luc', '>', now())
+                ->orderByDesc('id')
+                ->first();
+
+            if ($row && !empty($row->dat_phong_id)) {
+                return \App\Models\DatPhong::find($row->dat_phong_id);
+            }
+        }
+
+        return null;
+    }
+
+    public function computeVatDungCharges(): float
+    {
+        return $this->computeConsumableCharges() + $this->computeIncidentCharges();
+    }
+
 
     public function bedTypes()
     {
@@ -75,7 +152,8 @@ class Phong extends Model
 
     public function phongDaDats()
     {
-        return $this->hasMany(PhongDaDat::class);
+        // đã cập nhật
+        return $this->hasMany(DatPhong::class, 'phong_id');
     }
 
     public function wishlists()
@@ -283,9 +361,9 @@ class Phong extends Model
         return md5(json_encode($sig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
     public function danhGias()
-{
-    return $this->hasManyThrough(DanhGia::class, DatPhong::class, 'phong_id', 'dat_phong_id', 'id', 'id');
-}
+    {
+        return $this->hasManyThrough(DanhGia::class, DatPhong::class, 'phong_id', 'dat_phong_id', 'id', 'id');
+    }
     protected static function booted()
     {
         static::saving(function ($phong) {

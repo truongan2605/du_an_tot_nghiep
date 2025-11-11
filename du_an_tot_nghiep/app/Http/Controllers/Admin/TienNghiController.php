@@ -10,26 +10,20 @@ use Illuminate\Support\Facades\Storage;
 
 class TienNghiController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+
     public function index()
     {
         $tienNghis = TienNghi::orderBy('created_at', 'desc')->paginate(10);
         return view('admin.tien-nghi.index', compact('tienNghis'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
+
     public function create()
     {
         return view('admin.tien-nghi.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+
     public function store(Request $request)
     {
         $request->validate([
@@ -42,7 +36,6 @@ class TienNghiController extends Controller
 
         $data = $request->only(['ten', 'mo_ta', 'gia', 'active']);
 
-        // Handle icon upload
         if ($request->hasFile('icon')) {
             $iconPath = $request->file('icon')->store('icons', 'public');
             $data['icon'] = $iconPath;
@@ -56,9 +49,6 @@ class TienNghiController extends Controller
             ->with('success', 'Tiện nghi đã được tạo thành công!');
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(TienNghi $tienNghi)
     {
         $rooms = $tienNghi->phongs()
@@ -69,17 +59,12 @@ class TienNghiController extends Controller
         return view('admin.tien-nghi.show', compact('tienNghi', 'rooms'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
+
     public function edit(TienNghi $tienNghi)
     {
         return view('admin.tien-nghi.edit', compact('tienNghi'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, TienNghi $tienNghi)
     {
         $request->validate([
@@ -111,9 +96,7 @@ class TienNghiController extends Controller
             ->with('success', 'Tiện nghi đã được cập nhật thành công!');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
+
     public function destroy(TienNghi $tienNghi)
     {
         // Delete icon if exists
@@ -127,9 +110,6 @@ class TienNghiController extends Controller
             ->with('success', 'Tiện nghi đã được xóa thành công!');
     }
 
-    /**
-     * Toggle active status
-     */
     public function toggleActive(TienNghi $tienNghi)
     {
         $tienNghi->update(['active' => !$tienNghi->active]);

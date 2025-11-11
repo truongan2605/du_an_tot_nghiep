@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('vat_dung_id')
                   ->constrained('vat_dungs')
                   ->onDelete('cascade');
-            $table->integer('so_luong')->default(1); // số lượng vật dụng trong phòng
+            $table->integer('so_luong')->default(1);
             $table->timestamps();
         });
     }

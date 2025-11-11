@@ -33,7 +33,7 @@ class BookingController extends Controller
         }
 
         $upcoming = DatPhong::where('nguoi_dung_id', $user->id)
-            ->whereIn('trang_thai', ['dang_cho','dang_cho_xac_nhan', 'da_xac_nhan','dang_su_dung'])
+            ->whereIn('trang_thai', ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan', 'dang_su_dung'])
             ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
             ->orderBy('ngay_nhan_phong', 'asc')
             ->get();
@@ -64,7 +64,7 @@ class BookingController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $dat_phong->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'datPhongAddons', 'voucherUsages','datPhongItems.datPhong']);
+        $dat_phong->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'datPhongAddons', 'voucherUsages', 'datPhongItems.datPhong']);
 
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (json_decode($dat_phong->snapshot_meta, true) ?: []);
 
@@ -128,7 +128,7 @@ class BookingController extends Controller
         if ($request->boolean('debug')) {
             $candidates = Phong::with(['tienNghis', 'bedTypes', 'activeOverrides'])
                 ->where('loai_phong_id', $loaiId)
-                // ->where('trang_thai', 'trong')
+                ->whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
                 ->get();
 
             $roomSignatures = $candidates->mapWithKeys(function ($r) {
@@ -147,22 +147,14 @@ class BookingController extends Controller
 
     private function computeAvailableRoomsCount(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, ?string $requiredSignature = null): int
     {
-        // Build requested interval (start inclusive at 14:00, end exclusive at 12:00)
         $requestedStart = $fromDate->copy()->setTime(14, 0, 0);
         $requestedEnd = $toDate->copy()->setTime(12, 0, 0);
         $reqStartStr = $requestedStart->toDateTimeString();
         $reqEndStr = $requestedEnd->toDateTimeString();
-// ->where('trang_thai', 'trong')
-        if ($requiredSignature === null) {
-            $sample = Phong::where('loai_phong_id', $loaiPhongId)->first();
-            if (!$sample) return 0;
-            $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
-        }
 
-        // All candidate rooms of this type+signature and in usable state
         $matchingRoomIds = Phong::where('loai_phong_id', $loaiPhongId)
-            // ->where('trang_thai', 'trong')
             ->where('spec_signature_hash', $requiredSignature)
+            ->whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
             ->pluck('id')->toArray();
 
         if (empty($matchingRoomIds)) {
@@ -176,7 +168,6 @@ class BookingController extends Controller
                 ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
                 ->where('dat_phong_item.loai_phong_id', $loaiPhongId)
                 ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
-                // overlap: existingStart < requestedEnd AND existingEnd > requestedStart
                 ->whereRaw("CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?", [$reqEndStr, $reqStartStr])
                 ->pluck('dat_phong_item.phong_id')
                 ->filter()
@@ -187,7 +178,6 @@ class BookingController extends Controller
         // 2) Holds that explicitly target rooms (giu_phong.phong_id) where the underlying dat_phong overlaps
         $heldRoomIds = [];
         if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
-            // join to dat_phong using dat_phong_id to check the booking dates that the hold was created for
             $heldRoomIds = DB::table('giu_phong')
                 ->join('dat_phong', 'giu_phong.dat_phong_id', '=', 'dat_phong.id')
                 ->where('giu_phong.released', false)
@@ -201,7 +191,7 @@ class BookingController extends Controller
                 ->toArray();
         }
 
-        // 3) If holds include selected_phong_ids in their meta, but only consider those holds whose dat_phong (if present) overlaps
+        // 3) meta-based holds same as prior (unchanged)
         if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'meta')) {
             $holdsWithMeta = DB::table('giu_phong')
                 ->join('dat_phong', 'giu_phong.dat_phong_id', '=', 'dat_phong.id')
@@ -253,7 +243,7 @@ class BookingController extends Controller
         $aggregateHoldsForSignature = 0;
         if (Schema::hasTable('giu_phong')) {
             $qg = DB::table('giu_phong')
-                ->join('dat_phong', 'giu_phong.dat_phong_id', '=', 'dat_phong.id') // use dat_phong to determine the interval
+                ->join('dat_phong', 'giu_phong.dat_phong_id', '=', 'dat_phong.id')
                 ->where('giu_phong.released', false)
                 ->where('giu_phong.loai_phong_id', $loaiPhongId)
                 ->where('giu_phong.het_han_luc', '>', now())
@@ -265,11 +255,9 @@ class BookingController extends Controller
                 if (Schema::hasColumn('giu_phong', 'so_luong')) {
                     $aggregateHoldsForSignature = (int) $qg->sum('giu_phong.so_luong');
                 } else {
-                    // fallback: count rows (shouldn't typically happen)
                     $aggregateHoldsForSignature = (int) $qg->count();
                 }
             } else {
-                // no spec_signature_hash column: check meta for matching signature and sum meta.rooms_count (or default 1)
                 $holdsMeta = $qg->whereNotNull('giu_phong.meta')->pluck('giu_phong.meta');
                 foreach ($holdsMeta as $metaRaw) {
                     if (!$metaRaw) continue;
@@ -279,43 +267,34 @@ class BookingController extends Controller
                         $aggregateHoldsForSignature += (isset($decoded['rooms_count']) ? (int)$decoded['rooms_count'] : 1);
                     }
                 }
-                // also include any rows that have spec_signature_hash implicitly and so_luong column? (rare)
-                if (Schema::hasColumn('giu_phong', 'so_luong')) {
-                    // include any rows we didn't count via meta when spec_signature_hash not a column
-                    // (we keep it conservative and do not sum unconditional so_luong here)
-                }
             }
         }
 
-        // total rooms of the type
         $totalRoomsOfType = 0;
         if (Schema::hasTable('loai_phong') && Schema::hasColumn('loai_phong', 'so_luong_thuc_te')) {
             $totalRoomsOfType = (int) DB::table('loai_phong')->where('id', $loaiPhongId)->value('so_luong_thuc_te');
+            $unavailableCount = Phong::where('loai_phong_id', $loaiPhongId)
+                ->whereIn('trang_thai', ['bao_tri', 'khong_su_dung'])
+                ->count();
+            $totalRoomsOfType = max(0, $totalRoomsOfType - $unavailableCount);
+        } else {
+            $totalRoomsOfType = Phong::where('loai_phong_id', $loaiPhongId)
+                ->whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
+                ->count();
         }
-        // if ($totalRoomsOfType <= 0) {
-        //     $totalRoomsOfType = Phong::where('loai_phong_id', $loaiPhongId)
-        //         ->where('trang_thai', 'trong')
-        //         ->count();
-        // }
 
         $remainingAcrossType = max(0, $totalRoomsOfType - $aggregateBooked - $aggregateHoldsForSignature);
         $availableForSignature = max(0, min($matchingAvailableCount, $remainingAcrossType));
 
         return (int) $availableForSignature;
     }
+
     private function computeAvailableRoomIds(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, int $limit = 1, ?string $requiredSignature = null): array
     {
         $requestedStart = $fromDate->copy()->setTime(14, 0, 0);
         $requestedEnd = $toDate->copy()->setTime(12, 0, 0);
         $reqStartStr = $requestedStart->toDateTimeString();
         $reqEndStr = $requestedEnd->toDateTimeString();
-
-        if ($requiredSignature === null) {
-            // ->where('trang_thai', 'trong')
-            $sample = Phong::where('loai_phong_id', $loaiPhongId)->first();
-            if (!$sample) return [];
-            $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
-        }
 
         // 1) specific booked room ids (dat_phong_item with phong_id) overlapping
         $bookedRoomIds = [];
@@ -370,8 +349,8 @@ class BookingController extends Controller
         $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
 
         $query = Phong::where('loai_phong_id', $loaiPhongId)
-            // ->where('trang_thai', 'trong')
             ->where('spec_signature_hash', $requiredSignature)
+            ->whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
             ->when(!empty($excluded), function ($q) use ($excluded) {
                 $q->whereNotIn('id', $excluded);
             })
@@ -382,6 +361,7 @@ class BookingController extends Controller
 
         return $rows->pluck('id')->toArray();
     }
+
 
     public function store(Request $request)
     {
@@ -547,7 +527,7 @@ class BookingController extends Controller
 
         try {
             $datPhongId = null;
-            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $nights,$request) {
+            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $nights, $request) {
 
                 if (Schema::hasTable('loai_phong')) {
                     DB::table('loai_phong')->where('id', $phong->loai_phong_id)->lockForUpdate()->first();
