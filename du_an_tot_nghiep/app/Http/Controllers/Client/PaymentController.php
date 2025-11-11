@@ -1080,69 +1080,68 @@ class PaymentController extends Controller
     }
 
 
-    public function initiateRemainingPayment(Request $request, $dat_phong_id)
-    {
-        $request->validate([
-            'nha_cung_cap' => 'required|in:tien_mat,vnpay'
+ public function initiateRemainingPayment(Request $request, $dat_phong_id)
+{
+    $request->validate([
+        'nha_cung_cap' => 'required|in:tien_mat,vnpay'
+    ]);
+
+    $booking = DatPhong::with(['giaoDichs', 'nguoiDung', 'datPhongItems'])
+        ->lockForUpdate()
+        ->findOrFail($dat_phong_id);
+
+    if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
+        return back()->with('error', 'Booking không hợp lệ để thanh toán phần còn lại.');
+    }
+
+    $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+    $remaining = $booking->tong_tien - $paid;
+
+    if ($remaining <= 0) {
+        return back()->with('error', 'Đã thanh toán đủ.');
+    }
+
+    return DB::transaction(function () use ($booking, $remaining, $request) {
+        $nhaCungCap = $request->nha_cung_cap;
+
+        // Tạo giao dịch thành công ngay lập tức
+        $giaoDich = GiaoDich::create([
+            'dat_phong_id'     => $booking->id,
+            'nha_cung_cap'     => $nhaCungCap,
+            'so_tien'          => $remaining,
+            'don_vi'           => 'VND',
+            'trang_thai'       => 'thanh_cong',
+            'provider_txn_ref' => $nhaCungCap === 'vnpay' ? 'SIM-' . strtoupper(Str::random(10)) : null,
+            'ghi_chu'          => "Thanh toán phần còn lại - Booking: {$booking->ma_tham_chieu}",
         ]);
 
-        $booking = DatPhong::with(['giaoDichs', 'nguoiDung'])
-            ->lockForUpdate()
-            ->findOrFail($dat_phong_id);
+        // Cập nhật booking
+        $booking->update([
+            'trang_thai'    => 'dang_su_dung',
+            'checked_in_at' => now(),
+        ]);
 
-        if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
-            return back()->with('error', 'Booking không hợp lệ để thanh toán phần còn lại.');
+        // Cập nhật phòng
+        $phongIds = $booking->datPhongItems()->pluck('phong_id')->filter()->toArray();
+        if (!empty($phongIds)) {
+            Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
         }
 
-        $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
-        $remaining = $booking->tong_tien - $paid;
+        // Gửi thông báo
+        $notificationService = new PaymentNotificationService();
+        $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
 
-        if ($remaining <= 0) {
-            return back()->with('error', 'Đã thanh toán đủ, không cần thanh toán thêm.');
-        }
-
-        $transaction = DB::transaction(function () use ($booking, $remaining, $request) {
-            $nhaCungCap = $request->nha_cung_cap;
-            $trangThai = $request->nha_cung_cap === 'tien_mat' ? 'thanh_cong' : 'dang_cho';
-
-            $giaoDich = GiaoDich::create([
-                'dat_phong_id'     => $booking->id,
-                'nha_cung_cap'     => $nhaCungCap,
-                'so_tien'          => $remaining,
-                'don_vi'           => 'VND',
-                'trang_thai'       => $trangThai,
-                'provider_txn_ref' => null,
-                'ghi_chu'          => "Thanh toán phần còn lại booking: {$booking->ma_tham_chieu}",
-            ]);
-
-            Log::info('Created remaining payment transaction', [
-                'giao_dich_id' => $giaoDich->id,
-                'nha_cung_cap' => $giaoDich->nha_cung_cap,
-                'so_tien' => $giaoDich->so_tien,
-                'trang_thai' => $giaoDich->trang_thai,
-            ]);
-
-            if ($request->nha_cung_cap === 'tien_mat') {
-                $booking->update([
-                    'trang_thai'    => 'dang_su_dung',
-                    'checked_in_at' => now(),
-                ]);
-                
-                // Gửi thông báo thanh toán tiền phòng (tiền mặt)
-                $notificationService = new PaymentNotificationService();
-                $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
-            }
-
-            return $giaoDich;
-        });
-
-        if ($request->nha_cung_cap === 'vnpay') {
-            return $this->redirectToVNPay($transaction, $remaining);
-        }
+        // Chuẩn bị dữ liệu trả về
+        $methodLabel = $nhaCungCap === 'vnpay' ? 'VNPAY' : 'Tiền mặt';
 
         return redirect()->route('staff.checkin')
-            ->with('success', 'Thanh toán tiền mặt thành công. Phòng đã được đưa vào sử dụng.');
-    }
+            ->with([
+                'show_payment_modal' => true,
+                'payment_amount'     => number_format($remaining) . 'đ',
+                'payment_method'     => $methodLabel,
+            ]);
+    });
+}
 
     public function handleRemainingCallback(Request $request)
     {

@@ -202,8 +202,90 @@
         @endif
     </div>
 </div>
-
+{{-- Modal Thanh Toán Thành Công --}}
+<div class="modal fade" id="paymentSuccessModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3 overflow-hidden">
+            <div class="modal-header bg-gradient text-white" style="background: linear-gradient(135deg, #198754, #157347); border-bottom: none;">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-check-circle-fill me-2"></i>Thanh toán thành công
+                </h5>
+                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-currency-exchange text-success fs-1 mb-3"></i>
+                <h4 class="fw-bold text-success mb-2" id="modalPaymentAmount">0đ</h4>
+                <p class="text-muted mb-0">Phòng đã được đưa vào sử dụng</p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pb-4">
+                <button type="button" class="btn btn-success px-4 rounded-pill shadow-sm" data-bs-dismiss="modal">
+                    <i class="bi bi-check-lg me-1"></i>Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
+    //modal fade
+    document.addEventListener('DOMContentLoaded', function () {
+    @if (session('show_payment_modal'))
+        const modal = new bootstrap.Modal(document.getElementById('paymentSuccessModal'));
+        document.getElementById('modalPaymentAmount').textContent = '{{ session('payment_amount') }}';
+        modal.show();
+
+        // Tự động ẩn modal sau 5 giây (tùy chọn)
+        setTimeout(() => {
+            if (modal._isShown) {
+                modal.hide();
+            }
+        }, 5000);
+    @endif
+
+    // Các script cũ (search, hover, v.v.) giữ nguyên...
+    const searchInput = document.getElementById('searchInput');
+    const statusFilter = document.getElementById('statusFilter');
+    const tableRows = document.querySelectorAll('#bookingsTableBody tr:not(.no-data-row)');
+    const noDataRow = document.querySelector('.no-data-row');
+
+    function applyFilters() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const statusValue = statusFilter.value;
+        let visibleRows = 0;
+
+        tableRows.forEach(row => {
+            const maTC = row.cells[1]?.textContent.toLowerCase() || '';
+            const khachHang = row.cells[2]?.textContent.toLowerCase() || '';
+            const statusCell = row.cells[4]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+
+            const matchesSearch = !searchTerm || maTC.includes(searchTerm) || khachHang.includes(searchTerm);
+            const matchesStatus = !statusValue || statusCell.includes(statusValue.replace(/-/g, ' '));
+
+            if (matchesSearch && matchesStatus) {
+                row.style.display = '';
+                visibleRows++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (noDataRow) noDataRow.style.display = visibleRows === 0 ? '' : 'none';
+    }
+
+    searchInput.addEventListener('input', applyFilters);
+    statusFilter.addEventListener('change', applyFilters);
+
+    document.querySelectorAll('tbody tr').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+            row.style.transform = 'translateY(-1px)';
+            row.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        });
+        row.addEventListener('mouseleave', () => {
+            row.style.transform = 'translateY(0)';
+            row.style.boxShadow = 'none';
+        });
+    });
+});
+    //
 document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('searchInput');
     const statusFilter = document.getElementById('statusFilter');
