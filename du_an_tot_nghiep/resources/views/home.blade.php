@@ -5,7 +5,7 @@
 @section('content')
 
     <!-- =======================
-                Main Banner START -->
+                            Main Banner START -->
     <section class="pt-3 pt-lg-5">
         <div class="container">
             <!-- Content and Image START -->
@@ -150,117 +150,71 @@
         </div>
     </section>
     <!-- =======================
-                Main Banner END -->
+                            Main Banner END -->
 
     <!-- =======================
-                Best deal START -->
+         Blog Best deal (slider) START -->
     <section class="pb-2 pb-lg-5">
         <div class="container">
-            <!-- Slider START -->
+
             <div class="tiny-slider arrow-round arrow-blur arrow-hover">
                 <div class="tiny-slider-inner" data-autoplay="true" data-arrow="true" data-edge="2" data-dots="false"
                     data-items-xl="3" data-items-lg="2" data-items-md="1">
-                    <!-- Slider item -->
-                    <div>
-                        <div class="card border rounded-3 overflow-hidden">
-                            <div class="row g-0 align-items-center">
-                                <!-- Image -->
-                                <div class="col-sm-6">
-                                    <img src="{{ asset('template/stackbros/assets/images/offer/01.jpg') }}"
-                                        class="card-img rounded-0" alt="">
-                                </div>
 
-                                <!-- Title and content -->
-                                <div class="col-sm-6">
-                                    <div class="card-body px-3">
-                                        <h6 class="card-title"><a
-                                                href="{{ asset('template/stackbros/offer-detail.html') }}"
-                                                class="stretched-link">Daily 50 Lucky Winners get a Free Stay</a></h6>
-                                        <p class="mb-0">Valid till: 15 Nov</p>
+                    @foreach ($blogPosts ?? collect() as $post)
+                        <!-- Slider item -->
+                        <div>
+                            <div class="card border rounded-3 overflow-hidden">
+                                <div class="row g-0 align-items-center">
+                                    <!-- Image -->
+                                    <div class="col-sm-6">
+                                        <a href="{{ route('blog.show', $post->slug) }}">
+                                            <img src="{{ $post->cover_image ? asset('storage/' . $post->cover_image) : asset('assets/images/blog/feature.jpg') }}"
+                                                class="card-img rounded-0" alt="{{ $post->title }}">
+                                        </a>
+                                    </div>
+
+                                    <!-- Title and content -->
+                                    <div class="col-sm-6">
+                                        <div class="card-body px-3">
+                                            @if ($post->category)
+                                                <a href="{{ route('blog.index', ['category' => $post->category->slug]) }}"
+                                                    class="badge bg-primary mb-2 text-white">{{ $post->category->name }}</a>
+                                            @endif
+
+                                            <h6 class="card-title mb-1">
+                                                <a href="{{ route('blog.show', $post->slug) }}" class="stretched-link">
+                                                    {{ $post->title }}
+                                                </a>
+                                            </h6>
+
+                                            <p class="mb-2 text-muted small">
+                                                {{ \Illuminate\Support\Str::limit($post->excerpt, 80) }}
+                                            </p>
+
+                                            <small class="text-muted">
+                                                <i class="bi bi-calendar2-plus me-1"></i>
+                                                {{ optional($post->published_at)->format('M d, Y') }}
+                                                &nbsp;•&nbsp; By {{ optional($post->author)->name ?? 'Admin' }}
+                                            </small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    @endforeach
 
-                    <!-- Slider item -->
-                    <div>
-                        <div class="card border rounded-3 overflow-hidden">
-                            <div class="row g-0 align-items-center">
-                                <!-- Image -->
-                                <div class="col-sm-6">
-                                    <img src="{{ asset('template/stackbros/assets/images/offer/04.jpg') }}"
-                                        class="card-img rounded-0" alt="">
-                                </div>
-
-                                <!-- Title and content -->
-                                <div class="col-sm-6">
-                                    <div class="card-body px-3">
-                                        <h6 class="card-title"><a
-                                                href="{{ asset('template/stackbros/offer-detail.html') }}"
-                                                class="stretched-link">Up to 60% OFF</a></h6>
-                                        <p class="mb-0">On Hotel Bookings Online</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Slider item -->
-                    <div>
-                        <div class="card border rounded-3 overflow-hidden">
-                            <div class="row g-0 align-items-center">
-                                <!-- Image -->
-                                <div class="col-sm-6">
-                                    <img src="{{ asset('template/stackbros/assets/images/offer/03.jpg') }}"
-                                        class="card-img rounded-0" alt="">
-                                </div>
-
-                                <!-- Title and content -->
-                                <div class="col-sm-6">
-                                    <div class="card-body px-3">
-                                        <h6 class="card-title"><a
-                                                href="{{ asset('template/stackbros/offer-detail.html') }}"
-                                                class="stretched-link">Book & Enjoy</a></h6>
-                                        <p class="mb-0">20% Off on the best available room rate</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Slider item -->
-                    <div>
-                        <div class="card border rounded-3 overflow-hidden">
-                            <div class="row g-0 align-items-center">
-                                <!-- Image -->
-                                <div class="col-sm-6">
-                                    <img src="{{ asset('template/stackbros/assets/images/offer/02.jpg') }}"
-                                        class="card-img rounded-0" alt="">
-                                </div>
-
-                                <!-- Title and content -->
-                                <div class="col-sm-6">
-                                    <div class="card-body px-3">
-                                        <h6 class="card-title"><a
-                                                href="{{ asset('template/stackbros/offer-detail.html') }}"
-                                                class="stretched-link">Hot Summer Nights</a></h6>
-                                        <p class="mb-0">Up to 3 nights free!</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
-            <!-- Slider END -->
+
         </div>
     </section>
     <!-- =======================
-                Best deal END -->
+         Blog Best deal END -->
+
 
     <!-- =======================
-                About START -->
+                            About START -->
     <section class="pb-0 pb-xl-5">
         <div class="container">
             <div class="row g-4 justify-content-between align-items-center">
@@ -368,10 +322,10 @@
         </div>
     </section>
     <!-- =======================
-                About END -->
+                            About END -->
 
     <!-- =======================
-                Featured Hotels START -->
+                            Featured Hotels START -->
     <section>
         <div class="container mt-5">
             <!-- Title -->
@@ -440,10 +394,10 @@
         </div>
     </section>
     <!-- =======================
-                Featured Hotels END -->
+                            Featured Hotels END -->
 
     <!-- =======================
-                Client START -->
+                            Client START -->
     <section class="py-0 py-md-5">
         <div class="container">
             <div class="row g-4 g-lg-7 justify-content-center align-items-center">
@@ -481,10 +435,10 @@
         </div>
     </section>
     <!-- =======================
-                Client END -->
+                            Client END -->
 
     <!-- =======================
-                Download app START -->
+                            Download app START -->
     <section class="bg-light">
         <div class="container">
             <div class="row g-4">
@@ -527,7 +481,7 @@
         </div>
     </section>
     <!-- =======================
-                Download app END -->
+                            Download app END -->
 
 
     @push('scripts')
@@ -635,6 +589,79 @@
 
         .noUi-horizontal .noUi-handle {
             top: -9px;
+        }
+
+
+        /* ========================
+        Best deal (blog slider)
+        ======================== */
+
+        /* Giữ cho mọi thẻ card cùng chiều cao */
+        .tiny-slider .card {
+            height: 180px;
+            /* hoặc 160–200 tùy bạn muốn cao thấp */
+            display: flex;
+            align-items: stretch;
+        }
+
+        /* Đảm bảo row con luôn full height */
+        .tiny-slider .card .row {
+            height: 100%;
+        }
+
+        /* Cột ảnh bên trái: fix tỉ lệ và không co giãn */
+        .tiny-slider .card .col-sm-6:first-child {
+            flex: 0 0 45%;
+            max-width: 45%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .tiny-slider .card .col-sm-6:first-child img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Cột nội dung bên phải */
+        .tiny-slider .card .col-sm-6:last-child {
+            flex: 0 0 55%;
+            max-width: 55%;
+            height: 100%;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* Giới hạn dòng để nội dung không làm lệch chiều cao */
+        .tiny-slider .card-title a {
+            font-weight: 600;
+            font-size: 15px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            /* 1 dòng tiêu đề */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .tiny-slider .card p {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            /* 2 dòng mô tả */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Meta cuối cùng nhỏ, nhạt */
+        .tiny-slider .card small {
+            font-size: 12px;
+            color: #999;
         }
     </style>
 @endpush
