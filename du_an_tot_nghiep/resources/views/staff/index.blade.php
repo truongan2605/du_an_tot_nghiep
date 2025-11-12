@@ -1,19 +1,14 @@
 @extends('layouts.admin')
 
-@section('title', 'Dashboard Nhân Viên')
+@section('title', 'Dashboard')
 
 @section('content')
 <div class="container-fluid px-3 py-4">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="h4 mb-1 fw-bold text-dark">Dashboard Nhân Viên</h2>
-            <p class="text-muted small mb-0">Tổng quan hoạt động khách sạn</p>
-        </div>
-        <div class="text-end">
-            <span class="badge bg-primary rounded-pill px-3 py-2 fs-7">
-                <i class="bi bi-clock me-1"></i> {{ now()->format('d/m/Y H:i') }}
-            </span>
+        <h2 class="h4 mb-0 fw-bold text-dark">Dashboard</h2>
+        <div class="d-flex gap-2">
+            <span class="badge bg-primary rounded-pill px-3 py-2">Cập nhật: {{ now()->format('d/m/Y H:i') }}</span>
         </div>
     </div>
 
@@ -71,8 +66,9 @@
                                     <div>
                                         <span class="fw-medium small d-block">{{ $activity->ma_tham_chieu }}</span>
                                         <span class="badge 
-                                            @if($activity->trang_thai == 'da_gan_phong') bg-success
-                                            @elseif($activity->trang_thai == 'dang_cho') bg-warning text-dark
+                                            @if($activity->trang_thai == 'dang_su_dung') bg-success
+                                            @elseif($activity->trang_thai == 'dang_cho') bg-warning
+                                            @elseif($activity->trang_thai == 'dang_cho_xac_nhan') bg-info
                                             @elseif($activity->trang_thai == 'da_huy') bg-danger
                                             @else bg-secondary
                                             @endif fs-7 px-2 py-1">

@@ -565,7 +565,6 @@
                     });
                     if (!res.ok) {
                         console.error('Availability check error: status', res.status);
-                        showToastInline('Không thể kiểm tra tính khả dụng phòng. Vui lòng thử lại.', true, 5000);
                         return;
                     }
                     const data = await res.json();

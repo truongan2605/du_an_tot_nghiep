@@ -5,12 +5,8 @@ namespace App\Http\Controllers\Client;
 use Carbon\Carbon;
 use App\Models\Phong;
 use App\Models\DatPhong;
-use App\Models\GiuPhong;
-use App\Models\PhongDaDat;
 use Illuminate\Support\Str;
-use App\Models\DatPhongItem;
 use Illuminate\Http\Request;
-use App\Models\DatPhongAddon;
 use App\Events\BookingCreated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -637,7 +633,7 @@ class BookingController extends Controller
 
                         if (!$isBooked && !$isHeld) {
                             $locked = Phong::where('id', $requestedPhongId)
-                                ->where('trang_thai', 'dang_o')
+                                ->whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
                                 ->lockForUpdate()
                                 ->first();
 
@@ -683,7 +679,7 @@ class BookingController extends Controller
 
                         if (!empty($selectedIds)) {
                             $locked = Phong::whereIn('id', $selectedIds)
-                                ->where('trang_thai', 'trong')
+                                ->whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
                                 ->lockForUpdate()
                                 ->get(['id'])
                                 ->pluck('id')

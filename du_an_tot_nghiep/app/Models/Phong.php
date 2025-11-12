@@ -343,6 +343,26 @@ class Phong extends Model
         return $arr;
     }
 
+    public function hasBookings(): bool
+    {
+        if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
+            $exists = DB::table('dat_phong_item')
+                ->where('phong_id', $this->id)
+                ->exists();
+            if ($exists) return true;
+        }
+
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+            $exists = DB::table('giu_phong')
+                ->where('phong_id', $this->id)
+                ->where('released', false)
+                ->exists();
+            if ($exists) return true;
+        }
+
+        return false;
+    }
+
     public function specSignatureArray(): array
     {
         $sig = [

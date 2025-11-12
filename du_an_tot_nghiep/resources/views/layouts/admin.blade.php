@@ -14,7 +14,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-        <!-- Bootstrap 5 -->
+    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Bootstrap Icons -->
@@ -163,28 +163,44 @@
             pointer-events: none;
         }
 
-        /* Read-only mode styling (tùy chọn, disable buttons nếu session read_only_mode) */
-        @if(session('read_only_mode'))
+        /* @if (session('read_only_mode'))
         .readonly-mode .btn:not([disabled]) {
             pointer-events: none;
             opacity: 0.6;
         }
-        .readonly-mode form[method="POST"], .readonly-mode form[method="PUT"], .readonly-mode form[method="DELETE"] {
+
+        .readonly-mode form[method="POST"],
+        .readonly-mode form[method="PUT"],
+        .readonly-mode form[method="DELETE"] {
             display: none;
         }
         @endif
+        */
 
-        /* Responsive: Sidebar collapses on mobile */
+        .readonly-mode .btn:not([disabled]) {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .readonly-mode form[method="POST"],
+        .readonly-mode form[method="PUT"],
+        .readonly-mode form[method="DELETE"] {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 left: -250px;
             }
+
             .main-wrapper {
                 margin-left: 0;
             }
+
             .sidebar.show {
                 left: 0;
             }
+
             .sidebar-overlay {
                 position: fixed;
                 top: 0;
@@ -196,6 +212,7 @@
                 display: none;
                 transition: opacity 0.3s ease;
             }
+
             .sidebar-overlay.show {
                 display: block;
                 opacity: 1;
@@ -205,7 +222,6 @@
 </head>
 
 <body>
-    <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h4>Admin Panel</h4>
@@ -213,103 +229,125 @@
         <div class="sidebar-nav">
             {{-- Menu Admin (luôn hiển thị, nhưng nhan_vien chỉ xem được nếu GET) --}}
             <div class="sidebar-section">
-                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse" data-bs-target="#section-coso" aria-expanded="false">
+                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse" data-bs-target="#section-coso"
+                    aria-expanded="false">
                     <span>Quản lý Cơ sở</span>
                     <i class="fas fa-chevron-down"></i>
                 </div>
                 <div class="sidebar-section-content collapse" id="section-coso">
-                    <a class="nav-link {{ request()->routeIs('loai_phong.*') ? 'active' : '' }}" data-url="{{ route('admin.loai_phong.index') }}" data-section="section-coso">
+                    <a class="nav-link {{ request()->routeIs('loai_phong.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.loai_phong.index') }}" data-section="section-coso">
                         <i class="fas fa-bed"></i>Loại Phòng
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}" data-url="{{ route('admin.phong.index') }}" data-section="section-coso">
+                    <a class="nav-link {{ request()->routeIs('admin.phong.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.phong.index') }}" data-section="section-coso">
                         <i class="fas fa-door-open"></i>Phòng
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.tang.*') ? 'active' : '' }}" data-url="{{ route('admin.tang.index') }}" data-section="section-coso">
+                    <a class="nav-link {{ request()->routeIs('admin.tang.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.tang.index') }}" data-section="section-coso">
                         <i class="fas fa-building"></i>Quản Lý Tầng
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.bed-types.*') ? 'active' : '' }}" data-url="{{ route('admin.bed-types.index') }}" data-section="section-coso">
+                    <a class="nav-link {{ request()->routeIs('admin.bed-types.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.bed-types.index') }}" data-section="section-coso">
                         <i class="fas fa-bed"></i>Loại Giường
                     </a>
                 </div>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse" data-bs-target="#section-dichvu" aria-expanded="false">
+                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse" data-bs-target="#section-dichvu"
+                    aria-expanded="false">
                     <span>Quản lý Dịch vụ</span>
                     <i class="fas fa-chevron-down"></i>
                 </div>
                 <div class="sidebar-section-content collapse" id="section-dichvu">
-                    <a class="nav-link" data-url="#" data-section="section-dichvu">
-                        <i class="fas fa-chart-bar"></i>Thống kê
-                    </a>
-                    <a class="nav-link {{ request()->routeIs('admin.tien-nghi.*') ? 'active' : '' }}" data-url="{{ route('admin.tien-nghi.index') }}" data-section="section-dichvu">
+                    <a class="nav-link {{ request()->routeIs('admin.tien-nghi.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.tien-nghi.index') }}" data-section="section-dichvu">
                         <i class="fas fa-concierge-bell"></i>Dịch vụ
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.vat-dung.*') ? 'active' : '' }}" data-url="{{ route('admin.vat-dung.index') }}" data-section="section-dichvu">
+                    <a class="nav-link {{ request()->routeIs('admin.vat-dung.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.vat-dung.index') }}" data-section="section-dichvu">
                         <i class="fas fa-utensils"></i>Vật dụng
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.voucher.*') ? 'active' : '' }}" data-url="{{ route('admin.voucher.index') }}" data-section="section-dichvu">
+                    <a class="nav-link {{ request()->routeIs('admin.voucher.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.voucher.index') }}" data-section="section-dichvu">
                         <i class="fas fa-gift"></i>Voucher
+                    </a>
+                    <a class="nav-link {{ request()->routeIs('admin.blog.*') ? 'active' : '' }}"
+                        href="{{ route('admin.blog.posts.index') }}">
+                        <i class="fa-solid fa-newspaper me-2"></i> Bài viết
                     </a>
                 </div>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse" data-bs-target="#section-nguoidung" aria-expanded="false">
+                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
+                    data-bs-target="#section-nguoidung" aria-expanded="false">
                     <span>Quản lý Người dùng</span>
                     <i class="fas fa-chevron-down"></i>
                 </div>
                 <div class="sidebar-section-content collapse" id="section-nguoidung">
-                    <a class="nav-link {{ request()->routeIs('admin.user.*') ? 'active' : '' }}" data-url="{{ route('admin.user.index') }}" data-section="section-nguoidung">
+                    <a class="nav-link {{ request()->routeIs('admin.user.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.user.index') }}" data-section="section-nguoidung">
                         <i class="fas fa-users"></i>Khách Hàng
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.nhan-vien.*') ? 'active' : '' }}" data-url="{{ route('admin.nhan-vien.index') }}" data-section="section-nguoidung">
+                    <a class="nav-link {{ request()->routeIs('admin.nhan-vien.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.nhan-vien.index') }}" data-section="section-nguoidung">
                         <i class="fas fa-user-tie"></i>Nhân Viên
                     </a>
                 </div>
             </div>
 
             <div class="sidebar-section">
-                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse" data-bs-target="#section-thongbao" aria-expanded="false">
+                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
+                    data-bs-target="#section-thongbao" aria-expanded="false">
                     <span>Thông báo</span>
                     <i class="fas fa-chevron-down"></i>
                 </div>
                 <div class="sidebar-section-content collapse" id="section-thongbao">
-                    <a class="nav-link {{ request()->routeIs('admin.customer-notifications.*') ? 'active' : '' }}" data-url="{{ route('admin.customer-notifications.index') }}" data-section="section-thongbao">
+                    <a class="nav-link {{ request()->routeIs('admin.customer-notifications.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.customer-notifications.index') }}" data-section="section-thongbao">
                         <i class="fas fa-users"></i>Khách Hàng
                     </a>
-                    <a class="nav-link {{ request()->routeIs('admin.internal-notifications.*') ? 'active' : '' }}" data-url="{{ route('admin.internal-notifications.index') }}" data-section="section-thongbao">
+                    <a class="nav-link {{ request()->routeIs('admin.internal-notifications.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.internal-notifications.index') }}" data-section="section-thongbao">
                         <i class="fas fa-building"></i>Nội Bộ
                     </a>
                 </div>
             </div>
 
             {{-- Menu Staff (hiển thị cho cả admin và nhan_vien, bỏ Thanh toán và Tổng quan) --}}
-            @if(auth()->check() && in_array(auth()->user()->vai_tro, ['nhan_vien', 'admin']))
-            <div class="sidebar-divider"></div>
-            <div class="sidebar-section">
-                <div class="sidebar-section-header collapsed" data-bs-toggle="collapse" data-bs-target="#section-staff" aria-expanded="false">
-                    <span>Staff Panel</span>
-                    <i class="fas fa-chevron-down"></i>
+            @if (auth()->check() && in_array(auth()->user()->vai_tro, ['nhan_vien', 'admin']))
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
+                        data-bs-target="#section-staff" aria-expanded="false">
+                        <span>Quản lý đơn hàng</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="sidebar-section-content collapse" id="section-staff">
+                        <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}"
+                            data-url="{{ route('staff.index') }}" data-section="section-staff">
+                            <i class="fas fa-tachometer-alt"></i>Dashboard
+                        </a>
+                        <a class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}"
+                            data-url="{{ route('staff.bookings') }}" data-section="section-staff">
+                            <i class="fas fa-calendar-check"></i>Bookings
+                        </a>
+                        <a class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"
+                            data-url="{{ route('staff.rooms') }}" data-section="section-staff">
+                            <i class="fas fa-door-open"></i>Phòng
+                        </a>
+                        <a class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}"
+                            data-url="{{ route('staff.checkin') }}" data-section="section-staff">
+                            <i class="fas fa-sign-in-alt"></i>Check-in
+                        </a>
+                        <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
+                            data-url="{{ route('staff.reports') }}" data-section="section-staff">
+                            <i class="fas fa-chart-line"></i>Báo cáo
+                        </a>
+                    </div>
                 </div>
-                <div class="sidebar-section-content collapse" id="section-staff">
-                    <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}" data-url="{{ route('staff.index') }}" data-section="section-staff">
-                        <i class="fas fa-tachometer-alt"></i>Dashboard
-                    </a>
-                    <a class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}" data-url="{{ route('staff.bookings') }}" data-section="section-staff">
-                        <i class="fas fa-calendar-check"></i>Bookings
-                    </a>
-                    <a class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}" data-url="{{ route('staff.rooms') }}" data-section="section-staff">
-                        <i class="fas fa-door-open"></i>Phòng
-                    </a>
-                    <a class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}" data-url="{{ route('staff.checkin') }}" data-section="section-staff">
-                        <i class="fas fa-sign-in-alt"></i>Check-in
-                    </a>
-                    <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}" data-url="{{ route('staff.reports') }}" data-section="section-staff">
-                        <i class="fas fa-chart-line"></i>Báo cáo
-                    </a>
-                </div>
-            </div>
             @endif
         </div>
     </nav>
@@ -333,12 +371,13 @@
                     </div>
                     <div class="d-flex align-items-center gap-3">
                         {{-- Nút Staff Panel giờ chỉ là link, vì layout chung --}}
-                        @if(auth()->check() && auth()->user()->vai_tro === 'admin')
-                        <a href="{{ route('staff.index') }}" class="btn btn-outline-success btn-sm" data-url="{{ route('staff.index') }}">
-                            <i class="fas fa-user-tie me-1"></i>Staff
-                        </a>
+                        @if (auth()->check() && auth()->user()->vai_tro === 'admin')
+                            <a href="{{ route('staff.index') }}" class="btn btn-outline-success btn-sm"
+                                data-url="{{ route('staff.index') }}">
+                                <i class="fas fa-user-tie me-1"></i>Staff
+                            </a>
                         @endif
-                        
+
                         <!-- Notification Bell (giữ nguyên) -->
                         <div class="dropdown">
                             <button class="btn btn-outline-primary position-relative btn-sm" type="button"
@@ -350,7 +389,8 @@
                                     0
                                 </span>
                             </button>
-                            <div class="dropdown-menu dropdown-menu-end" style="width: 350px; max-height: 400px; overflow-y: auto;">
+                            <div class="dropdown-menu dropdown-menu-end"
+                                style="width: 350px; max-height: 400px; overflow-y: auto;">
                                 <div class="dropdown-header d-flex justify-content-between align-items-center">
                                     <span>Thông báo</span>
                                     <button class="btn btn-sm btn-outline-primary"
@@ -368,7 +408,9 @@
                                 </div>
                                 <div class="dropdown-divider"></div>
                                 <div class="text-center p-2">
-                                    <a href="{{ route('admin.admin-notifications.index') }}" class="btn btn-sm btn-primary" data-url="{{ route('admin.admin-notifications.index') }}">
+                                    <a href="{{ route('admin.admin-notifications.index') }}"
+                                        class="btn btn-sm btn-primary"
+                                        data-url="{{ route('admin.admin-notifications.index') }}">
                                         <i class="fas fa-eye me-1"></i>Xem tất cả
                                     </a>
                                 </div>
@@ -382,7 +424,8 @@
                                 <i class="fas fa-user me-1"></i>{{ auth()->user()?->name ?? 'Guest' }}
                             </button>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ route('home') }}" data-url="{{ route('home') }}">
+                                <li><a class="dropdown-item" href="{{ route('home') }}"
+                                        data-url="{{ route('home') }}">
                                         <i class="fas fa-home me-2"></i>Về trang chủ
                                     </a></li>
                                 <li>
@@ -402,12 +445,42 @@
                 </div>
             </header>
 
-            <!-- Content Area -->
             <div class="content-area" id="contentArea">
                 {{-- Thêm class readonly-mode nếu session có --}}
-                <div class="@if(session('read_only_mode') && !request()->routeIs('staff.*')) readonly-mode @endif">
-        @yield('content')
-    </div>
+                <div class="@if (session('read_only_mode') && !request()->routeIs('staff.*')) readonly-mode @endif">
+
+                    {{-- FLASH MESSAGES --}}
+                    @if (session('success'))
+                        <div class="alert alert-success alert-dismissible fade show mt-2" role="alert">
+                            {{ session('success') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="Đóng"></button>
+                        </div>
+                    @endif
+
+                    @if (session('error'))
+                        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                            {{ session('error') }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="Đóng"></button>
+                        </div>
+                    @endif
+
+                    @if ($errors->any())
+                        <div class="alert alert-danger alert-dismissible fade show mt-2" role="alert">
+                            <strong>Đã có lỗi:</strong>
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $e)
+                                    <li>{{ $e }}</li>
+                                @endforeach
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                aria-label="Đóng"></button>
+                        </div>
+                    @endif
+
+                    @yield('content')
+                </div>
             </div>
         </div>
     </div>
@@ -430,77 +503,85 @@
             pageTitle.textContent = title;
 
             fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                credentials: 'include'
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.text();
-            })
-            .then(html => {
-                // Parse HTML to extract content (assuming views have @section('content'))
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const newContent = doc.querySelector('#contentArea')?.innerHTML || html;
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    credentials: 'include'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    // Parse HTML to extract content (assuming views have @section('content'))
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newContent = doc.querySelector('#contentArea')?.innerHTML || html;
 
-                // Inject content
-                contentArea.innerHTML = newContent;
+                    // Inject content
+                    contentArea.innerHTML = newContent;
 
-                // Re-init Select2 or other plugins if needed
-                if (typeof $.fn.select2 !== 'undefined') {
-                    $('.select2').select2();
-                }
+                    // Re-init Select2 or other plugins if needed
+                    if (typeof $.fn.select2 !== 'undefined') {
+                        $('.select2').select2();
+                    }
 
-                // Handle read-only mode: Remove if staff route (allow actions), keep for admin routes
-                const contentDiv = contentArea.querySelector('div');
-                if (url.startsWith('/staff') && contentDiv) {
-                    contentDiv.classList.remove('readonly-mode');
-                }
+                    // Handle read-only mode: Remove if staff route (allow actions), keep for admin routes
+                    const contentDiv = contentArea.querySelector('div');
+                    if (url.startsWith('/staff') && contentDiv) {
+                        contentDiv.classList.remove('readonly-mode');
+                    }
 
-                contentArea.classList.remove('content-loading');
-            })
-            .catch(error => {
-                console.error('Error loading content:', error);
-                contentArea.innerHTML = '<div class="alert alert-danger">Lỗi tải nội dung. <a href="' + url + '">Tải lại trang</a></div>';
-                contentArea.classList.remove('content-loading');
-            });
+                    contentArea.classList.remove('content-loading');
+                })
+                .catch(error => {
+                    console.error('Error loading content:', error);
+                    contentArea.innerHTML = '<div class="alert alert-danger">Lỗi tải nội dung. <a href="' + url +
+                        '">Tải lại trang</a></div>';
+                    contentArea.classList.remove('content-loading');
+                });
         }
 
         // Handle nav-link clicks
         document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.nav-link[data-url], .dropdown-item[data-url], a[data-url]').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const url = this.getAttribute('data-url');
-                    const sectionId = this.getAttribute('data-section');
-                    if (url && url !== '#') {
-                        // Update active state
-                        document.querySelectorAll('.nav-link.active').forEach(active => active.classList.remove('active'));
-                        this.classList.add('active');
+            document.querySelectorAll('.nav-link[data-url], .dropdown-item[data-url], a[data-url]').forEach(
+                link => {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const url = this.getAttribute('data-url');
+                        const sectionId = this.getAttribute('data-section');
+                        if (url && url !== '#') {
+                            // Update active state
+                            document.querySelectorAll('.nav-link.active').forEach(active => active
+                                .classList.remove('active'));
+                            this.classList.add('active');
 
-                        // If in a section, ensure it's open (do not collapse)
-                        if (sectionId) {
-                            const section = document.getElementById(sectionId);
-                            const header = document.querySelector(`[data-bs-target="#${sectionId}"]`);
-                            if (header && !section.classList.contains('show')) {
-                                // Only open if closed
-                                const collapse = new bootstrap.Collapse(section, { show: true });
-                                const icon = header.querySelector('i');
-                                if (icon) icon.classList.remove('collapsed');
+                            // If in a section, ensure it's open (do not collapse)
+                            if (sectionId) {
+                                const section = document.getElementById(sectionId);
+                                const header = document.querySelector(
+                                    `[data-bs-target="#${sectionId}"]`);
+                                if (header && !section.classList.contains('show')) {
+                                    // Only open if closed
+                                    const collapse = new bootstrap.Collapse(section, {
+                                        show: true
+                                    });
+                                    const icon = header.querySelector('i');
+                                    if (icon) icon.classList.remove('collapsed');
+                                }
+                                // No collapse logic - keep open
                             }
-                            // No collapse logic - keep open
-                        }
 
-                        loadContent(url);
-                        window.history.pushState({url: url}, '', url);
-                    }
+                            loadContent(url);
+                            window.history.pushState({
+                                url: url
+                            }, '', url);
+                        }
+                    });
                 });
-            });
 
             // Handle browser back/forward
             window.addEventListener('popstate', function(event) {
@@ -537,7 +618,10 @@
                 e.stopPropagation();
                 const target = this.getAttribute('data-bs-target');
                 const content = document.querySelector(target);
-                const collapse = bootstrap.Collapse.getInstance(content) || new bootstrap.Collapse(content, { toggle: true });
+                const collapse = bootstrap.Collapse.getInstance(content) || new bootstrap.Collapse(
+                    content, {
+                        toggle: true
+                    });
                 const icon = this.querySelector('i');
 
                 // Toggle and update icon
@@ -558,7 +642,9 @@
                     const header = document.querySelector(`[data-bs-target="#${targetId}"]`);
                     if (header) {
                         header.classList.remove('collapsed');
-                        new bootstrap.Collapse(section, { show: true });
+                        new bootstrap.Collapse(section, {
+                            show: true
+                        });
                     }
                 }
             });
@@ -710,7 +796,7 @@
             }, 30000);
         });
     </script>
-    
+
     @stack('scripts')
     @yield('scripts')
 </body>

@@ -117,7 +117,7 @@
                                         $map = [
                                             'dang_cho' => 'bg-warning',
                                             'dang_cho_xac_nhan' => 'bg-warning',
-                                            'dang_su_dung' => 'bg-warning',
+                                            'dang_su_dung' => 'bg-success',
                                             'da_xac_nhan' => 'bg-primary',
                                             'da_huy' => 'bg-danger',
                                             'hoan_thanh' => 'bg-success',
