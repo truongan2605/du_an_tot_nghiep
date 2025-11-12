@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use App\Models\PhongVatDungConsumption;
+use App\Models\PhongVatDungInstance;
 
 class StaffController extends Controller
 {
@@ -205,7 +207,7 @@ class StaffController extends Controller
             'weeklyDeposit'
         ));
     }
-    
+
     public function roomOverview()
     {
         $rooms = Phong::with(['tang', 'loaiPhong'])
@@ -379,8 +381,20 @@ class StaffController extends Controller
     public function showBooking(DatPhong $booking)
     {
         $booking->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'nguoiDung', 'giaoDichs']);
+
         $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-        return view('staff.bookings.show', compact('booking', 'meta'));
+
+        $consumptions = PhongVatDungConsumption::where('dat_phong_id', $booking->id)
+            ->orderBy('created_at', 'asc')
+            ->get()
+            ->groupBy('phong_id');
+
+        $instances = PhongVatDungInstance::whereIn('phong_id', $booking->datPhongItems->pluck('phong_id')->filter()->toArray())
+            ->whereIn('status', ['damaged', 'missing'])
+            ->get()
+            ->groupBy('phong_id');
+
+        return view('staff.bookings.show', compact('booking', 'meta', 'consumptions', 'instances'));
     }
 
     public function cancel($id)

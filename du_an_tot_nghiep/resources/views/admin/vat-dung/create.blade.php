@@ -42,9 +42,9 @@
                                 <select name="loai" id="loai" class="form-select">
                                     <option value="do_dung" {{ old('loai') === 'do_dung' ? 'selected' : '' }}>Đồ dùng
                                     </option>
-                                    <option value="do_an" {{ old('loai') === 'do_an' ? 'selected' : '' }}>Đồ tiêu thụ</option>
+                                    <option value="do_an" {{ old('loai') === 'do_an' ? 'selected' : '' }}>Dịch vụ tiêu thụ</option>
                                 </select>
-                                <div class="form-text">Chọn "Đồ tiêu thụ" nếu tính theo số lượng tiêu thụ.</div>
+                                <div class="form-text">Chọn "Dịch vụ tiêu thụ" nếu tính theo số lượng tiêu thụ.</div>
                                 <div class="form-text">Chọn "Đồ dùng" nếu cần theo dõi trạng thái (mất/hỏng).</div>
                             </div>
                         </div>

@@ -63,7 +63,7 @@
                                     <p class="mb-0">{{ $booking->contact_phone ?? ($booking->phone ?? 'N/A') }}</p>
                                 </div>
                             </div>
-                              <div class="d-flex align-items-center mb-3">
+                            <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Địa chỉ</small>
@@ -193,12 +193,27 @@
                 <hr class="my-5">
 
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-door-open-fill me-2"></i>Phòng Đã Gán</h6>
+                @php
+                    // Lấy list đồ ăn active (loại DO_AN) để staff chọn trong modal
+                    $availableFoods = \App\Models\VatDung::where('active', 1)
+                        ->where('loai', \App\Models\VatDung::LOAI_DO_AN ?? 'do_an')
+                        ->orderBy('ten')
+                        ->get();
+                @endphp
+
                 @forelse ($booking->datPhongItems as $item)
                     <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
                         <div class="card-body py-3 px-4">
                             <div class="row align-items-center text-sm">
-                                <div class="col-md-3">
+                                <div class="col-md-3 d-flex align-items-center">
                                     <strong class="text-primary">#{{ $item->phong?->ma_phong ?? 'Chưa gán' }}</strong>
+                                    {{-- Nút thêm đồ ăn cho phòng này --}}
+                                    <button type="button" class="btn btn-sm btn-outline-primary ms-3"
+                                        data-bs-toggle="modal" data-bs-target="#addFoodModal"
+                                        data-phong-id="{{ $item->phong?->id }}"
+                                        data-phong-code="{{ $item->phong?->ma_phong }}">
+                                        <i class="bi bi-plus-lg me-1"></i> Dịch vụ gọi thêm
+                                    </button>
                                 </div>
                                 <div class="col-md-3">
                                     <i class="bi bi-building me-1"></i> {{ $item->loaiPhong?->ten ?? 'N/A' }}
@@ -207,11 +222,13 @@
                                     <span class="badge bg-light text-dark border">{{ $item->so_luong ?? 1 }} phòng</span>
                                 </div>
                                 <div class="col-md-4 text-end">
-                                    <strong class="text-success">{{ number_format($item->gia_tren_dem, 0) }} ₫</strong>/đêm
+                                    <strong class="text-success">{{ number_format($item->gia_tren_dem, 0) }}
+                                        ₫</strong>/đêm
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
                 @empty
                     <div class="text-center py-5 text-muted">
                         <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
@@ -219,6 +236,274 @@
                     </div>
                 @endforelse
 
+                <!-- Modal: Thêm đồ ăn (gọi thêm) -->
+                <div class="modal fade" id="addFoodModal" tabindex="-1" aria-labelledby="addFoodModalLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <form id="addFoodForm" method="POST" action="{{ route('phong.consumptions.store') }}">
+                            @csrf
+                            <input type="hidden" name="dat_phong_id" value="{{ $booking->id }}">
+                            <input type="hidden" name="phong_id" id="modal_phong_id" value="">
+                            <input type="hidden" name="bill_now" value="1">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="addFoodModalLabel">Thêm dịch vụ cho phòng <span
+                                            id="modal_phong_code"></span></h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Dịch vụ</label>
+                                        <select name="vat_dung_id" id="modal_vat_dung_id" class="form-select" required>
+                                            <option value="">— Chọn dịch vụ —</option>
+                                            @foreach ($availableFoods as $fd)
+                                                <option value="{{ $fd->id }}" data-price="{{ $fd->gia ?? 0 }}">
+                                                    {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }} đ)
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label">Số lượng</label>
+                                            <input type="number" name="quantity" id="modal_quantity"
+                                                class="form-control" value="1" min="1" required>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">Giá / đơn vị</label>
+                                            <input type="number" name="unit_price" id="modal_unit_price"
+                                                class="form-control" value="0" min="0" step="0.01"
+                                                required>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label class="form-label">Ghi chú</label>
+                                        <textarea name="note" class="form-control" rows="2"></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                                    <button type="submit" class="btn btn-primary">Thêm & Tính tiền</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        // Khi modal hiện, lấy dữ liệu phòng từ data-* và gán vào form
+                        var addFoodModalEl = document.getElementById('addFoodModal');
+                        addFoodModalEl.addEventListener('show.bs.modal', function(event) {
+                            var button = event.relatedTarget;
+                            var phongId = button.getAttribute('data-phong-id') || '';
+                            var phongCode = button.getAttribute('data-phong-code') || '';
+                            document.getElementById('modal_phong_id').value = phongId;
+                            document.getElementById('modal_phong_code').innerText = phongCode || '(chưa gán)';
+                            // reset
+                            document.getElementById('modal_vat_dung_id').value = '';
+                            document.getElementById('modal_quantity').value = 1;
+                            document.getElementById('modal_unit_price').value = 0;
+                        });
+
+                        // khi chọn món, tự điền unit_price từ data-price
+                        var vatSelect = document.getElementById('modal_vat_dung_id');
+                        if (vatSelect) {
+                            vatSelect.addEventListener('change', function() {
+                                var opt = this.options[this.selectedIndex];
+                                var p = opt ? opt.getAttribute('data-price') : 0;
+                                document.getElementById('modal_unit_price').value = p ? Number(p) : 0;
+                            });
+                        }
+                    });
+                </script>
+
+                {{-- ===================== Hiển thị: Đồ ăn gọi thêm & Vật dụng sự cố ===================== --}}
+                @php
+                    // $consumptions và $instances nên được truyền từ controller như collection grouped by phong_id
+                    $consByRoom = $consumptions ?? collect();
+                    $instByRoom = $instances ?? collect();
+
+                    // helper: get group safely (handles null keys)
+                    $getGroup = function($coll, $key) {
+                        if (! $coll instanceof \Illuminate\Support\Collection) return collect();
+                        if ($coll->has($key)) return $coll->get($key);
+                        // try string/empty key
+                        if ($key === null && $coll->has('')) return $coll->get('');
+                        if ($key === 0 && $coll->has('0')) return $coll->get('0');
+                        return collect();
+                    };
+
+                    // consumptions not linked to any room (phong_id null)
+                    $unassignedCons = collect();
+                    if ($consByRoom instanceof \Illuminate\Support\Collection) {
+                        // try keys null / '' / 0
+                        if ($consByRoom->has(null)) $unassignedCons = $consByRoom->get(null);
+                        elseif ($consByRoom->has('')) $unassignedCons = $consByRoom->get('');
+                        elseif ($consByRoom->has(0)) $unassignedCons = $consByRoom->get(0);
+                    }
+
+                    // instances not linked to specific room (if any)
+                    $unassignedInst = collect();
+                    if ($instByRoom instanceof \Illuminate\Support\Collection) {
+                        if ($instByRoom->has(null)) $unassignedInst = $instByRoom->get(null);
+                        elseif ($instByRoom->has('')) $unassignedInst = $instByRoom->get('');
+                        elseif ($instByRoom->has(0)) $unassignedInst = $instByRoom->get(0);
+                    }
+                @endphp
+
+                <hr class="my-5">
+
+                <h6 class="text-primary fw-bold mb-4"><i class="bi bi-basket-fill me-2"></i>Đồ Ăn Gọi Thêm & Sự Cố</h6>
+
+                @php
+                    $anyShown = false;
+                @endphp
+
+                {{-- Hiển thị theo từng phòng đã gán --}}
+                @foreach ($booking->datPhongItems as $item)
+                    @php
+                        $phId = $item->phong?->id;
+                        $roomCons = $getGroup($consByRoom, $phId) ?? collect();
+                        $roomInst = $getGroup($instByRoom, $phId) ?? collect();
+                    @endphp
+
+                    @if ($roomCons->isNotEmpty() || $roomInst->isNotEmpty())
+                        @php $anyShown = true; @endphp
+                        <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
+                            <div class="card-body py-3 px-4">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong class="text-primary">#{{ $item->phong?->ma_phong ?? 'Chưa gán' }}</strong>
+                                        <div class="small text-muted">{{ $item->loaiPhong?->ten ?? 'N/A' }}</div>
+                                    </div>
+                                    <div class="text-end small">
+                                        <div>{{ $item->so_luong ?? 1 }} phòng</div>
+                                        <div class="fw-semibold text-success">{{ number_format($item->gia_tren_dem, 0) }} ₫/đêm</div>
+                                    </div>
+                                </div>
+
+                                {{-- Consumptions --}}
+                                @if ($roomCons->isNotEmpty())
+                                    <div class="mt-3">
+                                        <div class="small text-muted mb-2">Đồ ăn / Dịch vụ đã gọi thêm</div>
+                                        <ul class="mb-0 ps-3">
+                                            @foreach ($roomCons as $c)
+                                                <li class="small mb-1">
+                                                    <strong>{{ $c->quantity }} × {{ $c->vatDung?->ten ?? ('#VD'.$c->vat_dung_id) }}</strong>
+                                                    — <span class="fw-semibold">{{ number_format(($c->unit_price * $c->quantity), 0) }} ₫</span>
+                                                    @if ($c->billed_at)
+                                                        <span class="badge bg-success ms-2 small">Đã tính</span>
+                                                    @else
+                                                        <span class="badge bg-warning text-dark ms-2 small">Chưa tính</span>
+                                                    @endif
+                                                    <div class="text-muted small mt-1">
+                                                        @if($c->consumed_at)
+                                                            <span title="Thời gian tiêu thụ">⏱ {{ \Carbon\Carbon::parse($c->consumed_at)->format('d/m H:i') }}</span>
+                                                            &nbsp;·&nbsp;
+                                                        @endif
+                                                        <span title="Người tạo">Người đánh dấu: {{ $c->creator?->name ?? ($c->created_by ? 'UID#'.$c->created_by : '—') }}</span>
+                                                        @if($c->note) &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }} @endif
+                                                    </div>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+
+                                {{-- Instances (sự cố / hỏng hóc) --}}
+                                @if ($roomInst->isNotEmpty())
+                                    <div class="mt-3">
+                                        <div class="small text-muted mb-2">Sự cố / Vật dụng hỏng</div>
+                                        <ul class="mb-0 ps-3">
+                                            @foreach ($roomInst as $ins)
+                                                <li class="small mb-1 text-danger">
+                                                    <strong>{{ $ins->vatDung?->ten ?? ('#VD'.$ins->vat_dung_id) }}</strong>
+                                                    — Trạng thái: <span class="fw-semibold text-capitalize">{{ $ins->status }}</span>
+                                                    <div class="text-muted small mt-1">
+                                                        @if($ins->reported_at)
+                                                            <span>⏱ {{ \Carbon\Carbon::parse($ins->reported_at)->format('d/m H:i') }}</span> &nbsp;·&nbsp;
+                                                        @endif
+                                                        @if($ins->note) Ghi chú: {{ Str::limit($ins->note, 80) }} @endif
+                                                    </div>
+                                                </li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+
+                            </div>
+                        </div>
+                    @endif
+                @endforeach
+
+                {{-- Hiển thị items không gắn phòng (nếu có) --}}
+                @if ($unassignedCons->isNotEmpty() || $unassignedInst->isNotEmpty())
+                    @php $anyShown = true; @endphp
+                    <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
+                        <div class="card-body py-3 px-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong class="text-primary">Không gán phòng</strong>
+                                    <div class="small text-muted">Các mục không liên kết trực tiếp với phòng cụ thể</div>
+                                </div>
+                                <div class="small text-muted">Booking #{{ $booking->id }}</div>
+                            </div>
+
+                            @if ($unassignedCons->isNotEmpty())
+                                <div class="mt-2">
+                                    <div class="small text-muted mb-2">Đồ ăn / Dịch vụ</div>
+                                    <ul class="mb-0 ps-3">
+                                        @foreach ($unassignedCons as $c)
+                                            <li class="small mb-1">
+                                                <strong>{{ $c->quantity }} × {{ $c->vatDung?->ten ?? ('#VD'.$c->vat_dung_id) }}</strong>
+                                                — <span class="fw-semibold">{{ number_format(($c->unit_price * $c->quantity), 0) }} ₫</span>
+                                                @if ($c->billed_at)
+                                                    <span class="badge bg-success ms-2 small">Đã tính</span>
+                                                @else
+                                                    <span class="badge bg-warning text-dark ms-2 small">Chưa tính</span>
+                                                @endif
+                                                <div class="text-muted small mt-1">
+                                                    <span>Ng bởi: {{ $c->creator?->name ?? ($c->created_by ? 'UID#'.$c->created_by : '—') }}</span>
+                                                    @if($c->note) &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }} @endif
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+
+                            @if ($unassignedInst->isNotEmpty())
+                                <div class="mt-2">
+                                    <div class="small text-muted mb-2">Sự cố / Vật dụng hỏng</div>
+                                    <ul class="mb-0 ps-3">
+                                        @foreach ($unassignedInst as $ins)
+                                            <li class="small mb-1 text-danger">
+                                                <strong>{{ $ins->vatDung?->ten ?? ('#VD'.$ins->vat_dung_id) }}</strong>
+                                                — Trạng thái: <span class="fw-semibold text-capitalize">{{ $ins->status }}</span>
+                                                <div class="text-muted small mt-1">
+                                                    @if($ins->reported_at) ⏱ {{ \Carbon\Carbon::parse($ins->reported_at)->format('d/m H:i') }} @endif
+                                                    @if($ins->note) &nbsp;·&nbsp; Ghi chú: {{ Str::limit($ins->note, 80) }} @endif
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
+                @if (! $anyShown)
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-2 mb-2 d-block"></i>
+                        <p class="mb-0">Chưa có đồ ăn gọi thêm hoặc sự cố nào được ghi nhận cho booking này.</p>
+                    </div>
+                @endif
+
+                <hr class="my-5">
+                {{-- ===================== END Đồ ăn & sự cố ===================== --}}
 
                 @if ($booking->giaoDichs->count() > 0)
                     <hr class="my-5">
@@ -258,6 +543,7 @@
 
 
                 <hr class="my-5">
+
                 <div class="d-flex flex-wrap gap-3 justify-content-between align-items-center">
                     <a href="{{ route('staff.rooms') }}" class="btn btn-outline-secondary btn-lg px-4">
                         <i class="bi bi-arrow-left me-2"></i>Quay Lại
@@ -291,16 +577,5 @@
             background-color: #5f3dc4 !important;
         }
 
-        .card {
-            transition: transform 0.2s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-        }
-
-        .table code {
-            font-size: 0.85em;
-        }
     </style>
 @endsection

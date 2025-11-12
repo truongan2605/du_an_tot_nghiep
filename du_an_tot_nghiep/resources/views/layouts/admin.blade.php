@@ -9,7 +9,7 @@
     <title>@yield('title', 'Admin Panel')</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    {{-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"> --}}
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -267,7 +267,7 @@
                     </a>
                     <a class="nav-link {{ request()->routeIs('admin.vat-dung.*') ? 'active' : '' }}"
                         data-url="{{ route('admin.vat-dung.index') }}" data-section="section-dichvu">
-                        <i class="fas fa-utensils"></i>Vật dụng
+                        <i class="fas fa-utensils"></i>Vật dụng và dịch vụ gọi thêm
                     </a>
                     <a class="nav-link {{ request()->routeIs('admin.voucher.*') ? 'active' : '' }}"
                         data-url="{{ route('admin.voucher.index') }}" data-section="section-dichvu">

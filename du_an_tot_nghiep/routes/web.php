@@ -193,6 +193,26 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
     });
 
+
+// ==================== STAFF + ADMIN ====================
+    Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
+        Route::post('/phong/consumptions', [PhongConsumptionController::class, 'store'])
+            ->name('phong.consumptions.store');
+
+        Route::put('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'update'])
+            ->name('phong.consumptions.update');
+
+        Route::delete('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'destroy'])
+            ->name('phong.consumptions.destroy');
+
+        Route::post('/phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])
+            ->name('phong.consumptions.markConsumed');
+
+        Route::post('/phong/consumptions/store-and-bill/{phong}', [PhongConsumptionController::class, 'storeAndBill'])
+            ->name('phong.consumptions.store_and_bill');
+    });
+
+
 // ==================== ACCOUNT (client profile area) ====================
 Route::middleware('auth')
     ->prefix('account')
