@@ -1,11 +1,11 @@
 @extends('layouts.admin')
 
-@section('title', 'Dashboard Nhân Viên')
+@section('title', 'Dashboard')
 
 @section('content')
 <div class="container-fluid px-3 py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h4 mb-0 fw-bold text-dark">Dashboard Nhân Viên</h2>
+        <h2 class="h4 mb-0 fw-bold text-dark">Dashboard</h2>
         <div class="d-flex gap-2">
             <span class="badge bg-primary rounded-pill px-3 py-2">Cập nhật: {{ now()->format('d/m/Y H:i') }}</span>
         </div>
@@ -20,10 +20,6 @@
             ['label'=>'Doanh Thu Tháng Này','value'=>number_format($monthlyRevenue,0).' VND','icon'=>'bi bi-calendar-month','bg'=>'bg-success','color'=>'text-white'], 
             ['label'=>'Tổng Doanh Thu','value'=>number_format($totalRevenue,0).' VND','icon'=>'bi bi-cash-stack','bg'=>'bg-success','color'=>'text-white'],
             ['label'=>'Phòng Trống','value'=>$availableRooms,'icon'=>'bi bi-house','bg'=>'bg-warning text-dark','color'=>'text-dark'],
-            ['label'=>'Đặt Cọc Hôm Nay','value'=>number_format($todayDeposit ?? 0,0).' VND','icon'=>'bi bi-cash-coin','bg'=>'bg-primary','color'=>'text-white'],
-            ['label'=>'Đặt Cọc Tuần Này','value'=>number_format($weeklyDeposit ?? 0,0).' VND','icon'=>'bi bi-calendar-week','bg'=>'bg-success','color'=>'text-white'],
-            ['label'=>'Đặt Cọc Tháng Này','value'=>number_format($monthlyDeposit ?? 0,0).' VND','icon'=>'bi bi-calendar-month','bg'=>'bg-warning text-dark','color'=>'text-dark'],
-            ['label'=>'Tổng Đặt Cọc','value'=>number_format($totalDeposit ?? 0,0).' VND','icon'=>'bi bi-cash-stack','bg'=>'bg-info','color'=>'text-white'],
         ];
     @endphp
 
@@ -71,7 +67,7 @@
                                     <div class="flex-grow-1">
                                         <a href="#" class="fw-semibold text-decoration-none small">{{ $activity->ma_tham_chieu }}</a>
                                         <span class="badge 
-                                            @if($activity->trang_thai == 'da_gan_phong') bg-success
+                                            @if($activity->trang_thai == 'dang_su_dung') bg-success
                                             @elseif($activity->trang_thai == 'dang_cho') bg-warning
                                             @elseif($activity->trang_thai == 'dang_cho_xac_nhan') bg-info
                                             @elseif($activity->trang_thai == 'da_huy') bg-danger

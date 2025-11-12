@@ -293,7 +293,7 @@
                         </div>
 
                         <!-- Đồ ăn (do_an) trong phòng + số lượng hiện tại -->
-                        <div class="col-md-6">
+                        {{-- <div class="col-md-6">
                             <div class="card border-info">
                                 <div class="card-header bg-info text-white">Đồ ăn</div>
                                 <div class="card-body">
@@ -370,7 +370,7 @@
                                     @endif
                                 </div>
                             </div>
-                        </div>
+                        </div> --}}
 
                     </div>
                 </div>

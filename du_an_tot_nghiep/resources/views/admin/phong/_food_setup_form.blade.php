@@ -1,4 +1,4 @@
-@php
+{{-- @php
     // $phong, $datPhong (nullable), $doAnList (Collection), $existingReservations (Collection keyed by vat_dung_id)
 @endphp
 
@@ -264,4 +264,4 @@
             });
         </script>
     @endpush
-@endonce
+@endonce --}}

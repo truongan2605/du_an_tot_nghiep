@@ -1,11 +1,11 @@
-@extends('layouts.admin')
+{{-- @extends('layouts.admin')
 
 @section('title', 'Setup đồ ăn cho phòng')
 
 @section('content')
 <div class="card">
     <div class="card-body">
-        {{-- Hiển thị lỗi validate (server) --}}
+        Hiển thị lỗi validate (server)
         @if ($errors->any())
             <div class="alert alert-danger">
                 <ul class="mb-0">
@@ -16,7 +16,6 @@
             </div>
         @endif
 
-        {{-- Hiển thị flash success / error --}}
         @if (session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>
         @endif
@@ -24,7 +23,6 @@
             <div class="alert alert-danger">{{ session('error') }}</div>
         @endif
 
-        {{-- Include partial form (chính) --}}
         @include('admin.phong._food_setup_form', [
             'phong' => $phong,
             'datPhong' => $datPhong,
@@ -33,4 +31,4 @@
         ])
     </div>
 </div>
-@endsection
+@endsection --}}

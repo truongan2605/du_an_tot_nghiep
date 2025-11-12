@@ -105,25 +105,25 @@
 
                             @php
                                 $bookingIdForThis = $latestBookingIds[$p->id] ?? null;
-                                // allowed room statuses for showing the setup button
                                 $allowedRoomStatuses = ['da_dat', 'dang_o'];
                                 $canShowSetup = in_array($p->trang_thai, $allowedRoomStatuses);
                             @endphp
 
                             @if (in_array(optional(auth()->user())->vai_tro, ['admin', 'nhan_vien']))
                                 @if ($canShowSetup)
-                                    <a href="{{ route('admin.phong.food-setup', ['phong' => $p->id, 'dat_phong_id' => $bookingIdForThis ?? '']) }}"
+                                    {{-- <a href="{{ route('admin.phong.food-setup', ['phong' => $p->id, 'dat_phong_id' => $bookingIdForThis ?? '']) }}"
                                         class="btn btn-sm btn-secondary mt-1">
                                         <i class="fas fa-utensils me-1"></i> Setup đồ ăn
-                                    </a>
+                                    </a> --}}
                                 @else
                                     {{-- Disabled / explanatory button when room not in allowed state --}}
-                                    <button class="btn btn-sm btn-secondary mt-1" disabled
+                                    {{-- <button class="btn btn-sm btn-secondary mt-1" disabled
                                         title="Chỉ được Setup khi phòng ở trạng thái 'da_dat' hoặc 'dang_o'">
                                         <i class="fas fa-utensils me-1"></i> Setup đồ ăn
-                                    </button>
+                                    </button> --}}
                                 @endif
                             @endif
+                            
                         </td>
 
                     </tr>

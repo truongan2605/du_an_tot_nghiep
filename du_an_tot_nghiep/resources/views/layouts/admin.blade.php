@@ -163,21 +163,31 @@
             pointer-events: none;
         }
 
-        /* Read-only mode styling (tùy chọn, disable buttons nếu session read_only_mode) */
-        @if (session('read_only_mode'))
-            .readonly-mode .btn:not([disabled]) {
-                pointer-events: none;
-                opacity: 0.6;
-            }
+        /* @if (session('read_only_mode'))
+        .readonly-mode .btn:not([disabled]) {
+            pointer-events: none;
+            opacity: 0.6;
+        }
 
-            .readonly-mode form[method="POST"],
-            .readonly-mode form[method="PUT"],
-            .readonly-mode form[method="DELETE"] {
-                display: none;
-            }
+        .readonly-mode form[method="POST"],
+        .readonly-mode form[method="PUT"],
+        .readonly-mode form[method="DELETE"] {
+            display: none;
+        }
         @endif
+        */
 
-        /* Responsive: Sidebar collapses on mobile */
+        .readonly-mode .btn:not([disabled]) {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .readonly-mode form[method="POST"],
+        .readonly-mode form[method="PUT"],
+        .readonly-mode form[method="DELETE"] {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 left: -250px;
@@ -251,9 +261,6 @@
                     <i class="fas fa-chevron-down"></i>
                 </div>
                 <div class="sidebar-section-content collapse" id="section-dichvu">
-                    <a class="nav-link" data-url="#" data-section="section-dichvu">
-                        <i class="fas fa-chart-bar"></i>Thống kê
-                    </a>
                     <a class="nav-link {{ request()->routeIs('admin.tien-nghi.*') ? 'active' : '' }}"
                         data-url="{{ route('admin.tien-nghi.index') }}" data-section="section-dichvu">
                         <i class="fas fa-concierge-bell"></i>Dịch vụ
@@ -438,7 +445,6 @@
                 </div>
             </header>
 
-            <!-- Content Area -->
             <div class="content-area" id="contentArea">
                 {{-- Thêm class readonly-mode nếu session có --}}
                 <div class="@if (session('read_only_mode') && !request()->routeIs('staff.*')) readonly-mode @endif">
