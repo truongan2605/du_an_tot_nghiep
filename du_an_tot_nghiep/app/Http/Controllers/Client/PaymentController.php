@@ -268,7 +268,7 @@ class PaymentController extends Controller
 
                 if (!empty($selectedIds)) {
                     $locked = Phong::whereIn('id', $selectedIds)
-                        ->where('trang_thai', 'trong')
+                        ->where('trang_thai', 'dang_o')
                         ->lockForUpdate()
                         ->get(['id'])
                         ->pluck('id')

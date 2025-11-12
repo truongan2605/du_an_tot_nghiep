@@ -637,7 +637,7 @@ class BookingController extends Controller
 
                         if (!$isBooked && !$isHeld) {
                             $locked = Phong::where('id', $requestedPhongId)
-                                ->where('trang_thai', 'trong')
+                                ->where('trang_thai', 'dang_o')
                                 ->lockForUpdate()
                                 ->first();
 
