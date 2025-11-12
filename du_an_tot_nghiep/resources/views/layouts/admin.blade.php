@@ -212,7 +212,6 @@
 </head>
 
 <body>
-    <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h4>Admin Panel</h4>
@@ -316,7 +315,7 @@
                 <div class="sidebar-section">
                     <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
                         data-bs-target="#section-staff" aria-expanded="false">
-                        <span>Staff Panel</span>
+                        <span>Quản lý đơn hàng</span>
                         <i class="fas fa-chevron-down"></i>
                     </div>
                     <div class="sidebar-section-content collapse" id="section-staff">

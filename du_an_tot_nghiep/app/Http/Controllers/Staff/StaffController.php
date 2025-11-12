@@ -345,67 +345,67 @@ class StaffController extends Controller
         return view('staff.pending-bookings', compact('bookings', 'availableRooms'));
     }
 
-    public function confirm(Request $request, $id)
-    {
-        $request->validate([
-            'phong_id' => 'nullable|exists:phong,id',
-            'dat_phong_id' => 'required|exists:dat_phong,id',
-            'staff_id' => 'required|exists:users,id'
-        ]);
-        $dat_phong = DatPhong::findOrFail($request->dat_phong_id);
-        if ($dat_phong->trang_thai !== 'dang_cho_xac_nhan') {
-            return response()->json(['error' => 'Booking không thể xác nhận ở trạng thái hiện tại'], 400);
-        }
-        $booking = DatPhong::with('datPhongItems.loaiPhong')->findOrFail($id);
-        if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
-            return redirect()->back()->with('error', 'Booking không thể xác nhận.');
-        }
-        DB::transaction(function () use ($booking, $request) {
+    // public function confirm(Request $request, $id)
+    // {
+    //     $request->validate([
+    //         'phong_id' => 'nullable|exists:phong,id',
+    //         'dat_phong_id' => 'required|exists:dat_phong,id',
+    //         'staff_id' => 'required|exists:users,id'
+    //     ]);
+    //     $dat_phong = DatPhong::findOrFail($request->dat_phong_id);
+    //     if ($dat_phong->trang_thai !== 'dang_cho_xac_nhan') {
+    //         return response()->json(['error' => 'Booking không thể xác nhận ở trạng thái hiện tại'], 400);
+    //     }
+    //     $booking = DatPhong::with('datPhongItems.loaiPhong')->findOrFail($id);
+    //     if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
+    //         return redirect()->back()->with('error', 'Booking không thể xác nhận.');
+    //     }
+    //     DB::transaction(function () use ($booking, $request) {
 
-            if (is_null($booking->deposit_amount) || $booking->deposit_amount == 0) {
-                $booking->deposit_amount = $request->deposit_amount ?? ($booking->tong_tien * 0.2);
-            }
-            $booking->trang_thai = 'da_xac_nhan';
-            $booking->save();
-            $datPhongItem = $booking->datPhongItems->first();
-            if (!$datPhongItem) {
-                $loaiPhong = LoaiPhong::first();
-                if (!$loaiPhong) {
-                    throw new \Exception('Chưa có loại phòng nào trong hệ thống.');
-                }
-                $datPhongItem = DatPhongItem::create([
-                    'dat_phong_id' => $booking->id,
-                    'loai_phong_id' => $loaiPhong->id,
-                    'so_luong' => 1,
-                    'gia_tren_dem' => $loaiPhong->gia_tren_dem ?? 0,
-                    'so_dem' => $loaiPhong->so_dem ?? 1,
-                ]);
-            }
-            if ($request->filled('phong_id')) {
-                $phong_id = $request->phong_id;
-                if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
-                    PhongDaDat::create([
-                        'dat_phong_item_id' => $datPhongItem->id,
-                        'phong_id' => $phong_id,
-                        'trang_thai' => 'da_dat',
-                        'checkin_datetime' => $booking->ngay_nhan_phong,
-                        'checkout_datetime' => $booking->ngay_tra_phong,
-                    ]);
-                    Phong::find($phong_id)->update(['trang_thai' => 'da_dat']);
-                    $booking->trang_thai = 'da_gan_phong';
-                    $booking->save();
-                } else {
-                    throw new \Exception('Phòng không khả dụng.');
-                }
-            }
-        });
-        if ($booking->trang_thai === 'da_gan_phong') {
-            return redirect()->route('staff.index')
-                ->with('success', 'Booking đã được xác nhận và gán phòng thành công.');
-        }
-        return redirect()->route('staff.assign-rooms', $booking->id)
-            ->with('success', 'Booking đã được xác nhận. Vui lòng tiến hành gán phòng.');
-    }
+    //         if (is_null($booking->deposit_amount) || $booking->deposit_amount == 0) {
+    //             $booking->deposit_amount = $request->deposit_amount ?? ($booking->tong_tien * 0.2);
+    //         }
+    //         $booking->trang_thai = 'da_xac_nhan';
+    //         $booking->save();
+    //         $datPhongItem = $booking->datPhongItems->first();
+    //         if (!$datPhongItem) {
+    //             $loaiPhong = LoaiPhong::first();
+    //             if (!$loaiPhong) {
+    //                 throw new \Exception('Chưa có loại phòng nào trong hệ thống.');
+    //             }
+    //             $datPhongItem = DatPhongItem::create([
+    //                 'dat_phong_id' => $booking->id,
+    //                 'loai_phong_id' => $loaiPhong->id,
+    //                 'so_luong' => 1,
+    //                 'gia_tren_dem' => $loaiPhong->gia_tren_dem ?? 0,
+    //                 'so_dem' => $loaiPhong->so_dem ?? 1,
+    //             ]);
+    //         }
+    //         if ($request->filled('phong_id')) {
+    //             $phong_id = $request->phong_id;
+    //             if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
+    //                 PhongDaDat::create([
+    //                     'dat_phong_item_id' => $datPhongItem->id,
+    //                     'phong_id' => $phong_id,
+    //                     'trang_thai' => 'da_dat',
+    //                     'checkin_datetime' => $booking->ngay_nhan_phong,
+    //                     'checkout_datetime' => $booking->ngay_tra_phong,
+    //                 ]);
+    //                 Phong::find($phong_id)->update(['trang_thai' => 'da_dat']);
+    //                 $booking->trang_thai = 'da_gan_phong';
+    //                 $booking->save();
+    //             } else {
+    //                 throw new \Exception('Phòng không khả dụng.');
+    //             }
+    //         }
+    //     });
+    //     if ($booking->trang_thai === 'da_gan_phong') {
+    //         return redirect()->route('staff.index')
+    //             ->with('success', 'Booking đã được xác nhận và gán phòng thành công.');
+    //     }
+    //     return redirect()->route('staff.assign-rooms', $booking->id)
+    //         ->with('success', 'Booking đã được xác nhận. Vui lòng tiến hành gán phòng.');
+    // }
 
     protected function checkAvailability($phong_id, $start, $end)
     {
