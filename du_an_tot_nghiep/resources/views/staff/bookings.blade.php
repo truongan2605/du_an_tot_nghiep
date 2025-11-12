@@ -14,8 +14,7 @@
                 <option value="">Tất cả Trạng Thái</option>
                 <option value="dang_cho">Chờ Xác Nhận</option>
                 <option value="da_xac_nhan">Đã Xác Nhận Đặt Cọc</option>
-                <option value="da_gan_phong">Đã Gán Phòng</option>
-                <option value="dang_o">Đang Ở</option>
+                <option value="dang_su_dung">Đang sử dụng</option>
                 <option value="da_huy">Đã Hủy</option>
                 <option value="hoan_thanh">Hoàn Thành</option>
             </select>
@@ -33,7 +32,7 @@
                             <th class="py-3" style="width: 120px;">Phòng</th>
                             <th class="py-3" style="width: 150px;">Khách Hàng</th>
                             <th class="py-3 text-center" style="width: 100px;">Trạng Thái</th>
-                            <th class="py-3" style="width: 120px;">Mã TC</th>
+                            <th class="py-3" style="width: 120px;">Mã đặt phòng</th>
                             <th class="py-3" style="width: 140px;">Ngày Nhận</th>
                             <th class="py-3" style="width: 140px;">Ngày Trả</th>
                             <th class="py-3 text-end" style="width: 100px;">Tổng Tiền</th>
