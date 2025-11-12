@@ -9,7 +9,7 @@ use App\Models\GiaoDich;
 use App\Models\GiuPhong;
 use App\Mail\PaymentFail;
 use Illuminate\Support\Str;
-use JSON_UNESCAPED_UNICODE;
+use json_unescaped_unicode;
 use App\Mail\PaymentSuccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,10 +18,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
-use App\Services\PaymentNotificationService;
+
 
 class PaymentController extends Controller
 {
+
     public const ADULT_PRICE = 150000;
     public const CHILD_PRICE = 60000;
     public const CHILD_FREE_AGE = 6;
@@ -47,8 +48,7 @@ class PaymentController extends Controller
                 'phuong_thuc' => 'required|in:vnpay',
                 'name' => 'required|string|max:255|min:2',
                 'address' => 'required|string|max:500|min:5',
-                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,',
-                'ghi_chu' => 'nullable|string|max:500',
+                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,' . Auth::id(),
             ]);
 
             $expectedDeposit = $validated['total_amount'] * 0.2;
@@ -60,6 +60,7 @@ class PaymentController extends Controller
 
             $maThamChieu = 'DP' . strtoupper(Str::random(8));
 
+            // FIXED: Snapshot meta chi tiết, tính toán giá server-side giống Booking
             $from = Carbon::parse($validated['ngay_nhan_phong']);
             $to = Carbon::parse($validated['ngay_tra_phong']);
             $nights = $this->calculateNights($validated['ngay_nhan_phong'], $validated['ngay_tra_phong']);
@@ -132,7 +133,6 @@ class PaymentController extends Controller
                 'contact_name' => $validated['name'],
                 'contact_address' => $validated['address'],
                 'contact_phone' => $validated['phone'],
-                'ghi_chu' => $validated['ghi_chu'] ?? '',
             ];
 
             return DB::transaction(function () use ($validated, $maThamChieu, $snapshotMeta, $phong, $request, $from, $to, $nights, $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons) {
@@ -154,7 +154,6 @@ class PaymentController extends Controller
                     'contact_name' => $validated['name'],
                     'contact_address' => $validated['address'],
                     'contact_phone' => $validated['phone'],
-                    'ghi_chu' => $validated['ghi_chu'] ?? null,
                 ]);
                 Log::info('Payment booking created with contact', [
                     'dat_phong_id' => $dat_phong->id,
@@ -233,7 +232,7 @@ class PaymentController extends Controller
 
                     if (!$isBooked && !$isHeld) {
                         $locked = Phong::where('id', $requestedPhongId)
-                            ->where('trang_thai', 'trong')
+                            // ->where('trang_thai', 'trong')
                             ->lockForUpdate()
                             ->first();
 
@@ -252,6 +251,7 @@ class PaymentController extends Controller
                     }
                 }
 
+
                 $stillNeeded = max(0, $roomsCount - $requestedReserved);
                 $selectedIds = [];
                 if ($stillNeeded > 0) {
@@ -268,7 +268,7 @@ class PaymentController extends Controller
 
                 if (!empty($selectedIds)) {
                     $locked = Phong::whereIn('id', $selectedIds)
-                        ->where('trang_thai', 'dang_o')
+                        // ->where('trang_thai', 'trong')
                         ->lockForUpdate()
                         ->get(['id'])
                         ->pluck('id')
@@ -292,6 +292,7 @@ class PaymentController extends Controller
                         Log::debug('Payment: giu_phong inserted per-phong', ['phong_id' => $pid, 'dat_phong_id' => $dat_phong->id]);
                     }
                 }
+
 
                 if ($roomsCount - $reservedCount > 0 && Schema::hasColumn('giu_phong', 'phong_id')) {
                     $aggRow = $holdBase;
@@ -389,7 +390,8 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
+
+        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use ($vnp_ResponseCode, $vnp_Amount, $inputData, $giao_dich, $dat_phong, $roomsCount) {
@@ -399,9 +401,10 @@ class PaymentController extends Controller
                     'provider_txn_ref' => $inputData['vnp_TransactionNo'] ?? '',
                 ]);
                 $dat_phong->update([
-                    'trang_thai' => 'da_xac_nhan',
-                    'can_xac_nhan' => false,
+                    'trang_thai' => 'dang_cho_xac_nhan',
+                    'can_xac_nhan' => true,
                 ]);
+
 
                 $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
                 $phongIdsToOccupy = [];
@@ -421,33 +424,6 @@ class PaymentController extends Controller
                     $nights = $meta['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                     $price_per_night = $meta['final_per_night'] ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
 
-                    $specSignatureHash = null;
-                    $source = 'none';
-                    if (Schema::hasColumn('giu_phong', 'spec_signature_hash') && $giu_phong->spec_signature_hash) {
-                        $specSignatureHash = $giu_phong->spec_signature_hash;
-                        $source = 'hold_db_column';
-                        Log::debug('Spec hash from hold DB column', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
-                    } elseif (isset($meta['spec_signature_hash']) && !empty($meta['spec_signature_hash'])) {
-                        $specSignatureHash = $meta['spec_signature_hash'];
-                        $source = 'hold_meta';
-                        Log::debug('Spec hash from hold meta', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
-                    } else {
-
-                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
-                        if (is_array($snapshotMeta) && isset($snapshotMeta['loai_phong_id'])) {
-
-                            $specSignatureHash = $this->generateSpecSignatureHash($snapshotMeta, null);
-                            $source = 'fallback_calculated';
-                            Log::debug('Spec hash fallback calculated from snapshot', ['hash' => $specSignatureHash, 'dat_phong_id' => $dat_phong->id]);
-                        } else {
-
-                            $defaultLoaiId = $snapshotMeta['loai_phong_id'] ?? $giu_phong->loai_phong_id ?? 0;
-                            $specSignatureHash = md5('loai_phong_id:' . $defaultLoaiId);
-                            $source = 'default_fallback';
-                            Log::warning('Spec hash default fallback (snapshot invalid)', ['hash' => $specSignatureHash, 'loai_id' => $defaultLoaiId, 'dat_phong_id' => $dat_phong->id]);
-                        }
-                    }
-
                     $itemPayload = [
                         'dat_phong_id' => $dat_phong->id,
                         'phong_id' => $giu_phong->phong_id ?? null,
@@ -456,14 +432,10 @@ class PaymentController extends Controller
                         'so_luong' => $giu_phong->so_luong ?? 1,
                         'gia_tren_dem' => $price_per_night,
                         'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
-
-                        'spec_signature_hash' => Schema::hasColumn('dat_phong_item', 'spec_signature_hash') ? $specSignatureHash : null,
                     ];
-                    Log::debug('Inserting dat_phong_item with spec hash', [
+                    Log::debug('Inserting dat_phong_item', [
                         'dat_phong_id' => $dat_phong->id,
                         'payload' => $itemPayload,
-                        'spec_hash' => $specSignatureHash,
-                        'source' => $source,
                     ]);
                     \App\Models\DatPhongItem::create($itemPayload);
 
@@ -483,59 +455,9 @@ class PaymentController extends Controller
                         ->queue(new PaymentSuccess($dat_phong, $dat_phong->nguoiDung->name));
                 }
 
-                // Gửi thông báo thanh toán tiền cọc
-                // Kiểm tra xem đây có phải là thanh toán tiền cọc không (số tiền bằng hoặc gần bằng deposit_amount)
-                $isDepositPayment = abs($giao_dich->so_tien - ($dat_phong->deposit_amount ?? 0)) < 1000;
-                if ($isDepositPayment) {
-                    $notificationService = new PaymentNotificationService();
-                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
-                }
-
                 return view('payment.success', compact('dat_phong'));
             } else {
                 $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Mã lỗi: ' . $vnp_ResponseCode]);
-
-                $totalPaidSuccess = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
-                $isPendingStatus = in_array($dat_phong->trang_thai, ['dang_cho', 'dang_cho_xac_nhan']);
-                $canCancel = ($totalPaidSuccess == 0) && $isPendingStatus;
-
-                if ($canCancel) {
-                    $dat_phong->update([
-                        'trang_thai' => 'da_huy',
-                        'can_xac_nhan' => false,
-                    ]);
-
-                    // Giải phóng và xóa GiuPhong
-                    $holdsToRelease = GiuPhong::where('dat_phong_id', $dat_phong->id)
-                        ->where('released', false)
-                        ->get();
-                    GiuPhong::where('dat_phong_id', $dat_phong->id)
-                        ->where('released', false)
-                        ->update(['released' => true]);
-                    GiuPhong::where('dat_phong_id', $dat_phong->id)
-                        ->delete();  // Xóa tất cả GiuPhong liên kết sau khi giải phóng
-
-                    $user = $dat_phong->nguoiDung;
-                    if ($user && $user->email) {
-                        Mail::to($user->email)->queue(new PaymentFail($dat_phong, $vnp_ResponseCode));
-                    }
-
-                    Log::info('Booking auto-canceled due to payment failure', [
-                        'booking_id' => $dat_phong->id,
-                        'ma_tham_chieu' => $dat_phong->ma_tham_chieu,
-                        'old_status' => $isPendingStatus ? 'pending' : $dat_phong->getOriginal('trang_thai'),
-                        'new_status' => 'da_huy',
-                        'total_paid_success' => $totalPaidSuccess,
-                        'deleted_holds_count' => $holdsToRelease->count(),
-                    ]);
-                } else {
-                    Log::info('Booking not canceled (already partially paid or confirmed)', [
-                        'booking_id' => $dat_phong->id,
-                        'total_paid_success' => $totalPaidSuccess,
-                        'current_status' => $dat_phong->trang_thai,
-                    ]);
-                }
-
                 if ($dat_phong->nguoiDung) {
                     Mail::to($dat_phong->nguoiDung->email)
                         ->queue(new PaymentFail($dat_phong, $vnp_ResponseCode));
@@ -578,7 +500,8 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return response()->json(['RspCode' => '02', 'Message' => 'Booking not found']);
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
+
+        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use ($giao_dich, $dat_phong, $vnp_ResponseCode, $vnp_Amount, $inputData, $roomsCount) {
@@ -588,8 +511,8 @@ class PaymentController extends Controller
                     'provider_txn_ref' => $inputData['vnp_TransactionNo'] ?? '',
                 ]);
                 $dat_phong->update([
-                    'trang_thai' => 'da_xac_nhan',
-                    'can_xac_nhan' => false,
+                    'trang_thai' => 'dang_cho_xac_nhan',
+                    'can_xac_nhan' => true,
                 ]);
 
                 $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
@@ -603,34 +526,6 @@ class PaymentController extends Controller
                     $nights = $meta['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                     $price_per_night = $meta['final_per_night'] ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
 
-
-                    $specSignatureHash = null;
-                    $source = 'none';
-                    if (Schema::hasColumn('giu_phong', 'spec_signature_hash') && $giu_phong->spec_signature_hash) {
-                        $specSignatureHash = $giu_phong->spec_signature_hash;
-                        $source = 'hold_db_column';
-                        Log::debug('Spec hash from hold DB column', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
-                    } elseif (isset($meta['spec_signature_hash']) && !empty($meta['spec_signature_hash'])) {
-                        $specSignatureHash = $meta['spec_signature_hash'];
-                        $source = 'hold_meta';
-                        Log::debug('Spec hash from hold meta', ['hash' => $specSignatureHash, 'giu_phong_id' => $giu_phong->id]);
-                    } else {
-
-                        $snapshotMeta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (is_string($dat_phong->snapshot_meta) ? json_decode($dat_phong->snapshot_meta, true) : []);
-                        if (is_array($snapshotMeta) && isset($snapshotMeta['loai_phong_id'])) {
-
-                            $specSignatureHash = $this->generateSpecSignatureHash($snapshotMeta, null);
-                            $source = 'fallback_calculated';
-                            Log::debug('Spec hash fallback calculated from snapshot', ['hash' => $specSignatureHash, 'dat_phong_id' => $dat_phong->id]);
-                        } else {
-
-                            $defaultLoaiId = $snapshotMeta['loai_phong_id'] ?? $giu_phong->loai_phong_id ?? 0;
-                            $specSignatureHash = md5('loai_phong_id:' . $defaultLoaiId);
-                            $source = 'default_fallback';
-                            Log::warning('Spec hash default fallback (snapshot invalid)', ['hash' => $specSignatureHash, 'loai_id' => $defaultLoaiId, 'dat_phong_id' => $dat_phong->id]);
-                        }
-                    }
-
                     $itemPayload = [
                         'dat_phong_id' => $dat_phong->id,
                         'phong_id' => $giu_phong->phong_id ?? null,
@@ -639,14 +534,10 @@ class PaymentController extends Controller
                         'so_luong' => $giu_phong->so_luong ?? 1,
                         'gia_tren_dem' => $price_per_night,
                         'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
-
-                        'spec_signature_hash' => Schema::hasColumn('dat_phong_item', 'spec_signature_hash') ? $specSignatureHash : null,
                     ];
-                    Log::debug('Inserting dat_phong_item with spec hash', [
+                    Log::debug('Inserting dat_phong_item', [
                         'dat_phong_id' => $dat_phong->id,
                         'payload' => $itemPayload,
-                        'spec_hash' => $specSignatureHash,
-                        'source' => $source,
                     ]);
                     \App\Models\DatPhongItem::create($itemPayload);
 
@@ -661,60 +552,10 @@ class PaymentController extends Controller
                     Phong::whereIn('id', array_unique($phongIdsToOccupy))->update(['trang_thai' => 'dang_o']);
                 }
 
-                // Gửi thông báo thanh toán tiền cọc (IPN)
-                // Kiểm tra xem đây có phải là thanh toán tiền cọc không
-                $isDepositPayment = abs($giao_dich->so_tien - ($dat_phong->deposit_amount ?? 0)) < 1000;
-                if ($isDepositPayment) {
-                    $notificationService = new PaymentNotificationService();
-                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
-                }
-
                 return response()->json(['RspCode' => '00', 'Message' => 'Confirm Success']);
             }
 
-            $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Mã lỗi: ' . $vnp_ResponseCode]);
-
-            $totalPaidSuccess = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
-            $isPendingStatus = in_array($dat_phong->trang_thai, ['dang_cho', 'dang_cho_xac_nhan']);
-            $canCancel = ($totalPaidSuccess == 0) && $isPendingStatus;
-
-            if ($canCancel) {
-                $dat_phong->update([
-                    'trang_thai' => 'da_huy',
-                    'can_xac_nhan' => false,
-                ]);
-
-                // Giải phóng và xóa GiuPhong
-                $holdsToRelease = GiuPhong::where('dat_phong_id', $dat_phong->id)
-                    ->where('released', false)
-                    ->get();
-                GiuPhong::where('dat_phong_id', $dat_phong->id)
-                    ->where('released', false)
-                    ->update(['released' => true]);
-                GiuPhong::where('dat_phong_id', $dat_phong->id)
-                    ->delete();  // Xóa tất cả GiuPhong liên kết sau khi giải phóng
-
-                $user = $dat_phong->nguoiDung;
-                if ($user && $user->email) {
-                    Mail::to($user->email)->queue(new PaymentFail($dat_phong, $vnp_ResponseCode));
-                }
-
-                Log::info('Booking auto-canceled due to payment failure', [
-                    'booking_id' => $dat_phong->id,
-                    'ma_tham_chieu' => $dat_phong->ma_tham_chieu,
-                    'old_status' => $isPendingStatus ? 'pending' : $dat_phong->getOriginal('trang_thai'),
-                    'new_status' => 'da_huy',
-                    'total_paid_success' => $totalPaidSuccess,
-                    'deleted_holds_count' => $holdsToRelease->count(),
-                ]);
-            } else {
-                Log::info('Booking not canceled (already partially paid or confirmed)', [
-                    'booking_id' => $dat_phong->id,
-                    'total_paid_success' => $totalPaidSuccess,
-                    'current_status' => $dat_phong->trang_thai,
-                ]);
-            }
-
+            $giao_dich->update(['trang_thai' => 'that_bai']);
             return response()->json(['RspCode' => '99', 'Message' => 'Payment failed']);
         });
     }
@@ -745,7 +586,7 @@ class PaymentController extends Controller
     public function simulateCallback()
     {
         $testData = [
-            "vnp_Amount" => 20000000,
+            "vnp_Amount" => 200000000,
             "vnp_BankCode" => "NCB",
             "vnp_Command" => "pay",
             "vnp_CreateDate" => now()->format('YmdHis'),
@@ -844,33 +685,22 @@ class PaymentController extends Controller
     /**
      * Tạo hash cho spec_signature_hash
      */
-    private function generateSpecSignatureHash($data, $phong = null)
+    private function generateSpecSignatureHash($data, $phong)
     {
-        $baseTienNghi = [];
-        $bedSpec = [];
-        $loaiPhongId = 0;
-
-        if ($phong) {
-            $baseTienNghi = method_exists($phong, 'effectiveTienNghiIds') ? $phong->effectiveTienNghiIds() : [];
-            $bedSpec = method_exists($phong, 'effectiveBedSpec') ? $phong->effectiveBedSpec() : [];
-            $loaiPhongId = (int)$phong->loai_phong_id;
-        } else {
-
-            $loaiPhongId = (int)($data['loai_phong_id'] ?? 0);
-        }
-
+        $baseTienNghi = method_exists($phong, 'effectiveTienNghiIds') ? $phong->effectiveTienNghiIds() : [];
         $selectedAddonIdsArr = $data['addons'] ?? [];
         $mergedTienNghi = array_values(array_unique(array_merge($baseTienNghi, $selectedAddonIdsArr)));
         sort($mergedTienNghi, SORT_NUMERIC);
-
+        $bedSpec = method_exists($phong, 'effectiveBedSpec') ? $phong->effectiveBedSpec() : [];
         $specArray = [
-            'loai_phong_id' => $loaiPhongId,
+            'loai_phong_id' => $phong->loai_phong_id,
             'tien_nghi' => $mergedTienNghi,
             'beds' => $bedSpec,
         ];
         ksort($specArray);
         return md5(json_encode($specArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
+
 
     private function computeAvailableRoomsCount(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, ?string $requiredSignature = null): int
     {
@@ -879,13 +709,14 @@ class PaymentController extends Controller
         $reqStartStr = $requestedStart->toDateTimeString();
         $reqEndStr = $requestedEnd->toDateTimeString();
 
-        if ($requiredSignature === null) {
-            $sample = Phong::where('loai_phong_id', $loaiPhongId)->first();
-            if (!$sample) return 0;
-            $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
-        }
+        // if ($requiredSignature === null) {
+        //     $sample = Phong::where('loai_phong_id', $loaiPhongId)->where('trang_thai', 'trong')->first();
+        //     if (!$sample) return 0;
+        //     $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
+        // }
 
         $matchingRoomIds = Phong::where('loai_phong_id', $loaiPhongId)
+            // ->where('trang_thai', 'trong')
             ->where('spec_signature_hash', $requiredSignature)
             ->pluck('id')->toArray();
 
@@ -934,8 +765,7 @@ class PaymentController extends Controller
             foreach ($holdsWithMeta as $metaRaw) {
                 if (!$metaRaw) continue;
                 $decoded = is_string($metaRaw) ? json_decode($metaRaw, true) : $metaRaw;
-                if (!is_array($decoded)) continue;
-                if (!empty($decoded['selected_phong_ids'])) {
+                if (is_array($decoded) && !empty($decoded['selected_phong_ids'])) {
                     foreach ($decoded['selected_phong_ids'] as $pid) {
                         $heldRoomIds[] = (int)$pid;
                     }
@@ -997,12 +827,18 @@ class PaymentController extends Controller
         if (Schema::hasTable('loai_phong') && Schema::hasColumn('loai_phong', 'so_luong_thuc_te')) {
             $totalRoomsOfType = (int) DB::table('loai_phong')->where('id', $loaiPhongId)->value('so_luong_thuc_te');
         }
+        if ($totalRoomsOfType <= 0) {
+            $totalRoomsOfType = Phong::where('loai_phong_id', $loaiPhongId)
+                // ->where('trang_thai', 'trong')
+                ->count();
+        }
 
         $remainingAcrossType = max(0, $totalRoomsOfType - $aggregateBooked - $aggregateHoldsForSignature);
         $availableForSignature = max(0, min($matchingAvailableCount, $remainingAcrossType));
 
         return (int) $availableForSignature;
     }
+
 
     private function computeAvailableRoomIds(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, int $limit = 1, ?string $requiredSignature = null): array
     {
@@ -1011,11 +847,11 @@ class PaymentController extends Controller
         $reqStartStr = $requestedStart->toDateTimeString();
         $reqEndStr = $requestedEnd->toDateTimeString();
 
-        if ($requiredSignature === null) {
-            $sample = Phong::where('loai_phong_id', $loaiPhongId)->first();
-            if (!$sample) return [];
-            $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
-        }
+        // if ($requiredSignature === null) {
+        //     $sample = Phong::where('loai_phong_id', $loaiPhongId)->where('trang_thai', 'trong')->first();
+        //     if (!$sample) return [];
+        //     $requiredSignature = $sample->spec_signature_hash ?? $sample->specSignatureHash();
+        // }
 
         $bookedRoomIds = [];
         if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
@@ -1055,8 +891,7 @@ class PaymentController extends Controller
             foreach ($holdsWithMeta as $metaRaw) {
                 if (!$metaRaw) continue;
                 $decoded = is_string($metaRaw) ? json_decode($metaRaw, true) : $metaRaw;
-                if (!is_array($decoded)) continue;
-                if (!empty($decoded['selected_phong_ids'])) {
+                if (is_array($decoded) && !empty($decoded['selected_phong_ids'])) {
                     foreach ($decoded['selected_phong_ids'] as $pid) {
                         $heldRoomIds[] = (int)$pid;
                     }
@@ -1067,6 +902,7 @@ class PaymentController extends Controller
         $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
 
         $query = Phong::where('loai_phong_id', $loaiPhongId)
+            // ->where('trang_thai', 'trong')
             ->where('spec_signature_hash', $requiredSignature)
             ->when(!empty($excluded), function ($q) use ($excluded) {
                 $q->whereNotIn('id', $excluded);
@@ -1079,69 +915,65 @@ class PaymentController extends Controller
         return $rows->pluck('id')->toArray();
     }
 
-
- public function initiateRemainingPayment(Request $request, $dat_phong_id)
-{
-    $request->validate([
-        'nha_cung_cap' => 'required|in:tien_mat,vnpay'
-    ]);
-
-    $booking = DatPhong::with(['giaoDichs', 'nguoiDung', 'datPhongItems'])
-        ->lockForUpdate()
-        ->findOrFail($dat_phong_id);
-
-    if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
-        return back()->with('error', 'Booking không hợp lệ để thanh toán phần còn lại.');
-    }
-
-    $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
-    $remaining = $booking->tong_tien - $paid;
-
-    if ($remaining <= 0) {
-        return back()->with('error', 'Đã thanh toán đủ.');
-    }
-
-    return DB::transaction(function () use ($booking, $remaining, $request) {
-        $nhaCungCap = $request->nha_cung_cap;
-
-        // Tạo giao dịch thành công ngay lập tức
-        $giaoDich = GiaoDich::create([
-            'dat_phong_id'     => $booking->id,
-            'nha_cung_cap'     => $nhaCungCap,
-            'so_tien'          => $remaining,
-            'don_vi'           => 'VND',
-            'trang_thai'       => 'thanh_cong',
-            'provider_txn_ref' => $nhaCungCap === 'vnpay' ? 'SIM-' . strtoupper(Str::random(10)) : null,
-            'ghi_chu'          => "Thanh toán phần còn lại - Booking: {$booking->ma_tham_chieu}",
+    public function initiateRemainingPayment(Request $request, $dat_phong_id)
+    {
+        $request->validate([
+            'nha_cung_cap' => 'required|in:tien_mat,vnpay'
         ]);
 
-        // Cập nhật booking
-        $booking->update([
-            'trang_thai'    => 'dang_su_dung',
-            'checked_in_at' => now(),
-        ]);
+        $booking = DatPhong::with(['giaoDichs', 'nguoiDung'])
+            ->lockForUpdate()
+            ->findOrFail($dat_phong_id);
 
-        // Cập nhật phòng
-        $phongIds = $booking->datPhongItems()->pluck('phong_id')->filter()->toArray();
-        if (!empty($phongIds)) {
-            Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
+        if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
+            return back()->with('error', 'Booking không hợp lệ để thanh toán phần còn lại.');
         }
 
-        // Gửi thông báo
-        $notificationService = new PaymentNotificationService();
-        $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
+        $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+        $remaining = $booking->tong_tien - $paid;
 
-        // Chuẩn bị dữ liệu trả về
-        $methodLabel = $nhaCungCap === 'vnpay' ? 'VNPAY' : 'Tiền mặt';
+        if ($remaining <= 0) {
+            return back()->with('error', 'Đã thanh toán đủ, không cần thanh toán thêm.');
+        }
+
+        $transaction = DB::transaction(function () use ($booking, $remaining, $request) {
+            $nhaCungCap = $request->nha_cung_cap;
+            $trangThai = $request->nha_cung_cap === 'tien_mat' ? 'thanh_cong' : 'dang_cho';
+
+            $giaoDich = GiaoDich::create([
+                'dat_phong_id'     => $booking->id,
+                'nha_cung_cap'     => $nhaCungCap,
+                'so_tien'          => $remaining,
+                'don_vi'           => 'VND',
+                'trang_thai'       => $trangThai,
+                'provider_txn_ref' => null,
+                'ghi_chu'          => "Thanh toán phần còn lại booking: {$booking->ma_tham_chieu}",
+            ]);
+
+            Log::info('Created remaining payment transaction', [
+                'giao_dich_id' => $giaoDich->id,
+                'nha_cung_cap' => $giaoDich->nha_cung_cap,
+                'so_tien' => $giaoDich->so_tien,
+                'trang_thai' => $giaoDich->trang_thai,
+            ]);
+
+            if ($request->nha_cung_cap === 'tien_mat') {
+                $booking->update([
+                    'trang_thai'    => 'dang_su_dung',
+                    'checked_in_at' => now(),
+                ]);
+            }
+
+            return $giaoDich;
+        });
+
+        if ($request->nha_cung_cap === 'vnpay') {
+            return $this->redirectToVNPay($transaction, $remaining);
+        }
 
         return redirect()->route('staff.checkin')
-            ->with([
-                'show_payment_modal' => true,
-                'payment_amount'     => number_format($remaining) . 'đ',
-                'payment_method'     => $methodLabel,
-            ]);
-    });
-}
+            ->with('success', 'Thanh toán tiền mặt thành công. Phòng đã được đưa vào sử dụng.');
+    }
 
     public function handleRemainingCallback(Request $request)
     {
@@ -1202,83 +1034,28 @@ class PaymentController extends Controller
             return redirect()->route('staff.checkin')->with('error', 'Giao dịch không ở trạng thái chờ xử lý.');
         }
 
-        // Xử lý thất bại và hủy booking
         if ($vnp_ResponseCode !== '00') {
-            return DB::transaction(function () use ($transaction, $vnp_ResponseCode, $vnp_Amount) {
-                // Cập nhật giao dịch thành thất bại
-                $transaction->update([
-                    'trang_thai' => 'that_bai',
-                    'ghi_chu'    => 'VNPay lỗi: ' . $vnp_ResponseCode,
-                ]);
+            $transaction->update([
+                'trang_thai' => 'that_bai',
+                'ghi_chu'    => 'VNPay lỗi: ' . $vnp_ResponseCode,
+            ]);
 
-                Log::warning('Payment failed', ['response_code' => $vnp_ResponseCode]);
+            Log::warning('Payment failed', ['response_code' => $vnp_ResponseCode]);
 
-                // Lấy booking liên kết
-                $booking = $transaction->datPhong;
-                if (!$booking) {
-                    Log::error('Booking not found for failed transaction', ['transaction_id' => $transaction->id]);
-                    return redirect()->route('staff.checkin')->with('error', 'Thanh toán thất bại. Mã lỗi: ' . $vnp_ResponseCode);
-                }
-
-                // Kiểm tra điều kiện hủy: Chỉ hủy nếu chưa có thanh toán thành công và trạng thái chờ
-                $totalPaidSuccess = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
-                $isPendingStatus = in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan']);
-                $canCancel = ($totalPaidSuccess == 0) && $isPendingStatus;
-
-                if ($canCancel) {
-                    // Cập nhật booking thành hủy
-                    $booking->update([
-                        'trang_thai' => 'da_huy',
-                        'can_xac_nhan' => false, // Đảm bảo không thể xác nhận nữa
-                    ]);
-
-                    // Giải phóng và xóa hold phòng (nếu có)
-                    $holdsToRelease = GiuPhong::where('dat_phong_id', $booking->id)
-                        ->where('released', false)
-                        ->get();
-                    GiuPhong::where('dat_phong_id', $booking->id)
-                        ->where('released', false)
-                        ->update(['released' => true]);
-                    GiuPhong::where('dat_phong_id', $booking->id)
-                        ->delete();  // Xóa tất cả GiuPhong liên kết
-
-                    // Gửi email thông báo thất bại/hủy (nếu user tồn tại)
-                    $user = $booking->nguoiDung;
-                    if ($user && $user->email) {
-                        Mail::to($user->email)->queue(new \App\Mail\PaymentFail($booking, $user->name));
-                    }
-
-                    Log::info('Booking auto-canceled due to payment failure', [
-                        'booking_id' => $booking->id,
-                        'ma_tham_chieu' => $booking->ma_tham_chieu,
-                        'old_status' => $isPendingStatus ? 'pending' : $booking->getOriginal('trang_thai'),
-                        'new_status' => 'da_huy',
-                        'total_paid_success' => $totalPaidSuccess,
-                        'deleted_holds_count' => $holdsToRelease->count(),
-                    ]);
-                } else {
-                    Log::info('Booking not canceled (already partially paid or confirmed)', [
-                        'booking_id' => $booking->id,
-                        'total_paid_success' => $totalPaidSuccess,
-                        'current_status' => $booking->trang_thai,
-                    ]);
-                }
-
-                // Kiểm tra số tiền khớp (nếu cần, nhưng giữ nguyên logic cũ)
-                if (abs($transaction->so_tien - $vnp_Amount) > 1) {
-                    Log::error('Amount mismatch', [
-                        'expected' => $transaction->so_tien,
-                        'received' => $vnp_Amount,
-                    ]);
-                }
-
-                return redirect()->route('staff.checkin')
-                    ->with('error', 'Thanh toán thất bại. Mã lỗi: ' . $vnp_ResponseCode . ($canCancel ? ' Booking đã được hủy tự động.' : ''));
-            });
+            return redirect()->route('staff.checkin')
+                ->with('error', 'Thanh toán thất bại. Mã lỗi: ' . $vnp_ResponseCode);
         }
 
-        // Phần thành công
-        return DB::transaction(function () use ($transaction, $inputData, $vnp_Amount) {
+        if (abs($transaction->so_tien - $vnp_Amount) > 1) {
+            Log::error('Amount mismatch', [
+                'expected' => $transaction->so_tien,
+                'received' => $vnp_Amount,
+            ]);
+            return redirect()->route('staff.checkin')->with('error', 'Số tiền không khớp.');
+        }
+
+        return DB::transaction(function () use ($transaction, $inputData) {
+
             $transaction->update([
                 'trang_thai'       => 'thanh_cong',
                 'provider_txn_ref' => $inputData['vnp_TransactionNo'] ?? null,
@@ -1341,17 +1118,9 @@ class PaymentController extends Controller
                     ]);
                 }
 
-                // Gửi thông báo thanh toán tiền phòng thành công
-                $notificationService = new PaymentNotificationService();
-                $notificationService->sendRoomPaymentNotification($booking, $transaction);
-
                 return redirect()->route('staff.checkin')
                     ->with('success', 'Thanh toán thành công! Phòng đã được chuyển sang trạng thái đang sử dụng.');
             }
-
-            // Gửi thông báo thanh toán tiền phòng (chưa đủ)
-            $notificationService = new PaymentNotificationService();
-            $notificationService->sendRoomPaymentNotification($booking, $transaction);
 
             Log::warning('Payment not complete yet', [
                 'booking_id' => $booking->id,
