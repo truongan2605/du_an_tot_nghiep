@@ -7,6 +7,7 @@
     <table class="table table-bordered">
         <thead>
             <tr>
+                <th>Tên</th>
                 <th>Mã</th>
                 <th>Loại</th>
                 <th>Giá trị</th>
@@ -20,6 +21,7 @@
         <tbody>
             @foreach($vouchers as $voucher)
             <tr>
+                <td>{{ $voucher->name }}</td>
                 <td>{{ $voucher->code }}</td>
                 <td>{{ $voucher->type }}</td>
                 <td>{{ $voucher->value }}</td>

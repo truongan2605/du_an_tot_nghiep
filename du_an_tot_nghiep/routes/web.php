@@ -30,14 +30,12 @@ use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
 
-
+Route::post('/booking/validate-voucher', [BookingController::class, 'validateVoucher'])->name('booking.validate_voucher')->middleware('auth');
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
 // ==================== VOUCHER CLIENT ====================
 Route::get('/vouchers', [ClientVoucherController::class, 'index'])->name('client.vouchers.index');
-// API kiểm tra voucher
-Route::post('/vouchers/apply', [ClientVoucherController::class, 'apply'])->name('client.vouchers.apply');
 
 Route::get('/list-room', [RoomController::class, 'index'])->name('list-room.index');
 Route::get('/list-room/{id}', [RoomController::class, 'show'])->name('list-room.show');
@@ -50,6 +48,7 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 
 // ==================== BOOKING ====================
 Route::get('/booking/availability', [BookingController::class, 'availability'])->name('booking.availability');
+Route::post('/booking/apply-voucher', [BookingController::class, 'applyVoucher'])->name('booking.apply-voucher');
 
 // ==================== ADMIN ====================
 Route::prefix('admin')
@@ -143,8 +142,6 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::get('/checkin', [StaffController::class, 'checkinForm'])->name('checkin');
         Route::post('/process-checkin', [StaffController::class, 'processCheckin'])->name('processCheckin');
 
-
-
         // Báo cáo / Tổng quan
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
@@ -156,7 +153,6 @@ Route::middleware('auth')
     ->prefix('account')
     ->name('account.')
     ->group(function () {
-
         // Cài đặt tài khoản
         Route::get('settings', function () {
             return view('account.profile');
@@ -175,6 +171,13 @@ Route::middleware('auth')
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
     });
+
+// ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
+Route::middleware('auth')->group(function () {
+    Route::post('/vouchers/claim/{id}', [ClientVoucherController::class, 'claim'])->name('client.vouchers.claim');
+    Route::get('/my-voucher', [ClientVoucherController::class, 'myVouchers'])->name('client.vouchers.my');
+});
+
 // ==================== PAYMENT ====================
 Route::middleware(['auth'])->group(function () {
     Route::get('/payment/pending-payments', [PaymentController::class, 'pendingPayments'])->name('payment.pending_payments');
@@ -186,7 +189,6 @@ Route::middleware(['auth'])->group(function () {
         ->name('payment.remaining');
     Route::get('/payment/remaining/callback', [PaymentController::class, 'handleRemainingCallback'])
         ->name('payment.remaining.callback');
-
 });
 Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
 

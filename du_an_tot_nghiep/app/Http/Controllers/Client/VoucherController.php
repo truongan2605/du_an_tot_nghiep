@@ -5,60 +5,120 @@ namespace App\Http\Controllers\Client;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Voucher;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\QueryException;
 use Carbon\Carbon;
 
 class VoucherController extends Controller
 {
+    /** Hiển thị danh sách voucher */
     public function index(Request $request)
     {
         $query = Voucher::query();
 
-        // Lọc theo trạng thái
-        if ($request->filter === 'valid') {
-            $query->where('end_date', '>=', now());
-        } elseif ($request->filter === 'expired') {
-            $query->where('end_date', '<', now());
+        if ($request->filled('search')) {
+            $query->where('code', 'like', '%' . $request->search . '%');
         }
 
-        // Tìm kiếm theo code
-        if ($request->search) {
-            $query->where('code', 'like', "%{$request->search}%");
+        if ($request->filled('filter')) {
+            if ($request->filter === 'valid') {
+                $query->whereDate('end_date', '>=', Carbon::today());
+            } elseif ($request->filter === 'expired') {
+                $query->whereDate('end_date', '<', Carbon::today());
+            }
         }
 
-        $vouchers = $query->where('active', 1)->latest()->paginate(6);
-        return view('client.vouchers.index', compact('vouchers'));
+        $query->where('active', 1)->orderByDesc('start_date');
+        $vouchers = $query->get();
+
+        // Lấy id voucher đã nhận
+        $claimedIds = [];
+        if (Auth::check()) {
+            $claimedIds = Auth::user()
+                ->vouchers()
+                ->pluck('voucher.id') // vì bảng là 'voucher'
+                ->toArray();
+        }
+
+        return view('client.voucher.index', compact('vouchers', 'claimedIds'));
     }
 
-    public function apply(Request $request)
+    /** Nhận voucher */
+    public function claim(Request $request, $id)
     {
-        $code = $request->input('code');
-        $total = floatval($request->input('total', 0));
+        if (!Auth::check()) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập để nhận voucher.'], 401);
+        }
 
-        $voucher = Voucher::where('code', $code)->where('active', 1)->first();
+        $user = Auth::user();
+        $voucher = Voucher::find($id);
 
         if (!$voucher) {
-            return response()->json(['success' => false, 'message' => 'Mã không tồn tại hoặc không hoạt động.']);
+            return response()->json(['success' => false, 'message' => 'Voucher không tồn tại.'], 404);
+        }
+
+        if (!$voucher->active) {
+            return response()->json(['success' => false, 'message' => 'Voucher hiện không hoạt động.'], 400);
         }
 
         $today = Carbon::today();
-        if ($voucher->start_date > $today || $voucher->end_date < $today) {
-            return response()->json(['success' => false, 'message' => 'Mã đã hết hạn hoặc chưa có hiệu lực.']);
+        if (!empty($voucher->start_date) && $voucher->start_date > $today) {
+            return response()->json(['success' => false, 'message' => 'Voucher chưa có hiệu lực.'], 400);
+        }
+        if (!empty($voucher->end_date) && $voucher->end_date < $today) {
+            return response()->json(['success' => false, 'message' => 'Voucher đã hết hạn.'], 400);
         }
 
-        if ($voucher->min_order_amount && $total < $voucher->min_order_amount) {
-            return response()->json(['success' => false, 'message' => 'Đơn hàng chưa đạt giá trị tối thiểu.']);
+        $alreadyClaimed = $user->vouchers()->where('voucher.id', $voucher->id)->exists();
+        if ($alreadyClaimed) {
+            return response()->json(['success' => false, 'message' => 'Bạn đã nhận voucher này trước đó.'], 400);
         }
 
-        // Tính toán giá trị giảm
-        $discount = $voucher->type === 'percent'
-            ? $total * ($voucher->value / 100)
-            : $voucher->value;
+        try {
+            $user->vouchers()->attach($voucher->id, ['claimed_at' => now()]);
+        } catch (QueryException $e) {
+            return response()->json(['success' => false, 'message' => 'Không thể nhận voucher (đã tồn tại).'], 400);
+        }
 
         return response()->json([
             'success' => true,
-            'discount' => round($discount, 0),
-            'new_total' => max($total - $discount, 0),
-            'message' => "Áp dụng mã thành công!"
+            'message' => 'Nhận voucher thành công!',
+            'voucher_id' => $voucher->id,
+            'code' => $voucher->code,
+            'claimed_at' => now()->toDateTimeString(),
         ]);
     }
+
+    /** Trang My Vouchers */
+    public function myVouchers(Request $request)
+{
+    if (!Auth::check()) {
+        return redirect()->route('login');
+    }
+
+    $query = Auth::user()->vouchers()->orderByDesc('user_voucher.claimed_at');
+
+    // Tìm kiếm
+    if ($request->filled('search')) {
+        $query->where(function($q) use ($request) {
+            $q->where('code', 'like', '%'.$request->search.'%')
+              ->orWhere('note', 'like', '%'.$request->search.'%');
+        });
+    }
+
+    // Lọc theo hiệu lực
+    if ($request->filled('filter')) {
+        if ($request->filter === 'valid') {
+            $query->whereDate('end_date', '>=', now());
+        } elseif ($request->filter === 'expired') {
+            $query->whereDate('end_date', '<', now());
+        }
+    }
+
+    $vouchers = $query->get();
+
+    return view('account.my', compact('vouchers'));
+}
+
 }

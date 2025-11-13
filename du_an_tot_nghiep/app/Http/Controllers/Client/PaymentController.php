@@ -29,7 +29,7 @@ class PaymentController extends Controller
 
     public function initiateVNPay(Request $request)
     {
-        Log::info('🔹 initiateVNPay request:', $request->all());
+Log::info('🔹 initiateVNPay request:', $request->all());
 
         try {
             $validated = $request->validate([

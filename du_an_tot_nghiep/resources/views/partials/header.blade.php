@@ -27,7 +27,7 @@
 			<!-- Main navbar START -->
 			<div class="navbar-collapse collapse" id="navbarCollapse">
 				<ul class="navbar-nav navbar-nav-scroll me-auto">
-
+                    <a class="nav-link " href="{{ route('client.vouchers.index') }}" >Vouchers</a>
 					<!-- Nav item Listing -->
 					<li class="nav-item dropdown">
 						<a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Listings</a>
@@ -185,7 +185,7 @@
 									@endphp
 									@forelse($__notifications as $__n)
 									<li>
-										<a href="{{ route('notifications.show', $__n->id) }}" 
+										<a href="{{ route('notifications.show', $__n->id) }}"
 										   class="list-group-item list-group-item-action rounded border-0 mb-1 p-3 w-100 text-start notification-item {{ $__n->trang_thai !== 'read' ? 'notif-unread' : '' }}">
 											<h6 class="mb-1">{{ $__n->payload['title'] ?? $__n->ten_template }}</h6>
 											<p class="mb-0 small">{{ $__n->payload['message'] ?? '' }}</p>
@@ -250,6 +250,7 @@
 						<li><a class="dropdown-item" href="{{ url('/account/bookings') }}"><i class="bi bi-bookmark-check fa-fw me-2"></i>My Bookings</a></li>
 						<li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i class="bi bi-heart fa-fw me-2"></i>My Wishlist</a></li>
 						<li><a class="dropdown-item" href="{{ route('account.settings') }}"><i class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
+						<li><a class="dropdown-item" href="{{ route('client.vouchers.my') }}"><i class="bi bi-gear fa-fw me-2"></i>My Voucher</a></li>
 						<li><a class="dropdown-item" href="{{ url('/help') }}"><i class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>
 
 						<li> <hr class="dropdown-divider"></li>
@@ -318,11 +319,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalBody = document.getElementById('notificationModalBody');
     const markAsReadBtn = document.getElementById('markAsReadBtn');
     let currentNotificationId = null;
-    
+
     modal.addEventListener('show.bs.modal', function (event) {
         const button = event.relatedTarget;
         currentNotificationId = button.getAttribute('data-notification-id');
-        
+
         modalBody.innerHTML = `
             <div class="text-center py-4">
                 <div class="spinner-border text-primary" role="status">
@@ -331,9 +332,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <p class="mt-2 text-muted">Đang tải thông tin thông báo...</p>
             </div>
         `;
-        
+
         markAsReadBtn.style.display = 'none';
-        
+
         const timeoutId = setTimeout(() => {
             modalBody.innerHTML = `
                 <div class="alert alert-warning">
@@ -349,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
         }, 5000);
-        
+
         fetch(`/thong-bao/${currentNotificationId}/modal`, {
             method: 'GET',
             headers: {
@@ -369,7 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Response data:', data);
             if (data.success) {
                 modalBody.innerHTML = data.html;
-                
+
                 if (data.isUnread) {
                     markAsReadBtn.style.display = 'inline-block';
                 }
@@ -398,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
     });
-    
+
     // Test route function
     window.testRoute = function(notificationId) {
         console.log('Testing route for notification:', notificationId);
@@ -417,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             });
     };
-    
+
     markAsReadBtn.addEventListener('click', function() {
         if (currentNotificationId) {
             fetch(`/thong-bao/${currentNotificationId}/read`, {
@@ -430,15 +431,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 markAsReadBtn.style.display = 'none';
-                
+
                 const notificationItem = document.querySelector(`[data-notification-id="${currentNotificationId}"]`);
                 if (notificationItem) {
                     notificationItem.classList.remove('notif-unread');
                 }
-                
+
                 // Update badge count
                 updateNotificationBadge();
-                
+
                 // Show success message
                 const alert = document.createElement('div');
                 alert.className = 'alert alert-success alert-dismissible fade show';
@@ -460,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     function updateNotificationBadge() {
         fetch('/api/notifications/unread-count')
             .then(response => response.json())
@@ -479,7 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error updating badge:', error);
             });
     }
-    
+
     // Test client broadcast function
     window.testClientBroadcast = function() {
         fetch('/test-client-broadcast', {
@@ -502,7 +503,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
                 document.body.appendChild(alert);
-                
+
                 // Auto remove after 5 seconds
                 setTimeout(() => {
                     if (alert.parentNode) {

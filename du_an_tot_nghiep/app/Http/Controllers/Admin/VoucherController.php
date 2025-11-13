@@ -22,6 +22,7 @@ class VoucherController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'name' => 'required|unique:voucher,name',
             'code' => 'required|unique:voucher,code',
             'type' => 'required|in:fixed,percent',
             'value' => 'required|numeric|min:0',
@@ -49,6 +50,7 @@ class VoucherController extends Controller
     public function update(Request $request, Voucher $voucher)
     {
         $request->validate([
+            'name' => 'required|unique:voucher,name,' ,
             'code' => 'required|unique:voucher,code,' . $voucher->id,
             'type' => 'required|in:fixed,percent',
             'value' => 'required|numeric|min:0',

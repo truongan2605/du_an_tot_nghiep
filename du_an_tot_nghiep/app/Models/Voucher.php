@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Voucher extends Model
 {
@@ -12,6 +13,7 @@ class Voucher extends Model
     protected $table = 'voucher';
 
     protected $fillable = [
+        'name',
         'code',
         'type',
         'value',
@@ -22,19 +24,36 @@ class Voucher extends Model
         'applicable_to',
         'note',
         'usage_limit_per_user',
-        'active'
+        'active',
     ];
-        public function getConHieuLucAttribute()
+
+    protected $casts = [
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'active' => 'boolean',
+    ];
+
+    // ======= Quan hệ tới User =======
+    public function users()
     {
-        $today = now()->toDateString();
+        return $this->belongsToMany(User::class, 'user_voucher', 'voucher_id', 'user_id')
+                    ->withPivot('claimed_at')
+                    ->withTimestamps();
+    }
+
+    // ======= Kiểm tra còn hiệu lực =======
+    public function getConHieuLucAttribute(): bool
+    {
+        $today = Carbon::today();
         return $this->active && $this->start_date <= $today && $this->end_date >= $today;
     }
 
-    // Format giá trị hiển thị
-    public function getGiaTriHienThiAttribute()
+    // ======= Hiển thị giá trị voucher (đẹp hơn) =======
+    public function getGiaTriHienThiAttribute(): string
     {
-        return $this->type === 'phan_tram'
-            ? $this->value . '%'
-            : number_format($this->gia_tri, 0, ',', '.') . 'đ';
+        if ($this->type === 'phan_tram') {
+            return $this->value . '%';
+        }
+        return number_format($this->value, 0, ',', '.') . 'đ';
     }
 }
