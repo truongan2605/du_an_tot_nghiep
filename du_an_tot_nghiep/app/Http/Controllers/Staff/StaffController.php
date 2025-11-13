@@ -23,7 +23,7 @@ class StaffController extends Controller
 
 public function index()
 {
-     $today = now();
+    $today = now();
     $weekRange = [$today->copy()->startOfWeek()->toDateString(), $today->copy()->endOfWeek()->toDateString()];
     $month = $today->month;
     $year = $today->year;

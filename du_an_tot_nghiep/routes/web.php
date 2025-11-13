@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 // ===== Controllers =====
 use App\Http\Controllers\HomeController;
@@ -21,25 +21,25 @@ use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Admin\PhongVatDungController;
 use App\Http\Controllers\CustomerNotificationController;
 use App\Http\Controllers\InternalNotificationController;
+use App\Http\Controllers\Admin\VatDungIncidentController;
+use App\Http\Controllers\Client\BlogController as ClientBlog;
+use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
+use App\Http\Controllers\Admin\PhongConsumptionController;
+
+// Vật dụng/phòng (mở rộng)
 use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
-use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
-use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
-
-// Vật dụng/phòng (mở rộng)
-use App\Http\Controllers\Admin\PhongVatDungController;
-use App\Http\Controllers\Admin\PhongConsumptionController;
-use App\Http\Controllers\Admin\PhongVatDungInstanceController;
-use App\Http\Controllers\Admin\VatDungIncidentController;
+use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 
 // BLOG (Admin + Client)
-use App\Http\Controllers\Client\BlogController as ClientBlog;
-use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
+use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
-use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
+use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
+use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
