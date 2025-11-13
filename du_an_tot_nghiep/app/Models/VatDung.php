@@ -16,32 +16,62 @@ class VatDung extends Model
         'mo_ta',
         'icon',
         'active',
-        'gia',  
+        'gia',
+        'loai',
+        'tracked_instances',
     ];
 
 
     protected $casts = [
         'active' => 'boolean',
         'gia' => 'decimal:2',
+        'tracked_instances' => 'boolean',
     ];
 
+    public const LOAI_DO_AN = 'do_an';
+    public const LOAI_DO_DUNG = 'do_dung';
+
+    public function isConsumable(): bool
+    {
+        return $this->loai === self::LOAI_DO_AN;
+    }
+
+    public function isDurable(): bool
+    {
+        return $this->loai === self::LOAI_DO_DUNG;
+    }
 
     // Relationships
     public function phongs()
     {
-        return $this->belongsToMany(Phong::class, 'phong_vat_dung');
+        return $this->belongsToMany(Phong::class, 'phong_vat_dung')
+            ->using(\App\Models\PhongVatDung::class)
+            ->withPivot(['so_luong', 'da_tieu_thu', 'gia_override', 'tracked_instances'])
+            ->withTimestamps();
     }
 
-   
+
+    public function loaiPhongs()
+    {
+        return $this->belongsToMany(
+            \App\Models\LoaiPhong::class,
+            'loai_phong_vat_dung',
+            'vat_dung_id',
+            'loai_phong_id'
+        )
+            ->withPivot(['so_luong'])
+            ->withTimestamps()
+            ->orderByDesc('loai_phong.id');
+    }
 
 
-public function loaiPhongs()
-{
-    return $this->belongsToMany(LoaiPhong::class, 'loai_phong_vat_dung', 'vat_dung_id', 'loai_phong_id');
-}
-public function scopeActive($query)
-{
-    return $query->where('active', true);
-}
+    public function instances()
+    {
+        return $this->hasMany(\App\Models\PhongVatDungInstance::class, 'vat_dung_id');
+    }
 
+    public function scopeActive($query)
+    {
+        return $query->where('active', true);
+    }
 }

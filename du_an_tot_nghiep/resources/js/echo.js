@@ -13,23 +13,15 @@ window.Echo = new Echo({
     enabledTransports: ['ws', 'wss'],
 });
 
-// Debug Echo connection
-console.log('Echo initialized with config:', {
-    broadcaster: 'reverb',
-    key: import.meta.env.VITE_REVERB_APP_KEY,
-    wsHost: import.meta.env.VITE_REVERB_HOST,
-    wsPort: import.meta.env.VITE_REVERB_PORT ?? 80,
-    wssPort: import.meta.env.VITE_REVERB_PORT ?? 443,
-    forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
-});
+// Echo initialized
 
 // Listen for connection events
 window.Echo.connector.pusher.connection.bind('connected', function() {
-    console.log('Echo connected successfully');
+    // Echo connected successfully
 });
 
 window.Echo.connector.pusher.connection.bind('disconnected', function() {
-    console.log('Echo disconnected');
+    // Echo disconnected
 });
 
 window.Echo.connector.pusher.connection.bind('error', function(error) {

@@ -1,4 +1,4 @@
-@extends('layouts.staff')
+@extends('layouts.admin')
 
 @section('title', 'Chi Tiết Booking:' . $booking->ma_tham_chieu)
 
@@ -17,11 +17,11 @@
         <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
             <div class="card-header bg-gradient-primary text-white py-4 position-relative overflow-hidden">
                 <div class="d-flex align-items-center">
-                    <i class="bi bi-info-circle-fill fs-4 me-3"></i>
-                    <h5 class="mb-0 fw-bold">Thông Tin Booking</h5>
+                    <i class="bi bi-info-circle-fill fs-4 me-3" style="color: rgb(38, 81, 168)"></i>
+                    <h5 class="mb-0 fw-bold" style="color: black">Thông Tin Booking</h5>
                 </div>
                 <div class="position-absolute end-0 top-50 translate-middle-y pe-5 opacity-10">
-                    <i class="bi bi-calendar-check fs-1"></i>
+                    <i class="bi bi-calendar-check fs-1" style="color: black"></i>
                 </div>
             </div>
 

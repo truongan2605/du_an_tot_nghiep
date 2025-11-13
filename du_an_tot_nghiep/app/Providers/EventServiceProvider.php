@@ -14,6 +14,8 @@ use App\Listeners\SendPaymentNotification;
 use App\Listeners\SendCancellationNotification;
 use App\Listeners\SendReminderNotification;
 use App\Listeners\SendRoomNotification;
+use App\Events\StaffCreated;
+use App\Listeners\SendStaffNotification;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -40,6 +42,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         RoomUpdated::class => [
             SendRoomNotification::class,
+        ],
+        StaffCreated::class => [
+            SendStaffNotification::class,
         ],
     ];
 

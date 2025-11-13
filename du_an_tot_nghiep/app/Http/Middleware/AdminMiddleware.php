@@ -19,11 +19,23 @@ class AdminMiddleware
 
         $user = Auth::user();
 
-        if ($user->vai_tro !== 'admin' || ! $user->is_active) {
+        if (! $user->is_active) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
-            return redirect('/')->with('error', 'Bạn không có quyền truy cập trang quản trị.');
+            return redirect()->route('login');
+        }
+
+  
+        if ($user->vai_tro !== 'admin') {
+            if (! $request->isMethod('GET')) {
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => 'Bạn chỉ có quyền xem, không được thực hiện hành động này.'], 403);
+                }
+                return redirect()->back()->with('error', 'Bạn chỉ có quyền xem, không được thực hiện hành động này.');
+            }
+          
+            session(['read_only_mode' => true]);
         }
 
         return $next($request);

@@ -91,13 +91,13 @@
                                 <nav aria-label="breadcrumb">
                                     <ol class="breadcrumb breadcrumb-dots mb-0">
                                         <li class="breadcrumb-item"><a href="{{ route('home') }}"><i
-                                                    class="bi bi-house me-1"></i> Home</a></li>
-                                        <li class="breadcrumb-item"><a href="{{ route('rooms.show', $phong->id) }}">Room
-                                                detail</a></li>
-                                        <li class="breadcrumb-item active">Booking</li>
+                                                    class="bi bi-house me-1"></i> Trang chủ</a></li>
+                                        <li class="breadcrumb-item"><a href="{{ route('rooms.show', $phong->id) }}">Chi tiết
+                                                phòng</a></li>
+                                        <li class="breadcrumb-item active">Đặt phòng</li>
                                     </ol>
                                 </nav>
-                                <h1 class="m-0 h2 card-title">Review your Booking</h1>
+                                <h1 class="m-0 h2 card-title">Xem lại đặt phòng của bạn</h1>
                             </div>
                         </div>
 
@@ -764,7 +764,6 @@
                     });
                     if (!res.ok) {
                         console.error('Availability check error: status', res.status);
-                        showToastInline('Không thể kiểm tra tính khả dụng phòng. Vui lòng thử lại.', true, 5000);
                         return;
                     }
                     const data = await res.json();

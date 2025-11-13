@@ -105,6 +105,8 @@
                                     $statusLabel = function ($t) {
                                         $map = [
                                             'dang_cho' => 'Pending',
+                                            'dang_cho_xac_nhan' => 'Pending',
+                                            'dang_su_dung' => 'Đang Sử Dụng',
                                             'da_xac_nhan' => 'Confirmed',
                                             'da_huy' => 'Cancelled',
                                             'hoan_thanh' => 'Completed',
@@ -114,6 +116,8 @@
                                     $statusBadge = function ($t) {
                                         $map = [
                                             'dang_cho' => 'bg-warning',
+                                            'dang_cho_xac_nhan' => 'bg-warning',
+                                            'dang_su_dung' => 'bg-success',
                                             'da_xac_nhan' => 'bg-primary',
                                             'da_huy' => 'bg-danger',
                                             'hoan_thanh' => 'bg-success',

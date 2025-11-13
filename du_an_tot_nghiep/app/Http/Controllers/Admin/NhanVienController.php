@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
+use App\Events\StaffCreated;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -40,71 +41,79 @@ class NhanVienController extends Controller
         $validated['password'] = bcrypt($validated['password']);
         $validated['is_active'] = true;
 
-        User::create($validated);
+        $staff = User::create($validated);
+
+        // Dispatch event for automatic notifications
+        event(new StaffCreated($staff));
         return redirect()->route('admin.nhan-vien.index')->with('success', 'Nhân viên mới đã được thêm!');
     }
 
-    public function show(User $user)
+    // FIX: Đổi $user → $nhan_vien
+    public function show(User $nhan_vien)
     {
-        if ($user->vai_tro !== 'nhan_vien') {
+        if ($nhan_vien->vai_tro !== 'nhan_vien') {
             abort(403, 'Chỉ xem chi tiết nhân viên!');
         }
-        return view('admin.nhan-vien.show', compact('user'));
+        return view('admin.nhan-vien.show', compact('nhan_vien'));  // Đổi compact('user') → compact('nhan_vien')
     }
 
-    public function edit(User $user)
+    // FIX: Đổi $user → $nhan_vien
+    public function edit(User $nhan_vien)
     {
-        if ($user->vai_tro !== 'nhan_vien') {
+        if ($nhan_vien->vai_tro !== 'nhan_vien') {
             abort(403, 'Chỉ chỉnh sửa nhân viên!');
         }
-        return view('admin.nhan-vien.edit', compact('user'));
+        return view('admin.nhan-vien.edit', compact('nhan_vien'));  // Đổi compact('user') → compact('nhan_vien')
     }
 
-    public function update(Request $request, User $user)
+    // FIX: Đổi $user → $nhan_vien
+    public function update(Request $request, User $nhan_vien)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $user->id,
+            'email' => 'required|email|unique:users,email,' . $nhan_vien->id,
             'so_dien_thoai' => 'nullable|string|max:20',
             'phong_ban' => 'required|string|max:255',
         ]);
 
-        $user->update($validated);
+        $nhan_vien->update($validated);  // Đổi $user → $nhan_vien
 
         return redirect()->route('admin.nhan-vien.index')->with('success', 'Thông tin nhân viên đã được cập nhật!');
     }
 
-    public function toggleActive(User $user, Request $request)
+    // FIX: Đổi $user → $nhan_vien
+    public function toggleActive(User $nhan_vien, Request $request)
     {
-        if ($user->vai_tro !== 'nhan_vien') {
+        if ($nhan_vien->vai_tro !== 'nhan_vien') {
             abort(403, 'Chỉ thay đổi trạng thái nhân viên!');
         }
 
-        $user->is_active = !$user->is_active;
-        $user->save();
+        $nhan_vien->is_active = !$nhan_vien->is_active;  // Đổi $user → $nhan_vien
+        $nhan_vien->save();  // Đổi $user → $nhan_vien
 
-        if (!$user->is_active && Auth::check() && Auth::id() === $user->id) {
+        if (!$nhan_vien->is_active && Auth::check() && Auth::id() === $nhan_vien->id) {  // Đổi $user → $nhan_vien
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
             return redirect()->route('login')->with('error', 'Tài khoản của bạn đã bị vô hiệu hóa!');
         }
 
-        $message = $user->is_active ? 'Kích hoạt thành công!' : 'Vô hiệu hóa thành công!';
+        $message = $nhan_vien->is_active ? 'Kích hoạt thành công!' : 'Vô hiệu hóa thành công!';  // Đổi $user → $nhan_vien
         return redirect()->route('admin.nhan-vien.index')->with('success', $message);
     }
 
-    public function destroy(User $user)
+    // FIX: Đổi $user → $nhan_vien
+    public function destroy(User $nhan_vien)
     {
-        if ($user->vai_tro !== 'nhan_vien') {
+        if ($nhan_vien->vai_tro !== 'nhan_vien') {
             abort(403, 'Chỉ xóa nhân viên!');
         }
 
-        if ($user->datPhongs()->exists()) {
+        if ($nhan_vien->datPhongs()->exists()) {  // Đổi $user → $nhan_vien
             return redirect()->back()->with('error', 'Không thể xóa nhân viên vì đã có đơn đặt phòng!');
         }
 
-        $user->delete();
+        $nhan_vien->delete();  // Đổi $user → $nhan_vien
         return redirect()->route('admin.nhan-vien.index')->with('success', 'Nhân viên đã được xóa!');
     }
 }
