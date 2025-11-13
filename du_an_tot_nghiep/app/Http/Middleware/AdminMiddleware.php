@@ -23,7 +23,7 @@ class AdminMiddleware
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
-            return redirect('/')->with('error', 'Tài khoản của bạn chưa được kích hoạt.');
+            return redirect()->route('login');
         }
 
   

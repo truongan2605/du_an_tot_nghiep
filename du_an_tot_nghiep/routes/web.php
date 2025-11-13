@@ -58,7 +58,7 @@ Route::get('/booking/availability', [BookingController::class, 'availability'])-
 // ==================== ADMIN ====================
 Route::prefix('admin')
     ->name('admin.')
-    ->middleware(['auth', App\Http\Middleware\AdminMiddleware::class])
+    ->middleware(['auth',  'role:nhan_vien|admin', App\Http\Middleware\AdminMiddleware::class])
     ->group(function () {
         // Tiện nghi
         Route::resource('tien-nghi', AdminTienNghiController::class);
