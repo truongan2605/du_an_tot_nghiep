@@ -207,13 +207,14 @@
                             <div class="row align-items-center text-sm">
                                 <div class="col-md-3 d-flex align-items-center">
                                     <strong class="text-primary">#{{ $item->phong?->ma_phong ?? 'Chưa gán' }}</strong>
-                                    {{-- Nút thêm đồ ăn cho phòng này --}}
-                                    <button type="button" class="btn btn-sm btn-outline-primary ms-3"
-                                        data-bs-toggle="modal" data-bs-target="#addFoodModal"
-                                        data-phong-id="{{ $item->phong?->id }}"
-                                        data-phong-code="{{ $item->phong?->ma_phong }}">
-                                        <i class="bi bi-plus-lg me-1"></i> Dịch vụ gọi thêm
-                                    </button>
+                                    @if ($booking->trang_thai === 'dang_su_dung')
+                                        <button type="button" class="btn btn-sm btn-outline-primary ms-3"
+                                            data-bs-toggle="modal" data-bs-target="#addFoodModal"
+                                            data-phong-id="{{ $item->phong?->id }}"
+                                            data-phong-code="{{ $item->phong?->ma_phong }}">
+                                            <i class="bi bi-plus-lg me-1"></i> Dịch vụ gọi thêm
+                                        </button>
+                                    @endif
                                 </div>
                                 <div class="col-md-3">
                                     <i class="bi bi-building me-1"></i> {{ $item->loaiPhong?->ten ?? 'N/A' }}
@@ -228,7 +229,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                 @empty
                     <div class="text-center py-5 text-muted">
                         <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
@@ -259,7 +260,8 @@
                                             <option value="">— Chọn dịch vụ —</option>
                                             @foreach ($availableFoods as $fd)
                                                 <option value="{{ $fd->id }}" data-price="{{ $fd->gia ?? 0 }}">
-                                                    {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }} đ)
+                                                    {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }}
+                                                    đ)
                                                 </option>
                                             @endforeach
                                         </select>
@@ -326,12 +328,20 @@
                     $instByRoom = $instances ?? collect();
 
                     // helper: get group safely (handles null keys)
-                    $getGroup = function($coll, $key) {
-                        if (! $coll instanceof \Illuminate\Support\Collection) return collect();
-                        if ($coll->has($key)) return $coll->get($key);
+                    $getGroup = function ($coll, $key) {
+                        if (!$coll instanceof \Illuminate\Support\Collection) {
+                            return collect();
+                        }
+                        if ($coll->has($key)) {
+                            return $coll->get($key);
+                        }
                         // try string/empty key
-                        if ($key === null && $coll->has('')) return $coll->get('');
-                        if ($key === 0 && $coll->has('0')) return $coll->get('0');
+                        if ($key === null && $coll->has('')) {
+                            return $coll->get('');
+                        }
+                        if ($key === 0 && $coll->has('0')) {
+                            return $coll->get('0');
+                        }
                         return collect();
                     };
 
@@ -339,17 +349,25 @@
                     $unassignedCons = collect();
                     if ($consByRoom instanceof \Illuminate\Support\Collection) {
                         // try keys null / '' / 0
-                        if ($consByRoom->has(null)) $unassignedCons = $consByRoom->get(null);
-                        elseif ($consByRoom->has('')) $unassignedCons = $consByRoom->get('');
-                        elseif ($consByRoom->has(0)) $unassignedCons = $consByRoom->get(0);
+                        if ($consByRoom->has(null)) {
+                            $unassignedCons = $consByRoom->get(null);
+                        } elseif ($consByRoom->has('')) {
+                            $unassignedCons = $consByRoom->get('');
+                        } elseif ($consByRoom->has(0)) {
+                            $unassignedCons = $consByRoom->get(0);
+                        }
                     }
 
                     // instances not linked to specific room (if any)
                     $unassignedInst = collect();
                     if ($instByRoom instanceof \Illuminate\Support\Collection) {
-                        if ($instByRoom->has(null)) $unassignedInst = $instByRoom->get(null);
-                        elseif ($instByRoom->has('')) $unassignedInst = $instByRoom->get('');
-                        elseif ($instByRoom->has(0)) $unassignedInst = $instByRoom->get(0);
+                        if ($instByRoom->has(null)) {
+                            $unassignedInst = $instByRoom->get(null);
+                        } elseif ($instByRoom->has('')) {
+                            $unassignedInst = $instByRoom->get('');
+                        } elseif ($instByRoom->has(0)) {
+                            $unassignedInst = $instByRoom->get(0);
+                        }
                     }
                 @endphp
 
@@ -380,7 +398,8 @@
                                     </div>
                                     <div class="text-end small">
                                         <div>{{ $item->so_luong ?? 1 }} phòng</div>
-                                        <div class="fw-semibold text-success">{{ number_format($item->gia_tren_dem, 0) }} ₫/đêm</div>
+                                        <div class="fw-semibold text-success">{{ number_format($item->gia_tren_dem, 0) }}
+                                            ₫/đêm</div>
                                     </div>
                                 </div>
 
@@ -391,20 +410,28 @@
                                         <ul class="mb-0 ps-3">
                                             @foreach ($roomCons as $c)
                                                 <li class="small mb-1">
-                                                    <strong>{{ $c->quantity }} × {{ $c->vatDung?->ten ?? ('#VD'.$c->vat_dung_id) }}</strong>
-                                                    — <span class="fw-semibold">{{ number_format(($c->unit_price * $c->quantity), 0) }} ₫</span>
+                                                    <strong>{{ $c->quantity }} ×
+                                                        {{ $c->vatDung?->ten ?? '#VD' . $c->vat_dung_id }}</strong>
+                                                    — <span
+                                                        class="fw-semibold">{{ number_format($c->unit_price * $c->quantity, 0) }}
+                                                        ₫</span>
                                                     @if ($c->billed_at)
                                                         <span class="badge bg-success ms-2 small">Đã tính</span>
                                                     @else
-                                                        <span class="badge bg-warning text-dark ms-2 small">Chưa tính</span>
+                                                        <span class="badge bg-warning text-dark ms-2 small">Chưa
+                                                            tính</span>
                                                     @endif
                                                     <div class="text-muted small mt-1">
-                                                        @if($c->consumed_at)
-                                                            <span title="Thời gian tiêu thụ">⏱ {{ \Carbon\Carbon::parse($c->consumed_at)->format('d/m H:i') }}</span>
+                                                        @if ($c->consumed_at)
+                                                            <span title="Thời gian tiêu thụ">⏱
+                                                                {{ \Carbon\Carbon::parse($c->consumed_at)->format('d/m H:i') }}</span>
                                                             &nbsp;·&nbsp;
                                                         @endif
-                                                        <span title="Người tạo">Người đánh dấu: {{ $c->creator?->name ?? ($c->created_by ? 'UID#'.$c->created_by : '—') }}</span>
-                                                        @if($c->note) &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }} @endif
+                                                        <span title="Người tạo">Người đánh dấu:
+                                                            {{ $c->creator?->name ?? ($c->created_by ? 'UID#' . $c->created_by : '—') }}</span>
+                                                        @if ($c->note)
+                                                            &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }}
+                                                        @endif
                                                     </div>
                                                 </li>
                                             @endforeach
@@ -419,13 +446,18 @@
                                         <ul class="mb-0 ps-3">
                                             @foreach ($roomInst as $ins)
                                                 <li class="small mb-1 text-danger">
-                                                    <strong>{{ $ins->vatDung?->ten ?? ('#VD'.$ins->vat_dung_id) }}</strong>
-                                                    — Trạng thái: <span class="fw-semibold text-capitalize">{{ $ins->status }}</span>
+                                                    <strong>{{ $ins->vatDung?->ten ?? '#VD' . $ins->vat_dung_id }}</strong>
+                                                    — Trạng thái: <span
+                                                        class="fw-semibold text-capitalize">{{ $ins->status }}</span>
                                                     <div class="text-muted small mt-1">
-                                                        @if($ins->reported_at)
-                                                            <span>⏱ {{ \Carbon\Carbon::parse($ins->reported_at)->format('d/m H:i') }}</span> &nbsp;·&nbsp;
+                                                        @if ($ins->reported_at)
+                                                            <span>⏱
+                                                                {{ \Carbon\Carbon::parse($ins->reported_at)->format('d/m H:i') }}</span>
+                                                            &nbsp;·&nbsp;
                                                         @endif
-                                                        @if($ins->note) Ghi chú: {{ Str::limit($ins->note, 80) }} @endif
+                                                        @if ($ins->note)
+                                                            Ghi chú: {{ Str::limit($ins->note, 80) }}
+                                                        @endif
                                                     </div>
                                                 </li>
                                             @endforeach
@@ -457,16 +489,22 @@
                                     <ul class="mb-0 ps-3">
                                         @foreach ($unassignedCons as $c)
                                             <li class="small mb-1">
-                                                <strong>{{ $c->quantity }} × {{ $c->vatDung?->ten ?? ('#VD'.$c->vat_dung_id) }}</strong>
-                                                — <span class="fw-semibold">{{ number_format(($c->unit_price * $c->quantity), 0) }} ₫</span>
+                                                <strong>{{ $c->quantity }} ×
+                                                    {{ $c->vatDung?->ten ?? '#VD' . $c->vat_dung_id }}</strong>
+                                                — <span
+                                                    class="fw-semibold">{{ number_format($c->unit_price * $c->quantity, 0) }}
+                                                    ₫</span>
                                                 @if ($c->billed_at)
                                                     <span class="badge bg-success ms-2 small">Đã tính</span>
                                                 @else
                                                     <span class="badge bg-warning text-dark ms-2 small">Chưa tính</span>
                                                 @endif
                                                 <div class="text-muted small mt-1">
-                                                    <span>Ng bởi: {{ $c->creator?->name ?? ($c->created_by ? 'UID#'.$c->created_by : '—') }}</span>
-                                                    @if($c->note) &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }} @endif
+                                                    <span>Ng bởi:
+                                                        {{ $c->creator?->name ?? ($c->created_by ? 'UID#' . $c->created_by : '—') }}</span>
+                                                    @if ($c->note)
+                                                        &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }}
+                                                    @endif
                                                 </div>
                                             </li>
                                         @endforeach
@@ -480,11 +518,16 @@
                                     <ul class="mb-0 ps-3">
                                         @foreach ($unassignedInst as $ins)
                                             <li class="small mb-1 text-danger">
-                                                <strong>{{ $ins->vatDung?->ten ?? ('#VD'.$ins->vat_dung_id) }}</strong>
-                                                — Trạng thái: <span class="fw-semibold text-capitalize">{{ $ins->status }}</span>
+                                                <strong>{{ $ins->vatDung?->ten ?? '#VD' . $ins->vat_dung_id }}</strong>
+                                                — Trạng thái: <span
+                                                    class="fw-semibold text-capitalize">{{ $ins->status }}</span>
                                                 <div class="text-muted small mt-1">
-                                                    @if($ins->reported_at) ⏱ {{ \Carbon\Carbon::parse($ins->reported_at)->format('d/m H:i') }} @endif
-                                                    @if($ins->note) &nbsp;·&nbsp; Ghi chú: {{ Str::limit($ins->note, 80) }} @endif
+                                                    @if ($ins->reported_at)
+                                                        ⏱ {{ \Carbon\Carbon::parse($ins->reported_at)->format('d/m H:i') }}
+                                                    @endif
+                                                    @if ($ins->note)
+                                                        &nbsp;·&nbsp; Ghi chú: {{ Str::limit($ins->note, 80) }}
+                                                    @endif
                                                 </div>
                                             </li>
                                         @endforeach
@@ -495,7 +538,7 @@
                     </div>
                 @endif
 
-                @if (! $anyShown)
+                @if (!$anyShown)
                     <div class="text-center py-4 text-muted">
                         <i class="bi bi-inbox fs-2 mb-2 d-block"></i>
                         <p class="mb-0">Chưa có đồ ăn gọi thêm hoặc sự cố nào được ghi nhận cho booking này.</p>
@@ -576,6 +619,5 @@
         .bg-indigo {
             background-color: #5f3dc4 !important;
         }
-
     </style>
 @endsection
