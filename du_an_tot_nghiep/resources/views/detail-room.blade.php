@@ -27,7 +27,7 @@
                                 <small class="text-muted"> -
                                     {{ $phong->loaiPhong->ten ?? ($phong->loaiPhong->ten_loai ?? '—') }}</small>
                             </h1>
-                            <p class="fw-bold mb-0"><i class="bi bi-geo-alt me-2"></i> Floor
+                            <p class="fw-bold mb-0"><i class="bi bi-geo-alt me-2"></i> Tầng
                                 {{ $phong->tang->so_tang ?? '—' }}</p>
                         </div>
                     </div>
@@ -93,8 +93,8 @@
 
                                     <div class="overlay view-all" aria-hidden="true">
                                         <div>
-                                            <div class="fw-bold">View all</div>
-                                            <div class="small">+{{ $remaining }} Images</div>
+                                    <div class="fw-bold">Xem tất cả</div>
+                                    <div class="small">+{{ $remaining }} Ảnh</div>
                                         </div>
                                     </div>
 
@@ -123,10 +123,10 @@
                         <!-- About hotel -->
                         <div class="card bg-transparent">
                             <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                                <h3 class="mb-0">About This Hotel</h3>
+                                <h3 class="mb-0">Về khách sạn này</h3>
                             </div>
                             <div class="card-body pt-4 p-0">
-                                <h5 class="fw-light mb-4">Main Highlights</h5>
+                                <h5 class="fw-light mb-4">Điểm nổi bật chính</h5>
 
                                 @php
                                     $desc = $phong->mo_ta ?? '';
@@ -145,7 +145,7 @@
                                     <a class="p-0 mb-4 mt-2 btn-more d-flex align-items-center collapsed"
                                         data-bs-toggle="collapse" href="#collapseContent" role="button"
                                         aria-expanded="false" aria-controls="collapseContent">
-                                        See <span class="see-more ms-1">more</span><span class="see-less ms-1">less</span><i
+                                        Xem <span class="see-more ms-1">thêm</span><span class="see-less ms-1">ít hơn</span><i
                                             class="fa-solid fa-angle-down ms-2"></i>
                                     </a>
                                 @endif
@@ -155,7 +155,7 @@
 
                         <div class="card bg-transparent">
                             <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                                <h3 class="card-title mb-0">Amenities</h3>
+                                <h3 class="card-title mb-0">Tiện nghi</h3>
                             </div>
                             <div class="card-body pt-4 p-0">
                                 <div class="row g-4">
@@ -174,7 +174,7 @@
                                         @endforeach
                                     @else
                                         <div class="col-12">
-                                            <p class="mb-0">No amenities listed for this room.</p>
+                                            <p class="mb-0">Không có tiện nghi nào được liệt kê cho phòng này.</p>
                                         </div>
                                     @endif
                                 </div>
@@ -184,11 +184,11 @@
                         <!-- Beds & Bedding -->
                         <div class="card bg-transparent">
                             <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                                <h3 class="card-title mb-0">Beds & Bedding</h3>
+                                <h3 class="card-title mb-0">Giường & Chăn gối</h3>
                             </div>
                             <div class="card-body pt-4 p-0">
                                 <div class="mb-3">
-                                    <strong>Total beds:</strong>
+                                    <strong>Tổng số giường:</strong>
                                     <span>{{ $totalBeds }}</span>
 
                                 </div>
@@ -208,12 +208,12 @@
                                                             <div>
                                                                 <h6 class="mb-0">{{ $b['name'] }}</h6>
                                                                 @if (!empty($b['capacity']))
-                                                                    <small class="text-muted">Capacity:
+                                                                    <small class="text-muted">Sức chứa:
                                                                         {{ $b['capacity'] }}</small>
                                                                 @endif
                                                             </div>
                                                             <div class="text-end">
-                                                                <div class="fw-bold">Number of beds: {{ $b['quantity'] }}
+                                                                <div class="fw-bold">Số lượng giường: {{ $b['quantity'] }}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -223,7 +223,7 @@
                                         @endforeach
                                     </div>
                                 @else
-                                    <p class="mb-0">This room uses default bedding configuration.</p>
+                                    <p class="mb-0">Phòng này sử dụng cấu hình giường mặc định.</p>
                                 @endif
                             </div>
                         </div>
@@ -268,7 +268,7 @@
                                                             @endforeach
                                                             <li class="nav-item">
                                                                 <a href="{{ route('rooms.show', $r->id) }}"
-                                                                    class="mb-0 text-primary">More+</a>
+                                                                    class="mb-0 text-primary">Xem thêm+</a>
                                                             </li>
                                                         </ul>
 
@@ -279,11 +279,11 @@
                                                                 <h5 class="fw-bold mb-0 me-1">
                                                                     {{ number_format($r->gia_cuoi_cung, 0, ',', '.') }} VND
                                                                 </h5>
-                                                                <span class="mb-0 me-2">/day</span>
+                                                                <span class="mb-0 me-2">/ngày</span>
                                                             </div>
                                                             <div class="mt-3 mt-sm-0">
                                                                 <a href="{{ route('rooms.show', $r->id) }}"
-                                                                    class="btn btn-sm btn-primary mb-0">Select Room</a>
+                                                                    class="btn btn-sm btn-primary mb-0">Chọn phòng</a>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -292,7 +292,7 @@
                                         </div>
                                     @endforeach
                                 @else
-                                    <div class="p-3">No other room options found for this type.</div>
+                                    <div class="p-3">Không tìm thấy lựa chọn phòng khác cho loại này.</div>
                                 @endif
                             </div>
                         </div>
@@ -301,7 +301,7 @@
                     <!-- Customer Review  -->
                     <div class="card bg-transparent">
                         <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                            <h3 class="card-title mb-0">Customer Review</h3>
+                            <h3 class="card-title mb-0">Đánh giá khách hàng</h3>
                         </div>
 
                         <div class="card-body pt-4 p-0">
@@ -314,8 +314,8 @@
                                                 $reviewCount = isset($reviews) ? $reviews->count() : 0;
                                             @endphp
                                             <h2 class="mb-0">{{ number_format($avg, 1) }}</h2>
-                                            <p class="mb-2">Based on {{ $reviewCount }}
-                                                review{{ $reviewCount !== 1 ? 's' : '' }}</p>
+                                            <p class="mb-2">Dựa trên {{ $reviewCount }}
+                                                đánh giá{{ $reviewCount !== 1 ? '' : '' }}</p>
 
                                             {{-- star rendering --}}
                                             <ul class="list-inline mb-0">
@@ -392,9 +392,9 @@
                                     </select>
                                 </div>
                                 <div class="form-control-bg-light mb-3">
-                                    <textarea class="form-control" name="content" placeholder="Your review" rows="3"></textarea>
+                                    <textarea class="form-control" name="content" placeholder="Đánh giá của bạn" rows="3"></textarea>
                                 </div>
-                                <button type="submit" class="btn btn-lg btn-primary mb-0">Post review <i
+                                <button type="submit" class="btn btn-lg btn-primary mb-0">Đăng đánh giá <i
                                         class="bi fa-fw bi-arrow-right ms-2"></i></button>
                             </form>
 
@@ -417,7 +417,7 @@
                                                 <div>
                                                     <h6 class="me-3 mb-0">{{ $author->name ?? 'Guest' }}</h6>
                                                     <ul class="nav nav-divider small mb-2">
-                                                        <li class="nav-item">Stayed {{ $rv->created_at->format('d M Y') }}
+                                                        <li class="nav-item">Đã ở {{ $rv->created_at->format('d M Y') }}
                                                         </li>
                                                     </ul>
                                                 </div>
@@ -442,11 +442,11 @@
                                     <hr>
                                 @endforeach
                             @else
-                                <p class="mb-0">No reviews yet — be the first to review this room.</p>
+                                <p class="mb-0">Chưa có đánh giá nào — hãy là người đầu tiên đánh giá phòng này.</p>
                             @endif
 
                             <div class="text-center mt-3">
-                                <a href="#" class="btn btn-primary-soft mb-0">Load more</a>
+                                <a href="#" class="btn btn-primary-soft mb-0">Tải thêm</a>
                             </div>
                         </div>
                     </div>
@@ -454,18 +454,14 @@
                     <!-- Hotel Policies (kept as-is) -->
                     <div class="card bg-transparent">
                         <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                            <h3 class="mb-0">Hotel Policies</h3>
+                            <h3 class="mb-0">Chính Sách Trong Khách Sạn</h3>
                         </div>
                         <div class="card-body pt-4 p-0">
                             <ul class="list-group list-group-borderless mb-2">
-                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Drinking
-                                    and smoking within controlled limits are permitted at the farmhouse but please do not
-                                    create a mess or ruckus at the house.</li>
-                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Drugs and
-                                    intoxicating illegal products are banned and not to be brought to the house or consumed.
+                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Được phép uống rượu và hút thuốc trong phạm vi được kiểm soát tại khu vực phòng nhưng vui lòng không gây bừa bộn hoặc ồn ào trong phòng</li>
+                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Ma túy và các sản phẩm bất hợp pháp gây say bị cấm và không được mang vào nhà hoặc tiêu thụ.
                                 </li>
-                                <li class="list-group-item d-flex"><i class="bi bi-x-circle-fill me-2"></i>For any update,
-                                    the customer shall pay applicable cancellation/modification charges.</li>
+                                <li class="list-group-item d-flex"><i class="bi bi-x-circle-fill me-2"></i>Đối với bất kỳ bản cập nhật nào, khách hàng sẽ phải trả phí hủy/sửa đổi áp dụng</li>
                             </ul>
 
                             <ul class="list-group list-group-borderless mb-2">
@@ -474,11 +470,11 @@
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
                                         class="bi bi-arrow-right me-2"></i>Check out: 12:00 am</li>
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Self-check-in with building staff</li>
+                                        class="bi bi-arrow-right me-2"></i>Tự làm thủ tục nhận phòng với nhân viên tòa khách sạn</li>
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>No pets</li>
+                                        class="bi bi-arrow-right me-2"></i>Thú Cưng</li>
                                 <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Smoking is allowed</li>
+                                        class="bi bi-arrow-right me-2"></i>Được sử dụng thuốc lá</li>
                             </ul>
                         </div>
                     </div>
@@ -490,15 +486,15 @@
                         <div class="card card-body border">
                             <div class="d-sm-flex justify-content-sm-between align-items-center mb-3">
                                 <div>
-                                    <span>Price Start at</span>
+                                    <span>Giá bắt đầu từ</span>
                                     <h4 class="card-title mb-0">{{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }}
                                         VND
                                     </h4>
                                 </div>
 
                                 <div>
-                                    <h6 class="fw-normal mb-0">1 room per night</h6>
-                                    <small>+ taxes & fees</small>
+                                    <h6 class="fw-normal mb-0">1 phòng mỗi đêm</h6>
+                                    <small>+ thuế & phí</small>
                                 </div>
                             </div>
 
@@ -528,7 +524,7 @@
 
                             <div class="d-grid">
                                 <a href="{{ route('account.booking.create', $phong) }}"
-                                    class="btn btn-lg btn-primary-soft mb-0">Booking now</a>
+                                    class="btn btn-lg btn-primary-soft mb-0">Đặt phòng ngay</a>
                             </div>
 
                             @auth
@@ -536,16 +532,16 @@
                                     <button id="detail-wishlist-btn" type="button" class="btn btn-outline-danger btn-lg"
                                         data-phong-id="{{ $phong->id }}"
                                         aria-pressed="{{ $isWished ? 'true' : 'false' }}"
-                                        aria-label="{{ $isWished ? 'Remove from wishlist' : 'Add to wishlist' }}">
+                                        aria-label="{{ $isWished ? 'Xóa khỏi danh sách yêu thích' : 'Thêm vào danh sách yêu thích' }}">
                                         <i
                                             class="{{ $isWished ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' }}"></i>
-                                        <span class="wl-label ms-2">{{ $isWished ? 'Saved' : 'Add to wishlist' }}</span>
+                                        <span class="wl-label ms-2">{{ $isWished ? 'Đã lưu' : 'Thêm vào yêu thích' }}</span>
                                     </button>
                                 </div>
                             @else
                                 <div class="d-grid" style="margin-top: 15px">
-                                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-lg">Login to
-                                        wishlist</a>
+                                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-lg">Đăng nhập để
+                                        yêu thích</a>
                                 </div>
                             @endauth
 

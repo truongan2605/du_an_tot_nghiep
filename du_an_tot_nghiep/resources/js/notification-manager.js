@@ -22,10 +22,29 @@ class NotificationManager {
     
     setupEventListeners() {
         // Listen for new notifications (if using WebSockets or Server-Sent Events)
-        if (typeof window.Echo !== 'undefined') {
+        if (typeof window.Echo !== 'undefined' && window.userId) {
+            // Listen to user-specific channel
             window.Echo.private(`user.${window.userId}`)
                 .listen('NotificationCreated', (e) => {
                     this.handleNewNotification(e.notification);
+                })
+                .listen('NotificationSent', (e) => {
+                    this.handleNewNotification(e.notification);
+                });
+                
+            // Listen to room updates channel
+            window.Echo.channel('room-updates')
+                .listen('RoomCreated', (e) => {
+                    this.showRoomUpdateNotification(e.room, 'created');
+                })
+                .listen('RoomUpdated', (e) => {
+                    this.showRoomUpdateNotification(e.room, 'updated');
+                });
+                
+            // Listen to booking updates channel
+            window.Echo.channel('booking-updates')
+                .listen('BookingCreated', (e) => {
+                    this.showBookingUpdateNotification(e.booking, 'created');
                 });
         }
         
@@ -52,7 +71,8 @@ class NotificationManager {
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -63,7 +83,7 @@ class NotificationManager {
                 }
             }
         } catch (error) {
-            console.error('Error loading unread count:', error);
+            // Silent error handling
         }
     }
     
@@ -74,7 +94,8 @@ class NotificationManager {
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -148,7 +169,8 @@ class NotificationManager {
                 headers: {
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -230,7 +252,8 @@ class NotificationManager {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -262,7 +285,8 @@ class NotificationManager {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
+                },
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -294,6 +318,52 @@ class NotificationManager {
         
         // Show browser notification if permission granted
         this.showBrowserNotification(notification);
+    }
+    
+    showRoomUpdateNotification(room, action) {
+        const actionText = action === 'created' ? 'được thêm mới' : 'được cập nhật';
+        const message = `Phòng ${room.ma_phong} (${room.name || 'Không có tên'}) ${actionText}. Giá: ${new Intl.NumberFormat('vi-VN').format(room.gia_cuoi_cung || 0)} VNĐ`;
+        
+        // Show toast notification
+        this.showToast({
+            title: action === 'created' ? 'Phòng mới được thêm' : 'Phòng được cập nhật',
+            message: message,
+            type: 'info'
+        });
+        
+        // Log to console
+    }
+    
+    showBookingUpdateNotification(booking, action) {
+        const message = `Đơn đặt phòng mới ${booking.ma_dat_phong} - Tổng tiền: ${new Intl.NumberFormat('vi-VN').format(booking.tong_tien || 0)} VNĐ`;
+        
+        // Show toast notification
+        this.showToast({
+            title: 'Đơn đặt phòng mới',
+            message: message,
+            type: 'success'
+        });
+        
+        // Log to console
+    }
+    
+    showToast(data) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${data.type || 'info'} alert-dismissible fade show position-fixed`;
+        alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 400px;';
+        alert.innerHTML = `
+            <strong>${data.title || 'Thông báo'}</strong><br>
+            ${data.message || ''}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
     }
     
     async showBrowserNotification(notification) {
@@ -400,6 +470,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Export for use in other scripts
 window.NotificationManager = NotificationManager;
+
+
+
+
 
 
 

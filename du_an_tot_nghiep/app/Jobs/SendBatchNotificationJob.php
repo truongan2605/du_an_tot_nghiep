@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\ThongBao;
 use App\Models\User;
+use App\Events\NotificationCreated;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -13,7 +14,7 @@ use Exception;
 
 class SendBatchNotificationJob implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, SerializesModels;
+    use Queueable, SerializesModels;
 
     protected $notificationData;
     protected $userIds;
@@ -82,7 +83,7 @@ class SendBatchNotificationJob implements ShouldQueue
                 }
 
                 // Create notification record
-                ThongBao::create([
+                $notification = ThongBao::create([
                     'nguoi_nhan_id' => $userId,
                     'kenh' => $this->notificationData['kenh'],
                     'ten_template' => $this->notificationData['ten_template'],
@@ -91,6 +92,11 @@ class SendBatchNotificationJob implements ShouldQueue
                     'so_lan_thu' => 0,
                     'batch_id' => $this->batchId,
                 ]);
+
+                // Broadcast notification for real-time updates
+                if ($this->notificationData['kenh'] === 'in_app') {
+                    broadcast(new NotificationCreated($notification));
+                }
 
                 Log::info("Created notification for user", [
                     'user_id' => $userId,

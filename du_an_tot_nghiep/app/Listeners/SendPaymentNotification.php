@@ -3,6 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\PaymentSuccess;
+use App\Events\NotificationCreated;
 use App\Models\ThongBao;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -37,6 +38,9 @@ class SendPaymentNotification implements ShouldQueue
             'trang_thai' => 'pending',
             'so_lan_thu' => 0,
         ]);
+
+        // Broadcast notification to customer
+        broadcast(new NotificationCreated($customerNotification));
 
         // Send email to customer
         try {
@@ -79,6 +83,9 @@ class SendPaymentNotification implements ShouldQueue
                 'trang_thai' => 'pending',
                 'so_lan_thu' => 0,
             ]);
+
+            // Broadcast notification to staff
+            broadcast(new NotificationCreated($staffNotification));
 
             // Send email to staff
             try {
