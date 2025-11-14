@@ -207,6 +207,7 @@
                             <div class="row align-items-center text-sm">
                                 <div class="col-md-3 d-flex align-items-center">
                                     <strong class="text-primary">#{{ $item->phong?->ma_phong ?? 'Chưa gán' }}</strong>
+                                    {{-- ==== nút mở modal Thêm dịch vụ cho phòng ==== --}}
                                     @if ($booking->trang_thai === 'dang_su_dung')
                                         <button type="button" class="btn btn-sm btn-outline-primary ms-3"
                                             data-bs-toggle="modal" data-bs-target="#addFoodModal"
@@ -215,7 +216,18 @@
                                             <i class="bi bi-plus-lg me-1"></i> Dịch vụ gọi thêm
                                         </button>
                                     @endif
+
+                                    {{-- ==== nút mở modal quản lý bản thể nội bộ ==== --}}
+                                    @if ($item->phong?->id)
+                                        <button type="button"
+                                            class="btn btn-sm btn-outline-secondary ms-2 btn-open-room-instances"
+                                            data-phong-id="{{ $item->phong->id }}"
+                                            data-phong-code="{{ $item->phong->ma_phong }}">
+                                            <i class="bi bi-gear me-1"></i> Bản thể
+                                        </button>
+                                    @endif
                                 </div>
+
                                 <div class="col-md-3">
                                     <i class="bi bi-building me-1"></i> {{ $item->loaiPhong?->ten ?? 'N/A' }}
                                 </div>
@@ -240,7 +252,7 @@
                 <!-- Modal: Thêm đồ ăn (gọi thêm) -->
                 <div class="modal fade" id="addFoodModal" tabindex="-1" aria-labelledby="addFoodModalLabel"
                     aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-dialog modal-dialog-centered modal-xl">
                         <form id="addFoodForm" method="POST" action="{{ route('phong.consumptions.store') }}">
                             @csrf
                             <input type="hidden" name="dat_phong_id" value="{{ $booking->id }}">
@@ -323,32 +335,13 @@
 
                 {{-- ===================== Hiển thị: Đồ ăn gọi thêm & Vật dụng sự cố ===================== --}}
                 @php
-                    // $consumptions và $instances nên được truyền từ controller như collection grouped by phong_id
                     $consByRoom = $consumptions ?? collect();
-                    $instByRoom = $instances ?? collect();
+                    $incByRoom = $incidents ?? collect();
 
-                    // helper: get group safely (handles null keys)
-                    $getGroup = function ($coll, $key) {
-                        if (!$coll instanceof \Illuminate\Support\Collection) {
-                            return collect();
-                        }
-                        if ($coll->has($key)) {
-                            return $coll->get($key);
-                        }
-                        // try string/empty key
-                        if ($key === null && $coll->has('')) {
-                            return $coll->get('');
-                        }
-                        if ($key === 0 && $coll->has('0')) {
-                            return $coll->get('0');
-                        }
-                        return collect();
-                    };
+                    $instByRoom = $incByRoom->isNotEmpty() ? $incByRoom : $instances ?? collect();
 
-                    // consumptions not linked to any room (phong_id null)
                     $unassignedCons = collect();
                     if ($consByRoom instanceof \Illuminate\Support\Collection) {
-                        // try keys null / '' / 0
                         if ($consByRoom->has(null)) {
                             $unassignedCons = $consByRoom->get(null);
                         } elseif ($consByRoom->has('')) {
@@ -358,7 +351,6 @@
                         }
                     }
 
-                    // instances not linked to specific room (if any)
                     $unassignedInst = collect();
                     if ($instByRoom instanceof \Illuminate\Support\Collection) {
                         if ($instByRoom->has(null)) {
@@ -375,19 +367,16 @@
 
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-basket-fill me-2"></i>Đồ Ăn Gọi Thêm & Sự Cố</h6>
 
-                @php
-                    $anyShown = false;
-                @endphp
+                @php $anyShown = false; @endphp
 
-                {{-- Hiển thị theo từng phòng đã gán --}}
                 @foreach ($booking->datPhongItems as $item)
                     @php
                         $phId = $item->phong?->id;
-                        $roomCons = $getGroup($consByRoom, $phId) ?? collect();
-                        $roomInst = $getGroup($instByRoom, $phId) ?? collect();
+                        $roomCons = $consByRoom->has($phId) ? $consByRoom->get($phId) : collect();
+                        $roomIncidents = $instByRoom->has($phId) ? $instByRoom->get($phId) : collect();
                     @endphp
 
-                    @if ($roomCons->isNotEmpty() || $roomInst->isNotEmpty())
+                    @if ($roomCons->isNotEmpty() || $roomIncidents->isNotEmpty())
                         @php $anyShown = true; @endphp
                         <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
                             <div class="card-body py-3 px-4">
@@ -403,7 +392,6 @@
                                     </div>
                                 </div>
 
-                                {{-- Consumptions --}}
                                 @if ($roomCons->isNotEmpty())
                                     <div class="mt-3">
                                         <div class="small text-muted mb-2">Đồ ăn / Dịch vụ đã gọi thêm</div>
@@ -423,7 +411,7 @@
                                                     @endif
                                                     <div class="text-muted small mt-1">
                                                         @if ($c->consumed_at)
-                                                            <span title="Thời gian tiêu thụ">⏱
+                                                            <span title="Thời gian tiêu thụ">Thời gian đánh dấu
                                                                 {{ \Carbon\Carbon::parse($c->consumed_at)->format('d/m H:i') }}</span>
                                                             &nbsp;·&nbsp;
                                                         @endif
@@ -439,104 +427,115 @@
                                     </div>
                                 @endif
 
-                                {{-- Instances (sự cố / hỏng hóc) --}}
-                                @if ($roomInst->isNotEmpty())
+                                @php
+                                    $visibleIncidents = collect();
+                                    if ($roomIncidents instanceof \Illuminate\Support\Collection) {
+                                        $visibleIncidents = $roomIncidents
+                                            ->filter(function ($x) {
+                                                if (
+                                                    isset($x->type) ||
+                                                    isset($x->reported_at) ||
+                                                    isset($x->dat_phong_id)
+                                                ) {
+                                                    return true;
+                                                }
+                                                if (isset($x->status)) {
+                                                    return $x->status !==
+                                                        \App\Models\PhongVatDungInstance::STATUS_PRESENT;
+                                                }
+                                                return false;
+                                            })
+                                            ->values();
+                                    }
+                                @endphp
+
+                                @if ($visibleIncidents->isNotEmpty())
                                     <div class="mt-3">
                                         <div class="small text-muted mb-2">Sự cố / Vật dụng hỏng</div>
                                         <ul class="mb-0 ps-3">
-                                            @foreach ($roomInst as $ins)
+                                            @foreach ($visibleIncidents as $ins)
+                                                @php
+                                                    $incidentPrice =
+                                                        $ins->fee ??
+                                                        ($ins->price ??
+                                                            ($ins->amount ??
+                                                                ($ins->vatDung->gia ?? ($ins->gia ?? null))));
+                                                    $incidentNote =
+                                                        $ins->description ?? ($ins->note ?? ($ins->ghi_chu ?? null));
+                                                    $reportedAt = $ins->reported_at ?? ($ins->created_at ?? null);
+                                                    $incidentType = $ins->type ?? ($ins->status ?? null);
+                                                    $marker =
+                                                        $ins->reported_by_user?->name ??
+                                                        ($ins->reporter?->name ??
+                                                            ($ins->creator?->name ??
+                                                                ($ins->reported_by ??
+                                                                    ($ins->created_by
+                                                                        ? 'UID#' . $ins->created_by
+                                                                        : null))));
+                                                @endphp
+
                                                 <li class="small mb-1 text-danger">
                                                     <strong>{{ $ins->vatDung?->ten ?? '#VD' . $ins->vat_dung_id }}</strong>
-                                                    — Trạng thái: <span
-                                                        class="fw-semibold text-capitalize">{{ $ins->status }}</span>
+                                                    @if (is_numeric($incidentPrice))
+                                                        — Giá: <span
+                                                            class="fw-semibold">{{ number_format($incidentPrice, 0) }}
+                                                            ₫</span>
+                                                    @endif
+                                                    — Trạng thái:
+                                                    @php
+                                                        $typeMap = [
+                                                            'damage' => [
+                                                                'label' => 'Hỏng',
+                                                                'badge' => 'bg-danger text-white',
+                                                            ],
+                                                            'loss' => [
+                                                                'label' => 'Mất',
+                                                                'badge' => 'bg-warning text-dark',
+                                                            ],
+                                                            'other' => [
+                                                                'label' => 'Khác',
+                                                                'badge' => 'bg-secondary text-white',
+                                                            ],
+                                                        ];
+                                                        $displayType =
+                                                            $typeMap[$incidentType]['label'] ??
+                                                            ($incidentType
+                                                                ? ucfirst(str_replace('_', ' ', $incidentType))
+                                                                : '—');
+                                                        $badgeClass =
+                                                            $typeMap[$incidentType]['badge'] ??
+                                                            'bg-secondary text-white';
+                                                    @endphp
+
+                                                    <span
+                                                        class="badge {{ $badgeClass }} fw-semibold text-capitalize">{{ $displayType }}</span>
+
                                                     <div class="text-muted small mt-1">
-                                                        @if ($ins->reported_at)
-                                                            <span>⏱
-                                                                {{ \Carbon\Carbon::parse($ins->reported_at)->format('d/m H:i') }}</span>
-                                                            &nbsp;·&nbsp;
+                                                        @if ($reportedAt)
+                                                            <span>Thời gian đánh dấu
+                                                                {{ \Carbon\Carbon::parse($reportedAt)->format('d/m H:i') }}</span>&nbsp;·&nbsp;
                                                         @endif
-                                                        @if ($ins->note)
-                                                            Ghi chú: {{ Str::limit($ins->note, 80) }}
-                                                        @endif
+
+                                                        <div>
+                                                            @if ($incidentNote)
+                                                                Ghi chú: {{ Str::limit($incidentNote, 120) }}
+                                                            @endif
+                                                        </div>
+
+                                                        <div>
+                                                            <strong title="Người đánh dấu">Người đánh dấu:
+                                                                {{ $marker ?? '—' }}</strong>
+                                                        </div>
                                                     </div>
                                                 </li>
                                             @endforeach
                                         </ul>
                                     </div>
                                 @endif
-
                             </div>
                         </div>
                     @endif
                 @endforeach
-
-                {{-- Hiển thị items không gắn phòng (nếu có) --}}
-                @if ($unassignedCons->isNotEmpty() || $unassignedInst->isNotEmpty())
-                    @php $anyShown = true; @endphp
-                    <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
-                        <div class="card-body py-3 px-4">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div>
-                                    <strong class="text-primary">Không gán phòng</strong>
-                                    <div class="small text-muted">Các mục không liên kết trực tiếp với phòng cụ thể</div>
-                                </div>
-                                <div class="small text-muted">Booking #{{ $booking->id }}</div>
-                            </div>
-
-                            @if ($unassignedCons->isNotEmpty())
-                                <div class="mt-2">
-                                    <div class="small text-muted mb-2">Đồ ăn / Dịch vụ</div>
-                                    <ul class="mb-0 ps-3">
-                                        @foreach ($unassignedCons as $c)
-                                            <li class="small mb-1">
-                                                <strong>{{ $c->quantity }} ×
-                                                    {{ $c->vatDung?->ten ?? '#VD' . $c->vat_dung_id }}</strong>
-                                                — <span
-                                                    class="fw-semibold">{{ number_format($c->unit_price * $c->quantity, 0) }}
-                                                    ₫</span>
-                                                @if ($c->billed_at)
-                                                    <span class="badge bg-success ms-2 small">Đã tính</span>
-                                                @else
-                                                    <span class="badge bg-warning text-dark ms-2 small">Chưa tính</span>
-                                                @endif
-                                                <div class="text-muted small mt-1">
-                                                    <span>Ng bởi:
-                                                        {{ $c->creator?->name ?? ($c->created_by ? 'UID#' . $c->created_by : '—') }}</span>
-                                                    @if ($c->note)
-                                                        &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }}
-                                                    @endif
-                                                </div>
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @endif
-
-                            @if ($unassignedInst->isNotEmpty())
-                                <div class="mt-2">
-                                    <div class="small text-muted mb-2">Sự cố / Vật dụng hỏng</div>
-                                    <ul class="mb-0 ps-3">
-                                        @foreach ($unassignedInst as $ins)
-                                            <li class="small mb-1 text-danger">
-                                                <strong>{{ $ins->vatDung?->ten ?? '#VD' . $ins->vat_dung_id }}</strong>
-                                                — Trạng thái: <span
-                                                    class="fw-semibold text-capitalize">{{ $ins->status }}</span>
-                                                <div class="text-muted small mt-1">
-                                                    @if ($ins->reported_at)
-                                                        ⏱ {{ \Carbon\Carbon::parse($ins->reported_at)->format('d/m H:i') }}
-                                                    @endif
-                                                    @if ($ins->note)
-                                                        &nbsp;·&nbsp; Ghi chú: {{ Str::limit($ins->note, 80) }}
-                                                    @endif
-                                                </div>
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                @endif
 
                 @if (!$anyShown)
                     <div class="text-center py-4 text-muted">
@@ -545,7 +544,6 @@
                     </div>
                 @endif
 
-                <hr class="my-5">
                 {{-- ===================== END Đồ ăn & sự cố ===================== --}}
 
                 @if ($booking->giaoDichs->count() > 0)
@@ -607,6 +605,287 @@
             </div>
         </div>
     </div>
+
+    <!-- Staff incident modal (on booking.show) -->
+    <div class="modal fade" id="staffIncidentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form id="staffIncidentForm" method="POST" action="{{ route('bookings.incidents.store', $booking->id) }}">
+                @csrf
+                <input type="hidden" name="phong_vat_dung_instance_id" id="si_instance_id" value="">
+                <input type="hidden" name="phong_id" id="si_phong_id" value="">
+                <input type="hidden" name="vat_dung_id" id="si_vat_dung_id" value="">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Ghi nhận sự cố / tính tiền</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-2">
+                            <label class="form-label">Loại</label>
+                            <select name="mark_instance_status" id="si_status" class="form-select">
+                                <option value="damaged">Hỏng</option>
+                                <option value="missing">Mất</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Số tiền</label>
+                            <input type="number" name="fee" id="si_fee" step="0.01" class="form-control">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Ghi chú</label>
+                            <textarea name="description" id="si_description" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-danger">Ghi nhận & Tính tiền</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- Room Instances Modal (booking.show) -->
+    <div class="modal fade" id="roomInstancesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Quản lý bản thể phòng <span id="rim_phong_code"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="rim_body">
+                        <!-- JS sẽ render danh sách vào đây -->
+                        <div class="text-center text-muted py-4">Đang tải...</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const staffIncidentModalEl = document.getElementById('staffIncidentModal');
+                window.staffIncidentModal = staffIncidentModalEl ? new bootstrap.Modal(staffIncidentModalEl) : null;
+
+                window.allInstances = @json($instances ?? collect());
+                window.incidentsByInstance = @json($incidentsByInstance ?? collect());
+
+                function openStaffIncidentModalFromButton(btn) {
+                    document.getElementById('si_instance_id').value = btn.dataset.instanceId || '';
+                    document.getElementById('si_vat_dung_id').value = btn.dataset.vatDungId || '';
+                    document.getElementById('si_fee').value = btn.dataset.defaultFee || 0;
+                    document.getElementById('si_description').value = '';
+                    document.getElementById('si_phong_id').value = btn.dataset.phongId || '';
+
+                    if (btn.dataset.mark) {
+                        const sel = document.getElementById('si_status');
+                        if (sel) sel.value = btn.dataset.mark;
+                    }
+
+                    if (window.staffIncidentModal) window.staffIncidentModal.show();
+                }
+
+                document.querySelectorAll('.btn-open-incident-modal').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        openStaffIncidentModalFromButton(this);
+                    });
+                });
+
+                // Room instances modal
+                const rimModalEl = document.getElementById('roomInstancesModal');
+                const rimBsModal = rimModalEl ? new bootstrap.Modal(rimModalEl) : null;
+
+                const statusLabels = {
+                    present: 'Nguyên vẹn',
+                    damaged: 'Hỏng',
+                    missing: 'Mất',
+                };
+
+                const statusBadges = {
+                    present: 'badge bg-success text-white',
+                    damaged: 'badge bg-warning text-dark',
+                    missing: 'badge bg-danger text-white',
+                };
+
+                function normalizeStatusKey(s) {
+                    if (!s) return '';
+                    const t = String(s).trim().toLowerCase();
+                    if (t === 'present' || t.includes('nguyên') || t.includes('nguyen') || t.includes('nguyên vẹn') || t
+                        .includes('nguyen ven')) return 'present';
+                    if (t === 'damaged' || t.includes('hỏng') || t.includes('hong')) return 'damaged';
+                    if (t === 'missing' || t === 'lost' || t.includes('mất') || t.includes('mat')) return (t ===
+                        'lost' ? 'lost' : 'missing');
+                    if (t === 'archived' || t.includes('lưu trữ') || t.includes('luu tru')) return 'archived';
+                    if (['present', 'damaged', 'missing', 'lost', 'archived'].includes(t)) return t;
+                    return t;
+                }
+
+                function capitalizeWords(s) {
+                    return String(s).split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                }
+
+                document.querySelectorAll('.btn-open-room-instances').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const phongId = this.dataset.phongId || '';
+                        const phongCode = this.dataset.phongCode || '';
+                        document.getElementById('rim_phong_code').innerText = phongCode ? ('#' +
+                            phongCode) : '';
+
+                        const container = document.getElementById('rim_body');
+                        let list = [];
+                        if (window.allInstances && (window.allInstances[phongId] || window.allInstances[
+                                String(phongId)])) {
+                            list = window.allInstances[phongId] || window.allInstances[String(phongId)];
+                        }
+
+                        if (!Array.isArray(list) || list.length === 0) {
+                            container.innerHTML =
+                                '<div class="text-center text-muted py-4">Chưa có bản thể (hoặc không có dữ liệu).</div>';
+                        } else {
+                            let html =
+                                '<div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>#</th><th>Vật dụng</th><th>Serial</th><th>Số lượng</th><th>Trạng thái</th><th>Ghi chú</th><th>Hành động</th></tr></thead><tbody>';
+                            list.forEach(inst => {
+                                const instId = inst.id;
+                                const name = (inst.vat_dung && inst.vat_dung.ten) ? inst
+                                    .vat_dung.ten : (inst.vatDung?.ten ?? ('#VD' + (inst
+                                        .vat_dung_id ?? '')));
+                                const serial = inst.serial ?? '-';
+                                const qty = inst.quantity ?? 1;
+                                const rawStatus = inst.status ?? (inst.status_text ?? '');
+                                const note = inst.note ?? '';
+                                const defaultFee = (inst.vat_dung && inst.vat_dung.gia) ? inst
+                                    .vat_dung.gia : (inst.vatDung?.gia ?? 0);
+
+                                const stKey = normalizeStatusKey(rawStatus);
+                                const displayStatus = statusLabels[stKey] ?? (rawStatus ?
+                                    capitalizeWords(rawStatus) : '—');
+                                const badgeClass = statusBadges[stKey] ??
+                                    'badge bg-secondary text-white';
+                                const statusHtml =
+                                    `<span class="${badgeClass}">${escapeHtml(displayStatus)}</span>`;
+
+                                const instIncArr = (window.incidentsByInstance && (window
+                                    .incidentsByInstance[instId] || window
+                                    .incidentsByInstance[String(instId)])) ? (window
+                                    .incidentsByInstance[instId] || window
+                                    .incidentsByInstance[String(instId)]) : [];
+                                const instIncident = instIncArr.length ? instIncArr[0] : null;
+                                const instIncidentId = instIncident ? instIncident.id : '';
+
+                                const canMark = (stKey === 'present') && !instIncidentId;
+
+                                html += `<tr>
+                                    <td>${instId}</td>
+                                    <td>${escapeHtml(name)}</td>
+                                    <td>${escapeHtml(serial)}</td>
+                                    <td>${qty}</td>
+                                    <td>${statusHtml}</td>
+                                    <td>${escapeHtml(note)}</td>
+                                    <td class="text-nowrap">`;
+
+                                if (instIncidentId) {
+                                    html +=
+                                        `<button class="btn btn-sm btn-outline-success me-1 btn-revert-incident" data-incident-id="${instIncidentId}" title="Đặt lại Nguyên vẹn"><i class="bi bi-arrow-counterclockwise"></i> Nguyên vẹn</button>`;
+                                } else {
+                                    html +=
+                                        `<button class="btn btn-sm btn-outline-secondary me-1" disabled title="Chưa có sự cố">Nguyên vẹn</button>`;
+                                }
+
+                                if (canMark) {
+                                    html +=
+                                        `<button class="btn btn-sm btn-outline-warning me-1 btn-open-incident-modal" data-instance-id="${instId}" data-vat-dung-id="${inst.vat_dung_id ?? (inst.vatDung?.id ?? '')}" data-default-fee="${defaultFee}" data-phong-id="${phongId}" data-mark="damaged"><i class="bi bi-exclamation-triangle"></i> Hỏng</button>`;
+                                    html +=
+                                        `<button class="btn btn-sm btn-outline-danger me-1 btn-open-incident-modal" data-instance-id="${instId}" data-vat-dung-id="${inst.vat_dung_id ?? (inst.vatDung?.id ?? '')}" data-default-fee="${defaultFee}" data-phong-id="${phongId}" data-mark="missing"><i class="bi bi-x-circle"></i> Mất</button>`;
+                                } else {
+                                    const title = instIncidentId ?
+                                        'Đã có sự cố cho bản thể này trong booking' :
+                                        'Bản thể không ở trạng thái Nguyên vẹn';
+                                    html +=
+                                        `<button class="btn btn-sm btn-outline-secondary me-1" disabled title="${escapeHtml(title)}"><i class="bi bi-exclamation-triangle"></i> Hỏng</button>`;
+                                    html +=
+                                        `<button class="btn btn-sm btn-outline-secondary me-1" disabled title="${escapeHtml(title)}"><i class="bi bi-x-circle"></i> Mất</button>`;
+                                }
+
+                                @if (auth()->check() && ((auth()->user()->is_admin ?? false) || (auth()->user()->role ?? '') === 'admin'))
+                                    html +=
+                                        ` <a class="btn btn-sm btn-outline-secondary" href="{{ url('/admin/phong') }}/${phongId}/vat-dung-instances" target="_blank"><i class="bi bi-pencil-square"></i> Quản lý</a>`;
+                                @endif
+
+                                html += `</td></tr>`;
+                            });
+                            html += '</tbody></table></div>';
+                            container.innerHTML = html;
+
+                            container.querySelectorAll('.btn-open-incident-modal').forEach(b => {
+                                b.addEventListener('click', function() {
+                                    if (rimBsModal) rimBsModal.hide();
+                                    openStaffIncidentModalFromButton(this);
+                                });
+                            });
+
+                            if (window.staffIncidentModal) {
+                                const staffEl = document.getElementById('staffIncidentModal');
+                                staffEl.addEventListener('hidden.bs.modal', function() {
+                                    if (rimBsModal) {
+                                        setTimeout(() => rimBsModal.show(), 150);
+                                    }
+                                }, {
+                                    once: false
+                                });
+                            }
+
+                            container.querySelectorAll('.btn-revert-incident').forEach(b => {
+                                b.addEventListener('click', function() {
+                                    const incidentId = this.dataset.incidentId;
+                                    if (!incidentId) return;
+                                    if (!confirm(
+                                            'Xác nhận đặt lại bản thể về "Nguyên vẹn" và xóa sự cố liên quan?'
+                                            )) return;
+
+                                    const urlTemplate =
+                                        "{{ route('bookings.incidents.destroy', ['booking' => $booking->id, 'incident' => '__ID__']) }}";
+                                    const url = urlTemplate.replace('__ID__',
+                                        incidentId);
+
+                                    const f = document.createElement('form');
+                                    f.method = 'POST';
+                                    f.action = url;
+                                    f.style.display = 'none';
+                                    const token = document.createElement('input');
+                                    token.name = '_token';
+                                    token.value = "{{ csrf_token() }}";
+                                    f.appendChild(token);
+                                    const method = document.createElement('input');
+                                    method.name = '_method';
+                                    method.value = 'DELETE';
+                                    f.appendChild(method);
+                                    document.body.appendChild(f);
+                                    f.submit();
+                                });
+                            });
+                        }
+
+                        if (rimBsModal) rimBsModal.show();
+                    });
+                });
+
+                function escapeHtml(str) {
+                    if (str === null || str === undefined) return '';
+                    return String(str)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/'/g, '&#39;');
+                }
+            });
+        </script>
+    @endpush
 
     <style>
         .text-gradient-primary {

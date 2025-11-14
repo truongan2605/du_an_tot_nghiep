@@ -28,12 +28,12 @@ use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
-
-// Vật dụng/phòng (mở rộng)
+use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 use App\Http\Controllers\Admin\PhongVatDungController;
 use App\Http\Controllers\Admin\PhongConsumptionController;
 use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\VatDungIncidentController;
+
 
 // BLOG (Admin + Client)
 use App\Http\Controllers\Client\BlogController as ClientBlog;
@@ -94,7 +94,7 @@ Route::prefix('admin')
 
         // Nhân viên
         Route::resource('nhan-vien', NhanVienController::class);
-      Route::patch('nhan-vien/{nhan_vien}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
+        Route::patch('nhan-vien/{nhan_vien}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
         // ---- Voucher ----
         Route::resource('voucher', VoucherController::class);
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])->name('voucher.toggle-active');
@@ -195,22 +195,32 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
 
 
 // ==================== STAFF + ADMIN ====================
-    Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
-        Route::post('/phong/consumptions', [PhongConsumptionController::class, 'store'])
-            ->name('phong.consumptions.store');
+Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
+    Route::post('/phong/consumptions', [PhongConsumptionController::class, 'store'])
+        ->name('phong.consumptions.store');
 
-        Route::put('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'update'])
-            ->name('phong.consumptions.update');
+    Route::put('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'update'])
+        ->name('phong.consumptions.update');
 
-        Route::delete('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'destroy'])
-            ->name('phong.consumptions.destroy');
+    Route::delete('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'destroy'])
+        ->name('phong.consumptions.destroy');
 
-        Route::post('/phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])
-            ->name('phong.consumptions.markConsumed');
+    Route::post('/phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])
+        ->name('phong.consumptions.markConsumed');
 
-        Route::post('/phong/consumptions/store-and-bill/{phong}', [PhongConsumptionController::class, 'storeAndBill'])
-            ->name('phong.consumptions.store_and_bill');
-    });
+    Route::post('/phong/consumptions/store-and-bill/{phong}', [PhongConsumptionController::class, 'storeAndBill'])
+        ->name('phong.consumptions.store_and_bill');
+
+    // staff booking incidents
+    Route::post('/bookings/{booking}/incidents', [StaffVatDungIncidentController::class, 'store'])
+        ->name('bookings.incidents.store');
+
+    Route::patch('/bookings/{booking}/incidents/{incident}', [StaffVatDungIncidentController::class, 'update'])
+        ->name('bookings.incidents.update');
+
+    Route::delete('/bookings/{booking}/incidents/{incident}', [StaffVatDungIncidentController::class, 'destroy'])
+        ->name('bookings.incidents.destroy');
+});
 
 
 // ==================== ACCOUNT (client profile area) ====================

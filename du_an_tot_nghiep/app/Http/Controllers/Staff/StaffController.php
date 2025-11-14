@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Models\PhongVatDungConsumption;
 use App\Models\PhongVatDungInstance;
+use App\Models\VatDungIncident;
 
 class StaffController extends Controller
 {
@@ -384,18 +385,39 @@ class StaffController extends Controller
 
         $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
 
+        $roomIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
+
         $consumptions = PhongVatDungConsumption::where('dat_phong_id', $booking->id)
             ->orderBy('created_at', 'asc')
             ->get()
             ->groupBy('phong_id');
 
-        $instances = PhongVatDungInstance::whereIn('phong_id', $booking->datPhongItems->pluck('phong_id')->filter()->toArray())
-            ->whereIn('status', ['damaged', 'missing'])
+        $incidentsCollection = VatDungIncident::where('dat_phong_id', $booking->id)
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $incidents = $incidentsCollection->groupBy('phong_id');
+
+        $incidentsByInstance = $incidentsCollection
+            ->filter(fn($it) => !empty($it->phong_vat_dung_instance_id))
+            ->groupBy('phong_vat_dung_instance_id');
+
+        $instances = PhongVatDungInstance::whereIn('phong_id', $roomIds)
+            ->with('vatDung')
+            ->orderBy('created_at', 'desc')
             ->get()
             ->groupBy('phong_id');
 
-        return view('staff.bookings.show', compact('booking', 'meta', 'consumptions', 'instances'));
+        return view('staff.bookings.show', compact(
+            'booking',
+            'meta',
+            'consumptions',
+            'incidents',
+            'instances',
+            'incidentsByInstance'
+        ));
     }
+
 
     public function cancel($id)
     {
