@@ -120,13 +120,17 @@
                     </thead>
                     <tbody id="bookingsTableBody">
                         @forelse ($bookings as $booking)
+                            @php
+                                $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+                                $canPayOrCheckin = $checkinDate->isToday(); // Chỉ hôm nay mới được thao tác
+                            @endphp
                             <tr class="border-bottom">
                                 <td class="ps-2 small text-secondary">{{ $booking->id }}</td>
                                 <td class="fw-semibold small text-primary">{{ $booking->ma_tham_chieu }}</td>
                                 <td class="small text-truncate" style="max-width: 100px;" title="{{ $booking->nguoiDung->name ?? 'Ẩn danh' }}">
                                     {{ Str::limit($booking->nguoiDung->name ?? 'Ẩn danh', 12) }}
                                 </td>
-                                <td class="small">{{ \Carbon\Carbon::parse($booking->ngay_nhan_phong)->format('d/m') }}</td>
+                                <td class="small">{{ $checkinDate->format('d/m') }}</td>
                                 <td class="text-center">
                                     @if ($booking->checkin_status === 'Hôm nay')
                                         <span class="badge bg-success rounded-pill px-2 py-1 small fw-semibold shadow-sm"><i class="bi bi-check-lg me-1"></i>Hôm nay</span>
@@ -148,31 +152,41 @@
                                 </td>
                                 <td class="pe-2 text-center">
                                     @if ($booking->remaining > 0)
-                                        <form action="{{ route('payment.remaining', $booking->id) }}" method="POST" class="d-inline">
-                                            @csrf
-                                            <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden" style="width: 120px;">
-                                                <select name="nha_cung_cap" class="form-select form-select-sm border-0 px-2" required style="background: white;">
-                                                    <option value="">Chọn</option>
-                                                    <option value="tien_mat">Tiền mặt</option>
-                                                    <option value="vnpay">VNPAY</option>
-                                                </select>
-                                                <button type="submit" class="btn btn-warning border-0 px-2" title="Thanh toán">
-                                                    <i class="bi bi-arrow-right"></i>
-                                                </button>
-                                            </div>
-                                        </form>
+                                        @if ($canPayOrCheckin)
+                                            <form action="{{ route('payment.remaining', $booking->id) }}" method="POST" class="d-inline">
+                                                @csrf
+                                                <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden" style="width: 120px;">
+                                                    <select name="nha_cung_cap" class="form-select form-select-sm border-0 px-2" required>
+                                                        <option value="">Chọn</option>
+                                                        <option value="tien_mat">Tiền mặt</option>
+                                                        <option value="vnpay">VNPAY</option>
+                                                    </select>
+                                                    <button type="submit" class="btn btn-warning border-0 px-2" title="Thanh toán phần còn lại">
+                                                        <i class="bi bi-arrow-right"></i>
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        @else
+                                            <button class="btn btn-outline-secondary px-3 py-1 rounded-pill fw-semibold shadow-sm" disabled
+                                                    data-bs-toggle="tooltip" data-bs-placement="top"
+                                                    title="Chưa đến ngày nhận phòng ({{ $checkinDate->format('d/m/Y') }})">
+                                                <i class="bi bi-clock me-1"></i>Chờ
+                                            </button>
+                                        @endif
                                     @else
-                                        @if (\Carbon\Carbon::parse($booking->ngay_nhan_phong)->isToday() || \Carbon\Carbon::parse($booking->ngay_nhan_phong)->isPast())
+                                        @if ($canPayOrCheckin)
                                             <form action="{{ route('staff.processCheckin') }}" method="POST" class="d-inline">
                                                 @csrf
                                                 <input type="hidden" name="booking_id" value="{{ $booking->id }}">
                                                 <button type="submit" class="btn btn-success px-3 py-1 rounded-pill fw-semibold shadow-sm"
-                                                    onclick="return confirm('Check-in {{ $booking->ma_tham_chieu }}?')">
+                                                        onclick="return confirm('Check-in {{ $booking->ma_tham_chieu }}?')">
                                                     <i class="bi bi-check-circle me-1"></i>Check-in
                                                 </button>
                                             </form>
                                         @else
-                                            <button class="btn btn-outline-secondary px-3 py-1 rounded-pill fw-semibold shadow-sm" disabled title="Chưa tới ngày">
+                                            <button class="btn btn-outline-secondary px-3 py-1 rounded-pill fw-semibold shadow-sm" disabled
+                                                    data-bs-toggle="tooltip" data-bs-placement="top"
+                                                    title="Chưa đến ngày nhận phòng ({{ $checkinDate->format('d/m/Y') }})">
                                                 <i class="bi bi-clock me-1"></i>Chờ
                                             </button>
                                         @endif
@@ -203,8 +217,45 @@
     </div>
 </div>
 
+{{-- Modal Thanh Toán Thành Công --}}
+<div class="modal fade" id="paymentSuccessModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-3 overflow-hidden">
+            <div class="modal-header bg-gradient text-white" style="background: linear-gradient(135deg, #198754, #157347); border-bottom: none;">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-check-circle-fill me-2"></i>Thanh toán thành công
+                </h5>
+                <button type="button" class="btn-close btn-close-white shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <i class="bi bi-currency-exchange text-success fs-1 mb-3"></i>
+                <h4 class="fw-bold text-success mb-2" id="modalPaymentAmount">0đ</h4>
+                <p class="text-muted mb-0">Phòng đã được đưa vào sử dụng</p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pb-4">
+                <button type="button" class="btn btn-success px-4 rounded-pill shadow-sm" data-bs-dismiss="modal">
+                    <i class="bi bi-check-lg me-1"></i>Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Modal thanh toán
+    @if (session('show_payment_modal'))
+        const modal = new bootstrap.Modal(document.getElementById('paymentSuccessModal'));
+        document.getElementById('modalPaymentAmount').textContent = '{{ session('payment_amount') }}';
+        modal.show();
+        setTimeout(() => modal._isShown && modal.hide(), 5000);
+    @endif
+
+    // Tooltip
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+
+    // Tìm kiếm + lọc
     const searchInput = document.getElementById('searchInput');
     const statusFilter = document.getElementById('statusFilter');
     const tableRows = document.querySelectorAll('#bookingsTableBody tr:not(.no-data-row)');
@@ -213,39 +264,35 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyFilters() {
         const searchTerm = searchInput.value.toLowerCase();
         const statusValue = statusFilter.value;
-        let visibleRows = 0;
+        let visible = 0;
 
         tableRows.forEach(row => {
             const maTC = row.cells[1]?.textContent.toLowerCase() || '';
-            const khachHang = row.cells[2]?.textContent.toLowerCase() || '';
-            const statusCell = row.cells[4]?.querySelector('.badge')?.textContent.toLowerCase() || '';
+            const khach = row.cells[2]?.textContent.toLowerCase() || '';
+            const status = row.cells[4]?.querySelector('.badge')?.textContent.toLowerCase() || '';
 
-            const matchesSearch = !searchTerm || maTC.includes(searchTerm) || khachHang.includes(searchTerm);
-            const matchesStatus = !statusValue || statusCell.includes(statusValue.replace(/-/g, ' '));
+            const matchSearch = !searchTerm || maTC.includes(searchTerm) || khach.includes(searchTerm);
+            const matchStatus = !statusValue || status.includes(statusValue.replace(/-/g, ' '));
 
-            if (matchesSearch && matchesStatus) {
-                row.style.display = '';
-                visibleRows++;
-            } else {
-                row.style.display = 'none';
-            }
+            row.style.display = matchSearch && matchStatus ? '' : 'none';
+            if (matchSearch && matchStatus) visible++;
         });
 
-        if (noDataRow) noDataRow.style.display = visibleRows === 0 ? '' : 'none';
+        if (noDataRow) noDataRow.style.display = visible === 0 ? '' : 'none';
     }
 
     searchInput.addEventListener('input', applyFilters);
     statusFilter.addEventListener('change', applyFilters);
 
-
+    // Hover
     document.querySelectorAll('tbody tr').forEach(row => {
         row.addEventListener('mouseenter', () => {
             row.style.transform = 'translateY(-1px)';
             row.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
         });
         row.addEventListener('mouseleave', () => {
-            row.style.transform = 'translateY(0)';
-            row.style.boxShadow = 'none';
+            row.style.transform = '';
+            row.style.boxShadow = '';
         });
     });
 });
@@ -264,17 +311,9 @@ document.addEventListener('DOMContentLoaded', function () {
 .pagination .page-item.active .page-link { background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%); border-color: #0d6efd; }
 .no-data-row { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); }
 .badge { box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.2s ease; }
-.badge:hover { transform: scale(1.05); }
 @media (max-width: 768px) {
     .table th, .table td { padding: 0.5rem 0.25rem !important; font-size: 0.8rem; }
-    .badge { font-size: 0.7rem; padding: 0.3em 0.5em; }
     .input-group { width: 100% !important; }
-    .row.g-2 > div { margin-bottom: 0.75rem; }
-}
-@media (max-width: 576px) {
-    .table th:nth-child(7), .table td:nth-child(7),
-    .table th:nth-child(8), .table td:nth-child(8),
-    .table th:nth-child(9), .table td:nth-child(9) { display: none; }
 }
 </style>
 @endsection
