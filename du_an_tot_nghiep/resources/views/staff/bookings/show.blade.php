@@ -258,14 +258,14 @@
                             <input type="hidden" name="dat_phong_id" value="{{ $booking->id }}">
                             <input type="hidden" name="phong_id" id="modal_phong_id" value="">
                             <input type="hidden" name="bill_now" value="1">
-                            <div class="modal-content">
+                            <div class="modal-content" style=" margin-left:230px">
                                 <div class="modal-header">
                                     <h5 class="modal-title" id="addFoodModalLabel">Thêm dịch vụ cho phòng <span
                                             id="modal_phong_code"></span></h5>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"
                                         aria-label="Close"></button>
                                 </div>
-                                <div class="modal-body">
+                                <div class="modal-body" style="min-width: 400px;">
                                     <div class="mb-3">
                                         <label class="form-label">Dịch vụ</label>
                                         <select name="vat_dung_id" id="modal_vat_dung_id" class="form-select" required>
@@ -415,8 +415,8 @@
                                                                 {{ \Carbon\Carbon::parse($c->consumed_at)->format('d/m H:i') }}</span>
                                                             &nbsp;·&nbsp;
                                                         @endif
-                                                        <span title="Người tạo">Người đánh dấu:
-                                                            {{ $c->creator?->name ?? ($c->created_by ? 'UID#' . $c->created_by : '—') }}</span>
+                                                        <strong title="Người tạo">Người đánh dấu:
+                                                            {{ $c->creator?->name ?? ($c->created_by ? 'UID#' . $c->created_by : '—') }}</strong>
                                                         @if ($c->note)
                                                             &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }}
                                                         @endif
@@ -589,19 +589,19 @@
                     <a href="{{ route('staff.rooms') }}" class="btn btn-outline-secondary btn-lg px-4">
                         <i class="bi bi-arrow-left me-2"></i>Quay Lại
                     </a>
+                    <div class="d-flex gap-2">
+                        @if (in_array($booking->trang_thai, ['dang_su_dung']) &&
+                                \Carbon\Carbon::parse($booking->ngay_tra_phong)   )
+                            <a href="{{ route('staff.bookings.checkout.show', $booking->id)}}"
+                                class="btn btn-outline-primary btn-lg px-4">
+                                <i class="bi bi-receipt me-2"></i>Xem hoá đơn
+                            </a>
+                        @else
 
-                    @if (in_array($booking->trang_thai, ['da_gan_phong', 'dang_o']) &&
-                            \Carbon\Carbon::parse($booking->ngay_tra_phong)->isToday())
-                        <form action="{{ route('staff.checkout.process') }}" method="POST" class="d-inline">
-                            @csrf
-                            <input type="hidden" name="booking_id" value="{{ $booking->id }}">
-                            <button type="submit" class="btn btn-warning btn-lg px-5 shadow-sm"
-                                onclick="return confirm('⚠️ Xác nhận check-out cho booking #{{ $booking->ma_tham_chieu }}?\n\nKhách sẽ được trả phòng ngay lập tức.')">
-                                <i class="bi bi-box-arrow-right me-2"></i>Check-out Ngay
-                            </button>
-                        </form>
-                    @endif
+                        @endif
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -619,7 +619,7 @@
                         <h5 class="modal-title">Ghi nhận sự cố / tính tiền</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="min-width:620px">
                         <div class="mb-2">
                             <label class="form-label">Loại</label>
                             <select name="mark_instance_status" id="si_status" class="form-select">
@@ -644,6 +644,7 @@
             </form>
         </div>
     </div>
+
     <!-- Room Instances Modal (booking.show) -->
     <div class="modal fade" id="roomInstancesModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -845,7 +846,7 @@
                                     if (!incidentId) return;
                                     if (!confirm(
                                             'Xác nhận đặt lại bản thể về "Nguyên vẹn" và xóa sự cố liên quan?'
-                                            )) return;
+                                        )) return;
 
                                     const urlTemplate =
                                         "{{ route('bookings.incidents.destroy', ['booking' => $booking->id, 'incident' => '__ID__']) }}";
@@ -889,9 +890,7 @@
 
     <style>
         .text-gradient-primary {
-            background: linear-gradient(90deg, #0d6efd, #0a58ca);
             -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 

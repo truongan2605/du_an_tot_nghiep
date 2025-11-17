@@ -41,6 +41,7 @@ use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
+use App\Http\Controllers\Staff\CheckoutController;
 
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -221,6 +222,15 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
 
     Route::delete('/bookings/{booking}/incidents/{incident}', [StaffVatDungIncidentController::class, 'destroy'])
         ->name('bookings.incidents.destroy');
+
+    Route::get('/staff/bookings/{booking}/checkout', [CheckoutController::class, 'showCheckoutForm'])
+        ->name('staff.bookings.checkout.show');
+
+    Route::post('/staff/bookings/{booking}/checkout', [CheckoutController::class, 'processCheckout'])
+        ->name('staff.bookings.checkout.process');
+
+    Route::post('/staff/bookings/{booking}/invoices/{hoaDon}/confirm', [CheckoutController::class, 'confirmPayment'])
+        ->name('staff.bookings.invoices.confirm');
 });
 
 
