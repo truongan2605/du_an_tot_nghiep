@@ -163,14 +163,13 @@
                                         </form>
                                     @else
                                         @if (\Carbon\Carbon::parse($booking->ngay_nhan_phong)->isToday() || \Carbon\Carbon::parse($booking->ngay_nhan_phong)->isPast())
-                                            <form action="{{ route('staff.processCheckin') }}" method="POST" class="d-inline">
-                                                @csrf
-                                                <input type="hidden" name="booking_id" value="{{ $booking->id }}">
-                                                <button type="submit" class="btn btn-success px-3 py-1 rounded-pill fw-semibold shadow-sm"
-                                                    onclick="return confirm('Check-in {{ $booking->ma_tham_chieu }}?')">
-                                                    <i class="bi bi-check-circle me-1"></i>Check-in
-                                                </button>
-                                            </form>
+                                            <button type="button" 
+                                                    class="btn btn-success px-3 py-1 rounded-pill fw-semibold shadow-sm"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#checkinModal{{ $booking->id }}"
+                                                    data-booking-id="{{ $booking->id }}">
+                                                <i class="bi bi-check-circle me-1"></i>Check-in
+                                            </button>
                                         @else
                                             <button class="btn btn-outline-secondary px-3 py-1 rounded-pill fw-semibold shadow-sm" disabled title="Chưa tới ngày">
                                                 <i class="bi bi-clock me-1"></i>Chờ
@@ -202,6 +201,74 @@
         @endif
     </div>
 </div>
+
+{{-- Modal Check-in với CCCD --}}
+@foreach ($bookings as $booking)
+    @if ($booking->remaining <= 0 && (\Carbon\Carbon::parse($booking->ngay_nhan_phong)->isToday() || \Carbon\Carbon::parse($booking->ngay_nhan_phong)->isPast()))
+    <div class="modal fade" id="checkinModal{{ $booking->id }}" tabindex="-1" aria-labelledby="checkinModalLabel{{ $booking->id }}" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="checkinModalLabel{{ $booking->id }}">
+                        <i class="bi bi-check-circle me-2"></i>Xác nhận Check-in
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form action="{{ route('staff.processCheckin') }}" method="POST" id="checkinForm{{ $booking->id }}">
+                    @csrf
+                    <input type="hidden" name="booking_id" value="{{ $booking->id }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Thông tin Booking</label>
+                            <div class="card bg-light p-3">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Mã booking:</small>
+                                        <strong class="text-primary">{{ $booking->ma_tham_chieu }}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Khách hàng:</small>
+                                        <strong>{{ $booking->nguoiDung?->name ?? 'N/A' }}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Ngày nhận:</small>
+                                        <strong>{{ \Carbon\Carbon::parse($booking->ngay_nhan_phong)->format('d/m/Y') }}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Tổng tiền:</small>
+                                        <strong class="text-success">{{ number_format($booking->tong_tien) }}đ</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cccd{{ $booking->id }}" class="form-label fw-semibold">
+                                Số CCCD/CMND <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="cccd{{ $booking->id }}" 
+                                   name="cccd" 
+                                   placeholder="Nhập số CCCD/CMND của khách"
+                                   required
+                                   pattern="[0-9]{9,12}"
+                                   title="Vui lòng nhập số CCCD/CMND hợp lệ (9-12 chữ số)"
+                                   autofocus>
+                            <small class="form-text text-muted">Vui lòng nhập số CCCD/CMND của khách hàng để hoàn tất check-in</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>Xác nhận Check-in
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+@endforeach
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

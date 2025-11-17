@@ -1,6 +1,6 @@
 @extends('layouts.auth')
 
-@section('title', 'Forgot password')
+@section('title', 'Quên mật khẩu')
 
 @section('content')
     <section class="vh-xxl-100">
@@ -24,8 +24,8 @@
                                             src="{{ asset('template/stackbros/assets/images/logo-icon.svg') }}"
                                             alt="logo">
                                     </a>
-                                    <h1 class="mb-2 h3">Forgot password?</h1>
-                                    <p class="mb-sm-0">Enter the email address associated with an account.</p>
+                                    <h1 class="mb-2 h3">Quên mật khẩu?</h1>
+                                    <p class="mb-sm-0">Nhập địa chỉ email liên kết với tài khoản của bạn.</p>
 
                                     @if (session('status'))
                                         <div class="alert alert-success">
@@ -39,7 +39,7 @@
 
                                         <!-- Email -->
                                         <div class="mb-3">
-                                            <label class="form-label">Enter email id</label>
+                                            <label class="form-label">Nhập email</label>
                                             <input type="email" name="email" value="{{ old('email') }}"
                                                 class="form-control @error('email') is-invalid @enderror" required>
                                             @error('email')
@@ -48,12 +48,12 @@
                                         </div>
 
                                         <div class="mb-3 text-center">
-                                            <p>Back to <a href="{{ route('login') }}">Sign in</a></p>
+                                            <p>Quay lại <a href="{{ route('login') }}">Đăng nhập</a></p>
                                         </div>
 
                                         <!-- Button -->
-                                        <div class="d-grid"><button type="submit" class="btn btn-primary">Reset
-                                                Password</button></div>
+                                        <div class="d-grid"><button type="submit" class="btn btn-primary">Đặt lại
+                                                mật khẩu</button></div>
 
                                     </form>
                                     <!-- Form END -->

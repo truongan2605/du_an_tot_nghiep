@@ -258,7 +258,15 @@ class StaffController extends Controller
 
     public function processCheckin(Request $request)
     {
-        $request->validate(['booking_id' => 'required|exists:dat_phong,id']);
+        $request->validate([
+            'booking_id' => 'required|exists:dat_phong,id',
+            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
+        ], [
+            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
+            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
+            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
+            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
+        ]);
 
         $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
 
@@ -273,10 +281,17 @@ class StaffController extends Controller
             return redirect()->back()->with('error', "Cần thanh toán còn lại " . number_format($remaining) . " VND trước khi check-in.");
         }
 
-        DB::transaction(function () use ($booking) {
+        DB::transaction(function () use ($booking, $request) {
+            // Lưu CCCD vào snapshot_meta
+            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+            $meta['checkin_cccd'] = $request->cccd;
+            $meta['checkin_at'] = now()->toDateTimeString();
+            $meta['checkin_by'] = auth()->id();
+
             $booking->update([
                 'trang_thai' => 'dang_su_dung',
                 'checked_in_at' => now(),
+                'snapshot_meta' => $meta,
             ]);
 
             $phongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
@@ -374,6 +389,64 @@ class StaffController extends Controller
             'trang_thai' => $request->trang_thai,
         ]);
         return redirect()->route('staff.rooms')->with('success', 'Cập nhật trạng thái phòng ' . $room->ma_phong . ' thành công.');
+    }
+
+    public function checkinFromRoom(Request $request, Phong $room)
+    {
+        $request->validate([
+            'booking_id' => 'required|exists:dat_phong,id',
+            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
+        ], [
+            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
+            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
+            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
+            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
+        ]);
+
+        $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
+
+        // Kiểm tra booking có thuộc phòng này không
+        $hasRoom = $booking->datPhongItems()->where('phong_id', $room->id)->exists();
+        if (!$hasRoom) {
+            return redirect()->route('staff.rooms')->with('error', 'Booking không thuộc phòng này.');
+        }
+
+        // Kiểm tra trạng thái booking
+        if ($booking->trang_thai !== 'da_xac_nhan') {
+            return redirect()->route('staff.rooms')->with('error', 'Booking không ở trạng thái chờ check-in.');
+        }
+
+        // Kiểm tra thanh toán
+        $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+        $remaining = $booking->tong_tien - $paid;
+
+        if ($remaining > 0) {
+            return redirect()->route('staff.rooms')->with('error', "Cần thanh toán còn lại " . number_format($remaining) . " VND trước khi check-in.");
+        }
+
+        // Thực hiện check-in
+        DB::transaction(function () use ($booking, $room, $request) {
+            // Lưu CCCD vào snapshot_meta
+            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+            $meta['checkin_cccd'] = $request->cccd;
+            $meta['checkin_at'] = now()->toDateTimeString();
+            $meta['checkin_by'] = auth()->id();
+
+            // Cập nhật booking
+            $booking->update([
+                'trang_thai' => 'dang_su_dung',
+                'checked_in_at' => now(),
+                'snapshot_meta' => $meta,
+            ]);
+
+            // Cập nhật trạng thái phòng
+            $room->update([
+                'trang_thai' => 'dang_o',
+            ]);
+        });
+
+        return redirect()->route('staff.rooms')
+            ->with('success', 'Check-in thành công cho phòng ' . $room->ma_phong . ' - Booking ' . $booking->ma_tham_chieu);
     }
 
     public function showBooking(DatPhong $booking)
