@@ -107,6 +107,7 @@ class CheckoutController extends Controller
 
             $unpaidIds = $unpaidHoaDons->pluck('id')->toArray();
 
+            // tổng phát sinh từ các hoá đơn chưa thanh toán
             $existingItems = collect();
             $extrasTotal = 0;
             if (!empty($unpaidIds)) {
@@ -118,10 +119,57 @@ class CheckoutController extends Controller
 
             $markPaid = !empty($data['mark_paid']);
 
-            // TH1: Không có phát sinh & không có hoá đơn chưa thanh toán
+            //  TH1: KHÔNG có khoản phát sinh & KHÔNG có hoá đơn chưa thanh toán 
             if (empty($unpaidIds) && $extrasTotal <= 0) {
+                $roomAmount = (float) ($booking->tong_tien ?? 0);
+                if ($roomAmount <= 0) {
+                    $roomAmount = (float) ($booking->snapshot_total ?? 0);
+                }
+                if ($roomAmount <= 0) {
+                    $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
+                    $nights = 1;
+                    if ($booking->ngay_nhan_phong && $booking->ngay_tra_phong) {
+                        $nights = Carbon::parse($booking->ngay_nhan_phong)
+                            ->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+                        $nights = max(1, $nights);
+                    }
+                    $calc = 0;
+                    foreach ($datPhongItems as $it) {
+                        $unit = (float)($it->gia_tren_dem ?? 0);
+                        $qty = (int)($it->so_luong ?? 1);
+                        $calc += $unit * $qty * $nights;
+                    }
+                    $roomAmount = $calc;
+                }
+
+                // tạo hoá đơn 
+                $hoaDon = HoaDon::create([
+                    'dat_phong_id' => $booking->id,
+                    'so_hoa_don' => 'HD' . time(),
+                    'tong_thuc_thu' => 0,
+                    'don_vi' => $booking->don_vi_tien ?? 'VND',
+                    'trang_thai' => $markPaid ? 'da_thanh_toan' : 'da_xuat',
+                    'created_by' => Auth::id() ?? null,
+                ]);
+
+                if ($roomAmount > 0) {
+                    HoaDonItem::create([
+                        'hoa_don_id' => $hoaDon->id,
+                        'type' => 'room',
+                        'ref_id' => $booking->id,
+                        'vat_dung_id' => null,
+                        'name' => 'Phòng — Booking #' . $booking->ma_tham_chieu,
+                        'quantity' => 1,
+                        'unit_price' => $roomAmount,
+                        'amount' => $roomAmount,
+                        'note' => 'Snapshot tổng phòng (tạo khi checkout)',
+                    ]);
+                }
+
+                $hoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
+                $hoaDon->save();
+
                 if ($markPaid) {
-                    // finalize: giải phóng phòng, xóa dat_phong_item, cập nhật booking
                     $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
                     $phongIds = $datPhongItems->pluck('phong_id')->filter()->unique()->toArray();
                     if (!empty($phongIds)) {
@@ -133,18 +181,21 @@ class CheckoutController extends Controller
                     $booking->checkout_at = now();
                     $booking->trang_thai = 'hoan_thanh';
                     $booking->save();
+
+                    DB::commit();
+                    return redirect()->route('staff.bookings.show', $booking->id)
+                        ->with('success', 'Checkout hoàn tất — hoá đơn #' . $hoaDon->id . ' đã được lập và đánh dấu là đã thanh toán.');
                 }
 
                 DB::commit();
-
                 return redirect()->route('staff.bookings.show', $booking->id)
-                    ->with('success', 'Checkout hoàn tất (không có khoản phát sinh).');
-            }
+                    ->with('success', 'Hoá đơn đã được lập (chờ thanh toán): #' . $hoaDon->id);
+            } // end TH1
 
-            // TH2: Có khoản phát sinh / hoá đơn chưa thanh toán → sử dụng hoá đơn hiện có (target)
+            //  TH2: Có khoản phát sinh / hoá đơn chưa thanh toán -> sử dụng hoá đơn hiện có 
             $targetHoaDon = $unpaidHoaDons->first();
 
-            // Nếu có nhiều hoá đơn chưa thanh toán: gom items về 1 hoá đơn target
+            // gom items từ các hoá đơn khác vào target nếu có nhiều
             if (count($unpaidIds) > 1) {
                 $otherIds = array_values(array_diff($unpaidIds, [$targetHoaDon->id]));
                 if (!empty($otherIds)) {
@@ -153,12 +204,30 @@ class CheckoutController extends Controller
                 }
             }
 
-            // Nếu staff chọn mark_paid => finalize (thêm dòng phòng nếu cần, cập nhật total, chuyển trạng thái da_thanh_toan)
             if ($markPaid) {
-                // ưu tiên dùng booking->tong_tien nếu có (bạn muốn lưu tổng thực thu của booking)
-                $roomAmount = (float) ($booking->tong_tien ?? $booking->snapshot_total ?? 0);
+                // xác định roomAmount ưu tiên dat_phong.tong_tien -> snapshot -> compute
+                $roomAmount = (float) ($booking->tong_tien ?? 0);
+                if ($roomAmount <= 0) {
+                    $roomAmount = (float) ($booking->snapshot_total ?? 0);
+                }
+                if ($roomAmount <= 0) {
+                    $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
+                    $nights = 1;
+                    if ($booking->ngay_nhan_phong && $booking->ngay_tra_phong) {
+                        $nights = Carbon::parse($booking->ngay_nhan_phong)
+                            ->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+                        $nights = max(1, $nights);
+                    }
+                    $calc = 0;
+                    foreach ($datPhongItems as $it) {
+                        $unit = (float)($it->gia_tren_dem ?? 0);
+                        $qty = (int)($it->so_luong ?? 1);
+                        $calc += $unit * $qty * $nights;
+                    }
+                    $roomAmount = $calc;
+                }
 
-                // thêm 1 dòng room nếu chưa có
+                // thêm dòng room nếu chưa có
                 $hasRoomLine = HoaDonItem::where('hoa_don_id', $targetHoaDon->id)
                     ->where('type', 'room')
                     ->where('ref_id', $booking->id)
@@ -178,12 +247,12 @@ class CheckoutController extends Controller
                     ]);
                 }
 
-                // cập nhật tổng hoá đơn từ tổng các items
+                // cập nhật tổng hoá đơn
                 $targetHoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
                 $targetHoaDon->trang_thai = 'da_thanh_toan';
                 $targetHoaDon->save();
 
-                // finalize checkout: giải phóng phòng, xóa dat_phong_item, cập nhật booking
+                // finalize: release rooms, delete dat_phong_item, update booking
                 $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
                 $phongIds = $datPhongItems->pluck('phong_id')->filter()->unique()->toArray();
                 if (!empty($phongIds)) {
@@ -202,7 +271,7 @@ class CheckoutController extends Controller
                     ->with('success', 'Checkout hoàn tất — hoá đơn #' . $targetHoaDon->id . ' đã được đánh dấu là đã thanh toán.');
             }
 
-            // Nếu chưa thanh toán (staff không tích mark_paid): đặt hoá đơn target ở trạng thái da_xuat và giữ dat_phong_item
+            // nếu staff chưa tick mark_paid -> chỉ đặt hoá đơn target về da_xuat (đợi thanh toán)
             $targetHoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
             $targetHoaDon->trang_thai = 'da_xuat';
             $targetHoaDon->save();
