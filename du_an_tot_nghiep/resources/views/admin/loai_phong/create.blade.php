@@ -141,7 +141,7 @@
                             {{ number_format($bt->price, 0, ',', '.') }} đ</div>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label small">Quantity</label>
+                        <label class="form-label small">Chất lượng</label>
                         <input type="number" name="bed_types[{{ $bt->id }}][quantity]" min="0"
                             class="form-control" value="{{ $qty }}">
                     </div>
