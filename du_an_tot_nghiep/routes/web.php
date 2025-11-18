@@ -40,6 +40,7 @@ use App\Http\Controllers\Client\BlogController as ClientBlog;
 use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
 use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
+use App\Http\Controllers\Admin\DanhGiaController;
 
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -152,6 +153,11 @@ Route::prefix('admin')
         Route::patch('phong/vat-dung-instances/{instance}/status', [PhongVatDungInstanceController::class, 'updateStatus'])->name('phong.vatdung.instances.update-status');
         Route::delete('phong/vat-dung-instances/{instance}', [PhongVatDungInstanceController::class, 'destroy'])->name('phong.vatdung.instances.destroy');
         Route::post('phong/vat-dung-instances/{instance}/mark-lost', [PhongVatDungInstanceController::class, 'markLost'])->name('phong.vatdung.instances.mark-lost');
+  
+  //đáng giá phòng 
+        Route::get('/danh-gia', [DanhGiaController::class, 'index'])->name('danhgia.index');
+    Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
+    Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
 
         // ==================== BLOG (ADMIN) ====================
         Route::prefix('blog')->name('blog.')->group(function () {
@@ -162,7 +168,7 @@ Route::prefix('admin')
             Route::resource('posts', AdminPost::class)->parameters(['posts' => 'post']);
             Route::resource('categories', AdminCategory::class)->parameters(['categories' => 'category']);
             Route::resource('tags', AdminTag::class)->parameters(['tags' => 'tag']);
-        });
+        }); 
     });
 
 // ==================== STAFF ====================

@@ -76,6 +76,7 @@ class Phong extends Model
     }
 
 
+
     public function computeConsumableCharges(): float
     {
         $this->loadMissing(['vatDungs']);
@@ -160,6 +161,10 @@ class Phong extends Model
     {
         return $this->hasMany(Wishlist::class, 'phong_id');
     }
+public function danhGiaspace()
+{
+    return $this->hasMany(DanhGiaSpace::class, 'phong_id');
+}
 
     public function getTongGiaAttribute()
     {

@@ -93,6 +93,17 @@ class DatPhong extends Model
     {
         return $this->hasMany(DanhGia::class, 'dat_phong_id');
     }
+    public function phongs()
+{
+    return $this->hasManyThrough(
+        Phong::class,
+        DatPhongItem::class,
+        'dat_phong_id', // Khóa ngoại trên dat_phong_items
+        'id',            // Khóa chính của bảng phong
+        'id',            // Khóa chính của dat_phong
+        'phong_id'       // Khóa ngoại của dat_phong_items trỏ tới phong
+    );
+}
 
     public function consumptions()
     {
