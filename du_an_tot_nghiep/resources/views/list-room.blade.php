@@ -179,11 +179,11 @@
                                             @endif
 
                                             {{-- Badge trạng thái phòng --}}
-                                            @if ($phong->trang_thai == 'Trống')
+                                            @if ($phong->trang_thai == 'trong')
                                                 <span
                                                     class="badge bg-success position-absolute bottom-0 start-0 m-3 px-3 py-2 shadow-sm">Phòng
                                                     trống</span>
-                                            @elseif($phong->trang_thai == 'Đang ở')
+                                            @elseif($phong->trang_thai == 'dang_o')
                                                 <span
                                                     class="badge bg-warning text-dark position-absolute bottom-0 start-0 m-3 px-3 py-2 shadow-sm">Đang
                                                     ở</span>

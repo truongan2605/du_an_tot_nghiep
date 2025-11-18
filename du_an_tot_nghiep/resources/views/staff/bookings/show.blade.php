@@ -83,29 +83,53 @@
                                     <small class="text-muted">Trạng Thái</small>
                                     <div class="mt-1">
                                         @php
+                                            use Illuminate\Support\Str;
+
                                             $status = $booking->trang_thai;
+
                                             $statusClasses = [
-                                                'da_gan_phong' => 'bg-success',
+                                                'dang_su_dung' => 'bg-success',
                                                 'dang_cho' => 'bg-warning text-dark',
-                                                'dang_cho_xac_nhan' => 'bg-info',
+                                                'dang_cho_xac_nhan' => 'bg-info text-dark',
+                                                'da_xac_nhan' => 'bg-success', // đã xác nhận
+                                                'da_gan_phong' => 'bg-info text-dark', // đã gán phòng
                                                 'da_huy' => 'bg-secondary',
                                                 'hoan_thanh' => 'bg-primary',
                                                 'dang_o' => 'bg-indigo text-white',
                                             ];
+
                                             $statusIcons = [
-                                                'da_gan_phong' => 'bi-check-circle',
+                                                'dang_su_dung' => 'bi-check-circle',
                                                 'dang_cho' => 'bi-hourglass-split',
                                                 'dang_cho_xac_nhan' => 'bi-clock-history',
+                                                'da_xac_nhan' => 'bi-check2-circle',
+                                                'da_gan_phong' => 'bi-door-open',
                                                 'da_huy' => 'bi-x-circle',
                                                 'hoan_thanh' => 'bi-check2-all',
                                                 'dang_o' => 'bi-house-door',
                                             ];
+
+                                            $statusLabels = [
+                                                'dang_su_dung' => 'Đang sử dụng',
+                                                'dang_cho' => 'Đang chờ',
+                                                'dang_cho_xac_nhan' => 'Đang chờ xác nhận',
+                                                'da_xac_nhan' => 'Đã xác nhận',
+                                                'da_gan_phong' => 'Đã gán phòng',
+                                                'da_huy' => 'Đã hủy',
+                                                'hoan_thanh' => 'Hoàn thành',
+                                                'dang_o' => 'Đang ở',
+                                            ];
+
+                                            // fallback an toàn: chuyển underscore -> khoảng trắng và viết hoa từ đầu (Str::title xử lý multibyte)
+                                            $label =
+                                                $statusLabels[$status] ?? Str::title(str_replace('_', ' ', $status));
+                                            $class = $statusClasses[$status] ?? 'bg-dark';
+                                            $icon = $statusIcons[$status] ?? 'bi-question-circle';
                                         @endphp
 
-                                        <span
-                                            class="badge rounded-pill px-3 py-2 fs-7 {{ $statusClasses[$status] ?? 'bg-dark' }}">
-                                            <i class="bi {{ $statusIcons[$status] ?? 'bi-question-circle' }} me-1"></i>
-                                            {{ ucfirst(str_replace('_', ' ', $status)) }}
+                                        <span class="badge rounded-pill px-3 py-2 fs-7 {{ $class }}">
+                                            <i class="bi {{ $icon }} me-1"></i>
+                                            {{ $label }}
                                         </span>
                                     </div>
                                 </div>
@@ -132,6 +156,26 @@
                                 </div>
                             </div>
 
+                            <div class="d-flex align-items-center mt-3">
+                                <i class="bi bi-box-arrow-right text-muted me-3 fs-5"></i>
+                                <div>
+                                    <small class="text-muted">Trạng Thái Checkout</small>
+                                    <div class="mt-1">
+                                        @if ($booking->checkout_at)
+                                            <span
+                                                class="badge bg-success-subtle text-success border border-success rounded-pill px-3 py-2 fs-7">
+                                                <i class="bi bi-clock-history me-1"></i>
+                                                Đã checkout lúc {{ $booking->checkout_at->format('d/m/Y H:i:s') }}
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary text-white rounded-pill px-3 py-2 fs-7">
+                                                <i class="bi bi-x-circle me-1"></i>
+                                                Chưa checkout
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -193,61 +237,81 @@
                 <hr class="my-5">
 
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-door-open-fill me-2"></i>Phòng Đã Gán</h6>
+
                 @php
-                    // Lấy list đồ ăn active (loại DO_AN) để staff chọn trong modal
                     $availableFoods = \App\Models\VatDung::where('active', 1)
                         ->where('loai', \App\Models\VatDung::LOAI_DO_AN ?? 'do_an')
                         ->orderBy('ten')
                         ->get();
+
+                    $roomSource =
+                        $booking->trang_thai === 'hoan_thanh' &&
+                        isset($roomLinesFromInvoice) &&
+                        $roomLinesFromInvoice->isNotEmpty()
+                            ? $roomLinesFromInvoice
+                            : $booking->datPhongItems;
                 @endphp
 
-                @forelse ($booking->datPhongItems as $item)
-                    <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
-                        <div class="card-body py-3 px-4">
-                            <div class="row align-items-center text-sm">
-                                <div class="col-md-3 d-flex align-items-center">
-                                    <strong class="text-primary">#{{ $item->phong?->ma_phong ?? 'Chưa gán' }}</strong>
-                                    {{-- ==== nút mở modal Thêm dịch vụ cho phòng ==== --}}
-                                    @if ($booking->trang_thai === 'dang_su_dung')
-                                        <button type="button" class="btn btn-sm btn-outline-primary ms-3"
-                                            data-bs-toggle="modal" data-bs-target="#addFoodModal"
-                                            data-phong-id="{{ $item->phong?->id }}"
-                                            data-phong-code="{{ $item->phong?->ma_phong }}">
-                                            <i class="bi bi-plus-lg me-1"></i> Dịch vụ gọi thêm
-                                        </button>
-                                    @endif
+                @if ($roomSource instanceof \Illuminate\Support\Collection && $roomSource->isNotEmpty())
+                    @foreach ($roomSource as $item)
+                        @php
+                            // item có thể là model (dat_phong_item) hoặc array (từ roomLinesFromInvoice)
+                            $isArrayLine = is_array($item);
+                            $phongId = $isArrayLine ? $item['phong_id'] ?? null : $item->phong?->id ?? null;
+                            $phongCode = $isArrayLine ? $item['ma_phong'] ?? null : $item->phong?->ma_phong ?? null;
+                            $loaiText = $isArrayLine ? $item['loai'] ?? 'N/A' : $item->loaiPhong?->ten ?? 'N/A';
+                            $qty = $isArrayLine ? $item['qty'] ?? 1 : $item->so_luong ?? 1;
+                            $unitPrice = $isArrayLine ? $item['unit_price'] ?? 0 : $item->gia_tren_dem ?? 0;
+                        @endphp
 
-                                    {{-- ==== nút mở modal quản lý bản thể nội bộ ==== --}}
-                                    @if ($item->phong?->id)
-                                        <button type="button"
-                                            class="btn btn-sm btn-outline-secondary ms-2 btn-open-room-instances"
-                                            data-phong-id="{{ $item->phong->id }}"
-                                            data-phong-code="{{ $item->phong->ma_phong }}">
-                                            <i class="bi bi-gear me-1"></i> Bản thể
-                                        </button>
-                                    @endif
-                                </div>
+                        <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
+                            <div class="card-body py-3 px-4">
+                                <div class="row align-items-center text-sm">
+                                    <div class="col-md-3 d-flex align-items-center">
+                                        <strong class="text-primary">#{{ $phongCode ?? 'Chưa gán' }}</strong>
 
-                                <div class="col-md-3">
-                                    <i class="bi bi-building me-1"></i> {{ $item->loaiPhong?->ten ?? 'N/A' }}
-                                </div>
-                                <div class="col-md-2 text-center">
-                                    <span class="badge bg-light text-dark border">{{ $item->so_luong ?? 1 }} phòng</span>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <strong class="text-success">{{ number_format($item->gia_tren_dem, 0) }}
-                                        ₫</strong>/đêm
+                                        {{-- Dịch vụ gọi thêm chỉ khi booking đang sử dụng --}}
+                                        @if ($booking->trang_thai === 'dang_su_dung')
+                                            <button type="button" class="btn btn-sm btn-outline-primary ms-3"
+                                                data-bs-toggle="modal" data-bs-target="#addFoodModal"
+                                                data-phong-id="{{ $phongId }}"
+                                                data-phong-code="{{ $phongCode }}">
+                                                <i class="bi bi-plus-lg me-1"></i> Dịch vụ gọi thêm
+                                            </button>
+                                        @endif
+
+                                        {{-- Bản thể: chỉ hiện khi booking dang_su_dung --}}
+                                        @if ($booking->trang_thai === 'dang_su_dung' && !empty($phongId))
+                                            <button type="button"
+                                                class="btn btn-sm btn-outline-secondary ms-2 btn-open-room-instances"
+                                                data-phong-id="{{ $phongId }}"
+                                                data-phong-code="{{ $phongCode }}">
+                                                <i class="bi bi-gear me-1"></i> Bản thể
+                                            </button>
+                                        @endif
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <i class="bi bi-building me-1"></i> {{ $loaiText }}
+                                    </div>
+
+                                    <div class="col-md-2 text-center">
+                                        <span class="badge bg-light text-dark border">{{ $qty }} phòng</span>
+                                    </div>
+
+                                    <div class="col-md-4 text-end">
+                                        <strong class="text-success">{{ number_format($unitPrice, 0) }} ₫</strong>/đêm
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                @empty
+                    @endforeach
+                @else
                     <div class="text-center py-5 text-muted">
                         <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
                         <p>Chưa có phòng nào được gán.</p>
                     </div>
-                @endforelse
+                @endif
 
                 <!-- Modal: Thêm đồ ăn (gọi thêm) -->
                 <div class="modal fade" id="addFoodModal" tabindex="-1" aria-labelledby="addFoodModalLabel"
@@ -273,8 +337,7 @@
                                             @foreach ($availableFoods as $fd)
                                                 <option value="{{ $fd->id }}" data-price="{{ $fd->gia ?? 0 }}">
                                                     {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }}
-                                                    đ)
-                                                </option>
+                                                    đ)</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -307,21 +370,20 @@
 
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
-                        // Khi modal hiện, lấy dữ liệu phòng từ data-* và gán vào form
                         var addFoodModalEl = document.getElementById('addFoodModal');
-                        addFoodModalEl.addEventListener('show.bs.modal', function(event) {
-                            var button = event.relatedTarget;
-                            var phongId = button.getAttribute('data-phong-id') || '';
-                            var phongCode = button.getAttribute('data-phong-code') || '';
-                            document.getElementById('modal_phong_id').value = phongId;
-                            document.getElementById('modal_phong_code').innerText = phongCode || '(chưa gán)';
-                            // reset
-                            document.getElementById('modal_vat_dung_id').value = '';
-                            document.getElementById('modal_quantity').value = 1;
-                            document.getElementById('modal_unit_price').value = 0;
-                        });
+                        if (addFoodModalEl) {
+                            addFoodModalEl.addEventListener('show.bs.modal', function(event) {
+                                var button = event.relatedTarget;
+                                var phongId = button ? button.getAttribute('data-phong-id') || '' : '';
+                                var phongCode = button ? button.getAttribute('data-phong-code') || '' : '';
+                                document.getElementById('modal_phong_id').value = phongId;
+                                document.getElementById('modal_phong_code').innerText = phongCode || '(chưa gán)';
+                                document.getElementById('modal_vat_dung_id').value = '';
+                                document.getElementById('modal_quantity').value = 1;
+                                document.getElementById('modal_unit_price').value = 0;
+                            });
+                        }
 
-                        // khi chọn món, tự điền unit_price từ data-price
                         var vatSelect = document.getElementById('modal_vat_dung_id');
                         if (vatSelect) {
                             vatSelect.addEventListener('change', function() {
@@ -338,42 +400,20 @@
                     $consByRoom = $consumptions ?? collect();
                     $incByRoom = $incidents ?? collect();
 
-                    $instByRoom = $incByRoom->isNotEmpty() ? $incByRoom : $instances ?? collect();
-
-                    $unassignedCons = collect();
-                    if ($consByRoom instanceof \Illuminate\Support\Collection) {
-                        if ($consByRoom->has(null)) {
-                            $unassignedCons = $consByRoom->get(null);
-                        } elseif ($consByRoom->has('')) {
-                            $unassignedCons = $consByRoom->get('');
-                        } elseif ($consByRoom->has(0)) {
-                            $unassignedCons = $consByRoom->get(0);
-                        }
-                    }
-
-                    $unassignedInst = collect();
-                    if ($instByRoom instanceof \Illuminate\Support\Collection) {
-                        if ($instByRoom->has(null)) {
-                            $unassignedInst = $instByRoom->get(null);
-                        } elseif ($instByRoom->has('')) {
-                            $unassignedInst = $instByRoom->get('');
-                        } elseif ($instByRoom->has(0)) {
-                            $unassignedInst = $instByRoom->get(0);
-                        }
-                    }
                 @endphp
 
                 <hr class="my-5">
-
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-basket-fill me-2"></i>Đồ Ăn Gọi Thêm & Sự Cố</h6>
 
                 @php $anyShown = false; @endphp
 
-                @foreach ($booking->datPhongItems as $item)
+                @foreach ($roomSource as $roomEntry)
                     @php
-                        $phId = $item->phong?->id;
+                        $isArrayLine = is_array($roomEntry);
+                        $phId = $isArrayLine ? $roomEntry['phong_id'] ?? null : $roomEntry->phong?->id ?? null;
+                        $phCode = $isArrayLine ? $roomEntry['ma_phong'] ?? null : $roomEntry->phong?->ma_phong ?? null;
                         $roomCons = $consByRoom->has($phId) ? $consByRoom->get($phId) : collect();
-                        $roomIncidents = $instByRoom->has($phId) ? $instByRoom->get($phId) : collect();
+                        $roomIncidents = $incByRoom->has($phId) ? $incByRoom->get($phId) : collect();
                     @endphp
 
                     @if ($roomCons->isNotEmpty() || $roomIncidents->isNotEmpty())
@@ -382,12 +422,16 @@
                             <div class="card-body py-3 px-4">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
-                                        <strong class="text-primary">#{{ $item->phong?->ma_phong ?? 'Chưa gán' }}</strong>
-                                        <div class="small text-muted">{{ $item->loaiPhong?->ten ?? 'N/A' }}</div>
+                                        <strong class="text-primary">#{{ $phCode ?? 'Chưa gán' }}</strong>
+                                        <div class="small text-muted">
+                                            {{ $isArrayLine ? $roomEntry['loai'] ?? 'N/A' : $roomEntry->loaiPhong?->ten ?? 'N/A' }}
+                                        </div>
                                     </div>
                                     <div class="text-end small">
-                                        <div>{{ $item->so_luong ?? 1 }} phòng</div>
-                                        <div class="fw-semibold text-success">{{ number_format($item->gia_tren_dem, 0) }}
+                                        <div>{{ $isArrayLine ? $roomEntry['qty'] ?? 1 : $roomEntry->so_luong ?? 1 }}
+                                            phòng</div>
+                                        <div class="fw-semibold text-success">
+                                            {{ number_format($isArrayLine ? $roomEntry['unit_price'] ?? 0 : $roomEntry->gia_tren_dem ?? 0, 0) }}
                                             ₫/đêm</div>
                                     </div>
                                 </div>
@@ -458,12 +502,10 @@
                                                     $incidentPrice =
                                                         $ins->fee ??
                                                         ($ins->price ??
-                                                            ($ins->amount ??
-                                                                ($ins->vatDung->gia ?? ($ins->gia ?? null))));
+                                                            ($ins->amount ?? ($ins->vatDung?->gia ?? null)));
                                                     $incidentNote =
                                                         $ins->description ?? ($ins->note ?? ($ins->ghi_chu ?? null));
                                                     $reportedAt = $ins->reported_at ?? ($ins->created_at ?? null);
-                                                    $incidentType = $ins->type ?? ($ins->status ?? null);
                                                     $marker =
                                                         $ins->reported_by_user?->name ??
                                                         ($ins->reporter?->name ??
@@ -472,60 +514,50 @@
                                                                     ($ins->created_by
                                                                         ? 'UID#' . $ins->created_by
                                                                         : null))));
+                                                    $isBilled = !empty($ins->billed);
+                                                    // mã booking liên quan (nếu có)
+                                                    $belongsBookingId = $ins->dat_phong_id ?? null;
+                                                    $belongsBookingCode = $bookingMap[$belongsBookingId] ?? null;
+                                                    // nếu đã billed: show mã booking nơi nó được billed (nếu có)
+                                                    $billedBookingCode = $ins->billed_booking_code ?? null;
+                                                    $billedHoaDonId = $ins->billed_hoa_don_id ?? null;
                                                 @endphp
 
-                                                <li class="small mb-1 text-danger">
-                                                    <strong>{{ $ins->vatDung?->ten ?? '#VD' . $ins->vat_dung_id }}</strong>
+                                                <li
+                                                    class="small mb-1 @if ($isBilled) text-success @else text-danger @endif">
+                                                    <strong>{{ $ins->vatDung?->ten ?? '#VD' . ($ins->vat_dung_id ?? '') }}</strong>
+
                                                     @if (is_numeric($incidentPrice))
                                                         — Giá: <span
                                                             class="fw-semibold">{{ number_format($incidentPrice, 0) }}
                                                             ₫</span>
                                                     @endif
-                                                    — Trạng thái:
-                                                    @php
-                                                        $typeMap = [
-                                                            'damage' => [
-                                                                'label' => 'Hỏng',
-                                                                'badge' => 'bg-danger text-white',
-                                                            ],
-                                                            'loss' => [
-                                                                'label' => 'Mất',
-                                                                'badge' => 'bg-warning text-dark',
-                                                            ],
-                                                            'other' => [
-                                                                'label' => 'Khác',
-                                                                'badge' => 'bg-secondary text-white',
-                                                            ],
-                                                        ];
-                                                        $displayType =
-                                                            $typeMap[$incidentType]['label'] ??
-                                                            ($incidentType
-                                                                ? ucfirst(str_replace('_', ' ', $incidentType))
-                                                                : '—');
-                                                        $badgeClass =
-                                                            $typeMap[$incidentType]['badge'] ??
-                                                            'bg-secondary text-white';
-                                                    @endphp
 
-                                                    <span
-                                                        class="badge {{ $badgeClass }} fw-semibold text-capitalize">{{ $displayType }}</span>
+                                                    {{-- @if ($isBilled)
+                                                        <span class="badge bg-success ms-2 small">Đã tính vào hoá đơn
+                                                            #{{ $billedBookingCode }}</span>
+                                                    @else
+                                                        <span class="badge bg-warning text-dark ms-2 small">Chưa
+                                                            tính</span>
+                                                    @endif --}}
+
+                                                    {{-- Luôn show booking code (nếu có) để dễ truy cứu --}}
+                                                    @if ($belongsBookingCode)
+                                                        <div class="mt-1"><strong class=" badge bg-success">Thuộc
+                                                                booking:
+                                                                {{ $belongsBookingCode }}</strong></div>
+                                                    @endif
 
                                                     <div class="text-muted small mt-1">
                                                         @if ($reportedAt)
-                                                            <span>Thời gian đánh dấu
-                                                                {{ \Carbon\Carbon::parse($reportedAt)->format('d/m H:i') }}</span>&nbsp;·&nbsp;
+                                                            <span>Thời gian:
+                                                                {{ \Carbon\Carbon::parse($reportedAt)->format('d/m H:i') }}</span>
+                                                            &nbsp;·&nbsp;
                                                         @endif
-
-                                                        <div>
-                                                            @if ($incidentNote)
-                                                                Ghi chú: {{ Str::limit($incidentNote, 120) }}
-                                                            @endif
-                                                        </div>
-
-                                                        <div>
-                                                            <strong title="Người đánh dấu">Người đánh dấu:
-                                                                {{ $marker ?? '—' }}</strong>
-                                                        </div>
+                                                        <strong>Người đánh dấu:</strong> {{ $marker ?? '—' }}
+                                                        @if ($incidentNote)
+                                                            &nbsp;·&nbsp; Ghi chú: {{ Str::limit($incidentNote, 100) }}
+                                                        @endif
                                                     </div>
                                                 </li>
                                             @endforeach
@@ -543,7 +575,6 @@
                         <p class="mb-0">Chưa có đồ ăn gọi thêm hoặc sự cố nào được ghi nhận cho booking này.</p>
                     </div>
                 @endif
-
                 {{-- ===================== END Đồ ăn & sự cố ===================== --}}
 
                 @if ($booking->giaoDichs->count() > 0)
@@ -590,14 +621,12 @@
                         <i class="bi bi-arrow-left me-2"></i>Quay Lại
                     </a>
                     <div class="d-flex gap-2">
-                        @if (in_array($booking->trang_thai, ['dang_su_dung']) &&
-                                \Carbon\Carbon::parse($booking->ngay_tra_phong)   )
-                            <a href="{{ route('staff.bookings.checkout.show', $booking->id)}}"
+                        @if (in_array($booking->trang_thai, ['dang_su_dung']) && \Carbon\Carbon::parse($booking->ngay_tra_phong))
+                            <a href="{{ route('staff.bookings.checkout.show', $booking->id) }}"
                                 class="btn btn-outline-primary btn-lg px-4">
                                 <i class="bi bi-receipt me-2"></i>Xem hoá đơn
                             </a>
                         @else
-
                         @endif
                     </div>
                 </div>

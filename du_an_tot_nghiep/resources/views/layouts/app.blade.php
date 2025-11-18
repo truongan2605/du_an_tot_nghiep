@@ -64,14 +64,9 @@
             }
         })
     </script>
-    <script data-name-bot="bot-demo"
-	src="https://app.preny.ai/embed-global.js"
-	data-button-style="width:300px;height:300px;"
-	data-language="vi"
-	async
-	defer
-	data-preny-bot-id="68f9f9aa35a3c9132eb17a68"
-></script>
+    <script data-name-bot="bot-demo" src="https://app.preny.ai/embed-global.js"
+        data-button-style="width:300px;height:300px;" data-language="vi" async defer
+        data-preny-bot-id="691c2794731640a12967585d"></script>
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{ asset('template/stackbros/assets/images/favicon.ico') }}">
 
@@ -105,10 +100,10 @@
     <script src="{{ asset('template/stackbros/assets/vendor/choices/js/choices.min.js') }}"></script>
 
     <script src="{{ asset('template/stackbros/assets/js/functions.js') }}"></script>
-    
+
     <!-- Vite Assets for Notifications -->
     @vite(['resources/js/app.js'])
-    
+
     <!-- Client Notification Scripts -->
     <script>
         // Set user ID for notification manager
@@ -189,7 +184,8 @@
                     if (res.ok) {
                         if (data.status === 'added' || data.status === 'removed') {
                             updateButtonUI(btn, data.status);
-                            showToast(data.status === 'added' ? 'Đã thêm vào yêu thích' : 'Đã xóa khỏi yêu thích');
+                            showToast(data.status === 'added' ? 'Đã thêm vào yêu thích' :
+                                'Đã xóa khỏi yêu thích');
                             if (btn.classList.contains('wishlist-toggle')) {
                                 setTimeout(() => window.location.reload(), 400);
                             }

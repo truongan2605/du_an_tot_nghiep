@@ -46,6 +46,7 @@ class DatPhong extends Model
     protected $casts = [
         'ngay_nhan_phong' => 'date',
         'checked_in_at' => 'datetime',
+        'checkout_at'     => 'datetime',
         'ngay_tra_phong' => 'date',
         'so_khach' => 'integer',
         'tong_tien' => 'decimal:2',

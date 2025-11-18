@@ -48,16 +48,49 @@
                                     <td>
                                         @php
                                             $roomCodes = [];
-                                            if ($booking->datPhongItems) {
+
+                                            // 1) ưu tiên dat_phong_item (nếu còn)
+                                            if (
+                                                !empty($booking->datPhongItems) &&
+                                                $booking->datPhongItems->isNotEmpty()
+                                            ) {
                                                 foreach ($booking->datPhongItems as $item) {
-                                                    if ($item->phong) {
+                                                    if (!empty($item->phong) && !empty($item->phong->ma_phong)) {
                                                         $roomCodes[] = $item->phong->ma_phong;
+                                                    } elseif (!empty($item->phong_id)) {
+                                                        $roomCodes[] = 'Phòng #' . $item->phong_id;
+                                                    }
+                                                }
+                                            } else {
+                                                // 2) nếu đã xóa dat_phong_item thì lấy từ hoa_don_items loại 'room' (hoặc 'room_booking')
+                                                if (!empty($booking->hoaDons)) {
+                                                    foreach ($booking->hoaDons as $hd) {
+                                                        if (empty($hd->hoaDonItems)) {
+                                                            continue;
+                                                        }
+                                                        foreach ($hd->hoaDonItems as $it) {
+                                                            if (in_array($it->type, ['room', 'room_booking'])) {
+                                                                if (
+                                                                    !empty($it->phong) &&
+                                                                    !empty($it->phong->ma_phong)
+                                                                ) {
+                                                                    $roomCodes[] = $it->phong->ma_phong;
+                                                                } elseif (!empty($it->phong_id)) {
+                                                                    $roomCodes[] = 'Phòng #' . $it->phong_id;
+                                                                } elseif (!empty($it->name)) {
+                                                                    $roomCodes[] = $it->name;
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
+
+                                            $roomCodes = array_values(array_unique(array_filter($roomCodes)));
                                         @endphp
+
                                         @if (!empty($roomCodes))
-                                            @foreach (array_unique($roomCodes) as $code)
+                                            @foreach ($roomCodes as $code)
                                                 <span class="badge bg-success bg-opacity-75 me-1 small rounded-pill"
                                                     data-bs-toggle="tooltip" title="Phòng {{ $code }}">
                                                     {{ $code }}
@@ -66,6 +99,7 @@
                                         @else
                                             <span class="text-muted small">Chưa gán</span>
                                         @endif
+
                                     </td>
                                     <td class="small">{{ Str::limit($booking->nguoiDung?->name ?? 'Ẩn danh', 20) }}</td>
                                     <td class="text-center">
