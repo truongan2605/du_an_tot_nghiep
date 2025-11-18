@@ -67,7 +67,7 @@ class PaymentController extends Controller
             $computedAdults = $adultsInput;
             $chargeableChildren = 0;
             foreach ($childrenAges as $age) {
-                $age = (int)$age;
+                $age = (int) $age;
                 if ($age >= 13) $computedAdults++;
                 elseif ($age >= 7) $chargeableChildren++;
             }
@@ -75,12 +75,14 @@ class PaymentController extends Controller
             $roomCapacity = 0;
             if ($phong->bedTypes && $phong->bedTypes->count()) {
                 foreach ($phong->bedTypes as $bt) {
-                    $qty = (int)($bt->pivot->quantity ?? 0);
-                    $cap = (int)($bt->capacity ?? 1);
+                    $qty = (int) ($bt->pivot->quantity ?? 0);
+                    $cap = (int) ($bt->capacity ?? 1);
                     $roomCapacity += $qty * $cap;
                 }
             }
-            if ($roomCapacity <= 0) $roomCapacity = (int)($phong->suc_chua ?? ($phong->loaiPhong->suc_chua ?? 1));
+            if ($roomCapacity <= 0) {
+                $roomCapacity = (int) ($phong->suc_chua ?? ($phong->loaiPhong->suc_chua ?? 1));
+            }
 
             $roomsCount = $validated['rooms_count'];
             $totalRoomCapacity = $roomCapacity * $roomsCount;
@@ -93,7 +95,7 @@ class PaymentController extends Controller
 
             $adultsChargePerNight = $adultExtraTotal * self::ADULT_PRICE;
             $childrenChargePerNight = $childrenExtraTotal * self::CHILD_PRICE;
-            $basePerNight = (float)($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
+            $basePerNight = (float) ($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
 
             $selectedAddonIds = $validated['addons'] ?? [];
             $selectedAddons = collect();
@@ -101,7 +103,7 @@ class PaymentController extends Controller
                 $selectedAddons = \App\Models\TienNghi::whereIn('id', $selectedAddonIds)->get();
             }
 
-            $addonsPerNightPerRoom = (float)($selectedAddons->sum('gia') ?? 0.0);
+            $addonsPerNightPerRoom = (float) ($selectedAddons->sum('gia') ?? 0.0);
             $addonsPerNight = $addonsPerNightPerRoom * $roomsCount;
             $finalPerNightServer = ($basePerNight * $roomsCount) + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
             $snapshotTotalServer = $finalPerNightServer * $nights;
@@ -201,7 +203,7 @@ class PaymentController extends Controller
                 $bedSpec = method_exists($phong, 'effectiveBedSpec') ? $phong->effectiveBedSpec() : [];
 
                 $specArray = [
-                    'loai_phong_id' => (int)$phong->loai_phong_id,
+                    'loai_phong_id' => (int) $phong->loai_phong_id,
                     'tien_nghi' => $mergedTienNghi,
                     'beds' => $bedSpec,
                 ];
@@ -242,7 +244,10 @@ class PaymentController extends Controller
                             if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
                                 $row['spec_signature_hash'] = $baseSignature;
                             }
-                            $row['meta'] = json_encode(array_merge(json_decode($row['meta'], true), ['selected_phong_id' => $requestedPhongId, 'selected_phong_ids' => [$requestedPhongId]]), JSON_UNESCAPED_UNICODE);
+                            $row['meta'] = json_encode(array_merge(json_decode($row['meta'], true), [
+                                'selected_phong_id' => $requestedPhongId,
+                                'selected_phong_ids' => [$requestedPhongId],
+                            ]), JSON_UNESCAPED_UNICODE);
                             DB::table('giu_phong')->insert($row);
                             $requestedReserved = 1;
                             Log::debug('Payment: giu_phong inserted per-phong (requested)', ['phong_id' => $requestedPhongId, 'dat_phong_id' => $dat_phong->id]);
@@ -279,7 +284,10 @@ class PaymentController extends Controller
                         if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
                             $row['spec_signature_hash'] = $baseSignature;
                         }
-                        $row['meta'] = json_encode(array_merge(json_decode($row['meta'], true), ['selected_phong_id' => $pid, 'selected_phong_ids' => $selectedIds]), JSON_UNESCAPED_UNICODE);
+                        $row['meta'] = json_encode(array_merge(json_decode($row['meta'], true), [
+                            'selected_phong_id' => $pid,
+                            'selected_phong_ids' => $selectedIds,
+                        ]), JSON_UNESCAPED_UNICODE);
                         DB::table('giu_phong')->insert($row);
                         $reservedCount++;
                         Log::debug('Payment: giu_phong inserted per-phong', ['phong_id' => $pid, 'dat_phong_id' => $dat_phong->id]);
@@ -292,7 +300,9 @@ class PaymentController extends Controller
                     if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
                         $aggRow['spec_signature_hash'] = $baseSignature;
                     }
-                    $aggRow['meta'] = json_encode(array_merge(json_decode($aggRow['meta'], true), ['reserved_count' => $reservedCount]), JSON_UNESCAPED_UNICODE);
+                    $aggRow['meta'] = json_encode(array_merge(json_decode($aggRow['meta'], true), [
+                        'reserved_count' => $reservedCount,
+                    ]), JSON_UNESCAPED_UNICODE);
                     DB::table('giu_phong')->insert($aggRow);
                     Log::debug('Payment: giu_phong inserted aggregate remaining', ['remaining' => $roomsCount - $reservedCount, 'dat_phong_id' => $dat_phong->id]);
                 } elseif (!Schema::hasColumn('giu_phong', 'phong_id')) {
@@ -315,6 +325,9 @@ class PaymentController extends Controller
                 $vnp_HashSecret = env('VNPAY_HASH_SECRET');
                 $vnp_ReturnUrl = env('VNPAY_RETURN_URL');
 
+                // TxnRef duy nhất cho mỗi giao dịch
+                $merchantTxnRef = $giao_dich->id . '-' . time();
+
                 $inputData = [
                     "vnp_Version" => "2.1.0",
                     "vnp_TmnCode" => $vnp_TmnCode,
@@ -327,7 +340,7 @@ class PaymentController extends Controller
                     "vnp_OrderInfo" => "Thanh toán đặt phòng {$dat_phong->ma_tham_chieu}",
                     "vnp_OrderType" => "billpayment",
                     "vnp_ReturnUrl" => $vnp_ReturnUrl,
-                    "vnp_TxnRef" => (string)$giao_dich->id,
+                    "vnp_TxnRef" => $merchantTxnRef,
                 ];
 
                 ksort($inputData);
@@ -369,11 +382,13 @@ class PaymentController extends Controller
             return view('payment.fail', ['code' => '97', 'message' => 'Chữ ký không hợp lệ']);
         }
 
-        $vnp_TxnRef = $inputData['vnp_TxnRef'] ?? '';
+        $rawRef = $inputData['vnp_TxnRef'] ?? '';
+        $txnId = (int) explode('-', $rawRef)[0];
+
         $vnp_ResponseCode = $inputData['vnp_ResponseCode'] ?? '';
         $vnp_Amount = ($inputData['vnp_Amount'] ?? 0) / 100;
 
-        $giao_dich = GiaoDich::find($vnp_TxnRef);
+        $giao_dich = GiaoDich::find($txnId);
         if (!$giao_dich) return view('payment.fail', ['code' => '01', 'message' => 'Không tìm thấy giao dịch']);
 
         $dat_phong = $giao_dich->dat_phong;
@@ -472,11 +487,13 @@ class PaymentController extends Controller
             return response()->json(['RspCode' => '97', 'Message' => 'Invalid signature']);
         }
 
-        $vnp_TxnRef = $inputData['vnp_TxnRef'] ?? '';
+        $rawRef = $inputData['vnp_TxnRef'] ?? '';
+        $txnId = (int) explode('-', $rawRef)[0];
+
         $vnp_ResponseCode = $inputData['vnp_ResponseCode'] ?? '';
         $vnp_Amount = ($inputData['vnp_Amount'] ?? 0) / 100;
 
-        $giao_dich = GiaoDich::find($vnp_TxnRef);
+        $giao_dich = GiaoDich::find($txnId);
         if (!$giao_dich) return response()->json(['RspCode' => '01', 'Message' => 'Transaction not found']);
 
         $dat_phong = $giao_dich->dat_phong;
@@ -612,7 +629,8 @@ class PaymentController extends Controller
             $vnp_Url = env('VNPAY_URL');
             $vnp_ReturnUrl = env('VNPAY_RETURN_URL');
 
-            $vnp_TxnRef = (string)$giao_dich->id;
+            // TxnRef duy nhất
+            $vnp_TxnRef = $giao_dich->id . '-' . time();
             $vnp_OrderInfo = 'Thanh toán đơn đặt phòng #' . $dat_phong->id;
             $vnp_OrderType = 'billpayment';
             $vnp_Amount = $dat_phong->tong_tien * 100;
@@ -722,15 +740,17 @@ class PaymentController extends Controller
             return redirect()->route('staff.checkin')->with('error', 'Chữ ký không hợp lệ.');
         }
 
-        $vnp_TxnRef = $inputData['vnp_TxnRef'] ?? '';
+        $rawRef = $inputData['vnp_TxnRef'] ?? '';
+        $txnId = (int) explode('-', $rawRef)[0];
+
         $vnp_ResponseCode = $inputData['vnp_ResponseCode'] ?? '';
         $vnp_Amount = ($inputData['vnp_Amount'] ?? 0) / 100;
 
-        Log::info('Looking for transaction', ['vnp_TxnRef' => $vnp_TxnRef]);
+        Log::info('Looking for transaction', ['vnp_TxnRef' => $rawRef, 'parsed_id' => $txnId]);
 
-        $transaction = GiaoDich::find($vnp_TxnRef);
+        $transaction = GiaoDich::find($txnId);
         if (!$transaction) {
-            Log::error('Transaction not found', ['vnp_TxnRef' => $vnp_TxnRef]);
+            Log::error('Transaction not found', ['vnp_TxnRef' => $rawRef]);
             return redirect()->route('staff.checkin')->with('error', 'Không tìm thấy giao dịch hợp lệ.');
         }
 
@@ -824,7 +844,8 @@ class PaymentController extends Controller
         $vnp_Url = env('VNPAY_URL');
         $vnp_ReturnUrl = route('payment.remaining.callback');
 
-        $vnp_TxnRef = (string)$transaction->id;
+        // TxnRef duy nhất
+        $vnp_TxnRef = $transaction->id . '-' . time();
         $vnp_OrderInfo = 'Thanh toán phần còn lại booking #' . $transaction->dat_phong_id;
         $vnp_Amount = $amount * 100;
 
@@ -875,12 +896,12 @@ class PaymentController extends Controller
         return md5(json_encode($specArray, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
 
-   private function computeAvailableRoomsCount(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, ?string $requiredSignature = null): int
+    private function computeAvailableRoomsCount(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, ?string $requiredSignature = null): int
     {
         $requestedStart = $fromDate->copy()->setTime(14, 0, 0);
         $requestedEnd = $toDate->copy()->setTime(12, 0, 0);
         $reqStartStr = $requestedStart->toDateTimeString();
-        $reqEndStr = $requestedEnd->toDateTimeString();
+               $reqEndStr = $requestedEnd->toDateTimeString();
 
         $matchingRoomIds = Phong::where('loai_phong_id', $loaiPhongId)
             ->where('spec_signature_hash', $requiredSignature)
@@ -931,7 +952,7 @@ class PaymentController extends Controller
                 $decoded = is_string($metaRaw) ? json_decode($metaRaw, true) : $metaRaw;
                 if (is_array($decoded) && !empty($decoded['selected_phong_ids'])) {
                     foreach ($decoded['selected_phong_ids'] as $pid) {
-                        $heldRoomIds[] = (int)$pid;
+                        $heldRoomIds[] = (int) $pid;
                     }
                 }
             }
@@ -951,8 +972,8 @@ class PaymentController extends Controller
                 ->whereNull('dat_phong_item.phong_id');
 
             $aggregateBooked = Schema::hasColumn('dat_phong_item', 'so_luong')
-                ? (int)$q->sum('dat_phong_item.so_luong')
-                : (int)$q->count();
+                ? (int) $q->sum('dat_phong_item.so_luong')
+                : (int) $q->count();
         }
 
         $aggregateHoldsForSignature = 0;
@@ -968,8 +989,8 @@ class PaymentController extends Controller
             if (Schema::hasColumn('giu_phong', 'spec_signature_hash')) {
                 $qg = $qg->where('giu_phong.spec_signature_hash', $requiredSignature);
                 $aggregateHoldsForSignature = Schema::hasColumn('giu_phong', 'so_luong')
-                    ? (int)$qg->sum('giu_phong.so_luong')
-                    : (int)$qg->count();
+                    ? (int) $qg->sum('giu_phong.so_luong')
+                    : (int) $qg->count();
             } else {
                 $holdsMeta = $qg->whereNotNull('giu_phong.meta')->pluck('giu_phong.meta');
                 foreach ($holdsMeta as $metaRaw) {
@@ -985,7 +1006,7 @@ class PaymentController extends Controller
 
         $totalRoomsOfType = 0;
         if (Schema::hasTable('loai_phong') && Schema::hasColumn('loai_phong', 'so_luong_thuc_te')) {
-            $totalRoomsOfType = (int)DB::table('loai_phong')->where('id', $loaiPhongId)->value('so_luong_thuc_te');
+            $totalRoomsOfType = (int) DB::table('loai_phong')->where('id', $loaiPhongId)->value('so_luong_thuc_te');
         }
         if ($totalRoomsOfType <= 0) {
             $totalRoomsOfType = Phong::where('loai_phong_id', $loaiPhongId)->count();
@@ -994,7 +1015,7 @@ class PaymentController extends Controller
         $remainingAcrossType = max(0, $totalRoomsOfType - $aggregateBooked - $aggregateHoldsForSignature);
         $availableForSignature = max(0, min($matchingAvailableCount, $remainingAcrossType));
 
-        return (int)$availableForSignature;
+        return (int) $availableForSignature;
     }
 
     private function computeAvailableRoomIds(int $loaiPhongId, Carbon $fromDate, Carbon $toDate, int $limit = 1, ?string $requiredSignature = null): array
@@ -1044,7 +1065,7 @@ class PaymentController extends Controller
                 $decoded = is_string($metaRaw) ? json_decode($metaRaw, true) : $metaRaw;
                 if (is_array($decoded) && !empty($decoded['selected_phong_ids'])) {
                     foreach ($decoded['selected_phong_ids'] as $pid) {
-                        $heldRoomIds[] = (int)$pid;
+                        $heldRoomIds[] = (int) $pid;
                     }
                 }
             }
@@ -1056,7 +1077,7 @@ class PaymentController extends Controller
             ->where('spec_signature_hash', $requiredSignature)
             ->when(!empty($excluded), fn($q) => $q->whereNotIn('id', $excluded))
             ->lockForUpdate()
-            ->limit((int)$limit);
+            ->limit((int) $limit);
 
         $rows = $query->get(['id']);
         return $rows->pluck('id')->toArray();
