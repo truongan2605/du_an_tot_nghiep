@@ -220,6 +220,11 @@ Route::middleware('auth')
         Route::post('booking', [BookingController::class, 'store'])->name('booking.store');
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
+
+        // danh gia
+        Route::post('/phong/{phongId}/danh-gia', [DanhGiaController::class, 'store'])
+    ->middleware('auth')
+    ->name('phong.danhgia.store');
     });
 
 // ==================== BLOG (CLIENT) ====================
