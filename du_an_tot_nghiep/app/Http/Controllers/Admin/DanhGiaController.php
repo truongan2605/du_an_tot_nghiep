@@ -28,6 +28,8 @@ class DanhGiaController extends Controller
         return view('admin.danhgia.index', compact('phongs'));
     }
 
+
+
     // Chi tiết đánh giá 1 phòng
     public function show($id)
     {

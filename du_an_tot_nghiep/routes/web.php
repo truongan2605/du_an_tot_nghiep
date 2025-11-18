@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\BatchNotificationController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 
+
 // Vật dụng/phòng (mở rộng)
 use App\Http\Controllers\Admin\PhongVatDungController;
 use App\Http\Controllers\Admin\PhongConsumptionController;
@@ -222,9 +223,10 @@ Route::middleware('auth')
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
 
         // danh gia
-        Route::post('/phong/{phongId}/danh-gia', [DanhGiaController::class, 'store'])
-    ->middleware('auth')
-    ->name('phong.danhgia.store');
+       Route::middleware('auth')->group(function() {
+    Route::post('/phong/{phongId}/danh-gia', [DanhGiaController::class, 'store'])
+        ->name('client.danhgia.store');
+});
     });
 
 // ==================== BLOG (CLIENT) ====================

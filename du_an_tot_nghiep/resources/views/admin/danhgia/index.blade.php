@@ -3,54 +3,48 @@
 @section('title', 'Quản lý đánh giá phòng')
 
 @section('content')
-<div class="container mt-4">
-    <h3 class="mb-4">Quản lý đánh giá phòng</h3>
+<div class="container mt-5">
+    <h2 class="mb-4 text-primary fw-bold">Quản lý đánh giá phòng</h2>
 
-    <table class="table table-bordered table-hover align-middle">
-        <thead class="table-dark">
-            <tr>
-                <th>#</th>
-                <th>Tên loại phòng</th>
-                <th>Đánh giá trung bình</th>
-                <th>Tổng đánh giá</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($phongs as $index => $phong)
-                <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td>{{ $phong->ten ?? 'Không có tên' }}</td>
-                    <td>
-                        @if ($phong->average_rating)
-                            ⭐ {{ number_format($phong->average_rating, 1) }}/5
-                        @else
-                            Chưa có đánh giá
-                        @endif
-                    </td>
-                    <td>{{ $phong->danhGias->count() }}</td>
-                    <td>
-                        @if ($phong->new_reviews_count > 0)
-                            <span class="badge bg-success">
-                                +{{ $phong->new_reviews_count }} đánh giá mới
-                            </span>
-                        @else
-                            <span class="badge bg-secondary">Không có mới</span>
-                        @endif
-                    </td>
-                    <td>
-                        <a href="{{ route('admin.danhgia.show', $phong->id) }}" class="btn btn-sm btn-primary">
-                            Xem chi tiết
-                        </a>
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="6" class="text-center">Chưa có phòng nào được đánh giá</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @forelse ($phongs as $phong)
+            @php
+                $avg = $phong->average_rating ?? 0;
+                $count = $phong->danhGias->count();
+            @endphp
+            <div class="col">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body d-flex flex-column justify-content-between">
+                        <div>
+                            <h5 class="card-title">{{ $phong->ten ?? 'Tên phòng trống' }}</h5>
+                            <p class="card-text mb-2">
+                                @if($count > 0)
+                                    <span class="fw-semibold">⭐ {{ number_format($avg,1) }}/5</span> 
+                                    <span class="text-muted">({{ $count }} đánh giá)</span>
+                                @else
+                                    <span class="text-muted">Chưa có đánh giá</span>
+                                @endif
+                            </p>
+                        </div>
+                        <div class="mt-3">
+                            <a href="{{ route('admin.danhgia.show', $phong->id) }}" class="btn btn-primary w-100">
+                                Xem chi tiết
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="col-12">
+                <div class="alert alert-secondary text-center">
+                    Chưa có phòng nào được đánh giá
+                </div>
+            </div>
+        @endforelse
+    </div>
+
+    <div class="mt-4">
+        {{ $phongs->links() }}
+    </div>
 </div>
 @endsection
