@@ -263,11 +263,11 @@
                                                         @endforeach
                                                     </ul>
                                                     <hr class="my-3" />
-                                                    <h6 class="mb-2">Dịch vụ bổ sung</h6>
+                                                    <h6 class="mb-2" hidden>Dịch vụ bổ sung</h6>
                                                     @if (isset($availableAddons) && $availableAddons->count())
                                                         <ul class="list-unstyled">
                                                             @foreach ($availableAddons as $addon)
-                                                                <li class="mb-2">
+                                                                <li class="mb-2" hidden>
                                                                     <label class="d-flex align-items-center">
                                                                         <input type="checkbox" name="addons[]"
                                                                             value="{{ $addon->id }}"
