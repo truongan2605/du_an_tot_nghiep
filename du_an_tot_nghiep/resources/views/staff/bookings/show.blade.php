@@ -63,6 +63,15 @@
                                     <p class="mb-0">{{ $booking->contact_phone ?? ($booking->phone ?? 'N/A') }}</p>
                                 </div>
                             </div>
+                            @if (!empty($meta['checkin_cccd']))
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-card-text text-muted me-3"></i>
+                                <div>
+                                    <small class="text-muted">Số CCCD/CMND</small>
+                                    <p class="mb-0 fw-semibold text-primary">{{ $meta['checkin_cccd'] }}</p>
+                                </div>
+                            </div>
+                            @endif
                               <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
                                 <div>

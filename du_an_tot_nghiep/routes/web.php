@@ -107,12 +107,11 @@ Route::prefix('admin')
         Route::get('customer-notifications/create', [CustomerNotificationController::class, 'create'])->name('customer-notifications.create');
         Route::post('customer-notifications', [CustomerNotificationController::class, 'store'])->name('customer-notifications.store');
         Route::get('customer-notifications/{notification}', [CustomerNotificationController::class, 'show'])->name('customer-notifications.show');
-        Route::get('customer-notifications/{notification}/edit', [CustomerNotificationController::class, 'edit'])->name('customer-notifications.edit');
-        Route::put('customer-notifications/{notification}', [CustomerNotificationController::class, 'update'])->name('customer-notifications.update');
         Route::delete('customer-notifications/{notification}', [CustomerNotificationController::class, 'destroy'])->name('customer-notifications.destroy');
         Route::post('customer-notifications/{notification}/resend', [CustomerNotificationController::class, 'resend'])->name('customer-notifications.resend');
 
         Route::resource('internal-notifications', InternalNotificationController::class)
+            ->except(['edit', 'update'])
             ->parameters(['internal-notifications' => 'notification']);
         Route::post('internal-notifications/{notification}/resend', [InternalNotificationController::class, 'resend'])
             ->name('internal-notifications.resend');
@@ -188,6 +187,7 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         // Checkin / Checkout
         Route::get('/checkin', [StaffController::class, 'checkinForm'])->name('checkin');
         Route::post('/process-checkin', [StaffController::class, 'processCheckin'])->name('processCheckin');
+        Route::post('/save-cccd', [StaffController::class, 'saveCCCD'])->name('saveCCCD');
 
         // Báo cáo / Tổng quan
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');

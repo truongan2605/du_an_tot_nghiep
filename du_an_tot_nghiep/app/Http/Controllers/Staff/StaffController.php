@@ -302,6 +302,35 @@ public function index()
         return redirect()->route('staff.checkin')
             ->with('success', 'Check-in thành công cho booking ' . $booking->ma_tham_chieu . ' lúc ' . now()->format('H:i d/m/Y'));
     }
+
+    public function saveCCCD(Request $request)
+    {
+        $request->validate([
+            'booking_id' => 'required|exists:dat_phong,id',
+            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
+        ], [
+            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
+            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
+            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
+            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
+        ]);
+
+        $booking = DatPhong::findOrFail($request->booking_id);
+
+        // Lưu CCCD vào snapshot_meta (chưa check-in)
+        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $meta['checkin_cccd'] = $request->cccd;
+        $meta['cccd_saved_at'] = now()->toDateTimeString();
+        $meta['cccd_saved_by'] = auth()->id();
+
+        $booking->update([
+            'snapshot_meta' => $meta,
+        ]);
+
+        return redirect()->route('staff.checkin')
+            ->with('success', 'Đã lưu số CCCD/CMND cho booking ' . $booking->ma_tham_chieu);
+    }
+
     public function checkoutForm()
     {
         $bookings = DatPhong::whereIn('trang_thai', ['da_gan_phong', 'dang_o'])
@@ -504,12 +533,6 @@ public function index()
     {
         $request->validate([
             'booking_id' => 'required|exists:dat_phong,id',
-            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
-        ], [
-            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
-            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
-            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
-            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
         ]);
 
         $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
@@ -534,10 +557,9 @@ public function index()
         }
 
         // Thực hiện check-in
-        DB::transaction(function () use ($booking, $room, $request) {
-            // Lưu CCCD vào snapshot_meta
+        DB::transaction(function () use ($booking, $room) {
+            // Cập nhật meta với thông tin check-in (giữ nguyên CCCD nếu đã có)
             $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-            $meta['checkin_cccd'] = $request->cccd;
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = auth()->id();
 

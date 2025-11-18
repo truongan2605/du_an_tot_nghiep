@@ -647,6 +647,12 @@ class PaymentController extends Controller
             return back()->with('error', 'Booking không hợp lệ để thanh toán phần còn lại.');
         }
 
+        // Kiểm tra CCCD trước khi thanh toán
+        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        if (empty($meta['checkin_cccd'])) {
+            return back()->with('error', 'Vui lòng nhập số CCCD/CMND trước khi thanh toán.');
+        }
+
         $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
         $remaining = $booking->tong_tien - $paid;
 
