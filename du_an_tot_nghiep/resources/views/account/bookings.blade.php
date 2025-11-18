@@ -321,7 +321,7 @@
                                                 </div>
 
                                                 {{-- Danh sách phòng đã đặt --}}
-                                                <div class="border-top pt-2 mt-2">
+                                                <div class="border-top pt-2 mt-2"> 
                                                     <span class="fw-semibold">Phòng đã đặt:</span>
                                                     @if ($rooms->count() > 0)
                                                         <ul class="mt-2 mb-0">
@@ -341,7 +341,12 @@
                                                         <p class="text-muted mt-2 mb-0">Chưa có phòng nào được gán.</p>
                                                     @endif
                                                 </div>
+                                               
                                             </div>
+                                            <a href="{{ route('client.danhgia.create', $datPhong->id) }}" 
+   class="btn btn-outline-primary w-100 mt-2">
+    Đánh giá
+</a>
                                         </div>
                                     @empty
                                         <div class="alert alert-info">No completed bookings.</div>

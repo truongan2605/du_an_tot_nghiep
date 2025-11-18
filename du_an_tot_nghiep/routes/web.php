@@ -227,6 +227,12 @@ Route::middleware('auth')
     Route::post('/phong/{phongId}/danh-gia', [DanhGiaController::class, 'store'])
         ->name('client.danhgia.store');
 });
+
+Route::get('/danh-gia/{datPhongId}', [DanhGiaController::class, 'create'])
+        ->name('client.danhgia.create');
+
+    Route::post('/danh-gia/{datPhongId}', [DanhGiaController::class, 'store'])
+        ->name('client.danhgia.store');
     });
 
 // ==================== BLOG (CLIENT) ====================
