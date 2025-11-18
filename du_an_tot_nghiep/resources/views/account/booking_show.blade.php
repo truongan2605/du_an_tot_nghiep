@@ -180,6 +180,24 @@
                                 </div>
                             @endif
 
+                            {{-- CCCD Information --}}
+                            @php
+                                $cccd = $meta['checkin_cccd'] ?? null;
+                            @endphp
+                            @if($cccd)
+                            <hr class="my-4">
+                            <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-card-text me-2 text-info"></i> Thông tin CCCD/CMND</h6>
+                            <div class="alert alert-info border-0 p-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-card-text fs-4 me-3"></i>
+                                    <div>
+                                        <div class="small text-muted mb-1">Số CCCD/CMND</div>
+                                        <div class="h6 mb-0 fw-bold">{{ $cccd }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            @endif
+
                             {{-- Overview --}}
                             <hr class="my-4">
                             <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-list-check me-2 text-success"></i> Tổng quan</h6>
