@@ -15,6 +15,8 @@ class VoucherController extends Controller
     /** Hiển thị danh sách voucher */
     public function index(Request $request)
     {
+        // withCount('users') sẽ tạo thêm thuộc tính users_count
+        $vouchers = Voucher::withCount('users')->get();
         $query = Voucher::query();
 
         if ($request->filled('search')) {

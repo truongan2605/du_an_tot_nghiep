@@ -1309,19 +1309,5 @@ function showVNPAYConfirmModal() {
             updateSummary();
             updateRoomsAvailability();
         })();
-
-        // === Sticky Scroll cho Price Summary ===
-        // window.addEventListener('scroll', () => {
-        //     const summary = document.querySelector('.card.shadow.rounded-2');
-        //     if (!summary) return;
-
-        //     const startOffset = 200;
-        //     const scrollY = window.scrollY;
-        //     const maxTranslate = 1500;
-
-        //     const translateY = Math.min(Math.max(0, scrollY - startOffset), maxTranslate);
-        //     summary.style.transform = `translateY(${translateY}px)`;
-        //     summary.style.transition = 'transform 0.2s ease-out';
-        // });
     </script>
 @endpush

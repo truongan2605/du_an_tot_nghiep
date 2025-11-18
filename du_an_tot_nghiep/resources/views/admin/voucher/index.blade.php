@@ -12,6 +12,7 @@
                 <th>Loại</th>
                 <th>Giá trị</th>
                 <th>Số lượng</th>
+                <th>Số lượng còn lại</th>
                 <th>Lượt/Người</th>
                 <th>Ngày bắt đầu</th>
                 <th>Ngày kết thúc</th>
@@ -26,6 +27,7 @@
                 <td>{{ $voucher->type }}</td>
                 <td>{{ $voucher->value }}</td>
                 <td>{{ $voucher->qty }}</td>
+                <td>{{ max(0, $voucher->qty - $voucher->users_count) }}</td>
                 <td>{{ $voucher->usage_limit_per_user }}</td>
                 <td>{{ $voucher->start_date }}</td>
                 <td>{{ $voucher->end_date }}</td>
