@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Wishlist')
+@section('title', 'Danh sách yêu thích của tôi')
 
 @section('content')
     <section class="pt-3">
@@ -9,7 +9,7 @@
                 <div class="col-lg-8 col-xl-9">
                     <div class="card border bg-transparent">
                         <div class="card-header bg-transparent border-bottom">
-                            <h4 class="card-header-title">My Wishlist</h4>
+                            <h4 class="card-header-title">Danh sách yêu thích của tôi</h4>
                         </div>
 
                         <div class="card-body vstack gap-4">
@@ -18,12 +18,12 @@
                                 @csrf
                                 <div class="col-6 col-xl-3">
                                     <select class="form-select form-select-sm js-choice border-0">
-                                        <option value="">Sort by</option>
-                                        <option>Recently added</option>
+                                        <option value="">Sắp xếp theo</option>
+                                        <option>Mới thêm gần đây</option>
                                     </select>
                                 </div>
                                 <button class="btn btn-danger-soft mb-0" type="submit"><i
-                                        class="fas fa-trash me-2"></i>Remove all</button>
+                                        class="fas fa-trash me-2"></i>Xóa tất cả</button>
                             </form>
 
                             @forelse($wishlists as $wl)
@@ -51,7 +51,7 @@
                                                         <div class="d-flex align-items-center">
                                                             <h5 class="fw-bold mb-0 me-1">
                                                                 {{ number_format($p->gia_cuoi_cung ?? 0) }} VND</h5>
-                                                            <span class="mb-0 me-2">/day</span>
+                                                            <span class="mb-0 me-2">/ngày</span>
                                                         </div>
 
                                                         <div class="mt-3 mt-sm-0">
@@ -60,7 +60,7 @@
                                                                 @csrf
                                                                 @method('DELETE')
                                                                 <button
-                                                                    class="btn btn-sm btn-dark w-100 mb-0">Remove</button>
+                                                                    class="btn btn-sm btn-dark w-100 mb-0">Xóa</button>
                                                             </form>
                                                         </div>
                                                     </div>
@@ -70,7 +70,7 @@
                                     </div>
                                 @endif
                             @empty
-                                <div class="alert alert-info">You do not have any favorites yet.</div>
+                                <div class="alert alert-info">Bạn chưa có mục yêu thích nào.</div>
                             @endforelse
 
                         </div>

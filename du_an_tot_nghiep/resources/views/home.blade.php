@@ -372,7 +372,7 @@
                                 <h5 class="card-title">
                                     <a href="{{ route('rooms.show', $phong->id) }}"
                                         class="stretched-link text-decoration-none">
-                                        {{ $phong->name ?? null }}
+                                        {{ $phong->loaiPhong->ten_loai ?? ($phong->loaiPhong->ten ?? '—') }}
                                     </a>
                                 </h5>
 

@@ -12,11 +12,12 @@ class HomeController extends Controller
 {
     public function index()
     {
-        // Phòng (giữ nguyên như bạn đang dùng)
+        // Phòng: chỉ lấy một phòng đại diện cho mỗi loại phòng
         $phongs = Phong::with(['loaiPhong', 'tang', 'images'])
             ->orderByDesc('created_at')
-            ->take(8)
-            ->get();
+            ->get()
+            ->unique('loai_phong_id')
+            ->take(8);
 
         $loaiPhongs = LoaiPhong::all();
 
