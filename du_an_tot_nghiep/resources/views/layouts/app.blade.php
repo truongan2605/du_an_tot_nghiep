@@ -73,6 +73,8 @@
 	defer
 	data-preny-bot-id="691c2794731640a12967585d"
 ></script>
+
+<!-- end chat -->
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{ asset('template/stackbros/assets/images/favicon.ico') }}">
 
