@@ -4,7 +4,6 @@
 
 @section('content')
 <div class="container-fluid px-3 py-4">
-    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="h4 mb-0 fw-bold text-dark">Dashboard</h2>
         <div class="d-flex gap-2">
@@ -14,15 +13,14 @@
 
     @php
         $stats = [
-             ['label' => 'Tổng Booking', 'value' => $totalBookings ?? 0, 'icon' => 'bi bi-calendar-check', 'bg' => 'bg-primary', 'color' => 'text-white'],
+            ['label' => 'Tổng Booking', 'value' => $totalBookings ?? 0, 'icon' => 'bi bi-calendar-check', 'bg' => 'bg-primary', 'color' => 'text-white'],
             ['label' => 'Phòng Trống', 'value' => $availableRooms, 'icon' => 'bi bi-house', 'bg' => 'bg-info', 'color' => 'text-white'],
-            ['label' => 'Doanh Thu Tuần', 'value' => number_format($weeklyRevenue, 0) . ' VND', 'icon' => 'bi bi-calendar-week', 'bg' => 'bg-success', 'color' => 'text-white'],
-            ['label' => 'Doanh Thu Tháng', 'value' => number_format($monthlyRevenue, 0) . ' VND', 'icon' => 'bi bi-calendar-month', 'bg' => 'bg-primary', 'color' => 'text-white'],
-            ['label' => 'Tổng Doanh Thu', 'value' => number_format($totalRevenue, 0) . ' VND', 'icon' => 'bi bi-cash-stack', 'bg' => 'bg-dark', 'color' => 'text-white'],
+            ['label' => 'Doanh Thu Tuần', 'value' => number_format($weeklyRevenue ?? 0, 0) . ' VND', 'icon' => 'bi bi-calendar-week', 'bg' => 'bg-success', 'color' => 'text-white'],
+            ['label' => 'Doanh Thu Tháng', 'value' => number_format($monthlyRevenue ?? 0, 0) . ' VND', 'icon' => 'bi bi-calendar-month', 'bg' => 'bg-primary', 'color' => 'text-white'],
+            ['label' => 'Tổng Doanh Thu', 'value' => number_format($totalRevenue ?? 0, 0) . ' VND', 'icon' => 'bi bi-cash-stack', 'bg' => 'bg-dark', 'color' => 'text-white'],
         ];
     @endphp
 
-    <!-- Stats Grid -->
     <div class="row g-3 mb-4">
         @foreach($stats as $s)
             <div class="col-6 col-md-4 col-lg-3">
@@ -41,7 +39,6 @@
         @endforeach
     </div>
 
-    <!-- Biểu đồ doanh thu -->
     <div class="card shadow-sm rounded-4 border-0 mb-4">
         <div class="card-header bg-light border-0 py-3 d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-bar-chart-line text-success me-2"></i> Doanh thu 7 ngày gần nhất</h6>
@@ -51,7 +48,6 @@
         </div>
     </div>
 
-    <!-- Hoạt động + Lịch -->
     <div class="row g-3">
         <div class="col-lg-4">
             <div class="card shadow-sm rounded-4 border-0 h-100">
@@ -99,52 +95,84 @@
     </div>
 </div>
 
-<!-- Chart.js -->
+@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const ctx = document.getElementById('revenueChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: @json($chartLabels),
-            datasets: [{
-                label: 'Doanh thu (VND)',
-                data: @json($revenueData),
-                backgroundColor: 'rgba(25, 135, 84, 0.2)',
-                borderColor: 'rgba(25, 135, 84, 1)',
-                borderWidth: 2,
-                tension: 0.3,
-                fill: true,
-                pointBackgroundColor: 'rgba(25,135,84,1)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'top' },
-                tooltip: { callbacks: { label: ctx => ctx.parsed.y.toLocaleString() + ' VND' } }
-            },
-            scales: { y: { beginAtZero: true } }
-        }
-    });
-});
-</script>
-
-<!-- FullCalendar -->
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
+
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-        initialView: 'dayGridMonth',
-        height: 'auto',
-        events: @json($events),
-    });
-    calendar.render();
+window.initDashboardChartsAndCalendar = function() {
+    if (window.revenueChart instanceof Chart) {
+        window.revenueChart.destroy();
+    }
+    if (window.dashboardCalendar instanceof FullCalendar.Calendar) {
+        window.dashboardCalendar.destroy();
+    }
+
+    const revenueLabels = @json($chartLabels ?? []);
+    const revenueData   = @json($revenueData ?? []);
+    const chartCanvas   = document.getElementById('revenueChart');
+
+    if (chartCanvas && revenueLabels.length && revenueData.length) {
+        const ctx = chartCanvas.getContext('2d');
+        window.revenueChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: revenueLabels,
+                datasets: [{
+                    label: 'Doanh thu (VND)',
+                    data: revenueData,
+                    backgroundColor: 'rgba(25, 135, 84, 0.2)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: 'rgba(25,135,84,1)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.parsed.y.toLocaleString('vi-VN') + ' VND'
+                        }
+                    }
+                },
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    } else if (chartCanvas) {
+        chartCanvas.parentElement.innerHTML = '<div class="text-center text-muted py-5">Không có dữ liệu doanh thu 7 ngày gần nhất</div>';
+    }
+
+    const calendarEl = document.getElementById('calendar');
+    if (calendarEl && !calendarEl._calendar) {
+        const events = @json($events ?? []);
+        window.dashboardCalendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            height: 'auto',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            locale: 'vi',
+            events: events,
+            eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false }
+        });
+        window.dashboardCalendar.render();
+        calendarEl._calendar = true;
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.initDashboardChartsAndCalendar();
 });
 </script>
+@endpush
 
 <style>
 .stats-card:hover {

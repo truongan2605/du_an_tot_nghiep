@@ -15,8 +15,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Carbon as SupportCarbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Carbon as SupportCarbon;
 
 class StaffController extends Controller
 {
@@ -37,7 +37,7 @@ public function index()
     $totalBookings = DatPhong::count();
      $giaoDichThanhCong = GiaoDich::where('trang_thai', 'thanh_cong');
     $giaoDichHoanTien = GiaoDich::where('trang_thai', 'da_hoan');
-    // === Các thống kê khác giữ nguyên ===
+   
     $todayRevenue = $giaoDichThanhCong->clone()
         ->whereDate('created_at', $today)
         ->sum('so_tien');
@@ -63,7 +63,7 @@ public function index()
         ->sum('so_tien');
     $monthlyNetRevenue = $monthlyRevenue - $monthlyRefund;
 
-     // Tổng cộng
+ 
     $totalRevenue = $giaoDichThanhCong->clone()->sum('so_tien');
     $totalRefund = $giaoDichHoanTien->clone()->sum('so_tien');
     $totalNetRevenue = $totalRevenue - $totalRefund;
@@ -90,17 +90,23 @@ public function index()
     $availableRooms = Phong::where('trang_thai', 'trong')->count();
 
     // === Dữ liệu cho biểu đồ doanh thu 7 ngày ===
-    $chartLabels = [];
-    $revenueData = [];
+  $chartLabels = [];
+$revenueData = [];
 
-    for ($i = 6; $i >= 0; $i--) {
-        $date = $today->copy()->subDays($i)->toDateString();
-        $chartLabels[] = $today->copy()->subDays($i)->format('d/m');
-        $dailyRevenue = $activeQuery->clone()
-            ->whereDate(DB::raw('COALESCE(checked_in_at, ngay_nhan_phong)'), $date)
-            ->sum('tong_tien');
-        $revenueData[] = $dailyRevenue; 
-    }
+for ($i = 6; $i >= 0; $i--) {
+    $date = $today->copy()->subDays($i);
+    $chartLabels[] = $date->format('d/m');
+
+    $dailyRevenue = GiaoDich::where('trang_thai', 'thanh_cong')
+        ->whereDate('created_at', $date->toDateString())
+        ->sum('so_tien');
+
+    $dailyRefund = GiaoDich::where('trang_thai', 'da_hoan')
+        ->whereDate('created_at', $date->toDateString())
+        ->sum('so_tien');
+
+    $revenueData[] = (int) ($dailyRevenue - $dailyRefund);
+}
 
     $events = DatPhong::select('id', 'ma_tham_chieu', 'trang_thai', 'ngay_nhan_phong', 'ngay_tra_phong')
         ->whereIn('trang_thai', $activeStatus)

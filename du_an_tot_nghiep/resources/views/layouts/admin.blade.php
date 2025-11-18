@@ -23,7 +23,7 @@
     <!-- FullCalendar -->
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.css' rel='stylesheet' />
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.0/main.min.js'></script>
-    
+
     <style>
         .sidebar {
             min-height: 100vh;
@@ -175,9 +175,7 @@
             display: none;
         }
         @endif
-        */
-
-        .readonly-mode .btn:not([disabled]) {
+        */ .readonly-mode .btn:not([disabled]) {
             pointer-events: none;
             opacity: 0.6;
         }
@@ -514,7 +512,9 @@
 
                     // Inject content
                     contentArea.innerHTML = newContent;
-
+                    if (typeof initDashboardChartsAndCalendar === 'function') {
+                        initDashboardChartsAndCalendar();
+                    }
                     // Re-init Select2 or other plugins if needed
                     if (typeof $.fn.select2 !== 'undefined') {
                         $('.select2').select2();
