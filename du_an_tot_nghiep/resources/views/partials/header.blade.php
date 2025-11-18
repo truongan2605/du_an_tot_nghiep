@@ -32,7 +32,7 @@
 				<ul class="navbar-nav navbar-nav-scroll me-auto">
                     <a class="nav-link " href="{{ route('client.vouchers.index') }}" >Vouchers</a>
 					<!-- Nav item Listing -->
-					<li class="nav-item dropdown">
+					{{-- <li class="nav-item dropdown">
 						<a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Danh sách</a>
 						<ul class="dropdown-menu" aria-labelledby="listingMenu">
 							<!-- Dropdown submenu -->
@@ -59,10 +59,10 @@
                             <li> <a class="dropdown-item"
                                     href="{{ asset('template/stackbros/offer-detail.html') }}">Offer Detail</a></li>
                         </ul>
-                    </li>
+                    </li> --}}
 
 					<!-- Nav item Pages -->
-					<li class="nav-item dropdown">
+					{{-- <li class="nav-item dropdown">
 						<a class="nav-link dropdown-toggle" href="#" id="pagesMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Trang</a>
 						<ul class="dropdown-menu" aria-labelledby="pagesMenu">
 
@@ -107,7 +107,7 @@
 							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/error.html') }}">Error 404</a></li>
 							<li> <a class="dropdown-item" href="{{ asset('template/stackbros/coming-soon.html') }}">Coming Soon</a></li>
 						</ul>
-					</li>
+					</li> --}}
 
 
                     <!-- Dropdown submenu -->
@@ -119,7 +119,7 @@
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="blogMenu">
                             <li><a class="dropdown-item" href="{{ route('blog.index') }}">Blog</a></li>
-                            <li><a class="dropdown-item" href="#">Blog Detail</a></li>
+                            {{-- <li><a class="dropdown-item" href="#">Blog Detail</a></li> --}}
                         </ul>
                     </li>
 
