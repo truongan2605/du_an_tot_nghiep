@@ -390,59 +390,131 @@
                         <div class="row g-4">
                             <!-- Price summary START -->
                             <div class="col-md-6 col-xl-12">
-                                <div class="card shadow rounded-2">
-                                    <div class="card-header border-bottom">
-                                        <h5 class="card-title mb-0">Tóm tắt giá</h5>
+                                <div class="card shadow rounded-3 border-0">
+                                    <div class="card-header bg-light border-bottom py-3">
+                                        <h5 class="card-title mb-0 fw-bold text-primary">
+                                            <i class="bi bi-cash-stack me-2"></i>Tóm tắt giá
+                                        </h5>
                                     </div>
 
                                     <div class="card-body">
-                                        <ul class="list-group list-group-borderless">
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Căn phòng / đêm</span>
-                                                <span class="fs-6"
-                                                    id="price_base_display">{{ number_format($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0), 0, ',', '.') }}
-                                                    đ</span>
+                                        <ul class="list-group list-group-borderless mb-3">
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span class="fw-light">Căn phòng / đêm</span>
+                                                <span class="fw-semibold" id="price_base_display">
+                                                    {{ number_format($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0), 0, ',', '.') }}
+                                                    đ
+                                                </span>
                                             </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Người lớn thêm / đêm</span>
-                                                <span class="fs-6" id="price_adults_display">-</span>
+
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span class="fw-light">Người lớn thêm / đêm</span>
+                                                <span id="price_adults_display">-</span>
                                             </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Trẻ em thêm / đêm</span>
-                                                <span class="fs-6" id="price_children_display">-</span>
+
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span class="fw-light">Trẻ em thêm / đêm</span>
+                                                <span id="price_children_display">-</span>
                                             </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Giá cuối cùng / đêm</span>
-                                                <span class="fs-6" id="final_per_night_display">-</span>
+
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span class="fw-light">Giá cuối cùng / đêm</span>
+                                                <span id="final_per_night_display">-</span>
                                             </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Đêm</span>
-                                                <span class="fs-5" id="nights_count_display">-</span>
+
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span class="fw-light">Đêm</span>
+                                                <span class="fw-semibold" id="nights_count_display">-</span>
                                             </li>
-                                            <li hidden
-                                                class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span hidden class="h6 fw-light mb-0">Dịch vụ bổ sung</span>
-                                                <span hidden class="fs-6" id="price_addons_display">-</span>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <span class="h6 fw-light mb-0">Tổng</span>
-                                                <span class="fs-5" id="total_snapshot_display">-</span>
+
+                                            <li
+                                                class="list-group-item d-flex justify-content-between border-top pt-2 mt-1">
+                                                <span class="fw-bold text-dark">Tổng</span>
+                                                <span class="fs-5 fw-bold text-dark" id="total_snapshot_display">-</span>
                                             </li>
                                         </ul>
+
+                                        {{-- Áp dụng mã giảm giá --}}
+                                        <div class="voucher-section mt-4">
+                                            <h6 class="fw-bold mb-3">
+                                                <i class="bi bi-ticket-perforated me-1 text-success"></i>Áp dụng mã giảm
+                                                giá
+                                            </h6>
+
+                                            {{-- Ô nhập và nút áp dụng --}}
+                                            <div class="input-group mb-3">
+                                                <input type="text" id="voucher_code"
+                                                    class="form-control rounded-start"
+                                                    placeholder="Nhập hoặc chọn mã giảm giá">
+                                                <button class="btn btn-success rounded-end px-4" id="applyVoucherBtn">
+                                                    Áp dụng
+                                                </button>
+                                            </div>
+
+                                            {{-- Danh sách voucher --}}
+                                            @if (Auth::check() && Auth::user()->vouchers->count() > 0)
+                                                <div class="border rounded p-3 bg-light"
+                                                    style="max-height: 180px; overflow-y: auto;">
+                                                    <small class="text-muted fw-bold d-block mb-2">Voucher của bạn:</small>
+
+                                                    @foreach (Auth::user()->vouchers as $voucher)
+                                                        @php
+                                                            $isExpired = \Carbon\Carbon::parse(
+                                                                $voucher->end_date,
+                                                            )->isPast();
+                                                        @endphp
+                                                        <label
+                                                            class="d-flex justify-content-between align-items-center p-2 mb-2 rounded border
+                  {{ $isExpired ? 'bg-light text-muted' : 'bg-white shadow-sm' }}"
+                                                            style="cursor: pointer; transition: 0.2s">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input voucher-checkbox"
+                                                                    type="checkbox" value="{{ $voucher->code }}"
+                                                                    data-code="{{ $voucher->code }}"
+                                                                    {{ $isExpired ? 'disabled' : '' }}>
+                                                                <div class="ms-2">
+                                                                    <span
+                                                                        class="fw-semibold text-primary d-block">{{ $voucher->name }}</span>
+                                                                    <small class="text-muted d-block">Mã:
+                                                                        {{ $voucher->code }}</small>
+                                                                    <small class="text-muted">
+                                                                        {{ \Carbon\Carbon::parse($voucher->start_date)->format('d/m') }}
+                                                                        -
+                                                                        {{ \Carbon\Carbon::parse($voucher->end_date)->format('d/m') }}
+                                                                    </small>
+                                                                </div>
+                                                            </div>
+                                                            <span
+                                                                class="badge {{ $isExpired ? 'bg-secondary' : 'bg-success' }} px-2 py-1 rounded-pill">
+                                                                {{ $isExpired ? 'Hết hạn' : 'Dùng được' }}
+                                                            </span>
+                                                        </label>
+                                                    @endforeach
+
+                                                </div>
+                                            @else
+                                                <p class="text-muted small">Bạn chưa nhận mã giảm giá nào.</p>
+                                            @endif
+
+                                            {{-- Kết quả áp dụng --}}
+                                            <div id="voucherResult" class="mt-3"></div>
+                                        </div>
                                     </div>
 
-                                    <div class="card-footer border-top">
+                                    <div class="card-footer border-top bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span class="h5 mb-0">Đặt Cọc (20%)</span>
-                                            <span class="h5 mb-0" id="payable_now_display">-</span>
+                                            <span class="h6 mb-0 fw-bold">Đặt cọc (20%)</span>
+                                            <span class="h6 mb-0 fw-bold text-primary" id="payable_now_display">-</span>
                                         </div>
-                                        <small class="text-muted d-block mt-2">Phần còn lại (80%) thanh toán tại khách sạn
-                                            khi check in</small>
+                                        <small class="text-muted d-block mt-1 fst-italic">
+                                            Phần còn lại (80%) thanh toán tại khách sạn khi check in
+                                        </small>
                                     </div>
                                 </div>
                             </div>
                             <!-- Price summary END -->
                         </div>
+
                     </aside>
                 </div>
             </div>
@@ -452,6 +524,133 @@
 
 @push('scripts')
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // Khi tick checkbox, chỉ cho phép 1 voucher, và đổ code vào ô input
+            document.querySelectorAll('.voucher-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const codeInput = document.getElementById('voucher_code');
+
+                    if (this.checked) {
+                        // Bỏ check các checkbox khác
+                        document.querySelectorAll('.voucher-checkbox').forEach(other => {
+                            if (other !== this) other.checked = false;
+                        });
+                        // Gán mã vào input
+                        codeInput.value = this.dataset.code || this.value;
+                    } else {
+                        // Bỏ check → xoá mã trong input
+                        codeInput.value = '';
+                    }
+                });
+            });
+            // Khi nhấn "Áp dụng"
+            document.getElementById('applyVoucherBtn').addEventListener('click', function() {
+                const codeInput = document.getElementById('voucher_code');
+                const resultBox = document.getElementById('voucherResult');
+
+                const code = (codeInput.value || '').trim();
+                if (!code) {
+                    alert('Vui lòng nhập hoặc chọn mã giảm giá!');
+                    return;
+                }
+
+                // ✅ LUÔN lấy tổng GỐC (chưa giảm) từ snapshot_total_input
+                let total = 0;
+                const baseTotalInput = document.getElementById('snapshot_total_input');
+                if (baseTotalInput && baseTotalInput.value) {
+                    total = parseInt(baseTotalInput.value, 10) || 0;
+                }
+
+                // Fallback: lấy từ text hiển thị nếu input ẩn chưa có
+                if (!total) {
+                    const totalDisplayEl = document.getElementById('total_snapshot_display');
+                    if (totalDisplayEl) {
+                        const raw = totalDisplayEl.innerText || totalDisplayEl.textContent || '';
+                        total = parseInt(raw.replace(/\D/g, ''), 10) || 0;
+                    }
+                }
+
+                if (!total || total <= 0) {
+                    resultBox.innerHTML = `
+            <div class="alert alert-danger p-2">
+                Giá trị đơn hàng không hợp lệ. Vui lòng chọn ngày, số phòng và khách trước khi áp dụng mã.
+            </div>`;
+                    return;
+                }
+
+                fetch('{{ route('booking.apply-voucher') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            code: code,
+                            total: total // <-- luôn là tổng GỐC
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            const discountText = data.discount_display ??
+                                (data.discount ? (Number(data.discount).toLocaleString('vi-VN') +
+                                    ' đ') : '0 đ');
+                            const finalText = data.final_total_display ??
+                                (data.final_total ? (Number(data.final_total).toLocaleString('vi-VN') +
+                                    ' đ') : '0 đ');
+                            const depositText = data.deposit_display ??
+                                (
+                                    typeof data.deposit !== 'undefined' && data.deposit !== null ?
+                                    (Number(data.deposit).toLocaleString('vi-VN') + ' đ') :
+                                    ''
+                                );
+
+                            resultBox.innerHTML = `
+                <div class="alert alert-success p-2">
+                    ✅ Áp dụng thành công <strong>${data.voucher_name || code}</strong><br>
+                    Giảm: <strong>${discountText}</strong><br>
+                    Tổng mới: <strong>${finalText}</strong>
+                    ${depositText ? `<br>Tiền cọc (20%): <strong>${depositText}</strong>` : ''}
+                </div>
+            `;
+
+                            // Cập nhật lại tổng sau giảm vào hidden để submit form / thanh toán
+                            const hiddenTotal = document.getElementById('hidden_tong_tien');
+                            if (hiddenTotal && data.final_total) {
+                                hiddenTotal.value = data.final_total;
+                            }
+
+                            const totalDisplayEl = document.getElementById('total_snapshot_display');
+                            if (totalDisplayEl) {
+                                totalDisplayEl.innerText = finalText;
+                            }
+
+                            const payableDisplay = document.getElementById('payable_now_display');
+                            if (payableDisplay && depositText) {
+                                payableDisplay.innerText = depositText;
+                            }
+
+                            // Nếu có hidden_deposit thì update luôn
+                            const hiddenDeposit = document.getElementById('hidden_deposit');
+                            if (hiddenDeposit && typeof data.deposit !== 'undefined') {
+                                hiddenDeposit.value = data.deposit;
+                            }
+                        } else {
+                            resultBox.innerHTML = `
+                <div class="alert alert-danger p-2">
+                    ${data.message || 'Không áp dụng được mã giảm giá.'}
+                </div>`;
+                        }
+                    })
+                    .catch(() => {
+                        resultBox.innerHTML =
+                            `<div class="alert alert-danger p-2">Có lỗi xảy ra khi áp dụng mã giảm giá.</div>`;
+                    });
+            });
+
+
+        });
         (function() {
             const initialChildrenAges = {!! json_encode(old('children_ages', [])) !!};
             const initialChildrenCount = Number({{ old('children', 0) }});
@@ -931,30 +1130,36 @@
             })();
 
             // Hàm hiển thị modal xác nhận VNPAY
-            function showVNPAYConfirmModal() {
-                // Cập nhật thông tin vào modal
-                const nights = Number(nightsDisplay.innerText || 0);
-                const basePrice = pricePerNight * (roomsInput ? Number(roomsInput.value || 1) : 1);
-                const adultsCharge = priceAdultsDisplay.innerText;
-                const childrenCharge = priceChildrenDisplay.innerText;
-                const addonsCharge = document.getElementById('price_addons_display').innerText;
-                const finalPerNight = finalPerNightDisplay.innerText;
-                const total = totalDisplay.innerText;
-                const deposit = payableDisplay.innerText;
+            // Hàm hiển thị modal xác nhận VNPAY
+function showVNPAYConfirmModal() {
+    // Cập nhật thông tin vào modal
+    const nights = Number(nightsDisplay.innerText || 0);
+    const basePrice = pricePerNight * (roomsInput ? Number(roomsInput.value || 1) : 1);
+    const adultsCharge = priceAdultsDisplay.innerText || '0 đ';
+    const childrenCharge = priceChildrenDisplay.innerText || '0 đ';
 
-                document.getElementById('modal_price_base').innerText = fmtVnd(basePrice);
-                document.getElementById('modal_price_adults').innerText = adultsCharge;
-                document.getElementById('modal_price_children').innerText = childrenCharge;
-                document.getElementById('modal_price_addons').innerText = addonsCharge;
-                document.getElementById('modal_final_per_night').innerText = finalPerNight;
-                document.getElementById('modal_nights_count').innerText = nights;
-                document.getElementById('modal_total_snapshot').innerText = total;
-                document.getElementById('modal_payable_now').innerText = deposit;
+    // ✅ KHẮC PHỤC: kiểm tra phần tử tồn tại trước khi đọc innerText
+    const addonsEl = document.getElementById('price_addons_display');
+    const addonsCharge = addonsEl ? (addonsEl.innerText || '0 đ') : '0 đ';
 
-                // Hiển thị modal
-                const modal = new bootstrap.Modal(document.getElementById('vnpayConfirmModal'));
-                modal.show();
-            }
+    const finalPerNight = finalPerNightDisplay.innerText || '0 đ';
+    const total = totalDisplay.innerText || '0 đ';
+    const deposit = payableDisplay.innerText || '0 đ';
+
+    document.getElementById('modal_price_base').innerText = fmtVnd(basePrice);
+    document.getElementById('modal_price_adults').innerText = adultsCharge;
+    document.getElementById('modal_price_children').innerText = childrenCharge;
+    document.getElementById('modal_price_addons').innerText = addonsCharge;
+    document.getElementById('modal_final_per_night').innerText = finalPerNight;
+    document.getElementById('modal_nights_count').innerText = nights;
+    document.getElementById('modal_total_snapshot').innerText = total;
+    document.getElementById('modal_payable_now').innerText = deposit;
+
+    // Hiển thị modal
+    const modal = new bootstrap.Modal(document.getElementById('vnpayConfirmModal'));
+    modal.show();
+}
+
 
             // Xử lý khi người dùng xác nhận trong modal
             document.getElementById('vnpayProceedBtn').addEventListener('click', async function() {
@@ -1010,7 +1215,8 @@
                             name: name,
                             address: address,
                             phone: phone,
-                            ghi_chu: document.querySelector('textarea[name="ghi_chu"]').value.trim() || '',
+                            ghi_chu: document.querySelector('textarea[name="ghi_chu"]')
+                                .value.trim() || '',
                         }),
                     });
 
@@ -1101,19 +1307,5 @@
             updateSummary();
             updateRoomsAvailability();
         })();
-
-        // === Sticky Scroll cho Price Summary ===
-        window.addEventListener('scroll', () => {
-            const summary = document.querySelector('.card.shadow.rounded-2');
-            if (!summary) return;
-
-            const startOffset = 200;
-            const scrollY = window.scrollY;
-            const maxTranslate = 1500;
-
-            const translateY = Math.min(Math.max(0, scrollY - startOffset), maxTranslate);
-            summary.style.transform = `translateY(${translateY}px)`;
-            summary.style.transition = 'transform 0.2s ease-out';
-        });
     </script>
 @endpush
