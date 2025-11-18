@@ -1,5 +1,10 @@
 @csrf
 <div class="mb-3">
+    <label for="code">Tên voucher</label>
+    <input type="text" name="name" class="form-control"
+    value="{{ old('name', $voucher->name ?? '') }}" required>
+</div>
+<div class="mb-3">
     <label for="code">Mã voucher</label>
     <input type="text" name="code" class="form-control"
     value="{{ old('code', $voucher->code ?? '') }}" required>

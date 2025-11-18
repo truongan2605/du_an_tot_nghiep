@@ -23,9 +23,7 @@
                     <div class="d-lg-flex justify-content-lg-between mb-1">
                         <div class="mb-2 mb-lg-0">
                             <h1 class="fs-2">
-                                {{ $phong->name ?? $phong->ma_phong }}
-                                <small class="text-muted"> -
-                                    {{ $phong->loaiPhong->ten ?? ($phong->loaiPhong->ten_loai ?? '—') }}</small>
+                                {{ $phong->loaiPhong->ten ?? ($phong->loaiPhong->ten_loai ?? '—') }}
                             </h1>
                             <p class="fw-bold mb-0"><i class="bi bi-geo-alt me-2"></i> Tầng
                                 {{ $phong->tang->so_tang ?? '—' }}</p>

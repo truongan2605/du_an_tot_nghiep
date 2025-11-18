@@ -6,7 +6,7 @@
             <!-- Logo START -->
             <a class="navbar-brand" href="{{ url('/') }}">
                 <img class="light-mode-item navbar-brand-item"
-                    src="{{ asset('template/stackbros/assets/images/logo.svg') }}" alt="logo">
+                    src="{{ asset('template/stackbros/assets/images/logo_royal.png') }}" alt="logo" >
             </a>
             <!-- Logo END -->
 
@@ -27,10 +27,10 @@
 				<i class="bi bi-grid-3x3-gap-fill fa-fw"></i><span class="d-none d-sm-inline-block small">Danh mục</span>
 			</button>
 
-            <!-- Main navbar START -->
-            <div class="navbar-collapse collapse" id="navbarCollapse">
-                <ul class="navbar-nav navbar-nav-scroll me-auto">
-
+			<!-- Main navbar START -->
+			<div class="navbar-collapse collapse" id="navbarCollapse">
+				<ul class="navbar-nav navbar-nav-scroll me-auto">
+                    <a class="nav-link " href="{{ route('client.vouchers.index') }}" >Vouchers</a>
 					<!-- Nav item Listing -->
 					<li class="nav-item dropdown">
 						<a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Danh sách</a>
@@ -299,12 +299,13 @@
                                         class="bi bi-bookmark-check fa-fw me-2"></i>Đặt phòng của tôi</a></li>
                             <li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i
                                         class="bi bi-heart fa-fw me-2"></i>Danh sách yêu thích của tôi</a></li>
+                            <li><a class="dropdown-item" href="{{ route('client.vouchers.my') }}"><i
+                                        class="bi bi-heart fa-fw me-2"></i>Mã giảm giá</a></li>
                             <li><a class="dropdown-item" href="{{ route('account.settings') }}"><i
-                                        class="bi bi-gear fa-fw me-2"></i>Settings</a></li>
-                            <li><a class="dropdown-item" href="{{ url('/help') }}"><i
-                                        class="bi bi-info-circle fa-fw me-2"></i>Help Center</a></li>
-
-                            <li>
+                                        class="bi bi-gear fa-fw me-2"></i>Cài đặt</a></li>
+                            {{-- <li><a class="dropdown-item" href="{{ url('/help') }}"><i
+                                        class="bi bi-info-circle fa-fw me-2"></i>Hỗ trợ</a></li>
+                            <li> --}}
                                 <hr class="dropdown-divider">
                             </li>
 
@@ -400,7 +401,7 @@
                 </div>
             `;
         }, 5000);
-        
+
         fetch(`/thong-bao/${currentNotificationId}/modal`, {
             method: 'GET',
             headers: {
@@ -419,7 +420,7 @@
         .then(data => {
             if (data.success) {
                 modalBody.innerHTML = data.html;
-                
+
                 if (data.isUnread) {
                     markAsReadBtn.style.display = 'inline-block';
                 }
@@ -448,7 +449,6 @@
             `;
         });
     });
-    
     markAsReadBtn.addEventListener('click', function() {
         if (currentNotificationId) {
             fetch(`/thong-bao/${currentNotificationId}/read`, {
@@ -461,15 +461,15 @@
             .then(response => response.json())
             .then(data => {
                 markAsReadBtn.style.display = 'none';
-                
+
                 const notificationItem = document.querySelector(`[data-notification-id="${currentNotificationId}"]`);
                 if (notificationItem) {
                     notificationItem.classList.remove('notif-unread');
                 }
-                
+
                 // Update badge count
                 updateNotificationBadge();
-                
+
                 // Show success message
                 const alert = document.createElement('div');
                 alert.className = 'alert alert-success alert-dismissible fade show';
@@ -491,7 +491,7 @@
             });
         }
     });
-    
+
     function updateNotificationBadge() {
         fetch('/api/notifications/unread-count')
             .then(response => response.json())

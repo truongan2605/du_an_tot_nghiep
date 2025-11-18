@@ -45,7 +45,7 @@ class PaymentController extends Controller
                 'phuong_thuc' => 'required|in:vnpay',
                 'name' => 'required|string|max:255|min:2',
                 'address' => 'required|string|max:500|min:5',
-                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,' 
+                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,'
             ]);
 
             $expectedDeposit = $validated['total_amount'] * 0.2;
@@ -437,6 +437,10 @@ class PaymentController extends Controller
                 return view('payment.success', compact('dat_phong'));
             } else {
                 $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Mã lỗi: ' . $vnp_ResponseCode]);
+                if ($dat_phong->trang_thai === 'dang_cho') {
+                    $dat_phong->update(['trang_thai' => 'da_huy']);
+                    GiuPhong::where('dat_phong_id', $dat_phong->id)->delete();
+                }
                 if ($dat_phong->nguoiDung) {
                     Mail::to($dat_phong->nguoiDung->email)->queue(new PaymentFail($dat_phong, $vnp_ResponseCode));
                 }
@@ -533,6 +537,10 @@ class PaymentController extends Controller
             }
 
             $giao_dich->update(['trang_thai' => 'that_bai']);
+            if ($dat_phong->trang_thai === 'dang_cho') {
+                $dat_phong->update(['trang_thai' => 'da_huy']);
+                GiuPhong::where('dat_phong_id', $dat_phong->id)->delete();
+            }
             return response()->json(['RspCode' => '99', 'Message' => 'Payment failed']);
         });
     }

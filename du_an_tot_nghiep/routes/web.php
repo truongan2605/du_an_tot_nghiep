@@ -28,12 +28,12 @@ use App\Http\Controllers\Admin\VatDungIncidentController;
 use App\Http\Controllers\Client\BlogController as ClientBlog;
 use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
 use App\Http\Controllers\Admin\PhongConsumptionController;
+use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 
 // Vật dụng/phòng (mở rộng)
 use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
-use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 
 // BLOG (Admin + Client)
 use App\Http\Controllers\Admin\PhongVatDungInstanceController;
@@ -42,9 +42,16 @@ use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
 use App\Http\Controllers\Admin\DanhGiaController;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
+use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
+use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
+use App\Http\Controllers\Staff\CheckoutController;
 
+Route::post('/booking/validate-voucher', [BookingController::class, 'validateVoucher'])->name('booking.validate_voucher')->middleware('auth');
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// ==================== VOUCHER CLIENT ====================
+Route::get('/vouchers', [ClientVoucherController::class, 'index'])->name('client.vouchers.index');
 
 Route::get('/list-room', [RoomController::class, 'index'])->name('list-room.index');
 Route::get('/list-room/{id}', [RoomController::class, 'show'])->name('list-room.show');
@@ -56,6 +63,7 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 
 // ==================== BOOKING ====================
 Route::get('/booking/availability', [BookingController::class, 'availability'])->name('booking.availability');
+Route::post('/booking/apply-voucher', [BookingController::class, 'applyVoucher'])->name('booking.apply-voucher');
 
 // ==================== ADMIN ====================
 Route::prefix('admin')
@@ -96,7 +104,7 @@ Route::prefix('admin')
 
         // Nhân viên
         Route::resource('nhan-vien', NhanVienController::class);
-      Route::patch('nhan-vien/{nhan_vien}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
+        Route::patch('nhan-vien/{nhan_vien}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
         // ---- Voucher ----
         Route::resource('voucher', VoucherController::class);
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])->name('voucher.toggle-active');
@@ -201,6 +209,45 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
     });
 
+
+// ==================== STAFF + ADMIN ====================
+Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
+    Route::post('/phong/consumptions', [PhongConsumptionController::class, 'store'])
+        ->name('phong.consumptions.store');
+
+    Route::put('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'update'])
+        ->name('phong.consumptions.update');
+
+    Route::delete('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'destroy'])
+        ->name('phong.consumptions.destroy');
+
+    Route::post('/phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])
+        ->name('phong.consumptions.markConsumed');
+
+    Route::post('/phong/consumptions/store-and-bill/{phong}', [PhongConsumptionController::class, 'storeAndBill'])
+        ->name('phong.consumptions.store_and_bill');
+
+    // staff booking incidents
+    Route::post('/bookings/{booking}/incidents', [StaffVatDungIncidentController::class, 'store'])
+        ->name('bookings.incidents.store');
+
+    Route::patch('/bookings/{booking}/incidents/{incident}', [StaffVatDungIncidentController::class, 'update'])
+        ->name('bookings.incidents.update');
+
+    Route::delete('/bookings/{booking}/incidents/{incident}', [StaffVatDungIncidentController::class, 'destroy'])
+        ->name('bookings.incidents.destroy');
+
+    Route::get('/staff/bookings/{booking}/checkout', [CheckoutController::class, 'showCheckoutForm'])
+        ->name('staff.bookings.checkout.show');
+
+    Route::post('/staff/bookings/{booking}/checkout', [CheckoutController::class, 'processCheckout'])
+        ->name('staff.bookings.checkout.process');
+
+    Route::post('/staff/bookings/{booking}/invoices/{hoaDon}/confirm', [CheckoutController::class, 'confirmPayment'])
+        ->name('staff.bookings.invoices.confirm');
+});
+
+
 // ==================== ACCOUNT (client profile area) ====================
 Route::middleware('auth')
     ->prefix('account')
@@ -236,6 +283,11 @@ Route::get('/danh-gia/{datPhongId}', [DanhGiaController::class, 'create'])
         ->name('client.danhgia.store');
     });
 
+// ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
+Route::middleware('auth')->group(function () {
+    Route::post('/vouchers/claim/{id}', [ClientVoucherController::class, 'claim'])->name('client.vouchers.claim');
+    Route::get('/my-voucher', [ClientVoucherController::class, 'myVouchers'])->name('client.vouchers.my');
+});
 // ==================== BLOG (CLIENT) ====================
 Route::get('/blog', [ClientBlog::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [ClientBlog::class, 'show'])->name('blog.show');

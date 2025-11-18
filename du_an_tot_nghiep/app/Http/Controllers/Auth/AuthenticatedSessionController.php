@@ -49,6 +49,10 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('admin.tien-nghi.index');
         }
 
+        if ($user && $user->vai_tro === 'nhan_vien') {
+            return redirect()->route('staff.index');
+        }
+
         return redirect()->intended(RouteServiceProvider::HOME);
     }
 
