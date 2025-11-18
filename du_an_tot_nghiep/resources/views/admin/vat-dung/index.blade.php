@@ -7,7 +7,7 @@
         <h2><i class="fas fa-concierge-bell me-2"></i>Quản lý vật dụng trong phòng</h2>
         <div class="d-flex gap-2">
             <a href="{{ route('admin.vat-dung.create') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-2"></i>Thêm vật dụng mới
+                <i class="fas fa-plus me-2"></i>Thêm mới
             </a>
             <form action="{{ route('admin.vat-dung.index') }}" method="GET" class="d-flex">
                 <input type="text" name="keyword" class="form-control me-2" placeholder="Nhập tên vật dụng cần tìm..."
@@ -85,7 +85,7 @@
                                     <td>{{ $vatdung->ten }}</td>
                                     <td>
                                         @if ($vatdung->loai === \App\Models\VatDung::LOAI_DO_AN)
-                                            <span class="badge bg-info">Đồ ăn gọi thêm</span>
+                                            <span class="badge bg-info">Dịch vụ gọi thêm</span>
                                         @else
                                             <span class="badge bg-secondary">Đồ dùng</span>
                                         @endif

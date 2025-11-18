@@ -29,6 +29,11 @@ class HoaDon extends Model
         return $this->belongsTo(DatPhong::class);
     }
 
+    public function hoaDonItems()
+    {
+        return $this->hasMany(HoaDonItem::class, 'hoa_don_id');
+    }
+
     // Scopes
     public function scopeDaXuat($query)
     {

@@ -178,17 +178,6 @@
                                                     -{{ $phong->khuyen_mai }}%
                                                 </span>
                                             @endif
-
-                                            {{-- Badge trạng thái phòng --}}
-                                            @if ($phong->trang_thai == 'Trống')
-                                                <span
-                                                    class="badge bg-success position-absolute bottom-0 start-0 m-3 px-3 py-2 shadow-sm">Phòng
-                                                    trống</span>
-                                            @elseif($phong->trang_thai == 'Đang ở')
-                                                <span
-                                                    class="badge bg-warning text-dark position-absolute bottom-0 start-0 m-3 px-3 py-2 shadow-sm">Đang
-                                                    ở</span>
-                                            @endif
                                         </div>
 
                                         {{-- ========== THÔNG TIN LOẠI PHÒNG ========== --}}

@@ -23,6 +23,8 @@ class PhongConsumptionController extends Controller
             'quantity' => 'required|integer|min:1',
             'unit_price' => 'nullable|numeric|min:0',
             'note' => 'nullable|string|max:1000',
+            // optional flag to bill immediately from admin UI
+            'bill_now' => 'nullable|boolean',
         ]);
 
         // verify dat_phong actually relates to phong (dat_phong_item or giu_phong)
@@ -59,9 +61,6 @@ class PhongConsumptionController extends Controller
                 ->first();
 
             if ($pivot) {
-                // If pivot exists, update both so_luong and da_tieu_thu atomically
-                // so_luong = max(0, so_luong - qty)
-                // da_tieu_thu = da_tieu_thu + qty
                 $currentSo = (int)($pivot->so_luong ?? 0);
                 $currentDaTieu = (int)($pivot->da_tieu_thu ?? 0);
 
@@ -73,9 +72,6 @@ class PhongConsumptionController extends Controller
                     ->where('vat_dung_id', $data['vat_dung_id'])
                     ->update(['so_luong' => $newSoLuong, 'da_tieu_thu' => $newDaTieu, 'updated_at' => now()]);
             } else {
-                // If pivot missing:
-                // - if vat is consumable (do_an): create pivot with so_luong = 0 and da_tieu_thu = qty
-                // - else (do_dung/tracked) refuse to allow consumption
                 if ($vat && $vat->isConsumable()) {
                     DB::table('phong_vat_dung')->insert([
                         'phong_id' => $data['phong_id'],
@@ -93,7 +89,6 @@ class PhongConsumptionController extends Controller
                 }
             }
 
-            // Create consumption record (consumed now)
             $cons = PhongVatDungConsumption::create([
                 'dat_phong_id' => $data['dat_phong_id'],
                 'phong_id' => $data['phong_id'],
@@ -106,8 +101,67 @@ class PhongConsumptionController extends Controller
                 'billed_at' => null,
             ]);
 
+            $billNow = $request->boolean('bill_now');
+
+            if ($billNow) {
+                $amount = round($qty * $unitPrice, 2);
+
+                $datPhongRow = DB::table('dat_phong')
+                    ->where('id', $data['dat_phong_id'])
+                    ->lockForUpdate()
+                    ->first();
+
+                $hoaDon = DB::table('hoa_don')
+                    ->where('dat_phong_id', $data['dat_phong_id'])
+                    ->where('trang_thai', '!=', 'da_thanh_toan')
+                    ->orderBy('id', 'desc')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $hoaDon) {
+                    $now = now();
+                    $hoaDonId = DB::table('hoa_don')->insertGetId([
+                        'dat_phong_id' => $data['dat_phong_id'],
+                        'so_hoa_don' => 'HD' . time(),
+                        'tong_thuc_thu' => 0,
+                        'don_vi' => 'VND',
+                        'trang_thai' => 'tao',
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+
+                    $hoaDon = DB::table('hoa_don')->where('id', $hoaDonId)->first();
+                }
+
+                $now = now();
+                DB::table('hoa_don_items')->insert([
+                    'hoa_don_id' => $hoaDon->id,
+                    'type' => 'consumption',
+                    'ref_id' => $cons->id,
+                    'vat_dung_id' => $vat->id ?? null,
+                    'name' => $vat->ten ?? 'Item',
+                    'quantity' => $qty,
+                    'unit_price' => $unitPrice,
+                    'amount' => $amount,
+                    'note' => $data['note'] ?? null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+
+                DB::table('hoa_don')->where('id', $hoaDon->id)
+                    ->update(['tong_thuc_thu' => DB::raw('COALESCE(tong_thuc_thu,0) + ' . $amount), 'updated_at' => now()]);
+
+                $cons->billed_at = now();
+                $cons->save();
+
+                if ($datPhongRow) {
+                    DB::table('dat_phong')->where('id', $data['dat_phong_id'])
+                        ->update(['tong_tien' => DB::raw('COALESCE(tong_tien,0) + ' . $amount), 'updated_at' => now()]);
+                }
+            }
+
             DB::commit();
-            return back()->with('success', 'Đã ghi nhận tiêu thụ thành công.');
+            return back()->with('success', 'Đã ghi nhận tiêu thụ thành công.' . ($billNow ? ' Và đã tính vào hóa đơn.' : ''));
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Lỗi khi lưu tiêu thụ: ' . $e->getMessage()])->withInput();

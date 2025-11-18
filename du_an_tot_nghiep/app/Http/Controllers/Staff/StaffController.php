@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon as SupportCarbon;
 
 class StaffController extends Controller
@@ -36,7 +37,7 @@ public function index()
     $totalBookings = DatPhong::count();
      $giaoDichThanhCong = GiaoDich::where('trang_thai', 'thanh_cong');
     $giaoDichHoanTien = GiaoDich::where('trang_thai', 'da_hoan');
-    // === Các thống kê khác giữ nguyên ===
+   
     $todayRevenue = $giaoDichThanhCong->clone()
         ->whereDate('created_at', $today)
         ->sum('so_tien');
@@ -62,7 +63,7 @@ public function index()
         ->sum('so_tien');
     $monthlyNetRevenue = $monthlyRevenue - $monthlyRefund;
 
-     // Tổng cộng
+ 
     $totalRevenue = $giaoDichThanhCong->clone()->sum('so_tien');
     $totalRefund = $giaoDichHoanTien->clone()->sum('so_tien');
     $totalNetRevenue = $totalRevenue - $totalRefund;
@@ -89,17 +90,23 @@ public function index()
     $availableRooms = Phong::where('trang_thai', 'trong')->count();
 
     // === Dữ liệu cho biểu đồ doanh thu 7 ngày ===
-    $chartLabels = [];
-    $revenueData = [];
+  $chartLabels = [];
+$revenueData = [];
 
-    for ($i = 6; $i >= 0; $i--) {
-        $date = $today->copy()->subDays($i)->toDateString();
-        $chartLabels[] = $today->copy()->subDays($i)->format('d/m');
-        $dailyRevenue = $activeQuery->clone()
-            ->whereDate(DB::raw('COALESCE(checked_in_at, ngay_nhan_phong)'), $date)
-            ->sum('tong_tien');
-        $revenueData[] = $dailyRevenue; 
-    }
+for ($i = 6; $i >= 0; $i--) {
+    $date = $today->copy()->subDays($i);
+    $chartLabels[] = $date->format('d/m');
+
+    $dailyRevenue = GiaoDich::where('trang_thai', 'thanh_cong')
+        ->whereDate('created_at', $date->toDateString())
+        ->sum('so_tien');
+
+    $dailyRefund = GiaoDich::where('trang_thai', 'da_hoan')
+        ->whereDate('created_at', $date->toDateString())
+        ->sum('so_tien');
+
+    $revenueData[] = (int) ($dailyRevenue - $dailyRefund);
+}
 
     $events = DatPhong::select('id', 'ma_tham_chieu', 'trang_thai', 'ngay_nhan_phong', 'ngay_tra_phong')
         ->whereIn('trang_thai', $activeStatus)
@@ -285,7 +292,7 @@ public function index()
             $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
             $meta['checkin_cccd'] = $request->cccd;
             $meta['checkin_at'] = now()->toDateTimeString();
-            $meta['checkin_by'] = auth()->id();
+            $meta['checkin_by'] = Auth::id();
 
             $booking->update([
                 'trang_thai' => 'dang_su_dung',
@@ -302,6 +309,35 @@ public function index()
         return redirect()->route('staff.checkin')
             ->with('success', 'Check-in thành công cho booking ' . $booking->ma_tham_chieu . ' lúc ' . now()->format('H:i d/m/Y'));
     }
+
+    public function saveCCCD(Request $request)
+    {
+        $request->validate([
+            'booking_id' => 'required|exists:dat_phong,id',
+            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
+        ], [
+            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
+            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
+            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
+            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
+        ]);
+
+        $booking = DatPhong::findOrFail($request->booking_id);
+
+        // Lưu CCCD vào snapshot_meta (chưa check-in)
+        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $meta['checkin_cccd'] = $request->cccd;
+        $meta['cccd_saved_at'] = now()->toDateTimeString();
+        $meta['cccd_saved_by'] = auth()->id();
+
+        $booking->update([
+            'snapshot_meta' => $meta,
+        ]);
+
+        return redirect()->route('staff.checkin')
+            ->with('success', 'Đã lưu số CCCD/CMND cho booking ' . $booking->ma_tham_chieu);
+    }
+
     public function checkoutForm()
     {
         $bookings = DatPhong::whereIn('trang_thai', ['da_gan_phong', 'dang_o'])
@@ -359,67 +395,67 @@ public function index()
     //     return view('staff.pending-bookings', compact('bookings', 'availableRooms'));
     // }
 
-    public function confirm(Request $request, $id)
-    {
-        $request->validate([
-            'phong_id' => 'nullable|exists:phong,id',
-            'dat_phong_id' => 'required|exists:dat_phong,id',
-            'staff_id' => 'required|exists:users,id'
-        ]);
-        $dat_phong = DatPhong::findOrFail($request->dat_phong_id);
-        if ($dat_phong->trang_thai !== 'dang_cho_xac_nhan') {
-            return response()->json(['error' => 'Booking không thể xác nhận ở trạng thái hiện tại'], 400);
-        }
-        $booking = DatPhong::with('datPhongItems.loaiPhong')->findOrFail($id);
-        if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
-            return redirect()->back()->with('error', 'Booking không thể xác nhận.');
-        }
-        DB::transaction(function () use ($booking, $request) {
+    // public function confirm(Request $request, $id)
+    // {
+    //     $request->validate([
+    //         'phong_id' => 'nullable|exists:phong,id',
+    //         'dat_phong_id' => 'required|exists:dat_phong,id',
+    //         'staff_id' => 'required|exists:users,id'
+    //     ]);
+    //     $dat_phong = DatPhong::findOrFail($request->dat_phong_id);
+    //     if ($dat_phong->trang_thai !== 'dang_cho_xac_nhan') {
+    //         return response()->json(['error' => 'Booking không thể xác nhận ở trạng thái hiện tại'], 400);
+    //     }
+    //     $booking = DatPhong::with('datPhongItems.loaiPhong')->findOrFail($id);
+    //     if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
+    //         return redirect()->back()->with('error', 'Booking không thể xác nhận.');
+    //     }
+    //     DB::transaction(function () use ($booking, $request) {
 
-            if (is_null($booking->deposit_amount) || $booking->deposit_amount == 0) {
-                $booking->deposit_amount = $request->deposit_amount ?? ($booking->tong_tien * 0.2);
-            }
-            $booking->trang_thai = 'da_xac_nhan';
-            $booking->save();
-            $datPhongItem = $booking->datPhongItems->first();
-            if (!$datPhongItem) {
-                $loaiPhong = LoaiPhong::first();
-                if (!$loaiPhong) {
-                    throw new \Exception('Chưa có loại phòng nào trong hệ thống.');
-                }
-                $datPhongItem = DatPhongItem::create([
-                    'dat_phong_id' => $booking->id,
-                    'loai_phong_id' => $loaiPhong->id,
-                    'so_luong' => 1,
-                    'gia_tren_dem' => $loaiPhong->gia_tren_dem ?? 0,
-                    'so_dem' => $loaiPhong->so_dem ?? 1,
-                ]);
-            }
-            if ($request->filled('phong_id')) {
-                $phong_id = $request->phong_id;
-                if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
-                    PhongDaDat::create([
-                        'dat_phong_item_id' => $datPhongItem->id,
-                        'phong_id' => $phong_id,
-                        'trang_thai' => 'da_dat',
-                        'checkin_datetime' => $booking->ngay_nhan_phong,
-                        'checkout_datetime' => $booking->ngay_tra_phong,
-                    ]);
-                    Phong::find($phong_id)->update(['trang_thai' => 'da_dat']);
-                    $booking->trang_thai = 'da_gan_phong';
-                    $booking->save();
-                } else {
-                    throw new \Exception('Phòng không khả dụng.');
-                }
-            }
-        });
-        if ($booking->trang_thai === 'da_gan_phong') {
-            return redirect()->route('staff.index')
-                ->with('success', 'Booking đã được xác nhận và gán phòng thành công.');
-        }
-        return redirect()->route('staff.assign-rooms', $booking->id)
-            ->with('success', 'Booking đã được xác nhận. Vui lòng tiến hành gán phòng.');
-    }
+    //         if (is_null($booking->deposit_amount) || $booking->deposit_amount == 0) {
+    //             $booking->deposit_amount = $request->deposit_amount ?? ($booking->tong_tien * 0.2);
+    //         }
+    //         $booking->trang_thai = 'da_xac_nhan';
+    //         $booking->save();
+    //         $datPhongItem = $booking->datPhongItems->first();
+    //         if (!$datPhongItem) {
+    //             $loaiPhong = LoaiPhong::first();
+    //             if (!$loaiPhong) {
+    //                 throw new \Exception('Chưa có loại phòng nào trong hệ thống.');
+    //             }
+    //             $datPhongItem = DatPhongItem::create([
+    //                 'dat_phong_id' => $booking->id,
+    //                 'loai_phong_id' => $loaiPhong->id,
+    //                 'so_luong' => 1,
+    //                 'gia_tren_dem' => $loaiPhong->gia_tren_dem ?? 0,
+    //                 'so_dem' => $loaiPhong->so_dem ?? 1,
+    //             ]);
+    //         }
+    //         if ($request->filled('phong_id')) {
+    //             $phong_id = $request->phong_id;
+    //             if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
+    //                 PhongDaDat::create([
+    //                     'dat_phong_item_id' => $datPhongItem->id,
+    //                     'phong_id' => $phong_id,
+    //                     'trang_thai' => 'da_dat',
+    //                     'checkin_datetime' => $booking->ngay_nhan_phong,
+    //                     'checkout_datetime' => $booking->ngay_tra_phong,
+    //                 ]);
+    //                 Phong::find($phong_id)->update(['trang_thai' => 'da_dat']);
+    //                 $booking->trang_thai = 'da_gan_phong';
+    //                 $booking->save();
+    //             } else {
+    //                 throw new \Exception('Phòng không khả dụng.');
+    //             }
+    //         }
+    //     });
+    //     if ($booking->trang_thai === 'da_gan_phong') {
+    //         return redirect()->route('staff.index')
+    //             ->with('success', 'Booking đã được xác nhận và gán phòng thành công.');
+    //     }
+    //     return redirect()->route('staff.assign-rooms', $booking->id)
+    //         ->with('success', 'Booking đã được xác nhận. Vui lòng tiến hành gán phòng.');
+    // }
 
   protected function checkAvailability($phong_id, $start, $end)
 {
@@ -504,12 +540,6 @@ public function index()
     {
         $request->validate([
             'booking_id' => 'required|exists:dat_phong,id',
-            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
-        ], [
-            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
-            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
-            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
-            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
         ]);
 
         $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
@@ -534,12 +564,11 @@ public function index()
         }
 
         // Thực hiện check-in
-        DB::transaction(function () use ($booking, $room, $request) {
-            // Lưu CCCD vào snapshot_meta
+        DB::transaction(function () use ($booking, $room) {
+            // Cập nhật meta với thông tin check-in (giữ nguyên CCCD nếu đã có)
             $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-            $meta['checkin_cccd'] = $request->cccd;
             $meta['checkin_at'] = now()->toDateTimeString();
-            $meta['checkin_by'] = auth()->id();
+            $meta['checkin_by'] = Auth::id();
 
             // Cập nhật booking
             $booking->update([
@@ -551,7 +580,7 @@ public function index()
             // Cập nhật trạng thái phòng
             $room->update([
                 'trang_thai' => 'dang_o',
-            ]);
+            ]); 
         });
 
         return redirect()->route('staff.rooms')

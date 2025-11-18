@@ -29,18 +29,21 @@ use App\Http\Controllers\Client\BlogController as ClientBlog;
 use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
 use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
 use App\Http\Controllers\Admin\PhongConsumptionController;
+use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 
 // Equipment/Room (extended)
 use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
-use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 
 // BLOG (Admin + Client)
 use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
+use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
+use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
+use App\Http\Controllers\Staff\CheckoutController;
 
 Route::post('/booking/validate-voucher', [BookingController::class, 'validateVoucher'])->name('booking.validate_voucher')->middleware('auth');
 // ==================== CLIENT ====================
@@ -100,7 +103,7 @@ Route::prefix('admin')
 
         // Staff
         Route::resource('nhan-vien', NhanVienController::class);
-      Route::patch('nhan-vien/{nhan_vien}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
+        Route::patch('nhan-vien/{nhan_vien}/toggle', [NhanVienController::class, 'toggleActive'])->name('nhan-vien.toggle');
         // ---- Voucher ----
         Route::resource('voucher', VoucherController::class);
         Route::patch('voucher/{voucher}/toggle-active', [VoucherController::class, 'toggleActive'])->name('voucher.toggle-active');
@@ -113,12 +116,11 @@ Route::prefix('admin')
         Route::get('customer-notifications/create', [CustomerNotificationController::class, 'create'])->name('customer-notifications.create');
         Route::post('customer-notifications', [CustomerNotificationController::class, 'store'])->name('customer-notifications.store');
         Route::get('customer-notifications/{notification}', [CustomerNotificationController::class, 'show'])->name('customer-notifications.show');
-        Route::get('customer-notifications/{notification}/edit', [CustomerNotificationController::class, 'edit'])->name('customer-notifications.edit');
-        Route::put('customer-notifications/{notification}', [CustomerNotificationController::class, 'update'])->name('customer-notifications.update');
         Route::delete('customer-notifications/{notification}', [CustomerNotificationController::class, 'destroy'])->name('customer-notifications.destroy');
         Route::post('customer-notifications/{notification}/resend', [CustomerNotificationController::class, 'resend'])->name('customer-notifications.resend');
 
         Route::resource('internal-notifications', InternalNotificationController::class)
+            ->except(['edit', 'update'])
             ->parameters(['internal-notifications' => 'notification']);
         Route::post('internal-notifications/{notification}/resend', [InternalNotificationController::class, 'resend'])
             ->name('internal-notifications.resend');
@@ -194,11 +196,51 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         // Checkin / Checkout
         Route::get('/checkin', [StaffController::class, 'checkinForm'])->name('checkin');
         Route::post('/process-checkin', [StaffController::class, 'processCheckin'])->name('processCheckin');
+        Route::post('/save-cccd', [StaffController::class, 'saveCCCD'])->name('saveCCCD');
 
         // Reports / Overview
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
     });
+
+
+// ==================== STAFF + ADMIN ====================
+Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
+    Route::post('/phong/consumptions', [PhongConsumptionController::class, 'store'])
+        ->name('phong.consumptions.store');
+
+    Route::put('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'update'])
+        ->name('phong.consumptions.update');
+
+    Route::delete('/phong/consumptions/{consumption}', [PhongConsumptionController::class, 'destroy'])
+        ->name('phong.consumptions.destroy');
+
+    Route::post('/phong/consumptions/{consumption}/mark-consumed', [PhongConsumptionController::class, 'markConsumed'])
+        ->name('phong.consumptions.markConsumed');
+
+    Route::post('/phong/consumptions/store-and-bill/{phong}', [PhongConsumptionController::class, 'storeAndBill'])
+        ->name('phong.consumptions.store_and_bill');
+
+    // staff booking incidents
+    Route::post('/bookings/{booking}/incidents', [StaffVatDungIncidentController::class, 'store'])
+        ->name('bookings.incidents.store');
+
+    Route::patch('/bookings/{booking}/incidents/{incident}', [StaffVatDungIncidentController::class, 'update'])
+        ->name('bookings.incidents.update');
+
+    Route::delete('/bookings/{booking}/incidents/{incident}', [StaffVatDungIncidentController::class, 'destroy'])
+        ->name('bookings.incidents.destroy');
+
+    Route::get('/staff/bookings/{booking}/checkout', [CheckoutController::class, 'showCheckoutForm'])
+        ->name('staff.bookings.checkout.show');
+
+    Route::post('/staff/bookings/{booking}/checkout', [CheckoutController::class, 'processCheckout'])
+        ->name('staff.bookings.checkout.process');
+
+    Route::post('/staff/bookings/{booking}/invoices/{hoaDon}/confirm', [CheckoutController::class, 'confirmPayment'])
+        ->name('staff.bookings.invoices.confirm');
+});
+
 
 // ==================== ACCOUNT (client profile area) ====================
 Route::middleware('auth')
