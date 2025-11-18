@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Bookings')
+@section('title', 'Đặt phòng của tôi')
 
 @section('content')
     <section class="pt-3">
@@ -44,11 +44,11 @@
                                         </li>
                                         <li class="nav-item">
                                             <a class="nav-link active" href="{{ route('account.booking.index') }}"><i
-                                                    class="bi bi-ticket-perforated fa-fw me-2"></i>My Bookings</a>
+                                                    class="bi bi-ticket-perforated fa-fw me-2"></i>Đặt phòng của tôi</a>
                                         </li>
                                         <li class="nav-item">
                                             <a class="nav-link" href="{{ route('account.wishlist') }}"><i
-                                                    class="bi bi-heart fa-fw me-2"></i>Wishlist</a>
+                                                    class="bi bi-heart fa-fw me-2"></i>Danh sách yêu thích</a>
                                         </li>
                                         <li class="nav-item">
                                             <form method="POST" action="{{ route('logout') }}">
@@ -80,22 +80,22 @@
 
                     <div class="card border bg-transparent">
                         <div class="card-header bg-transparent border-bottom">
-                            <h4 class="card-header-title">My Bookings</h4>
+                            <h4 class="card-header-title">Đặt phòng của tôi</h4>
                         </div>
 
                         <div class="card-body p-0">
                             <ul class="nav nav-tabs nav-bottom-line nav-responsive nav-justified">
                                 <li class="nav-item">
                                     <a class="nav-link mb-0 active" data-bs-toggle="tab" href="#tab-1"><i
-                                            class="bi bi-briefcase-fill fa-fw me-1"></i>Upcoming Booking</a>
+                                            class="bi bi-briefcase-fill fa-fw me-1"></i>Đặt phòng sắp tới</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link mb-0" data-bs-toggle="tab" href="#tab-2"><i
-                                            class="bi bi-x-octagon fa-fw me-1"></i>Canceled Booking</a>
+                                            class="bi bi-x-octagon fa-fw me-1"></i>Đặt phòng đã hủy</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link mb-0" data-bs-toggle="tab" href="#tab-3"><i
-                                            class="bi bi-patch-check fa-fw me-1"></i>Completed Booking</a>
+                                            class="bi bi-patch-check fa-fw me-1"></i>Đặt phòng đã hoàn thành</a>
                                 </li>
                             </ul>
 
@@ -104,12 +104,12 @@
                                 @php
                                     $statusLabel = function ($t) {
                                         $map = [
-                                            'dang_cho' => 'Pending',
-                                            'dang_cho_xac_nhan' => 'Pending',
+                                            'dang_cho' => 'Đang chờ',
+                                            'dang_cho_xac_nhan' => 'Đang chờ',
                                             'dang_su_dung' => 'Đang Sử Dụng',
-                                            'da_xac_nhan' => 'Confirmed',
-                                            'da_huy' => 'Cancelled',
-                                            'hoan_thanh' => 'Completed',
+                                            'da_xac_nhan' => 'Đã xác nhận',
+                                            'da_huy' => 'Đã hủy',
+                                            'hoan_thanh' => 'Hoàn thành',
                                         ];
                                         return $map[$t] ?? ucfirst(str_replace('_', ' ', $t));
                                     };
@@ -124,11 +124,33 @@
                                         ];
                                         return $map[$t] ?? 'bg-secondary';
                                     };
+                                    
+                                    // Format ngày tháng tiếng Việt
+                                    $formatDateVi = function ($date, $format = 'D, d M Y') {
+                                        if (!$date) return '';
+                                        
+                                        $carbon = \Carbon\Carbon::parse($date);
+                                        
+                                        $days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+                                        $months = ['', 'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 
+                                                   'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+                                        
+                                        if ($format === 'D, d M Y') {
+                                            $dayName = $days[$carbon->dayOfWeek];
+                                            $monthName = $months[$carbon->month];
+                                            return $dayName . ', ' . $carbon->format('d') . ' ' . $monthName . ' ' . $carbon->format('Y');
+                                        } elseif ($format === 'd M Y H:i') {
+                                            $monthName = $months[$carbon->month];
+                                            return $carbon->format('d') . ' ' . $monthName . ' ' . $carbon->format('Y H:i');
+                                        }
+                                        
+                                        return $carbon->format($format);
+                                    };
                                 @endphp
 
                                 {{-- Tab 1: Upcoming (dang_cho + da_xac_nhan) --}}
                                 <div class="tab-pane fade show active" id="tab-1">
-                                    <h6 class="mb-3">Upcoming booking ({{ $upcoming->count() }})</h6>
+                                    <h6 class="mb-3">Đặt phòng sắp tới ({{ $upcoming->count() }})</h6>
 
                                     @forelse($upcoming as $b)
                                         @php
@@ -149,10 +171,10 @@
                                                     <div class="icon-lg bg-light rounded-circle flex-shrink-0"><i
                                                             class="fa-solid fa-hotel"></i></div>
                                                     <div class="ms-2">
-                                                        <h6 class="card-title mb-0">Booking: {{ $b->ma_tham_chieu }}</h6>
+                                                        <h6 class="card-title mb-0">Đặt phòng: {{ $b->ma_tham_chieu }}</h6>
                                                         <ul class="nav nav-divider small">
-                                                            <li class="nav-item">Rooms: {{ $roomsCount }}</li>
-                                                            <li class="nav-item">Total:
+                                                            <li class="nav-item">Phòng: {{ $roomsCount }}</li>
+                                                            <li class="nav-item">Tổng tiền:
                                                                 {{ number_format($b->snapshot_total ?? ($b->tong_tien ?? 0), 0, ',', '.') }}
                                                                 VND</li>
                                                         </ul>
@@ -163,7 +185,7 @@
                                                     <span class="badge {{ $badge }}">{{ $label }}</span>
                                                     <div class="mt-2">
                                                         <a href="{{ route('account.booking.show', $b->id) }}"
-                                                            class="btn btn-primary-soft mb-0">Manage Booking</a>
+                                                            class="btn btn-primary-soft mb-0">Quản lý đặt phòng</a>
                                                     </div>
                                                 </div>
                                             </div>
@@ -171,19 +193,19 @@
                                             <div class="card-body">
                                                 <div class="row g-3">
                                                     <div class="col-sm-6 col-md-4">
-                                                        <span>Check in</span>
+                                                        <span>Nhận phòng</span>
                                                         <h6 class="mb-0">
-                                                            {{ optional($b->ngay_nhan_phong)->format('D, d M Y') }}</h6>
+                                                            {{ $formatDateVi($b->ngay_nhan_phong, 'D, d M Y') }}</h6>
                                                     </div>
 
                                                     <div class="col-sm-6 col-md-4">
-                                                        <span>Check out</span>
+                                                        <span>Trả phòng</span>
                                                         <h6 class="mb-0">
-                                                            {{ optional($b->ngay_tra_phong)->format('D, d M Y') }}</h6>
+                                                            {{ $formatDateVi($b->ngay_tra_phong, 'D, d M Y') }}</h6>
                                                     </div>
 
                                                     <div class="col-md-4">
-                                                        <span>Contact</span>
+                                                        <span>Liên hệ</span>
                                                         <h6 class="mb-0">
                                                             {{ $b->contact_name ?? ($user->name ?? $user->email) }}</h6>
                                                     </div>
@@ -191,7 +213,7 @@
 
                                                 {{-- Rooms list  --}}
                                                 <hr>
-                                                <h6 class="mb-2">Rooms</h6>
+                                                <h6 class="mb-2">Phòng</h6>
                                                 @if ($b->datPhongItems && $b->datPhongItems->count())
                                                     <ul class="list-unstyled mb-0">
                                                         @foreach ($b->datPhongItems as $it)
@@ -202,31 +224,31 @@
                                                                         : ($it->loai_phong &&
                                                                         isset($it->loai_phong->name)
                                                                             ? $it->loai_phong->name
-                                                                            : 'Room ' . ($it->phong_id ?? 'N/A'));
+                                                                            : 'Phòng ' . ($it->phong_id ?? 'N/A'));
                                                             @endphp
                                                             <li class="mb-1">
                                                                 <i class="bi bi-door-open-fill me-2"></i>
                                                                 {{ $roomName }}
                                                                 @if (isset($it->so_dem))
                                                                     <small class="text-muted"> — {{ $it->so_dem }}
-                                                                        night(s)</small>
+                                                                        đêm</small>
                                                                 @endif
                                                             </li>
                                                         @endforeach
                                                     </ul>
                                                 @else
-                                                    <div class="text-muted small">Room details not recorded.</div>
+                                                    <div class="text-muted small">Chi tiết phòng chưa được ghi nhận.</div>
                                                 @endif
                                             </div>
                                         </div>
                                     @empty
-                                        <div class="alert alert-info">No upcoming bookings found.</div>
+                                        <div class="alert alert-info">Không tìm thấy đặt phòng sắp tới.</div>
                                     @endforelse
                                 </div>
 
                                 {{-- Tab 2: Cancelled (da_huy) --}}
                                 <div class="tab-pane fade" id="tab-2">
-                                    <h6 class="mb-3">Cancelled booking ({{ $cancelled->count() }})</h6>
+                                    <h6 class="mb-3">Đặt phòng đã hủy ({{ $cancelled->count() }})</h6>
 
                                     @forelse($cancelled as $b)
                                         @php
@@ -241,8 +263,8 @@
                                             <div class="card-header d-flex justify-content-between align-items-center">
                                                 <div>
                                                     <h6 class="mb-0">{{ $b->ma_tham_chieu }}</h6>
-                                                    <small class="text-muted">Cancelled at
-                                                        {{ optional($b->updated_at)->format('d M Y H:i') }}</small>
+                                                    <small class="text-muted">Đã hủy lúc
+                                                        {{ $formatDateVi($b->updated_at, 'd M Y H:i') }}</small>
                                                 </div>
                                                 <div class="text-end">
                                                     <span class="badge {{ $badge }}">{{ $label }}</span>
@@ -251,17 +273,17 @@
                                             <div class="card-body">
                                                 <div class="row">
                                                     <div class="col-md-4">
-                                                        <span>Check in</span>
+                                                        <span>Nhận phòng</span>
                                                         <h6 class="mb-0">
-                                                            {{ optional($b->ngay_nhan_phong)->format('D, d M Y') }}</h6>
+                                                            {{ $formatDateVi($b->ngay_nhan_phong, 'D, d M Y') }}</h6>
                                                     </div>
                                                     <div class="col-md-4">
-                                                        <span>Check out</span>
+                                                        <span>Trả phòng</span>
                                                         <h6 class="mb-0">
-                                                            {{ optional($b->ngay_tra_phong)->format('D, d M Y') }}</h6>
+                                                            {{ $formatDateVi($b->ngay_tra_phong, 'D, d M Y') }}</h6>
                                                     </div>
                                                     <div class="col-md-4">
-                                                        <span>Total</span>
+                                                        <span>Tổng tiền</span>
                                                         <h6 class="mb-0">
                                                             {{ number_format($b->snapshot_total ?? ($b->tong_tien ?? 0), 0, ',', '.') }}
                                                             VND</h6>
@@ -270,13 +292,13 @@
                                             </div>
                                         </div>
                                     @empty
-                                        <div class="alert alert-info">No cancelled bookings.</div>
+                                        <div class="alert alert-info">Không có đặt phòng đã hủy.</div>
                                     @endforelse
                                 </div>
 
                                 {{-- Tab 3: Completed (hoan_thanh) --}}
                                 <div class="tab-pane fade" id="tab-3">
-                                    <h6 class="mb-3">Completed booking ({{ $completed->count() }})</h6>
+                                    <h6 class="mb-3">Đặt phòng đã hoàn thành ({{ $completed->count() }})</h6>
 
                                     @forelse($completed as $b)
                                         @php
@@ -292,8 +314,8 @@
                                                 class="card-header d-flex justify-content-between align-items-center bg-light">
                                                 <div>
                                                     <h6 class="mb-0">{{ $b->ma_tham_chieu }}</h6>
-                                                    <small class="text-muted">Completed at
-                                                        {{ optional($b->updated_at)->format('d M Y H:i') }}</small>
+                                                    <small class="text-muted">Hoàn thành lúc
+                                                        {{ $formatDateVi($b->updated_at, 'd M Y H:i') }}</small>
                                                 </div>
                                                 <div class="text-end">
                                                     <span class="badge {{ $badge }}">{{ $label }}</span>
@@ -303,17 +325,17 @@
                                             <div class="card-body">
                                                 <div class="row mb-2">
                                                     <div class="col-md-4">
-                                                        <span>Check in</span>
+                                                        <span>Nhận phòng</span>
                                                         <h6 class="mb-0">
-                                                            {{ optional($b->ngay_nhan_phong)->format('D, d M Y') }}</h6>
+                                                            {{ $formatDateVi($b->ngay_nhan_phong, 'D, d M Y') }}</h6>
                                                     </div>
                                                     <div class="col-md-4">
-                                                        <span>Check out</span>
+                                                        <span>Trả phòng</span>
                                                         <h6 class="mb-0">
-                                                            {{ optional($b->ngay_tra_phong)->format('D, d M Y') }}</h6>
+                                                            {{ $formatDateVi($b->ngay_tra_phong, 'D, d M Y') }}</h6>
                                                     </div>
                                                     <div class="col-md-4">
-                                                        <span>Total</span>
+                                                        <span>Tổng tiền</span>
                                                         <h6 class="mb-0">
                                                             {{ number_format($b->snapshot_total ?? ($b->tong_tien ?? 0), 0, ',', '.') }}
                                                             VND</h6>
@@ -349,7 +371,7 @@
 </a>
                                         </div>
                                     @empty
-                                        <div class="alert alert-info">No completed bookings.</div>
+                                        <div class="alert alert-info">Không có đặt phòng đã hoàn thành.</div>
                                     @endforelse
                                 </div>
 
