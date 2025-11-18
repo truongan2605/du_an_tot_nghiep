@@ -140,7 +140,7 @@
                 <div class="row mb-2 align-items-center">
                     <div class="col-md-4">
                         <strong>{{ $bt->name }}</strong>
-                        <div class="small text-muted">capacity: {{ $bt->capacity }} / default price:
+                        <div class="small text-muted">capacity: {{ $bt->capacity }} / giá mặc định:
                             {{ number_format($bt->price, 0, ',', '.') }} đ</div>
                     </div>
                     <div class="col-md-3">
