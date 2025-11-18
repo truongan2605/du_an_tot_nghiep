@@ -146,7 +146,7 @@
                             class="form-control" value="{{ $qty }}">
                     </div>
                     <div class="col-md-5">
-                        <label class="form-label small">Giá mỗi giường (optional override)</label>
+                        <label class="form-label small">Giá mỗi giường (Ghi đè)</label>
                         <input type="number" step="0.01" name="bed_types[{{ $bt->id }}][price]"
                             class="form-control" value="{{ $price }}">
                     </div>
