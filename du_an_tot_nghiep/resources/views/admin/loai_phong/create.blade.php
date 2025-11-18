@@ -78,7 +78,7 @@
                                 @endforeach
                             </div>
                         @else
-                            <p class="text-muted mb-0">Chưa có tiện nghi nào.</p>
+                            <p class="text-muted mb-0">Chưa có tiện nghi nào .</p>
                         @endif
                     </div>
                 </div>
