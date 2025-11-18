@@ -92,20 +92,6 @@
             </div>
         </div>
 
-        @php
-            // safe invoice view URL
-            function invoiceUrlFor($id)
-            {
-                if (\Illuminate\Support\Facades\Route::has('admin.hoadon.show')) {
-                    return route('admin.hoadon.show', $id);
-                }
-                if (\Illuminate\Support\Facades\Route::has('admin.hoa-don.show')) {
-                    return route('admin.hoa-don.show', $id);
-                }
-                // fallback (adjust if your admin invoice URL differs)
-                return url('/admin/hoa-don/' . $id);
-            }
-        @endphp
 
         @php
             $issuedInvoices = \App\Models\HoaDon::where('dat_phong_id', $booking->id)

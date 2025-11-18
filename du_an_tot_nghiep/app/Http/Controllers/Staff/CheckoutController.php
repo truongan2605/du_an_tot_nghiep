@@ -174,10 +174,13 @@ class CheckoutController extends Controller
                     'created_by' => Auth::id() ?? null,
                 ]);
 
-                foreach ($datPhongItems as $it) {
-                    $roomItem = $this->buildRoomItemFromDatPhongItem($hoaDon->id, $it, $booking, $nights);
-                    HoaDonItem::create($roomItem);
+                if ($markPaid) {
+                    foreach ($datPhongItems as $it) {
+                        $roomItem = $this->buildRoomItemFromDatPhongItem($hoaDon->id, $it, $booking, $nights);
+                        HoaDonItem::create($roomItem);
+                    }
                 }
+
 
                 $hoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
                 $hoaDon->save();
@@ -216,17 +219,20 @@ class CheckoutController extends Controller
             }
 
             $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
-            foreach ($datPhongItems as $it) {
-                $exists = HoaDonItem::where('hoa_don_id', $targetHoaDon->id)
-                    ->where('type', 'room_booking')
-                    ->where('ref_id', $it->id ?? null)
-                    ->exists();
+            if ($markPaid) {
+                foreach ($datPhongItems as $it) {
+                    $exists = HoaDonItem::where('hoa_don_id', $targetHoaDon->id)
+                        ->where('type', 'room_booking')
+                        ->where('ref_id', $it->id ?? null)
+                        ->exists();
 
-                if (!$exists) {
-                    $roomItem = $this->buildRoomItemFromDatPhongItem($targetHoaDon->id, $it, $booking, $nights);
-                    HoaDonItem::create($roomItem);
+                    if (!$exists) {
+                        $roomItem = $this->buildRoomItemFromDatPhongItem($targetHoaDon->id, $it, $booking, $nights);
+                        HoaDonItem::create($roomItem);
+                    }
                 }
             }
+
 
             if ($markPaid) {
                 $targetHoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
