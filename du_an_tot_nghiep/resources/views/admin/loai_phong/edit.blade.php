@@ -35,7 +35,7 @@
             </div>
 
             <div class="mb-3">
-                <label>Giá mặc định (VND / night)</label>
+                <label>Giá mặc định (VND / đêm)</label>
                 <input type="number" step="0.01" name="gia_mac_dinh" class="form-control"
                     value="{{ old('gia_mac_dinh', $loaiphong->gia_mac_dinh) }}" required>
             </div>
