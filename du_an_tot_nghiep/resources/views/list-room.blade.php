@@ -4,7 +4,7 @@
 
 @section('content')
     <!-- =======================
-                            Banner START -->
+                    Banner START -->
     <section class="position-relative overflow-hidden rounded-4 mt-4 mx-auto"
         style="height: 360px; width: 90%; max-width: 1200px;">
         <!-- Background Image -->
@@ -25,10 +25,7 @@
         </div>
     </section>
     <!-- =======================
-                            Banner END -->
-
-
-
+                    Banner END -->
 
     <section class="pt-4 pb-5">
         <div class="container">
@@ -56,11 +53,10 @@
                                 @endforeach
                             </ul>
 
-
                             {{-- Check in-out --}}
                             <h6>Nhận phòng - Trả phòng</h6>
                             <input type="text" class="form-control flatpickr mb-3" data-mode="range"
-                                placeholder="Chọn ngày" name="date_range">
+                                placeholder="Chọn ngày" name="date_range" value="{{ request('date_range') }}">
 
                             <h6>Giá (VNĐ)</h6>
                             <div class="mb-3">
@@ -128,10 +124,14 @@
                     </form>
                 </aside>
 
-                {{-- ==== DANH SÁCH PHÒNG ==== --}}
+                {{-- ==== DANH SÁCH PHÒNG (THEO LOẠI PHÒNG) ==== --}}
                 <div class="col-lg-9">
                     <div class="row g-4">
                         @forelse($phongs as $phong)
+                            @php
+                                $loaiPhong = $phong->loaiPhong;
+                            @endphp
+
                             <div class="col-12">
                                 <div
                                     class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 room-card position-relative hover-shadow transition-all">
@@ -139,6 +139,7 @@
                                     {{-- ========== ẢNH PHÒNG / CAROUSEL ========== --}}
                                     <div class="row g-0 align-items-center">
                                         <div class="col-md-5 position-relative">
+
                                             @if ($phong->images->count() > 1)
                                                 <div id="carouselRoom{{ $phong->id }}" class="carousel slide"
                                                     data-bs-ride="carousel" data-bs-interval="3000">
@@ -177,20 +178,9 @@
                                                     -{{ $phong->khuyen_mai }}%
                                                 </span>
                                             @endif
-
-                                            {{-- Badge trạng thái phòng --}}
-                                            @if ($phong->trang_thai == 'trong')
-                                                <span
-                                                    class="badge bg-success position-absolute bottom-0 start-0 m-3 px-3 py-2 shadow-sm">Phòng
-                                                    trống</span>
-                                            @elseif($phong->trang_thai == 'dang_o')
-                                                <span
-                                                    class="badge bg-warning text-dark position-absolute bottom-0 start-0 m-3 px-3 py-2 shadow-sm">Đang
-                                                    ở</span>
-                                            @endif
                                         </div>
 
-                                        {{-- ========== THÔNG TIN PHÒNG ========== --}}
+                                        {{-- ========== THÔNG TIN LOẠI PHÒNG ========== --}}
                                         <div class="col-md-7">
                                             <div class="card-body py-4 px-4">
                                                 {{-- Đánh giá sao --}}
@@ -201,21 +191,34 @@
                                                     @endfor
                                                 </div>
 
-                                                {{-- Tên phòng --}}
-                                                <h5 class="fw-bold mb-1">{{ $phong->name ?? $phong->ma_phong }}</h5>
+                                                {{-- Tên loại phòng (hoặc tên phòng nếu bạn muốn) --}}
+                                                <h5 class="fw-bold mb-1">
+                                                    {{ $loaiPhong->ten ?? ($phong->name ?? $phong->ma_phong) }}
+                                                </h5>
 
                                                 {{-- Mô tả hoặc vị trí --}}
                                                 <p class="text-muted mb-2">
                                                     <i class="bi bi-geo-alt me-1"></i>
-                                                    {{ $phong->mo_ta ?? 'Địa điểm đang cập nhật' }}
+                                                    {{ $phong->mo_ta ?? 'Mô tả đang cập nhật' }}
                                                 </p>
-
+                                                {{-- Số phòng trống / tổng số phòng --}}
+                                                <p class="text-muted mb-2">
+                                                    @if (request('date_range') && !is_null($phong->so_phong_trong))
+                                                        Còn {{ $phong->so_phong_trong }} /
+                                                        {{ $phong->so_luong_phong_cung_loai ?? 0 }} phòng trống cho ngày đã
+                                                        chọn
+                                                    @else
+                                                        Có {{ $phong->so_luong_phong_cung_loai ?? 0 }} phòng trong hệ thống
+                                                    @endif
+                                                </p>
                                                 {{-- Tiện nghi --}}
                                                 <div class="small text-muted mb-2">
                                                     @if ($phong->tienNghis && $phong->tienNghis->count())
                                                         @foreach ($phong->tienNghis->take(3) as $tiennghi)
-                                                            <span class="me-2"><i
-                                                                    class="bi bi-check-circle text-success me-1"></i>{{ $tiennghi->ten }}</span>
+                                                            <span class="me-2">
+                                                                <i class="bi bi-check-circle text-success me-1"></i>
+                                                                {{ $tiennghi->ten }}
+                                                            </span>
                                                         @endforeach
 
                                                         @if ($phong->tienNghis->count() > 3)
@@ -227,8 +230,6 @@
                                                     @endif
                                                 </div>
 
-
-
                                                 {{-- Giá & Nút chọn phòng --}}
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div>
@@ -236,24 +237,15 @@
                                                             {{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }} VNĐ
                                                             <span class="small fw-normal text-muted">/Đêm</span>
                                                         </h4>
-                                                        {{-- @if ($phong->gia_mac_dinh ?? false)
-                                    <small class="text-decoration-line-through text-muted">
-                                        {{ number_format($phong->gia_mac_dinh, 0, ',', '.') }} VNĐ
-                                    </small>
-                                @endif --}}
-
                                                     </div>
-                                                    @if ($phong->trang_thai == 'trong')
-                                                        <a href="{{ route('rooms.show', $phong->id) }}"
-                                                            class="btn btn-dark rounded-pill px-4 py-2 transition-all">
-                                                            Chọn phòng
-                                                        </a>
-                                                    @else
-                                                        <button class="btn btn-secondary rounded-pill px-4 py-2" disabled>
-                                                            Phòng đầy
-                                                        </button>
-                                                    @endif
+
+                                                    {{-- Luôn cho phép chọn phòng, kiểm tra còn phòng ở trang đặt phòng --}}
+                                                    <a href="{{ route('rooms.show', $phong->id) }}"
+                                                        class="btn btn-dark rounded-pill px-4 py-2">
+                                                        Chọn phòng
+                                                    </a>
                                                 </div>
+
                                             </div>
                                         </div>
                                     </div>
@@ -269,11 +261,14 @@
                         @endforelse
 
                     </div>
+
+                    {{-- Vẫn dùng phân trang của $phongs (dù hiển thị đã nhóm theo loại phòng) --}}
                     <div class="mt-4 d-flex justify-content-center">{{ $phongs->links() }}</div>
                 </div>
             </div>
         </div>
     </section>
+
     @push('scripts')
         <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
         <link href="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.css" rel="stylesheet">
@@ -296,7 +291,7 @@
                         'min': {{ $giaMin }},
                         'max': {{ $giaMax }}
                     },
-                    step: 50000, // bước 50.000đ
+                    step: 50000,
                     format: {
                         to: value => Math.round(value),
                         from: value => Math.round(value)
@@ -314,6 +309,7 @@
     @endpush
 
 @endsection
+
 @push('styles')
     <style>
         /* Tùy chỉnh thanh trượt giá */
@@ -331,7 +327,6 @@
 
         .noUi-connect {
             background: rgba(110, 110, 110, 0.6) !important;
-            /* tím nhạt, có thể đổi */
             transition: background 0.3s ease;
         }
 
@@ -400,7 +395,6 @@
         /* Carousel ảnh phòng */
         .room-carousel-inner {
             height: 250px;
-            /* Chiều cao cố định */
             overflow: hidden;
             border-radius: 14px 0 0 14px;
         }

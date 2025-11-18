@@ -40,11 +40,16 @@ use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
+use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
 use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 use App\Http\Controllers\Staff\CheckoutController;
 
+Route::post('/booking/validate-voucher', [BookingController::class, 'validateVoucher'])->name('booking.validate_voucher')->middleware('auth');
 // ==================== CLIENT ====================
 Route::get('/', [HomeController::class, 'index'])->name('home');
+
+// ==================== VOUCHER CLIENT ====================
+Route::get('/vouchers', [ClientVoucherController::class, 'index'])->name('client.vouchers.index');
 
 Route::get('/list-room', [RoomController::class, 'index'])->name('list-room.index');
 Route::get('/list-room/{id}', [RoomController::class, 'show'])->name('list-room.show');
@@ -56,6 +61,7 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 
 // ==================== BOOKING ====================
 Route::get('/booking/availability', [BookingController::class, 'availability'])->name('booking.availability');
+Route::post('/booking/apply-voucher', [BookingController::class, 'applyVoucher'])->name('booking.apply-voucher');
 
 // ==================== ADMIN ====================
 Route::prefix('admin')
@@ -258,6 +264,11 @@ Route::middleware('auth')
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
     });
 
+// ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
+Route::middleware('auth')->group(function () {
+    Route::post('/vouchers/claim/{id}', [ClientVoucherController::class, 'claim'])->name('client.vouchers.claim');
+    Route::get('/my-voucher', [ClientVoucherController::class, 'myVouchers'])->name('client.vouchers.my');
+});
 // ==================== BLOG (CLIENT) ====================
 Route::get('/blog', [ClientBlog::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [ClientBlog::class, 'show'])->name('blog.show');

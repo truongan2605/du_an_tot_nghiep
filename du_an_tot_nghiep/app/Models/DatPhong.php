@@ -30,6 +30,7 @@ class DatPhong extends Model
         'created_by',
         'phuong_thuc',
         'ma_voucher',
+        'voucher_code',
         'discount_amount',
         'snapshot_total',
         'snapshot_meta',
