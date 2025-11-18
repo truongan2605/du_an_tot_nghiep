@@ -49,7 +49,7 @@
                                 </select>
                             </div>
 
-                            <div class="mb-2">
+                            <div class="mb-2" hidden>
                                 <label class="form-label">Số lượng</label>
                                 <input type="number" name="quantity" class="form-control" min="1" value="1" />
                             </div>
@@ -90,16 +90,12 @@
                                     'present' => 'Nguyên vẹn',
                                     'damaged' => 'Hỏng',
                                     'missing' => 'Mất',
-                                    'lost' => 'Mất (vĩnh viễn)',
-                                    'archived' => 'Lưu trữ',
                                 ];
 
                                 $statusBadge = [
                                     'present' => 'success',
                                     'damaged' => 'warning',
                                     'missing' => 'danger',
-                                    'lost' => 'danger',
-                                    'archived' => 'secondary',
                                 ];
                             @endphp
 
@@ -128,6 +124,15 @@
                                             </td>
                                             <td>{{ $ins->note }}</td>
                                             <td>
+                                                @php
+                                                    $canMark = (bool) $activeBooking && $ins->status === 'present';
+                                                    $disabledAttr = $canMark
+                                                        ? ''
+                                                        : 'disabled title="Chỉ có thể đánh dấu khi phòng đang ' .
+                                                            ($activeBooking ? 'Nguyên vẹn' : 'có booking') .
+                                                            '"';
+                                                @endphp
+
                                                 <div class="btn-group" role="group" aria-label="status-actions">
                                                     {{-- Present --}}
                                                     <form
@@ -145,17 +150,17 @@
                                                         data-instance-id="{{ $ins->id }}"
                                                         data-vat-dung-id="{{ $ins->vat_dung_id }}" data-status="damaged"
                                                         data-default-fee="{{ optional($ins->vatDung)->gia ?? 0 }}"
-                                                        {{ $activeBooking ? '' : 'disabled title=“Không có booking — không thể tính tiền”' }}>
+                                                        {!! $disabledAttr !!}>
                                                         Hỏng
                                                     </button>
 
-                                                    {{-- Missing & Charge --}}
+                                                    {{-- Missing --}}
                                                     <button type="button"
                                                         class="btn btn-sm btn-outline-danger ms-1 btn-open-incident-modal"
                                                         data-instance-id="{{ $ins->id }}"
                                                         data-vat-dung-id="{{ $ins->vat_dung_id }}" data-status="missing"
                                                         data-default-fee="{{ optional($ins->vatDung)->gia ?? 0 }}"
-                                                        {{ $activeBooking ? '' : 'disabled title=“Không có booking — không thể tính tiền”' }}>
+                                                        {!! $disabledAttr !!}>
                                                         Mất
                                                     </button>
 
@@ -166,7 +171,19 @@
                                                         data-note="{{ e($ins->note) }}" data-status="{{ $ins->status }}">
                                                         Sửa
                                                     </button>
+
+                                                    {{-- Delete instance --}}
+                                                    <form
+                                                        action="{{ route('admin.phong.vatdung.instances.destroy', $ins->id) }}"
+                                                        method="POST"
+                                                        onsubmit="return confirm('Xác nhận xóa bản thể? Hành động không thể hoàn tác.');"
+                                                        style="display:inline-block;">
+                                                        @csrf @method('DELETE')
+                                                        <button class="btn btn-sm btn-outline-danger ms-1"
+                                                            type="submit">Xóa</button>
+                                                    </form>
                                                 </div>
+
                                             </td>
                                         </tr>
                                     @endforeach
@@ -255,7 +272,9 @@
                                                 </div>
 
                                                 @unless ($activeBooking)
-                                                    <div class="alert alert-warning small">Phòng hiện không có booking hợp lệ — các nút tính tiền bị khoá. Bạn vẫn có thể chỉnh trạng thái bằng nút <strong>Edit</strong>.</div>
+                                                    <div class="alert alert-warning small">Phòng hiện không có booking hợp lệ —
+                                                        các nút tính tiền bị khoá. Bạn vẫn có thể chỉnh trạng thái bằng nút
+                                                        <strong>Edit</strong>.</div>
                                                 @endunless
                                             </div>
                                             <div class="modal-footer">
@@ -278,59 +297,60 @@
 @endsection
 
 @push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const incidentModalEl = document.getElementById('incidentModal');
-    const incidentBsModal = incidentModalEl ? new bootstrap.Modal(incidentModalEl) : null;
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const incidentModalEl = document.getElementById('incidentModal');
+            const incidentBsModal = incidentModalEl ? new bootstrap.Modal(incidentModalEl) : null;
 
-    document.querySelectorAll('.btn-open-incident-modal').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const instanceId = this.dataset.instanceId;
-            const vatDungId = this.dataset.vatDungId;
-            const status = this.dataset.status ?? 'damaged';
-            const defaultFee = this.dataset.defaultFee ?? 0;
+            document.querySelectorAll('.btn-open-incident-modal').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const instanceId = this.dataset.instanceId;
+                    const vatDungId = this.dataset.vatDungId;
+                    const status = this.dataset.status ?? 'damaged';
+                    const defaultFee = this.dataset.defaultFee ?? 0;
 
-            // populate modal fields
-            const instInput = document.getElementById('modal_instance_id');
-            const vatInput = document.getElementById('modal_vat_dung_id');
-            const statusInput = document.getElementById('modal_status');
-            const feeInput = document.getElementById('modal_fee');
-            const desc = document.getElementById('modal_description');
+                    // populate modal fields
+                    const instInput = document.getElementById('modal_instance_id');
+                    const vatInput = document.getElementById('modal_vat_dung_id');
+                    const statusInput = document.getElementById('modal_status');
+                    const feeInput = document.getElementById('modal_fee');
+                    const desc = document.getElementById('modal_description');
 
-            if (instInput) instInput.value = instanceId;
-            if (vatInput) vatInput.value = vatDungId;
-            if (statusInput) statusInput.value = status;
-            if (feeInput) feeInput.value = defaultFee;
-            if (desc) desc.value = '';
+                    if (instInput) instInput.value = instanceId;
+                    if (vatInput) vatInput.value = vatDungId;
+                    if (statusInput) statusInput.value = status;
+                    if (feeInput) feeInput.value = defaultFee;
+                    if (desc) desc.value = '';
 
-            if (incidentBsModal) incidentBsModal.show();
+                    if (incidentBsModal) incidentBsModal.show();
+                });
+            });
+
+            const editModalEl = document.getElementById('editInstanceModal');
+            const editBsModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
+
+            const updateUrlTemplate =
+                "{{ route('admin.phong.vatdung.instances.update', ['instance' => '__ID__']) }}";
+
+            document.querySelectorAll('.btn-open-edit-instance').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.dataset.id;
+                    const serial = this.dataset.serial ?? '';
+                    const note = this.dataset.note ?? '';
+                    const status = this.dataset.status ?? 'present';
+
+                    document.getElementById('edit_serial').value = serial;
+                    document.getElementById('edit_note').value = note;
+                    document.getElementById('edit_status').value = status;
+
+                    const form = document.getElementById('editInstanceForm');
+                    if (form) {
+                        form.action = updateUrlTemplate.replace('__ID__', id);
+                    }
+
+                    if (editBsModal) editBsModal.show();
+                });
+            });
         });
-    });
-
-    const editModalEl = document.getElementById('editInstanceModal');
-    const editBsModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
-
-    const updateUrlTemplate = "{{ route('admin.phong.vatdung.instances.update', ['instance' => '__ID__']) }}";
-
-    document.querySelectorAll('.btn-open-edit-instance').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const id = this.dataset.id;
-            const serial = this.dataset.serial ?? '';
-            const note = this.dataset.note ?? '';
-            const status = this.dataset.status ?? 'present';
-
-            document.getElementById('edit_serial').value = serial;
-            document.getElementById('edit_note').value = note;
-            document.getElementById('edit_status').value = status;
-
-            const form = document.getElementById('editInstanceForm');
-            if (form) {
-                form.action = updateUrlTemplate.replace('__ID__', id);
-            }
-
-            if (editBsModal) editBsModal.show();
-        });
-    });
-});
-</script>
+    </script>
 @endpush

@@ -11,71 +11,163 @@ use App\Models\TienNghi;
 use App\Models\Wishlist;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
+use App\Models\DatPhong;
+use Carbon\Carbon;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class RoomController extends Controller
 {
     public function index(Request $request)
-    {
-        $query = Phong::with(['loaiPhong', 'tang', 'images'])
+{
+    $perPage = 9;
+
+    // Query gốc: lấy phòng để áp filter
+    $query = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis'])
         ->orderByDesc('created_at');
 
+    // =============== Lọc theo loại phòng ===============
     if ($request->filled('loai_phong_id')) {
         $query->where('loai_phong_id', $request->loai_phong_id);
     }
-     // Lọc theo khoảng giá
-        if ($request->filled('gia_khoang')) {
-            switch ($request->gia_khoang) {
-                case '1':
-                    $query->where('gia_mac_dinh', '<', 500000);
-                    break;
-                case '2':
-                    $query->whereBetween('gia_mac_dinh', [500000, 1000000]);
-                    break;
-                case '3':
-                    $query->whereBetween('gia_mac_dinh', [1000000, 1500000]);
-                    break;
-                case '4':
-                    $query->where('gia_mac_dinh', '>', 1500000);
-                    break;
-            }
-        }
-    // =============== Lọc theo loại phòng ===============
-        if ($request->filled('loai_phong_id')) {
-            $query->where('loai_phong_id', $request->loai_phong_id);
-        }
-        // =============== Lọc theo giá ===============
-        if ($request->filled('gia_min') && $request->filled('gia_max')) {
-            $query->whereBetween('gia_cuoi_cung', [$request->gia_min, $request->gia_max]);
-        }
-        // =============== Lọc theo tiện nghi ===============
-        if ($request->filled('tien_nghi')) {
-            $tienNghiIds = (array)$request->tien_nghi;
-            $query->whereHas('tienNghis', function ($q) use ($tienNghiIds) {
-                $q->whereIn('tien_nghi.id', $tienNghiIds);
-            });
-        }
-        
-        // ====== Lọc theo ngày Check-in / Check-out ======
-    $checkIn = null;
-    $checkOut = null;
-    if ($request->filled('check_in_out')) {
-        $dates = explode(' to ', $request->check_in_out);
-        if (count($dates) === 2) {
-            $checkIn = trim($dates[0]);
-            $checkOut = trim($dates[1]);
+
+    // =============== Lọc theo khoảng giá preset ===============
+    if ($request->filled('gia_khoang')) {
+        switch ($request->gia_khoang) {
+            case '1':
+                $query->where('gia_mac_dinh', '<', 500000);
+                break;
+            case '2':
+                $query->whereBetween('gia_mac_dinh', [500000, 1000000]);
+                break;
+            case '3':
+                $query->whereBetween('gia_mac_dinh', [1000000, 1500000]);
+                break;
+            case '4':
+                $query->where('gia_mac_dinh', '>', 1500000);
+                break;
         }
     }
 
-    // Không lọc theo trạng thái nữa → hiển thị tất cả
-    $phongs = $query->paginate(9)->withQueryString();
-    $phongs = $query->paginate(9);
+    // =============== Lọc theo giá slider ===============
+    if ($request->filled('gia_min') && $request->filled('gia_max')) {
+        $query->whereBetween('gia_cuoi_cung', [
+            $request->gia_min,
+            $request->gia_max,
+        ]);
+    }
+
+    // =============== Lọc theo tiện nghi ===============
+    if ($request->filled('tien_nghi')) {
+        $tienNghiIds = (array) $request->tien_nghi;
+        $query->whereHas('tienNghis', function ($q) use ($tienNghiIds) {
+            $q->whereIn('tien_nghi.id', $tienNghiIds);
+        });
+    }
+
+    // Sau khi áp tất cả filter -> lấy danh sách phòng
+    $allRooms = $query->get();
+
+    // Nhóm theo loại phòng
+    $groupedByType = $allRooms->groupBy('loai_phong_id');
+
+    // Tổng số phòng / loại
+    $totalRoomsByType = $groupedByType->map(function ($group) {
+        return $group->count();
+    });
+
+    // ===== Tính số phòng TRỐNG theo loại phòng trong khoảng ngày đã chọn (nếu có) =====
+    $availableByType = [];
+    $checkIn = null;
+    $checkOut = null;
+
+    if ($request->filled('date_range')) {
+        $dates = explode(' to ', $request->date_range);
+        if (count($dates) === 2) {
+            try {
+                $checkIn = Carbon::parse(trim($dates[0]))->startOfDay();
+                $checkOut = Carbon::parse(trim($dates[1]))->startOfDay();
+            } catch (\Throwable $e) {
+                $checkIn = $checkOut = null;
+            }
+        }
+    }
+
+    if ($checkIn && $checkOut) {
+        $from = $checkIn->toDateString();
+        $to   = $checkOut->toDateString();
+
+        // Đếm số PHÒNG đã bận (có booking trùng ngày) theo LOẠI PHÒNG
+        $busyByType = DB::table('dat_phong')
+            ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+            ->join('phong', 'phong.id', '=', 'dat_phong_item.phong_id')
+            // tránh trùng tên cột -> prefix đầy đủ
+            ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+            ->where(function ($q) use ($from, $to) {
+                $q->whereBetween('dat_phong.ngay_nhan_phong', [$from, $to])
+                  ->orWhereBetween('dat_phong.ngay_tra_phong', [$from, $to])
+                  ->orWhere(function ($q2) use ($from, $to) {
+                      // booking bao phủ toàn bộ khoảng chọn
+                      $q2->where('dat_phong.ngay_nhan_phong', '<=', $from)
+                         ->where('dat_phong.ngay_tra_phong', '>=', $to);
+                  });
+            })
+            ->selectRaw('phong.loai_phong_id, COUNT(DISTINCT phong.id) as so_phong_ban')
+            ->groupBy('phong.loai_phong_id')
+            ->pluck('so_phong_ban', 'phong.loai_phong_id')
+            ->toArray();
+
+        foreach ($totalRoomsByType as $typeId => $totalCount) {
+            $busy = $busyByType[$typeId] ?? 0;
+            $availableByType[$typeId] = max($totalCount - $busy, 0);
+        }
+    }
+
+    // Tạo collection loại phòng: 1 phòng đại diện + số lượng / số phòng trống
+    $roomTypeCollection = $groupedByType->map(function ($group, $typeId) use ($availableByType) {
+        /** @var \App\Models\Phong $room */
+        $room = $group->first();
+        $room->so_luong_phong_cung_loai = $group->count();
+        // nếu chưa chọn ngày => so_phong_trong = null
+        $room->so_phong_trong = $availableByType[$typeId] ?? null;
+        return $room;
+    })->values();
+
+    // Phân trang theo loại phòng
+    $page = LengthAwarePaginator::resolveCurrentPage();
+    $total = $roomTypeCollection->count();
+    $results = $roomTypeCollection->slice(($page - 1) * $perPage, $perPage)->values();
+
+    $phongs = new LengthAwarePaginator(
+        $results,
+        $total,
+        $perPage,
+        $page,
+        [
+            'path'  => $request->url(),
+            'query' => $request->query(),
+        ]
+    );
+
+    // Dữ liệu sidebar
     $loaiPhongs = LoaiPhong::all();
     $tienNghis = TienNghi::where('active', 1)->get();
-    $giaMin =   0;
-    $giaMax = Phong::max('gia_cuoi_cung') ;
-    return view('list-room', compact('phongs', 'loaiPhongs','tienNghis','giaMin',
-    'giaMax'));
-    }
+    $giaMin = 0;
+    $giaMax = Phong::max('gia_cuoi_cung');
+
+    return view('list-room', compact(
+        'phongs',
+        'loaiPhongs',
+        'tienNghis',
+        'giaMin',
+        'giaMax',
+        'checkIn',
+        'checkOut'
+    ));
+}
+
+
+
     public function show($id)
     {
         $phong = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis', 'bedTypes'])->findOrFail($id);
