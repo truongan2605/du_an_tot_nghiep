@@ -50,7 +50,7 @@ class VatDungIncidentController extends Controller
             'type' => 'nullable|string|max:100',
             'description' => 'nullable|string|max:2000',
             'fee' => 'nullable|numeric|min:0',
-            'mark_instance_status' => ['nullable', Rule::in(['damaged', 'missing', 'lost'])],
+            'mark_instance_status' => ['nullable', Rule::in(['damaged', 'missing'])],
             'consumption_quantity' => 'nullable|integer|min:1',
         ]);
 

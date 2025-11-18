@@ -7,11 +7,11 @@ use App\Models\Phong;
 use App\Models\PhongVatDungInstance;
 use App\Models\VatDung;
 use App\Models\PhongVatDungConsumption;
-use App\Models\VatDungIncident;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use App\Models\VatDungIncident;
+
 
 class PhongVatDungInstanceController extends Controller
 {
@@ -98,7 +98,7 @@ class PhongVatDungInstanceController extends Controller
                 ->increment('so_luong', $quantity);
         });
 
-        return back()->with('success', 'Tạo instance thành công');
+        return back()->with('success', 'Tạo vật dụng thành công');
     }
 
 
@@ -107,7 +107,7 @@ class PhongVatDungInstanceController extends Controller
         $data = $request->validate([
             'serial' => 'nullable|string|max:255',
             'note' => 'nullable|string|max:1000',
-            'status' => 'nullable|in:present,damaged,missing,lost,archived',
+            'status' => 'nullable|in:present,damaged,missing',
         ]);
 
         $instance->fill($data);
@@ -125,38 +125,120 @@ class PhongVatDungInstanceController extends Controller
             'incident_note' => 'nullable|string|max:1000',
         ]);
 
-        DB::transaction(function () use ($instance, $data) {
+        DB::beginTransaction();
+        try {
             $old = $instance->status;
-            $instance->status = $data['status'];
+            $new = $data['status'];
+
+            $activeBooking = $instance->phong?->activeDatPhong() ?? null;
+            $activeBookingId = $activeBooking->id ?? null;
+
+            $instance->status = $new;
             $instance->save();
 
-            if (in_array($data['status'], ['damaged', 'missing', 'lost'])) {
+            if ($new === 'present') {
+                $incQuery = \App\Models\VatDungIncident::where('phong_vat_dung_instance_id', $instance->id)
+                    ->where('phong_id', $instance->phong_id);
+                if ($activeBookingId) $incQuery->where('dat_phong_id', $activeBookingId);
+
+                $incidents = $incQuery->get();
+
+                foreach ($incidents as $inc) {
+                    $items = \App\Models\HoaDonItem::where('type', 'incident')
+                        ->where('ref_id', $inc->id)
+                        ->get();
+
+                    foreach ($items as $it) {
+                        $hoaDon = \App\Models\HoaDon::find($it->hoa_don_id);
+                        $amount = (float)$it->amount;
+                        $qty = (int)$it->quantity;
+
+                        $pivot = DB::table('phong_vat_dung')
+                            ->where('phong_id', $inc->phong_id)
+                            ->where('vat_dung_id', $inc->vat_dung_id)
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($pivot) {
+                            $newSoLuong = ((int)$pivot->so_luong) + $qty;
+                            $newDaTieu = max(0, ((int)$pivot->da_tieu_thu) - $qty);
+                            DB::table('phong_vat_dung')
+                                ->where('phong_id', $inc->phong_id)
+                                ->where('vat_dung_id', $inc->vat_dung_id)
+                                ->update([
+                                    'so_luong' => $newSoLuong,
+                                    'da_tieu_thu' => $newDaTieu,
+                                    'updated_at' => now()
+                                ]);
+                        }
+
+                        if ($hoaDon) {
+                            $hoaDon->tong_thuc_thu = max(0, (float)$hoaDon->tong_thuc_thu - $amount);
+                            $hoaDon->save();
+                            $it->delete();
+
+                            $remaining = \App\Models\HoaDonItem::where('hoa_don_id', $hoaDon->id)->count();
+                            if ($remaining === 0 && $hoaDon->trang_thai !== 'da_thanh_toan') {
+                                $hoaDon->delete();
+                            }
+                        } else {
+                            $it->delete();
+                        }
+
+                        // if (!empty($inc->dat_phong_id)) {
+                        //     $dp = DB::table('dat_phong')->where('id', $inc->dat_phong_id)->lockForUpdate()->first();
+                        //     if ($dp && isset($dp->tong_tien)) {
+                        //         $newTotal = max(0, ((float)$dp->tong_tien) - $amount);
+                        //         DB::table('dat_phong')->where('id', $inc->dat_phong_id)
+                        //             ->update(['tong_tien' => $newTotal, 'updated_at' => now()]);
+                        //     }
+                        // }
+                    }
+
+                    $inc->delete();
+                }
+            }
+
+            if (in_array($new, ['damaged', 'missing'])) {
+                if ($old !== 'present') {
+                    throw new \Exception('Chỉ được ghi nhận hỏng/mất khi bản thể đang ở trạng thái "Nguyên vẹn".');
+                }
+
+                $existQ = \App\Models\VatDungIncident::where('phong_vat_dung_instance_id', $instance->id)
+                    ->where('phong_id', $instance->phong_id);
+                if ($activeBookingId) $existQ->where('dat_phong_id', $activeBookingId);
+
+                if ($existQ->exists()) {
+                    throw new \Exception('Đã có sự cố / hoá đơn tương ứng cho bản thể này trong booking hiện tại.');
+                }
+
                 $mapType = [
                     'damaged' => 'damage',
                     'missing' => 'loss',
-                    'lost' => 'loss',
                 ];
-                $incidentType = $mapType[$data['status']] ?? 'other';
+                $incidentType = $mapType[$new] ?? 'other';
 
-                \App\Models\VatDungIncident::create([
+                VatDungIncident::create([
                     'phong_vat_dung_instance_id' => $instance->id,
                     'phong_id' => $instance->phong_id,
                     'vat_dung_id' => $instance->vat_dung_id,
+                    'dat_phong_id' => $activeBookingId,
                     'type' => $incidentType,
-                    'description' => $data['incident_note'] ?? ('Status changed to ' . $data['status']),
+                    'description' => $data['incident_note'] ?? ('Status changed to ' . $new),
                     'fee' => isset($data['incident_fee']) ? (float) $data['incident_fee'] : (optional($instance->vatDung)->gia ?? 0),
                     'reported_by' => Auth::id(),
+                    'reported_at' => now(),
                 ]);
             }
 
-            if (!empty($data['create_consumption'])) {
+            if (!empty($data['create_consumption']) && in_array($new, ['damaged', 'missing'])) {
                 PhongVatDungConsumption::create([
-                    'dat_phong_id' => null,
+                    'dat_phong_id' => $activeBookingId,
                     'phong_id' => $instance->phong_id,
                     'vat_dung_id' => $instance->vat_dung_id,
                     'quantity' => (int) ($instance->quantity ?? 1),
                     'unit_price' => optional($instance->vatDung)->gia ?? 0,
-                    'note' => 'Auto-charge due to instance status ' . $data['status'] . ' (instance id=' . $instance->id . ')',
+                    'note' => 'Auto-charge due to instance status ' . $new . ' (instance id=' . $instance->id . ')',
                     'created_by' => Auth::id(),
                     'consumed_at' => now(),
                 ]);
@@ -189,9 +271,13 @@ class PhongVatDungInstanceController extends Controller
                     ]);
                 }
             }
-        });
 
-        return back()->with('success', 'Cập nhật trạng thái thành công');
+            DB::commit();
+            return back()->with('success', 'Cập nhật trạng thái thành công');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'Lỗi: ' . $e->getMessage()]);
+        }
     }
 
 

@@ -44,7 +44,7 @@ class RegisteredUserController extends Controller
             'is_active' => false,
         ]);
 
-        $user->sendEmailVerificationNotification();
+        // $user->sendEmailVerificationNotification();
 
         // event(new Registered($user));
 

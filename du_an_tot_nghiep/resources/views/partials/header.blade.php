@@ -6,7 +6,7 @@
             <!-- Logo START -->
             <a class="navbar-brand" href="{{ url('/') }}">
                 <img class="light-mode-item navbar-brand-item"
-                    src="{{ asset('template/stackbros/assets/images/logo.svg') }}" alt="logo">
+                    src="{{ asset('template/stackbros/assets/images/logo_royal.png') }}" alt="logo" >
             </a>
             <!-- Logo END -->
 
