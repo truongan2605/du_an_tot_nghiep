@@ -64,13 +64,14 @@
             }
         })
     </script>
-    <script data-name-bot="bot-demo"
+    <!-- AI chatbox -->
+ <script data-name-bot="bot-demo"
 	src="https://app.preny.ai/embed-global.js"
 	data-button-style="width:300px;height:300px;"
 	data-language="vi"
 	async
 	defer
-	data-preny-bot-id="68f9f9aa35a3c9132eb17a68"
+	data-preny-bot-id="691c2794731640a12967585d"
 ></script>
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{ asset('template/stackbros/assets/images/favicon.ico') }}">
