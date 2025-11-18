@@ -45,7 +45,7 @@ class PaymentController extends Controller
                 'phuong_thuc' => 'required|in:vnpay',
                 'name' => 'required|string|max:255|min:2',
                 'address' => 'required|string|max:500|min:5',
-                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,' 
+                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,'
             ]);
 
             $expectedDeposit = $validated['total_amount'] * 0.2;

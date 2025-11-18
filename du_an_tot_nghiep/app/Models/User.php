@@ -1,16 +1,12 @@
 <?php
 
 namespace App\Models;
-use App\Models\DanhGia;
 
-use App\Models\DatPhong;
 use Laravel\Sanctum\HasApiTokens;
-
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -29,11 +25,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'gender',
         'address',
         'avatar',
-        'provider',      
-        'provider_id',   
+        'provider',
+        'provider_id',
     ];
-
-
 
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -46,11 +40,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'remember_token',
     ];
 
+    // ======= Vai trò =======
     public function isAdmin(): bool
     {
         return $this->vai_tro === 'admin';
     }
 
+    // ======= Quan hệ =======
     public function datPhongs()
     {
         return $this->hasMany(DatPhong::class, 'nguoi_dung_id');
@@ -58,16 +54,25 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function wishlists()
     {
-        return $this->hasMany(\App\Models\Wishlist::class);
+        return $this->hasMany(Wishlist::class);
     }
 
     public function favoritePhongs()
     {
-        return $this->belongsToMany(\App\Models\Phong::class, 'wishlists', 'user_id', 'phong_id')->withTimestamps();
+        return $this->belongsToMany(Phong::class, 'wishlists', 'user_id', 'phong_id')
+                    ->withTimestamps();
     }
 
     public function danhGias()
     {
         return $this->hasMany(DanhGia::class, 'nguoi_dung_id');
+    }
+
+    // ======= Quan hệ voucher =======
+    public function vouchers()
+    {
+        return $this->belongsToMany(Voucher::class, 'user_voucher', 'user_id', 'voucher_id')
+                    ->withPivot('claimed_at')
+                    ->withTimestamps();
     }
 }

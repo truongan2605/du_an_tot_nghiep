@@ -3,6 +3,7 @@
 @section('content')
 <div class="container">
     <h1>Chi tiết Voucher</h1>
+    <p><b>Tên:</b> {{ $voucher->name }}</p>
     <p><b>Mã:</b> {{ $voucher->code }}</p>
     <p><b>Loại:</b> {{ $voucher->type }}</p>
     <p><b>Giá trị:</b> {{ $voucher->value }}</p>
