@@ -29,7 +29,7 @@ public function index()
     $month = $today->month;
     $year = $today->year;
 
-    $activeStatus = ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'];
+    $activeStatus = ['da_xac_nhan', 'dang_su_dung'];
     $activeQuery = DatPhong::whereIn('trang_thai', $activeStatus)
         ->where('trang_thai', '!=', 'da_huy');
 
