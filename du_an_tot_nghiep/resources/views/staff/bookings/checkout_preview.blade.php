@@ -156,7 +156,7 @@
                     </a>
 
                     <button type="submit" class="btn btn-danger btn"
-                        onclick="return confirm('Xác nhận checkout? Sau khi checkout, các phòng sẽ được giải phóng và các dat_phong_item sẽ bị xóa.')">
+                        onclick="return confirm('Xác nhận checkout? Sau khi checkout, các phòng sẽ được giải phóng.')">
                         <i class="bi bi-box-arrow-right me-1"></i> Xác nhận Checkout & Tạo hoá đơn
                     </button>
                 </div>

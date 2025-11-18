@@ -152,7 +152,6 @@ class CheckoutController extends Controller
 
             $markPaid = !empty($data['mark_paid']);
 
-            // calculate nights (needed when building per-item lines)
             $nights = 1;
             if ($booking->ngay_nhan_phong && $booking->ngay_tra_phong) {
                 $nights = Carbon::parse($booking->ngay_nhan_phong)
@@ -164,7 +163,6 @@ class CheckoutController extends Controller
             if (empty($unpaidIds) && $extrasTotal <= 0) {
                 $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
 
-                // create a hoá đơn for record and add per-room items
                 $hoaDon = HoaDon::create([
                     'dat_phong_id' => $booking->id,
                     'so_hoa_don' => 'HD' . time(),
@@ -180,7 +178,6 @@ class CheckoutController extends Controller
                         HoaDonItem::create($roomItem);
                     }
                 }
-
 
                 $hoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
                 $hoaDon->save();
@@ -203,7 +200,7 @@ class CheckoutController extends Controller
                 }
 
                 DB::commit();
-                return redirect()->route('staff.bookings.show', $booking->id)
+                return redirect()->route('staff.bookings.checkout.show', ['booking' => $booking->id, 'invoice' => $hoaDon->id])
                     ->with('success', 'Hoá đơn đã được lập (chờ thanh toán): #' . $hoaDon->id);
             }
 
@@ -219,6 +216,7 @@ class CheckoutController extends Controller
             }
 
             $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
+
             if ($markPaid) {
                 foreach ($datPhongItems as $it) {
                     $exists = HoaDonItem::where('hoa_don_id', $targetHoaDon->id)
@@ -232,7 +230,6 @@ class CheckoutController extends Controller
                     }
                 }
             }
-
 
             if ($markPaid) {
                 $targetHoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
@@ -262,7 +259,7 @@ class CheckoutController extends Controller
 
             DB::commit();
 
-            return redirect()->route('staff.bookings.show', $booking->id)
+            return redirect()->route('staff.bookings.checkout.show', ['booking' => $booking->id, 'invoice' => $targetHoaDon->id])
                 ->with('success', 'Hoá đơn đã được xuất (chờ thanh toán): #' . $targetHoaDon->id);
         } catch (\Throwable $e) {
             DB::rollBack();

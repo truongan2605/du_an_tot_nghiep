@@ -342,10 +342,10 @@
                             data-url="{{ route('staff.checkin') }}" data-section="section-staff">
                             <i class="fas fa-sign-in-alt"></i>Check-in
                         </a>
-                        <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
+                        {{-- <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
                             data-url="{{ route('staff.reports') }}" data-section="section-staff">
                             <i class="fas fa-chart-line"></i>Báo cáo
-                        </a>
+                        </a> --}}
                     </div>
                 </div>
             @endif
