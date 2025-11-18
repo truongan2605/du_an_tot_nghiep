@@ -21,7 +21,7 @@
             @forelse ($phongs as $index => $phong)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td>{{ $phong->ten_phong ?? 'Không có tên' }}</td>
+                    <td>{{ $phong->ten ?? 'Không có tên' }}</td>
                     <td>
                         @if ($phong->average_rating)
                             ⭐ {{ number_format($phong->average_rating, 1) }}/5
