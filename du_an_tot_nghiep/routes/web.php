@@ -189,6 +189,7 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         // Quản lý phòng
         Route::get('/rooms', [StaffController::class, 'rooms'])->name('rooms');
         Route::patch('/rooms/{room}', [StaffController::class, 'updateRoom'])->name('rooms.update');
+        Route::post('/rooms/{room}/checkin', [StaffController::class, 'checkinFromRoom'])->name('rooms.checkin');
 
         // Checkin / Checkout
         Route::get('/checkin', [StaffController::class, 'checkinForm'])->name('checkin');

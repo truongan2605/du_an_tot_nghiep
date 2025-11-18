@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'My Profile')
+@section('title', 'Hồ sơ của tôi')
 
 @section('content')
     <section class="pt-3">
@@ -18,7 +18,7 @@
                             <div class="card bg-light w-100">
                                 <div class="position-absolute top-0 end-0 p-3">
                                     <a href="{{ route('account.settings') }}" class="text-primary-hover"
-                                        data-bs-toggle="tooltip" title="Edit profile">
+                                        data-bs-toggle="tooltip" title="Chỉnh sửa hồ sơ">
                                         <i class="bi bi-pencil-square"></i>
                                     </a>
                                 </div>
@@ -39,21 +39,21 @@
                                     <ul class="nav nav-pills-primary-soft flex-column">
                                         <li class="nav-item">
                                             <a class="nav-link active" href="{{ route('account.settings') }}"><i
-                                                    class="bi bi-person fa-fw me-2"></i>My Profile</a>
+                                                    class="bi bi-person fa-fw me-2"></i>Hồ sơ của tôi</a>
                                         </li>
                                         <li class="nav-item">
-                                            <a class="nav-link" href="{{ route('account.booking.index')}}" ><i class="bi bi-ticket-perforated fa-fw me-2"></i>My Bookings</a>
+                                            <a class="nav-link" href="{{ route('account.booking.index')}}" ><i class="bi bi-ticket-perforated fa-fw me-2"></i>Đặt phòng của tôi</a>
                                         </li>
                                         <li class="nav-item">
                                             <a class="nav-link" href="{{ url('/account/wishlist') }}"><i
-                                                    class="bi bi-heart fa-fw me-2"></i>Wishlist</a>
+                                                    class="bi bi-heart fa-fw me-2"></i>Danh sách yêu thích</a>
                                         </li>
                                         <li class="nav-item">
                                             <form method="POST" action="{{ route('logout') }}">
                                                 @csrf
                                                 <button type="submit"
                                                     class="btn nav-link text-start text-danger bg-danger-soft-hover w-100"><i
-                                                        class="fas fa-sign-out-alt fa-fw me-2"></i>Sign Out</button>
+                                                        class="fas fa-sign-out-alt fa-fw me-2"></i>Đăng xuất</button>
                                             </form>
                                         </li>
                                     </ul>
@@ -77,15 +77,15 @@
                         <!-- Personal info START -->
                         <div class="card border">
                             <div class="card-header border-bottom">
-                                <h4 class="card-header-title">Personal Information</h4>
+                                <h4 class="card-header-title">Thông tin cá nhân</h4>
                             </div>
                             @if (session('status') === 'verification-link-sent')
                                 <div class="alert alert-success">
-                                    Verification link has been sent to your email. Please check your inbox (or Mailtrap).
+                                    Liên kết xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư đến (hoặc Mailtrap).
                                 </div>
                             @elseif (session('status') === 'already-verified')
                                 <div class="alert alert-info">
-                                    Your email is already verified.
+                                    Email của bạn đã được xác thực.
                                 </div>
                             @endif
 
@@ -93,13 +93,12 @@
                                 <form method="POST" action="{{ route('verification.send') }}" style="margin-top: 15px; margin-left: 15px">
                                     @csrf
                                     <button type="submit" class="btn btn-sm btn-outline-primary mb-3">
-                                        Sent verification email
+                                        Gửi email xác thực
                                     </button>
                                 </form>
 
                                 <p class="small text" style="margin-left: 15px">
-                                    You need to verify your email to unlock all features. Check your inbox or click above to
-                                    resend.
+                                    Bạn cần xác thực email để mở khóa tất cả tính năng. Kiểm tra hộp thư đến hoặc nhấp vào trên để gửi lại.
                                 </p>
                             @endif
 
@@ -110,11 +109,11 @@
                                     @method('PATCH')
                                     {{-- avatar --}}
                                     <div class="col-12">
-                                        <label class="form-label">Upload your profile photo<span
+                                        <label class="form-label">Tải lên ảnh đại diện<span
                                                 class="text-danger">*</span></label>
                                         <div class="d-flex align-items-center">
                                             <label class="position-relative me-4" for="uploadfile-1"
-                                                title="Replace this pic">
+                                                title="Thay đổi ảnh này">
                                                 <span class="avatar avatar-xl">
                                                     <img id="uploadfile-1-preview"
                                                         class="avatar-img rounded-circle border border-white border-3 shadow"
@@ -123,7 +122,7 @@
                                                 </span>
                                             </label>
                                             <label class="btn btn-sm btn-primary-soft mb-0"
-                                                for="uploadfile-1">Change</label>
+                                                for="uploadfile-1">Thay đổi</label>
                                             <input id="uploadfile-1" name="avatar" class="form-control d-none"
                                                 type="file" accept="image/*">
                                         </div>
@@ -131,33 +130,33 @@
 
                                     {{-- name --}}
                                     <div class="col-md-6">
-                                        <label class="form-label">Full Name<span class="text-danger">*</span></label>
+                                        <label class="form-label">Họ và tên<span class="text-danger">*</span></label>
                                         <input type="text" name="name" class="form-control"
                                             value="{{ old('name', auth()->user()->name) }}"
-                                            placeholder="Enter your full name">
+                                            placeholder="Nhập họ và tên của bạn">
                                     </div>
 
                                     {{-- email --}}
                                     <div class="col-md-6">
-                                        <label class="form-label">Email address<span class="text-danger">*</span></label>
+                                        <label class="form-label">Địa chỉ email<span class="text-danger">*</span></label>
                                         <input type="email" name="email" class="form-control"
                                             value="{{ old('email', auth()->user()->email) }}"
-                                            placeholder="Enter your email id">
+                                            placeholder="Nhập địa chỉ email của bạn">
                                     </div>
 
                                     {{-- mobile --}}
                                     <div class="col-md-6">
-                                        <label class="form-label">Mobile number<span class="text-danger">*</span></label>
+                                        <label class="form-label">Số điện thoại<span class="text-danger">*</span></label>
                                         <input type="text" name="so_dien_thoai" class="form-control"
                                             value="{{ old('so_dien_thoai', auth()->user()->so_dien_thoai ?? '') }}"
-                                            placeholder="Enter your mobile number">
+                                            placeholder="Nhập số điện thoại của bạn">
                                     </div>
 
                                     {{-- nationality --}}
                                     <div class="col-md-6">
-                                        <label class="form-label">Nationality<span class="text-danger">*</span></label>
+                                        <label class="form-label">Quốc tịch<span class="text-danger">*</span></label>
                                         <select class="form-select js-choice" name="country">
-                                            <option value="">Select your country</option>
+                                            <option value="">Chọn quốc gia của bạn</option>
                                             <option value="USA"
                                                 {{ old('country', auth()->user()->country ?? '') == 'USA' ? 'selected' : '' }}>
                                                 USA</option>
@@ -178,49 +177,49 @@
 
                                     {{-- dob --}}
                                     <div class="col-md-6">
-                                        <label class="form-label">Date of Birth<span class="text-danger">*</span></label>
+                                        <label class="form-label">Ngày sinh<span class="text-danger">*</span></label>
 
                                         <input type="text" name="dob" class="form-control flatpickr"
                                             value="{{ old('dob', optional(auth()->user()->dob)->format('d M Y') ?? '') }}"
-                                            placeholder="Enter date of birth" data-date-format="d M Y">
+                                            placeholder="Nhập ngày sinh" data-date-format="d M Y">
                                     </div>
 
 
                                     {{-- gender --}}
                                     <div class="col-md-6">
-                                        <label class="form-label">Select Gender<span class="text-danger">*</span></label>
+                                        <label class="form-label">Chọn giới tính<span class="text-danger">*</span></label>
                                         <div class="d-flex gap-4">
                                             @php $gender = old('gender', auth()->user()->gender ?? 'male'); @endphp
                                             <div class="form-check radio-bg-light">
                                                 <input class="form-check-input" type="radio" name="gender"
                                                     id="g1" value="male"
                                                     {{ $gender == 'male' ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="g1">Male</label>
+                                                <label class="form-check-label" for="g1">Nam</label>
                                             </div>
                                             <div class="form-check radio-bg-light">
                                                 <input class="form-check-input" type="radio" name="gender"
                                                     id="g2" value="female"
                                                     {{ $gender == 'female' ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="g2">Female</label>
+                                                <label class="form-check-label" for="g2">Nữ</label>
                                             </div>
                                             <div class="form-check radio-bg-light">
                                                 <input class="form-check-input" type="radio" name="gender"
                                                     id="g3" value="other"
                                                     {{ $gender == 'other' ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="g3">Others</label>
+                                                <label class="form-check-label" for="g3">Khác</label>
                                             </div>
                                         </div>
                                     </div>
 
                                     {{-- address --}}
                                     <div class="col-12">
-                                        <label class="form-label">Address</label>
+                                        <label class="form-label">Địa chỉ</label>
                                         <textarea name="address" class="form-control" rows="3" spellcheck="false">{{ old('address', auth()->user()->address ?? '') }}</textarea>
                                     </div>
 
                                     {{-- submit --}}
                                     <div class="col-12 text-end">
-                                        <button type="submit" class="btn btn-primary mb-0">Save Changes</button>
+                                        <button type="submit" class="btn btn-primary mb-0">Lưu thay đổi</button>
                                     </div>
                                 </form>
                             </div>
@@ -231,8 +230,8 @@
                         @else
                             <div class="card border">
                                 <div class="card-header border-bottom">
-                                    <h4 class="card-header-title">Update Password</h4>
-                                    <p class="mb-0">Change your account password</p>
+                                    <h4 class="card-header-title">Cập nhật mật khẩu</h4>
+                                    <p class="mb-0">Thay đổi mật khẩu tài khoản của bạn</p>
                                 </div>
 
                                 <form class="card-body" method="POST" action="{{ route('password.update') }}">
@@ -240,7 +239,7 @@
                                     @method('PUT')
 
                                     @if (session('status') === 'password-updated')
-                                        <div class="alert alert-success">Password updated successfully.</div>
+                                        <div class="alert alert-success">Mật khẩu đã được cập nhật thành công.</div>
                                     @endif
 
                                     @if ($errors->updatePassword->any())
@@ -254,46 +253,46 @@
                                     @endif
 
                                     <div class="mb-3">
-                                        <label class="form-label">Current password</label>
+                                        <label class="form-label">Mật khẩu hiện tại</label>
                                         <div class="input-group">
                                             <input id="current_password" class="form-control" type="password"
-                                                name="current_password" placeholder="Enter current password" required>
+                                                name="current_password" placeholder="Nhập mật khẩu hiện tại" required>
                                             <span class="input-group-text p-0 bg-transparent">
                                                 <i class="fas fa-eye-slash cursor-pointer password-toggle"
-                                                    data-target="current_password" title="Show/Hide"
+                                                    data-target="current_password" title="Hiện/Ẩn"
                                                     style="padding: 10px"></i>
                                             </span>
                                         </div>
                                     </div>
 
                                     <div class="mb-3">
-                                        <label class="form-label">Enter new password</label>
+                                        <label class="form-label">Nhập mật khẩu mới</label>
                                         <div class="input-group">
                                             <input id="new_password" class="form-control" type="password"
-                                                name="password" placeholder="Enter new password" required>
+                                                name="password" placeholder="Nhập mật khẩu mới" required>
                                             <span class="input-group-text p-0 bg-transparent">
                                                 <i class="fas fa-eye-slash cursor-pointer password-toggle"
-                                                    data-target="new_password" title="Show/Hide"
+                                                    data-target="new_password" title="Hiện/Ẩn"
                                                     style="padding: 10px"></i>
                                             </span>
                                         </div>
                                     </div>
 
                                     <div class="mb-3">
-                                        <label class="form-label">Confirm new password</label>
+                                        <label class="form-label">Xác nhận mật khẩu mới</label>
                                         <div class="input-group">
                                             <input id="new_password_confirmation" class="form-control" type="password"
-                                                name="password_confirmation" placeholder="Confirm new password" required>
+                                                name="password_confirmation" placeholder="Xác nhận mật khẩu mới" required>
                                             <span class="input-group-text p-0 bg-transparent">
                                                 <i class="fas fa-eye-slash cursor-pointer password-toggle"
-                                                    data-target="new_password_confirmation" title="Show/Hide"
+                                                    data-target="new_password_confirmation" title="Hiện/Ẩn"
                                                     style="padding: 10px"></i>
                                             </span>
                                         </div>
                                     </div>
 
                                     <div class="text-end">
-                                        <button class="btn btn-primary mb-0">Change Password</button>
+                                        <button class="btn btn-primary mb-0">Đổi mật khẩu</button>
                                     </div>
                                 </form>
                             </div>

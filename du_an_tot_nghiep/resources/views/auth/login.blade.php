@@ -1,6 +1,6 @@
 @extends('layouts.auth')
 
-@section('title', 'Login')
+@section('title', 'Đăng nhập')
 
 @section('content')
     <section class="vh-xxl-100">
@@ -26,8 +26,8 @@
                                             src="{{ asset('template/stackbros/assets/images/logo-icon.svg') }}"
                                             alt="logo">
                                     </a>
-                                    <h1 class="mb-2 h3">Welcome back</h1>
-                                    <p class="mb-0">New here? <a href="{{ route('register') }}">Create an account</a></p>
+                                    <h1 class="mb-2 h3">Chào mừng trở lại</h1>
+                                    <p class="mb-0">Chưa có tài khoản? <a href="{{ route('register') }}">Tạo tài khoản</a></p>
 
                                     <!-- Form START -->
                                     <form class="mt-4 text-start" method="POST" action="{{ route('login') }}">
@@ -42,7 +42,7 @@
 
                                         <!-- Email -->
                                         <div class="mb-3">
-                                            <label class="form-label">Enter email id</label>
+                                            <label class="form-label">Nhập email</label>
                                             <input type="email" name="email" value="{{ old('email') }}"
                                                 class="form-control @error('email') is-invalid @enderror" required
                                                 autofocus>
@@ -53,7 +53,7 @@
 
                                         <!-- Password -->
                                         <div class="mb-3 position-relative">
-                                            <label class="form-label">Enter password</label>
+                                            <label class="form-label">Nhập mật khẩu</label>
                                             <input name="password" class="form-control fakepassword" type="password"
                                                 id="psw-input" required>
                                             <span class="position-absolute top-50 end-0 translate-middle-y p-0 mt-3">
@@ -66,25 +66,25 @@
                                             <div>
                                                 <input type="checkbox" name="remember" class="form-check-input"
                                                     id="rememberCheck" {{ old('remember') ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="rememberCheck">Remember me?</label>
+                                                <label class="form-check-label" for="rememberCheck">Ghi nhớ đăng nhập?</label>
                                             </div>
-                                            <a href="{{ route('password.request') }}">Forgot password?</a>
+                                            <a href="{{ route('password.request') }}">Quên mật khẩu?</a>
                                         </div>
 
                                         <!-- Button -->
-                                        <div><button type="submit" class="btn btn-primary w-100 mb-0">Login</button></div>
+                                        <div><button type="submit" class="btn btn-primary w-100 mb-0">Đăng nhập</button></div>
 
                                         <div class="position-relative my-4">
                                             <hr>
                                             <p
                                                 class="small bg-mode position-absolute top-50 start-50 translate-middle px-2">
-                                                Or sign in with</p>
+                                                Hoặc đăng nhập bằng</p>
                                         </div>
 
                                         <!-- Google and facebook button -->
                                         <div class="vstack gap-3" >
                                             <a href="{{ route('auth.google') }}" class="btn btn-light mb-0">
-                                                <i class="fab fa-fw fa-google text-google-icon me-2"></i>Sign in with Google
+                                                <i class="fab fa-fw fa-google text-google-icon me-2"></i>Đăng nhập bằng Google
                                             </a>
                                         </div>
                                     </form>

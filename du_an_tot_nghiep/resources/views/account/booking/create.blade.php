@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Booking - ' . ($phong->name ?? $phong->ma_phong))
+@section('title', 'Đặt phòng - ' . ($phong->name ?? $phong->ma_phong))
 
 @section('content')
     @php
@@ -67,8 +67,8 @@
                             không gây bừa bộn hoặc ồn ào trong phòng.</p>
                         <p>Ma túy và các sản phẩm bất hợp pháp gây say bị cấm và không được mang vào nhà hoặc tiêu thụ.</p>
                         <p>Đối với bất kỳ bản cập nhật nào, khách hàng sẽ phải trả phí hủy/sửa đổi áp dụng</p>
-                        <p>Check-in: 2:00 pm</p>
-                        <p>Check out: 12:00 am.</p>
+                        <p>Nhận phòng: 14:00</p>
+                        <p>Trả phòng: 12:00.</p>
                         <p>Tự làm thủ tục nhận phòng với nhân viên tòa khách sạn</p>
                         <p>Không được phép mang vật nuôi bên ngoài khách sạn.</p>
                         <p>Được sử dụng thuốc lá.</p>
@@ -117,7 +117,7 @@
                         <div class="vstack gap-5">
                             <div class="card shadow">
                                 <div class="card-header p-4 border-bottom">
-                                    <h3 class="mb-0"><i class="fa-solid fa-hotel me-2"></i>Room Information</h3>
+                                    <h3 class="mb-0"><i class="fa-solid fa-hotel me-2"></i>Thông tin phòng</h3>
                                 </div>
 
                                 <div class="card-body p-4">
@@ -146,15 +146,15 @@
                                                     <i class="bi bi-calendar fs-3 me-2 mt-2"></i>
                                                     <div
                                                         class="form-control-border form-control-transparent form-fs-md w-100">
-                                                        <label class="form-label">Check in - Check out</label>
+                                                        <label class="form-label">Nhận phòng - Trả phòng</label>
                                                         <input id="date_range" type="text" class="form-control flatpickr"
-                                                            placeholder="Select date range" readonly>
+                                                            placeholder="Chọn khoảng thời gian" readonly>
                                                         <input type="hidden" name="ngay_nhan_phong" id="ngay_nhan_phong"
                                                             value="{{ old('ngay_nhan_phong', \Carbon\Carbon::today()->format('Y-m-d')) }}">
                                                         <input type="hidden" name="ngay_tra_phong" id="ngay_tra_phong"
                                                             value="{{ old('ngay_tra_phong', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}">
-                                                        <small class="text-muted">Check-in time: 2:00 pm – Check-out time:
-                                                            12:00 pm</small>
+                                                        <small class="text-muted">Giờ nhận phòng: 14:00 – Giờ trả phòng:
+                                                            12:00</small>
                                                         <div id="availability_message" class="small mt-2"></div>
                                                         @error('ngay_nhan_phong')
                                                             <div class="text-danger small">{{ $message }}</div>
@@ -169,38 +169,37 @@
                                             <!-- Guests -->
                                             <div class="col-lg-6">
                                                 <div class="bg-light py-3 px-4 rounded-3">
-                                                    <h6 class="fw-light small mb-1">Guests</h6>
+                                                    <h6 class="fw-light small mb-1">Khách</h6>
                                                     <div class="row g-2 mb-2">
                                                         <div class="col-6">
-                                                            <label class="form-label">Adults</label>
+                                                            <label class="form-label">Người lớn</label>
                                                             <input type="number" name="adults" id="adults"
                                                                 class="form-control" min="1"
                                                                 max="{{ max(1, $roomCapacity + 2) }}"
                                                                 value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
-                                                            <small id="adults_help" class="text-muted d-block">Maximum
-                                                                number of people: <strong
+                                                            <small id="adults_help" class="text-muted d-block">Số người tối đa: <strong
                                                                     id="room_capacity_display">{{ $roomCapacity + 2 }}</strong></small>
                                                         </div>
 
                                                         <div class="col-6">
-                                                            <label class="form-label">Children</label>
+                                                            <label class="form-label">Trẻ em</label>
                                                             <input type="number" name="children" id="children"
                                                                 class="form-control" min="0" max="2"
                                                                 value="{{ old('children', 0) }}">
-                                                            <small id="children_help" class="text-muted d-block">Maximum 2
-                                                                children per room.</small>
+                                                            <small id="children_help" class="text-muted d-block">Tối đa 2
+                                                                trẻ em mỗi phòng.</small>
                                                         </div>
 
                                                         <div class="col-6">
-                                                            <label class="form-label">Rooms</label>
+                                                            <label class="form-label">Số phòng</label>
                                                             <input type="number" name="rooms_count" id="rooms_count"
                                                                 class="form-control" min="1"
                                                                 max="{{ $availableRoomsDefault ?? 1 }}"
                                                                 value="{{ old('rooms_count', 1) }}">
-                                                            <small class="text-muted d-block">Available for selected dates:
+                                                            <small class="text-muted d-block">Có sẵn cho ngày đã chọn:
                                                                 <strong
                                                                     id="available_rooms_display">{{ $availableRoomsDefault ?? 0 }}</strong>
-                                                                room(s)</small>
+                                                                phòng</small>
                                                         </div>
                                                     </div>
 
@@ -208,7 +207,7 @@
 
                                                     <div class="mt-3">
                                                         <i class="fa-solid fa-bed"></i>
-                                                        <strong>Room beds:</strong>
+                                                        <strong>Giường trong phòng:</strong>
                                                         <ul class="list-unstyled mb-2">
                                                             @forelse ($phong->bedTypes as $bt)
                                                                 <li class="mb-1">
@@ -218,24 +217,24 @@
                                                                             <strong>{{ $bt->name }}</strong>
                                                                             <div class="small text">
                                                                                 {{ $bt->description ?? '' }}</div>
-                                                                            <div class="small text">Quantity:
+                                                                            <div class="small text">Số lượng:
                                                                                 {{ $bt->pivot->quantity }}</div>
-                                                                            <div class="small text">Price/bed:
+                                                                            <div class="small text">Giá/giường:
                                                                                 {{ number_format($bt->price, 0, ',', '.') }}
-                                                                                đ/night</div>
+                                                                                đ/đêm</div>
                                                                         </div>
                                                                     </div>
                                                                 </li>
                                                             @empty
-                                                                <li><em>No beds configured for this room.</em></li>
+                                                                <li><em>Không có giường nào được cấu hình cho phòng này.</em></li>
                                                             @endforelse
                                                         </ul>
                                                     </div>
 
                                                     <input type="hidden" name="so_khach" id="so_khach"
                                                         value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
-                                                    <div class="small text">Room for:
-                                                        {{ $phong->suc_chua ?? ($roomCapacity ?? '-') }} persons</div>
+                                                    <div class="small text">Phòng cho:
+                                                        {{ $phong->suc_chua ?? ($roomCapacity ?? '-') }} người</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -247,7 +246,7 @@
                                             </div>
 
                                             <div class="card-body">
-                                                <h6>Services</h6>
+                                                <h6>Tiện ích</h6>
                                                 @if ($phong->tienNghis && $phong->tienNghis->count())
                                                     <ul class="list-unstyled">
                                                         @foreach ($phong->tienNghis as $tn)
@@ -264,11 +263,11 @@
                                                         @endforeach
                                                     </ul>
                                                     <hr class="my-3" />
-                                                    {{-- <h6 class="mb-2">Additional services</h6>
+                                                    <h6 class="mb-2" hidden>Dịch vụ bổ sung</h6>
                                                     @if (isset($availableAddons) && $availableAddons->count())
                                                         <ul class="list-unstyled">
                                                             @foreach ($availableAddons as $addon)
-                                                                <li class="mb-2">
+                                                                <li class="mb-2" hidden>
                                                                     <label class="d-flex align-items-center">
                                                                         <input type="checkbox" name="addons[]"
                                                                             value="{{ $addon->id }}"
@@ -282,33 +281,32 @@
                                                                             </div>
                                                                             <div class="small text">+
                                                                                 {{ number_format($addon->gia ?? 0, 0, ',', '.') }}
-                                                                                đ / night</div>
+                                                                                đ / đêm</div>
                                                                         </span>
                                                                     </label>
                                                                 </li>
                                                             @endforeach
                                                         </ul>
                                                     @else
-                                                        <p class="mb-0"><em>No additional payable services
-                                                                available.</em></p>
-                                                    @endif --}}
+                                                        <p class="mb-0"><em>Không có dịch vụ bổ sung có phí nào.</em></p>
+                                                    @endif
                                                 @else
-                                                    <p class="mb-0"><em>No services listed for this room.</em></p>
+                                                    <p class="mb-0"><em>Không có tiện ích nào được liệt kê cho phòng này.</em></p>
                                                 @endif
                                             </div>
                                         </div>
 
                                         <div class="card shadow mt-4">
                                             <div class="card-header border-bottom p-4">
-                                                <h4 class="card-title mb-0"><i class="bi bi-people-fill me-2"></i>Guest
-                                                    Details</h4>
+                                                <h4 class="card-title mb-0"><i class="bi bi-people-fill me-2"></i>Thông tin
+                                                    khách hàng</h4>
                                             </div>
 
                                             <div class="card-body p-4">
                                                 @php $u = $user ?? auth()->user(); @endphp
 
                                                 <div class="mb-3">
-                                                    <label class="form-label">Full name</label>
+                                                    <label class="form-label">Họ và tên</label>
                                                     <input type="text" name="name"
                                                         class="form-control form-control-lg"
                                                         value="{{ old('name', $u->name ?? '') }}" required>
@@ -318,7 +316,7 @@
                                                 </div>
 
                                                 <div class="mb-3">
-                                                    <label class="form-label">Address</label>
+                                                    <label class="form-label">Địa chỉ</label>
                                                     <input type="text" name="address"
                                                         class="form-control form-control-lg"
                                                         value="{{ old('address', $u->address ?? '') }}" required>
@@ -334,15 +332,15 @@
                                                             value="{{ $u->email ?? '' }}" readonly>
                                                     </div>
                                                     <div class="col-md-6">
-                                                        <label class="form-label">Phone</label>
+                                                        <label class="form-label">Số điện thoại</label>
                                                         <input type="text" name="phone" class="form-control"
                                                             value="{{ old('phone', $u->so_dien_thoai ?? '') }}" required>
                                                     </div>
                                                 </div>
 
                                                 <div class="mb-3">
-                                                    <label class="form-label">Notes</label>
-                                                    <textarea name="ghi_chu" class="form-control" rows="3" placeholder="Special notes for the hotel">{{ old('ghi_chu') }}</textarea>
+                                                    <label class="form-label">Ghi chú</label>
+                                                    <textarea name="ghi_chu" class="form-control" rows="3" placeholder="Ghi chú đặc biệt cho khách sạn">{{ old('ghi_chu') }}</textarea>
                                                 </div>
 
                                                 <div class="mb-3">
@@ -353,19 +351,19 @@
                                                         value="0">
 
                                                     <div class="mt-3">
-                                                        <label for="phuong_thuc" class="form-label">Payment method</label>
+                                                        <label for="phuong_thuc" class="form-label">Phương thức thanh toán</label>
                                                         <select name="phuong_thuc" id="phuong_thuc" class="form-select"
                                                             required>
-                                                            <option value="">Select method</option>
+                                                            <option value="">Chọn phương thức</option>
                                                             {{-- <option value="tien_mat"
                                                                 {{ old('phuong_thuc') == 'tien_mat' ? 'selected' : '' }}>
-                                                                Pay at the hotel (Cash)</option> --}}
+                                                                Thanh toán tại khách sạn (Tiền mặt)</option> --}}
                                                             <option value="vnpay"
-                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Pay
-                                                                with VNPAY</option>
+                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Thanh toán
+                                                                bằng VNPAY</option>
                                                             {{-- <option value="chuyen_khoan"
                                                                 {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
-                                                                Bank transfer</option> --}}
+                                                                Chuyển khoản ngân hàng</option> --}}
                                                         </select>
                                                     </div>
                                                 </div>
@@ -376,9 +374,9 @@
                                                     value="">
 
                                                 <div class="mt-3">
-                                                    <button type="submit" class="btn btn-lg btn-primary">Confirm</button>
+                                                    <button type="submit" class="btn btn-lg btn-primary">Xác nhận</button>
                                                     <a href="{{ route('rooms.show', $phong->id) }}"
-                                                        class="btn btn-secondary ms-2">Cancel</a>
+                                                        class="btn btn-secondary ms-2">Hủy</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -872,7 +870,7 @@
                     const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[i] !==
                         'undefined') ? Number(initialChildrenAges[i]) : 0;
                     wrapper.innerHTML = `
-                    <label class="form-label">Child ${i+1} age</label>
+                    <label class="form-label">Tuổi trẻ em ${i+1}</label>
                     <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
                     <div class="small text-danger mt-1 age-error" style="display:none;"></div>
                 `;
@@ -887,10 +885,10 @@
                         if (isNaN(v)) v = min;
                         if (v < min) {
                             this.value = min;
-                            showAgeError(this, `Minimum age is ${min}.`);
+                            showAgeError(this, `Tuổi tối thiểu là ${min}.`);
                         } else if (v > max) {
                             this.value = max;
-                            showAgeError(this, `The maximum age for children is ${max}.`);
+                            showAgeError(this, `Tuổi tối đa cho trẻ em là ${max}.`);
                         } else hideAgeError(this);
                         updateSummary();
                     });
