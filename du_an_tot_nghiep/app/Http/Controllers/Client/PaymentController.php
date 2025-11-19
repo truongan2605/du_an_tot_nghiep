@@ -48,7 +48,7 @@ class PaymentController extends Controller
                 'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,'
             ]);
 
-            $expectedDeposit = $validated['total_amount'] * 0.2;
+            $expectedDeposit = $validated['total_amount'] * 0.5;
             if (abs($validated['amount'] - $expectedDeposit) > 1000) {
                 return response()->json(['error' => 'Deposit không hợp lệ (phải khoảng 20% tổng)'], 400);
             }

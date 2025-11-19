@@ -1050,7 +1050,7 @@
                 const finalPerNight = baseTotalPerNight + adultsChargePerNightTotal + childrenChargePerNightTotal +
                     addonsPerNight;
                 const total = finalPerNight * nights;
-                const deposit = Math.ceil(total * 0.2 / 1000) * 1000;
+                const deposit = Math.ceil(total * 0.5 / 1000) * 1000;
 
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
                 priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :

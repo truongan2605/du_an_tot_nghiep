@@ -4,15 +4,15 @@ namespace App\Http\Controllers\Client;
 
 use Carbon\Carbon;
 use App\Models\Phong;
+use App\Models\Voucher;
 use App\Models\DatPhong;
 use Illuminate\Support\Str;
+use App\Models\VoucherUsage;
 use Illuminate\Http\Request;
 use App\Events\BookingCreated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
-use App\Models\Voucher;
-use App\Models\VoucherUsage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
@@ -397,7 +397,7 @@ class BookingController extends Controller
             'tong_tien' => 'required|numeric|gte:deposit_amount',
 
         ]);
-        $expectedDeposit = $validated['tong_tien'] * 0.2;
+        $expectedDeposit = $validated['tong_tien'] * 0.5;
         if (abs($validated['deposit_amount'] - $expectedDeposit) > 1000) {
             return back()->withErrors(['deposit_amount' => 'Deposit không hợp lệ (phải khoảng 20% tổng)']);
         }
@@ -949,7 +949,7 @@ class BookingController extends Controller
             }
 
             $finalTotal = $total - $discount;
-            $deposit = (int) round($finalTotal * 0.2);
+            $deposit = (int) round($finalTotal * 0.5);
 
             return response()->json([
                 'success' => true,

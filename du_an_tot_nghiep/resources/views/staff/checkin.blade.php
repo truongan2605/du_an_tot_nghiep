@@ -25,15 +25,7 @@
         </div>
     </div>
 
-    @if (session('success'))
-        <div class="alert alert-success alert-dismissible fade show border-0 shadow mb-3 rounded-3" role="alert" style="font-size: 0.875rem; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
-            <div class="d-flex align-items-center">
-                <i class="bi bi-check-circle-fill me-2 text-success"></i>
-                {{ session('success') }}
-            </div>
-            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
-        </div>
-    @endif
+   
     @if (session('error'))
         <div class="alert alert-danger alert-dismissible fade show border-0 shadow mb-3 rounded-3" role="alert" style="font-size: 0.875rem; background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);">
             <div class="d-flex align-items-center">
