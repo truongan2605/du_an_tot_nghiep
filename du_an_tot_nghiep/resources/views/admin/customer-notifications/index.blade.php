@@ -230,10 +230,6 @@
                                                class="btn btn-outline-primary" title="Xem chi tiết">
                                                 <i class="fas fa-eye"></i>
                                             </a>
-                                            <a href="{{ route('admin.customer-notifications.edit', $notification) }}" 
-                                               class="btn btn-outline-secondary" title="Chỉnh sửa">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
                                             @if($notification->trang_thai === 'failed')
                                                 <form method="POST" action="{{ route('admin.customer-notifications.resend', $notification) }}" 
                                                       class="d-inline" onsubmit="return confirm('Bạn có chắc muốn gửi lại thông báo này?')">

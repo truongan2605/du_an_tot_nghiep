@@ -151,21 +151,48 @@
                                     @endif
                                 </td>
                                 <td class="pe-2 text-center">
+                                    @php
+                                        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+                                        $hasCCCD = !empty($meta['checkin_cccd']);
+                                    @endphp
                                     @if ($booking->remaining > 0)
                                         @if ($canPayOrCheckin)
-                                            <form action="{{ route('payment.remaining', $booking->id) }}" method="POST" class="d-inline">
-                                                @csrf
-                                                <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden" style="width: 120px;">
-                                                    <select name="nha_cung_cap" class="form-select form-select-sm border-0 px-2" required>
-                                                        <option value="">Chọn</option>
-                                                        <option value="tien_mat">Tiền mặt</option>
-                                                        <option value="vnpay">VNPAY</option>
-                                                    </select>
-                                                    <button type="submit" class="btn btn-warning border-0 px-2" title="Thanh toán phần còn lại">
-                                                        <i class="bi bi-arrow-right"></i>
+                                            <div class="d-flex flex-column gap-1 align-items-center">
+                                                @if (!$hasCCCD)
+                                                    <button type="button" 
+                                                            class="btn btn-info btn-sm px-2 py-1 rounded-pill fw-semibold shadow-sm"
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#cccdModal{{ $booking->id }}"
+                                                            title="Nhập CCCD/CMND">
+                                                        <i class="bi bi-card-text me-1"></i>Nhập CCCD
                                                     </button>
-                                                </div>
-                                            </form>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-secondary btn-sm px-2 py-1 rounded-pill fw-semibold shadow-sm" 
+                                                            disabled
+                                                            data-bs-toggle="tooltip" 
+                                                            data-bs-placement="top"
+                                                            title="Vui lòng nhập CCCD/CMND trước khi thanh toán">
+                                                        <i class="bi bi-lock me-1"></i>Chưa thể thanh toán
+                                                    </button>
+                                                @else
+                                                    <span class="badge bg-success-subtle text-success border border-success rounded-pill px-2 py-1 small">
+                                                        <i class="bi bi-check-circle me-1"></i>Đã có CCCD
+                                                    </span>
+                                                    <form action="{{ route('payment.remaining', $booking->id) }}" method="POST" class="d-inline">
+                                                        @csrf
+                                                        <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden" style="width: 120px;">
+                                                            <select name="nha_cung_cap" class="form-select form-select-sm border-0 px-2" required>
+                                                                <option value="">Chọn</option>
+                                                                <option value="tien_mat">Tiền mặt</option>
+                                                                <option value="vnpay">VNPAY</option>
+                                                            </select>
+                                                            <button type="submit" class="btn btn-warning border-0 px-2" title="Thanh toán phần còn lại">
+                                                                <i class="bi bi-arrow-right"></i>
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                @endif
+                                            </div>
                                         @else
                                             <button class="btn btn-outline-secondary px-3 py-1 rounded-pill fw-semibold shadow-sm" disabled
                                                     data-bs-toggle="tooltip" data-bs-placement="top"
@@ -216,9 +243,93 @@
     </div>
 </div>
 
+{{-- Modal Nhập CCCD (cho booking còn nợ) --}}
+@foreach ($bookings as $booking)
+    @php
+        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $hasCCCD = !empty($meta['checkin_cccd']);
+    @endphp
+    @if ($booking->remaining > 0 && (\Carbon\Carbon::parse($booking->ngay_nhan_phong)->isToday() || \Carbon\Carbon::parse($booking->ngay_nhan_phong)->isPast()))
+    <div class="modal fade" id="cccdModal{{ $booking->id }}" tabindex="-1" aria-labelledby="cccdModalLabel{{ $booking->id }}" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="cccdModalLabel{{ $booking->id }}">
+                        <i class="bi bi-card-text me-2"></i>Nhập CCCD/CMND
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <form action="{{ route('staff.saveCCCD') }}" method="POST" id="cccdForm{{ $booking->id }}">
+                    @csrf
+                    <input type="hidden" name="booking_id" value="{{ $booking->id }}">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Thông tin Booking</label>
+                            <div class="card bg-light p-3">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Mã booking:</small>
+                                        <strong class="text-primary">{{ $booking->ma_tham_chieu }}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Khách hàng:</small>
+                                        <strong>{{ $booking->nguoiDung?->name ?? 'N/A' }}</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Còn nợ:</small>
+                                        <strong class="text-danger">{{ number_format($booking->remaining) }}đ</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Tổng tiền:</small>
+                                        <strong class="text-success">{{ number_format($booking->tong_tien) }}đ</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @if ($hasCCCD)
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Đã có CCCD:</strong> {{ $meta['checkin_cccd'] }}
+                            <br><small>Bạn có thể cập nhật số CCCD mới nếu cần.</small>
+                        </div>
+                        @endif
+                        <div class="mb-3">
+                            <label for="cccdInput{{ $booking->id }}" class="form-label fw-semibold">
+                                Số CCCD/CMND <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="cccdInput{{ $booking->id }}" 
+                                   name="cccd" 
+                                   placeholder="Nhập số CCCD/CMND của khách"
+                                   value="{{ $hasCCCD ? $meta['checkin_cccd'] : '' }}"
+                                   required
+                                   pattern="[0-9]{9,12}"
+                                   title="Vui lòng nhập số CCCD/CMND hợp lệ (9-12 chữ số)"
+                                   autofocus>
+                            <small class="form-text text-muted">Nhập số CCCD/CMND trước khi thanh toán. Sau khi nhập, bạn có thể thanh toán phần còn lại.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-info">
+                            <i class="bi bi-save me-1"></i>Lưu CCCD
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+@endforeach
+
 {{-- Modal Check-in với CCCD --}}
 @foreach ($bookings as $booking)
     @if ($booking->remaining <= 0 && (\Carbon\Carbon::parse($booking->ngay_nhan_phong)->isToday() || \Carbon\Carbon::parse($booking->ngay_nhan_phong)->isPast()))
+    @php
+        $checkinMeta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $checkinHasCCCD = !empty($checkinMeta['checkin_cccd']);
+    @endphp
     <div class="modal fade" id="checkinModal{{ $booking->id }}" tabindex="-1" aria-labelledby="checkinModalLabel{{ $booking->id }}" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -255,6 +366,13 @@
                                 </div>
                             </div>
                         </div>
+                        @if ($checkinHasCCCD)
+                        <div class="alert alert-success mb-3">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Đã có CCCD:</strong> {{ $checkinMeta['checkin_cccd'] }}
+                            <br><small>Bạn có thể xác nhận check-in hoặc cập nhật số CCCD mới nếu cần.</small>
+                        </div>
+                        @endif
                         <div class="mb-3">
                             <label for="cccd{{ $booking->id }}" class="form-label fw-semibold">
                                 Số CCCD/CMND <span class="text-danger">*</span>
@@ -264,6 +382,7 @@
                                    id="cccd{{ $booking->id }}" 
                                    name="cccd" 
                                    placeholder="Nhập số CCCD/CMND của khách"
+                                   value="{{ $checkinHasCCCD ? $checkinMeta['checkin_cccd'] : '' }}"
                                    required
                                    pattern="[0-9]{9,12}"
                                    title="Vui lòng nhập số CCCD/CMND hợp lệ (9-12 chữ số)"

@@ -63,13 +63,25 @@
                                     <p class="mb-0">{{ $booking->contact_phone ?? ($booking->phone ?? 'N/A') }}</p>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center mb-3">
+                              <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Địa chỉ</small>
                                     <p class="mb-0">{{ $booking->contact_address ?? ($booking->address ?? 'N/A') }}</p>
                                 </div>
                             </div>
+                            @php
+                                $cccd = $meta['checkin_cccd'] ?? null;
+                            @endphp
+                            @if($cccd)
+                            <div class="d-flex align-items-center mb-3">
+                                <i class="bi bi-card-text text-muted me-3"></i>
+                                <div>
+                                    <small class="text-muted">Số CCCD/CMND</small>
+                                    <p class="mb-0 fw-semibold">{{ $cccd }}</p>
+                                </div>
+                            </div>
+                            @endif
                             <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
                                 <div>
