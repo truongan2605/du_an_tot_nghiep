@@ -44,7 +44,12 @@ class BookingController extends Controller
 
         $completed = DatPhong::where('nguoi_dung_id', $user->id)
             ->where('trang_thai', 'hoan_thanh')
-            ->with(['datPhongItems.phong.tang', 'datPhongItems.loaiPhong'])
+            ->with([
+                'datPhongItems.phong.tang',
+                'datPhongItems.loaiPhong',
+                'hoaDons.hoaDonItems.phong.tang',
+                'hoaDons.hoaDonItems.loaiPhong',
+            ])
             ->orderBy('ngay_nhan_phong', 'desc')
             ->get();
 

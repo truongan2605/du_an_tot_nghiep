@@ -333,7 +333,7 @@ class StaffController extends Controller
         $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
         $meta['checkin_cccd'] = $request->cccd;
         $meta['cccd_saved_at'] = now()->toDateTimeString();
-        $meta['cccd_saved_by'] = auth()->id();
+        $meta['cccd_saved_by'] = Auth::id();
 
         $booking->update([
             'snapshot_meta' => $meta,
