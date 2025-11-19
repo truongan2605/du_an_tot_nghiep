@@ -280,6 +280,25 @@
                                 <div class="row align-items-center text-sm">
                                     <div class="col-md-3 d-flex align-items-center">
                                         <strong class="text-primary">#{{ $phongCode ?? 'Chưa gán' }}</strong>
+                                        @php
+                                            // nếu $item là dat_phong_item model thì lấy object phong nếu có
+                                            $phongObj = $isArrayLine ? null : $item->phong ?? null;
+                                        @endphp
+
+                                        {{-- nút đánh dấu đã dọn xong (chỉ khi booking da_xac_nhan & phòng có don_dep true) --}}
+                                        @if ($booking->trang_thai === 'da_xac_nhan' && !empty($phongId) && ($phongObj?->don_dep ?? false))
+                                            {{-- Simple POST form (reload page) --}}
+                                            <form
+                                                action="{{ route('staff.bookings.rooms.clear_cleaning', ['booking' => $booking->id, 'room' => $phongId]) }}"
+                                                method="POST" class="d-inline ms-2">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success"
+                                                    title="Đánh dấu đã dọn xong">
+                                                    <i class="bi bi-check-lg me-1"></i>Đã dọn xong
+                                                </button>
+                                            </form>
+
+                                        @endif
 
                                         {{-- Dịch vụ gọi thêm chỉ khi booking đang sử dụng --}}
                                         @if ($booking->trang_thai === 'dang_su_dung')

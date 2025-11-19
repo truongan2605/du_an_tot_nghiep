@@ -742,4 +742,49 @@ class StaffController extends Controller
         $booking->update(['trang_thai' => 'da_huy']);
         return redirect()->route('staff.pending-bookings')->with('success', 'Booking đã được hủy thành công.');
     }
+
+    public function clearRoomCleaning(Request $request, DatPhong $booking, Phong $room)
+    {
+        // Kiểm tra quyền (middleware role:nhan_vien|admin đã có ở route group)
+        // Kiểm tra booking phải đang ở trạng thái da_xac_nhan (theo yêu cầu)
+        if ($booking->id !== (int)$booking->id) {
+            // chưa cần, DatPhong binding đã đảm bảo
+        }
+
+        if (!in_array($booking->trang_thai, ['da_xac_nhan'])) {
+            // trả về cho UI
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'Booking không hợp lệ để thao tác.'], 422);
+            }
+            return redirect()->back()->with('error', 'Chỉ có booking trạng thái "đã xác nhận" mới cho phép thao tác dọn dẹp.');
+        }
+
+        // kiểm tra phòng thuộc booking
+        $roomIds = $booking->datPhongItems->pluck('phong_id')->filter()->map(fn($v) => (int)$v)->toArray();
+        if (!in_array($room->id, $roomIds)) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'Phòng không thuộc booking này.'], 422);
+            }
+            return redirect()->back()->with('error', 'Phòng không thuộc booking này.');
+        }
+
+        if (! (bool) $room->don_dep) {
+            if ($request->wantsJson()) {
+                return response()->json(['message' => 'Phòng đã được đánh dấu là đã dọn.'], 200);
+            }
+            return redirect()->back()->with('info', 'Phòng đã được đánh dấu là đã dọn.');
+        }
+
+        DB::transaction(function () use ($room) {
+            $room->don_dep = false;
+            $room->updated_at = now();
+            $room->save();
+            Log::info('Room cleaned by staff', ['room_id' => $room->id, 'by_user_id' => Auth::id() ?? null]);
+        });
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Đã cập nhật: phòng đã được đánh dấu là đã dọn xong.', 'room_id' => $room->id]);
+        }
+        return redirect()->back()->with('success', 'Đã đánh dấu phòng là đã dọn xong.');
+    }
 }
