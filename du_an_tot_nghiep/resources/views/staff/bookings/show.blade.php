@@ -71,14 +71,57 @@
                                 </div>
                             </div>
                             @php
-                                $cccd = $meta['checkin_cccd'] ?? null;
+                                $cccdFront = $meta['checkin_cccd_front'] ?? null;
+                                $cccdBack = $meta['checkin_cccd_back'] ?? null;
+                                $cccd = $meta['checkin_cccd'] ?? null; // Backward compatibility
+                                $hasFront = $cccdFront && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdFront);
+                                $hasBack = $cccdBack && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdBack);
+                                $isOldImage = $cccd && !$hasFront && !$hasBack && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccd);
                             @endphp
-                            @if ($cccd)
-                                <div class="d-flex align-items-center mb-3">
-                                    <i class="bi bi-card-text text-muted me-3"></i>
-                                    <div>
-                                        <small class="text-muted">Số CCCD/CMND</small>
-                                        <p class="mb-0 fw-semibold">{{ $cccd }}</p>
+                            @if ($hasFront || $hasBack || $isOldImage || (!empty($cccd) && !$isOldImage))
+                                <div class="d-flex align-items-start mb-3">
+                                    <i class="bi bi-card-text text-muted me-3 mt-1"></i>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted">Ảnh CCCD/CMND</small>
+                                        @if ($hasFront || $hasBack)
+                                            <div class="row g-2 mt-2">
+                                                @if ($hasFront)
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted d-block mb-1">Mặt trước:</small>
+                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdFront) }}" 
+                                                             alt="Mặt trước CCCD" 
+                                                             class="img-thumbnail w-100" 
+                                                             style="max-height: 300px; cursor: pointer; object-fit: contain;"
+                                                             onclick="window.open(this.src, '_blank')">
+                                                        <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
+                                                    </div>
+                                                @endif
+                                                @if ($hasBack)
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted d-block mb-1">Mặt sau:</small>
+                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdBack) }}" 
+                                                             alt="Mặt sau CCCD" 
+                                                             class="img-thumbnail w-100" 
+                                                             style="max-height: 300px; cursor: pointer; object-fit: contain;"
+                                                             onclick="window.open(this.src, '_blank')">
+                                                        <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @elseif ($isOldImage)
+                                            {{-- Backward compatibility: hiển thị ảnh cũ --}}
+                                            <div class="mt-2">
+                                                <img src="{{ \Illuminate\Support\Facades\Storage::url($cccd) }}" 
+                                                     alt="Ảnh CCCD" 
+                                                     class="img-thumbnail" 
+                                                     style="max-width: 400px; max-height: 300px; cursor: pointer;"
+                                                     onclick="window.open(this.src, '_blank')">
+                                                <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
+                                            </div>
+                                        @else
+                                            {{-- Backward compatibility: nếu là text cũ --}}
+                                            <p class="mb-0 fw-semibold">{{ $cccd }}</p>
+                                        @endif
                                     </div>
                                 </div>
                             @endif

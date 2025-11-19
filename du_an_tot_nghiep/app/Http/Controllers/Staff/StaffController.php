@@ -22,6 +22,7 @@ use App\Models\PhongVatDungInstance;
 use App\Models\VatDungIncident;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon as SupportCarbon;
+use Illuminate\Support\Facades\Storage;
 
 class StaffController extends Controller
 {
@@ -282,12 +283,17 @@ class StaffController extends Controller
     {
         $request->validate([
             'booking_id' => 'required|exists:dat_phong,id',
-            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
+            'cccd_image_front' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // max 5MB
+            'cccd_image_back' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // max 5MB
         ], [
-            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
-            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
-            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
-            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
+            'cccd_image_front.required' => 'Vui lòng chọn ảnh mặt trước CCCD/CMND',
+            'cccd_image_back.required' => 'Vui lòng chọn ảnh mặt sau CCCD/CMND',
+            'cccd_image_front.image' => 'File mặt trước phải là ảnh',
+            'cccd_image_back.image' => 'File mặt sau phải là ảnh',
+            'cccd_image_front.mimes' => 'Ảnh mặt trước phải có định dạng: jpeg, jpg, png, hoặc webp',
+            'cccd_image_back.mimes' => 'Ảnh mặt sau phải có định dạng: jpeg, jpg, png, hoặc webp',
+            'cccd_image_front.max' => 'Kích thước ảnh mặt trước không được vượt quá 5MB',
+            'cccd_image_back.max' => 'Kích thước ảnh mặt sau không được vượt quá 5MB',
         ]);
 
         $booking = DatPhong::with(['datPhongItems.phong', 'giaoDichs'])->findOrFail($request->booking_id);
@@ -317,9 +323,29 @@ class StaffController extends Controller
         }
 
         DB::transaction(function () use ($booking, $request) {
-            // Lưu CCCD vào snapshot_meta
+            // Xóa ảnh cũ nếu có
             $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-            $meta['checkin_cccd'] = $request->cccd;
+            
+            // Xóa ảnh cũ (backward compatibility)
+            if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
+                Storage::disk('public')->delete($meta['checkin_cccd']);
+            }
+            if (!empty($meta['checkin_cccd_front']) && Storage::disk('public')->exists($meta['checkin_cccd_front'])) {
+                Storage::disk('public')->delete($meta['checkin_cccd_front']);
+            }
+            if (!empty($meta['checkin_cccd_back']) && Storage::disk('public')->exists($meta['checkin_cccd_back'])) {
+                Storage::disk('public')->delete($meta['checkin_cccd_back']);
+            }
+
+            // Lưu ảnh mới
+            $frontImagePath = $request->file('cccd_image_front')->store('cccd', 'public');
+            $backImagePath = $request->file('cccd_image_back')->store('cccd', 'public');
+
+            // Lưu đường dẫn ảnh vào snapshot_meta
+            $meta['checkin_cccd_front'] = $frontImagePath;
+            $meta['checkin_cccd_back'] = $backImagePath;
+            // Giữ backward compatibility với checkin_cccd (dùng ảnh mặt trước)
+            $meta['checkin_cccd'] = $frontImagePath;
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
@@ -343,19 +369,44 @@ class StaffController extends Controller
     {
         $request->validate([
             'booking_id' => 'required|exists:dat_phong,id',
-            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
+            'cccd_image_front' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // max 5MB
+            'cccd_image_back' => 'required|image|mimes:jpeg,jpg,png,webp|max:5120', // max 5MB
         ], [
-            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
-            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
-            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
-            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
+            'cccd_image_front.required' => 'Vui lòng chọn ảnh mặt trước CCCD/CMND',
+            'cccd_image_back.required' => 'Vui lòng chọn ảnh mặt sau CCCD/CMND',
+            'cccd_image_front.image' => 'File mặt trước phải là ảnh',
+            'cccd_image_back.image' => 'File mặt sau phải là ảnh',
+            'cccd_image_front.mimes' => 'Ảnh mặt trước phải có định dạng: jpeg, jpg, png, hoặc webp',
+            'cccd_image_back.mimes' => 'Ảnh mặt sau phải có định dạng: jpeg, jpg, png, hoặc webp',
+            'cccd_image_front.max' => 'Kích thước ảnh mặt trước không được vượt quá 5MB',
+            'cccd_image_back.max' => 'Kích thước ảnh mặt sau không được vượt quá 5MB',
         ]);
 
         $booking = DatPhong::findOrFail($request->booking_id);
 
-        // Lưu CCCD vào snapshot_meta (chưa check-in)
+        // Xóa ảnh cũ nếu có
         $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-        $meta['checkin_cccd'] = $request->cccd;
+        
+        // Xóa ảnh cũ (backward compatibility)
+        if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd']);
+        }
+        if (!empty($meta['checkin_cccd_front']) && Storage::disk('public')->exists($meta['checkin_cccd_front'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd_front']);
+        }
+        if (!empty($meta['checkin_cccd_back']) && Storage::disk('public')->exists($meta['checkin_cccd_back'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd_back']);
+        }
+
+        // Lưu ảnh mới
+        $frontImagePath = $request->file('cccd_image_front')->store('cccd', 'public');
+        $backImagePath = $request->file('cccd_image_back')->store('cccd', 'public');
+
+        // Lưu đường dẫn ảnh vào snapshot_meta (chưa check-in)
+        $meta['checkin_cccd_front'] = $frontImagePath;
+        $meta['checkin_cccd_back'] = $backImagePath;
+        // Giữ backward compatibility với checkin_cccd (dùng ảnh mặt trước)
+        $meta['checkin_cccd'] = $frontImagePath;
         $meta['cccd_saved_at'] = now()->toDateTimeString();
         $meta['cccd_saved_by'] = Auth::id();
 
@@ -364,7 +415,7 @@ class StaffController extends Controller
         ]);
 
         return redirect()->route('staff.checkin')
-            ->with('success', 'Đã lưu số CCCD/CMND cho booking ' . $booking->ma_tham_chieu);
+            ->with('success', 'Đã lưu ảnh CCCD/CMND (mặt trước và mặt sau) cho booking ' . $booking->ma_tham_chieu);
     }
 
     public function checkoutForm()

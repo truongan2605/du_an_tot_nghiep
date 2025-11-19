@@ -675,8 +675,9 @@ class PaymentController extends Controller
 
         // Kiểm tra CCCD trước khi thanh toán
         $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-        if (empty($meta['checkin_cccd'])) {
-            return back()->with('error', 'Vui lòng nhập số CCCD/CMND trước khi thanh toán.');
+        $hasCCCD = !empty($meta['checkin_cccd_front']) || !empty($meta['checkin_cccd_back']) || !empty($meta['checkin_cccd']); // Backward compatibility
+        if (!$hasCCCD) {
+            return back()->with('error', 'Vui lòng upload ảnh CCCD/CMND (mặt trước và mặt sau) trước khi thanh toán.');
         }
 
         $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');

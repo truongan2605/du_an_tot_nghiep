@@ -146,7 +146,7 @@
                                     $meta = is_array($booking->snapshot_meta)
                                         ? $booking->snapshot_meta
                                         : json_decode($booking->snapshot_meta, true) ?? [];
-                                    $hasCCCD = !empty($meta['checkin_cccd']);
+                                    $hasCCCD = !empty($meta['checkin_cccd_front']) || !empty($meta['checkin_cccd_back']) || !empty($meta['checkin_cccd']); // Backward compatibility
 
                                     $hasDonDep = collect($booking->datPhongItems ?? [])
                                         ->pluck('phong')
@@ -331,7 +331,7 @@
             $meta = is_array($booking->snapshot_meta)
                 ? $booking->snapshot_meta
                 : json_decode($booking->snapshot_meta, true) ?? [];
-            $hasCCCD = !empty($meta['checkin_cccd']);
+            $hasCCCD = !empty($meta['checkin_cccd_front']) || !empty($meta['checkin_cccd_back']) || !empty($meta['checkin_cccd']); // Backward compatibility
         @endphp
         @if (
             $booking->remaining > 0 &&
@@ -348,7 +348,7 @@
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                                 aria-label="Đóng"></button>
                         </div>
-                        <form action="{{ route('staff.saveCCCD') }}" method="POST" id="cccdForm{{ $booking->id }}">
+                        <form action="{{ route('staff.saveCCCD') }}" method="POST" id="cccdForm{{ $booking->id }}" enctype="multipart/form-data">
                             @csrf
                             <input type="hidden" name="booking_id" value="{{ $booking->id }}">
                             <div class="modal-body">
@@ -377,24 +377,76 @@
                                         </div>
                                     </div>
                                 </div>
-                                @if ($hasCCCD)
+                                @php
+                                    $hasFront = !empty($meta['checkin_cccd_front']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($meta['checkin_cccd_front']);
+                                    $hasBack = !empty($meta['checkin_cccd_back']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($meta['checkin_cccd_back']);
+                                @endphp
+                                @if ($hasCCCD && ($hasFront || $hasBack))
                                     <div class="alert alert-info mb-3">
                                         <i class="bi bi-info-circle me-2"></i>
-                                        <strong>Đã có CCCD:</strong> {{ $meta['checkin_cccd'] }}
-                                        <br><small>Bạn có thể cập nhật số CCCD mới nếu cần.</small>
+                                        <strong>Đã có ảnh CCCD:</strong>
+                                        <div class="row g-2 mt-2">
+                                            @if ($hasFront)
+                                                <div class="col-6">
+                                                    <small class="text-muted d-block mb-1">Mặt trước:</small>
+                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($meta['checkin_cccd_front']) }}" 
+                                                         alt="Mặt trước CCCD" 
+                                                         class="img-thumbnail w-100" 
+                                                         style="max-height: 200px; cursor: pointer; object-fit: contain;"
+                                                         onclick="window.open(this.src, '_blank')">
+                                                </div>
+                                            @endif
+                                            @if ($hasBack)
+                                                <div class="col-6">
+                                                    <small class="text-muted d-block mb-1">Mặt sau:</small>
+                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($meta['checkin_cccd_back']) }}" 
+                                                         alt="Mặt sau CCCD" 
+                                                         class="img-thumbnail w-100" 
+                                                         style="max-height: 200px; cursor: pointer; object-fit: contain;"
+                                                         onclick="window.open(this.src, '_blank')">
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <br><small>Bạn có thể cập nhật ảnh CCCD mới nếu cần.</small>
                                     </div>
                                 @endif
                                 <div class="mb-3">
-                                    <label for="cccdInput{{ $booking->id }}" class="form-label fw-semibold">
-                                        Số CCCD/CMND <span class="text-danger">*</span>
+                                    <label class="form-label fw-semibold">
+                                        Ảnh CCCD/CMND <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" id="cccdInput{{ $booking->id }}"
-                                        name="cccd" placeholder="Nhập số CCCD/CMND của khách"
-                                        value="{{ $hasCCCD ? $meta['checkin_cccd'] : '' }}" required
-                                        pattern="[0-9]{9,12}" title="Vui lòng nhập số CCCD/CMND hợp lệ (9-12 chữ số)"
-                                        autofocus>
-                                    <small class="form-text text-muted">Nhập số CCCD/CMND trước khi thanh toán. Sau khi
-                                        nhập, bạn có thể thanh toán phần còn lại.</small>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="cccdFront{{ $booking->id }}" class="form-label small">
+                                                Mặt trước <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="file" 
+                                                   class="form-control" 
+                                                   id="cccdFront{{ $booking->id }}"
+                                                   name="cccd_image_front" 
+                                                   accept="image/*" 
+                                                   required
+                                                   onchange="previewCCCDImage(this, 'previewFront{{ $booking->id }}')">
+                                            <div id="previewFront{{ $booking->id }}" class="mt-2" style="display: none;">
+                                                <img id="previewImgFront{{ $booking->id }}" src="" alt="Preview mặt trước" class="img-thumbnail w-100" style="max-height: 200px; object-fit: contain;">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="cccdBack{{ $booking->id }}" class="form-label small">
+                                                Mặt sau <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="file" 
+                                                   class="form-control" 
+                                                   id="cccdBack{{ $booking->id }}"
+                                                   name="cccd_image_back" 
+                                                   accept="image/*" 
+                                                   required
+                                                   onchange="previewCCCDImage(this, 'previewBack{{ $booking->id }}')">
+                                            <div id="previewBack{{ $booking->id }}" class="mt-2" style="display: none;">
+                                                <img id="previewImgBack{{ $booking->id }}" src="" alt="Preview mặt sau" class="img-thumbnail w-100" style="max-height: 200px; object-fit: contain;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <small class="form-text text-muted">Vui lòng chụp hoặc upload ảnh mặt trước và mặt sau của CCCD/CMND của khách trước khi thanh toán. Sau khi upload, bạn có thể thanh toán phần còn lại.</small>
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -425,7 +477,7 @@
             $checkinMeta = is_array($booking->snapshot_meta)
                 ? $booking->snapshot_meta
                 : json_decode($booking->snapshot_meta, true) ?? [];
-            $checkinHasCCCD = !empty($checkinMeta['checkin_cccd']);
+            $checkinHasCCCD = !empty($checkinMeta['checkin_cccd_front']) || !empty($checkinMeta['checkin_cccd_back']) || !empty($checkinMeta['checkin_cccd']); // Backward compatibility
         @endphp
 
         @if ($booking->remaining <= 0 && $isTodayOrPast && !$hasDonDep)
@@ -442,7 +494,7 @@
                         </div>
 
                         <form action="{{ route('staff.processCheckin') }}" method="POST"
-                            id="checkinForm{{ $booking->id }}">
+                            id="checkinForm{{ $booking->id }}" enctype="multipart/form-data">
                             @csrf
                             <input type="hidden" name="booking_id" value="{{ $booking->id }}">
                             <div class="modal-body">
@@ -471,24 +523,76 @@
                                     </div>
                                 </div>
 
-                                @if ($checkinHasCCCD)
+                                @php
+                                    $checkinHasFront = !empty($checkinMeta['checkin_cccd_front']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($checkinMeta['checkin_cccd_front']);
+                                    $checkinHasBack = !empty($checkinMeta['checkin_cccd_back']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($checkinMeta['checkin_cccd_back']);
+                                @endphp
+                                @if ($checkinHasCCCD && ($checkinHasFront || $checkinHasBack))
                                     <div class="alert alert-success mb-3">
                                         <i class="bi bi-check-circle me-2"></i>
-                                        <strong>Đã có CCCD:</strong> {{ $checkinMeta['checkin_cccd'] }}
-                                        <br><small>Bạn có thể xác nhận check-in hoặc cập nhật số CCCD mới nếu cần.</small>
+                                        <strong>Đã có ảnh CCCD:</strong>
+                                        <div class="row g-2 mt-2">
+                                            @if ($checkinHasFront)
+                                                <div class="col-6">
+                                                    <small class="text-muted d-block mb-1">Mặt trước:</small>
+                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($checkinMeta['checkin_cccd_front']) }}" 
+                                                         alt="Mặt trước CCCD" 
+                                                         class="img-thumbnail w-100" 
+                                                         style="max-height: 200px; cursor: pointer; object-fit: contain;"
+                                                         onclick="window.open(this.src, '_blank')">
+                                                </div>
+                                            @endif
+                                            @if ($checkinHasBack)
+                                                <div class="col-6">
+                                                    <small class="text-muted d-block mb-1">Mặt sau:</small>
+                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($checkinMeta['checkin_cccd_back']) }}" 
+                                                         alt="Mặt sau CCCD" 
+                                                         class="img-thumbnail w-100" 
+                                                         style="max-height: 200px; cursor: pointer; object-fit: contain;"
+                                                         onclick="window.open(this.src, '_blank')">
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <br><small>Bạn có thể xác nhận check-in hoặc cập nhật ảnh CCCD mới nếu cần.</small>
                                     </div>
                                 @endif
 
                                 <div class="mb-3">
-                                    <label for="cccd{{ $booking->id }}" class="form-label fw-semibold">Số CCCD/CMND
+                                    <label class="form-label fw-semibold">Ảnh CCCD/CMND
                                         <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="cccd{{ $booking->id }}"
-                                        name="cccd" placeholder="Nhập số CCCD/CMND của khách"
-                                        value="{{ $checkinHasCCCD ? $checkinMeta['checkin_cccd'] : '' }}" required
-                                        pattern="[0-9]{9,12}" title="Vui lòng nhập số CCCD/CMND hợp lệ (9-12 chữ số)"
-                                        autofocus>
-                                    <small class="form-text text-muted">Vui lòng nhập số CCCD/CMND của khách hàng để hoàn
-                                        tất check-in</small>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="cccdCheckinFront{{ $booking->id }}" class="form-label small">
+                                                Mặt trước <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="file" 
+                                                   class="form-control" 
+                                                   id="cccdCheckinFront{{ $booking->id }}"
+                                                   name="cccd_image_front" 
+                                                   accept="image/*" 
+                                                   required
+                                                   onchange="previewCCCDImage(this, 'previewCheckinFront{{ $booking->id }}')">
+                                            <div id="previewCheckinFront{{ $booking->id }}" class="mt-2" style="display: none;">
+                                                <img id="previewImgCheckinFront{{ $booking->id }}" src="" alt="Preview mặt trước" class="img-thumbnail w-100" style="max-height: 200px; object-fit: contain;">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="cccdCheckinBack{{ $booking->id }}" class="form-label small">
+                                                Mặt sau <span class="text-danger">*</span>
+                                            </label>
+                                            <input type="file" 
+                                                   class="form-control" 
+                                                   id="cccdCheckinBack{{ $booking->id }}"
+                                                   name="cccd_image_back" 
+                                                   accept="image/*" 
+                                                   required
+                                                   onchange="previewCCCDImage(this, 'previewCheckinBack{{ $booking->id }}')">
+                                            <div id="previewCheckinBack{{ $booking->id }}" class="mt-2" style="display: none;">
+                                                <img id="previewImgCheckinBack{{ $booking->id }}" src="" alt="Preview mặt sau" class="img-thumbnail w-100" style="max-height: 200px; object-fit: contain;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <small class="form-text text-muted">Vui lòng chụp hoặc upload ảnh mặt trước và mặt sau của CCCD/CMND của khách hàng để hoàn tất check-in</small>
                                 </div>
                             </div>
 
@@ -506,6 +610,37 @@
     @endforeach
 
     <script>
+        function previewCCCDImage(input, previewId) {
+            const preview = document.getElementById(previewId);
+            if (!preview) return;
+            
+            // Tìm previewImg element dựa trên previewId
+            let previewImgId = previewId;
+            if (previewId.includes('Front')) {
+                previewImgId = previewId.replace('previewFront', 'previewImgFront').replace('previewCheckinFront', 'previewImgCheckinFront');
+            } else if (previewId.includes('Back')) {
+                previewImgId = previewId.replace('previewBack', 'previewImgBack').replace('previewCheckinBack', 'previewImgCheckinBack');
+            } else {
+                previewImgId = previewId.replace('preview', 'previewImg');
+                if (previewId.includes('Checkin')) {
+                    previewImgId = previewId.replace('previewCheckin', 'previewImgCheckin');
+                }
+            }
+            
+            const previewImg = document.getElementById(previewImgId);
+            
+            if (input.files && input.files[0] && previewImg) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            } else if (preview) {
+                preview.style.display = 'none';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Modal thanh toán
             @if (session('show_payment_modal'))
