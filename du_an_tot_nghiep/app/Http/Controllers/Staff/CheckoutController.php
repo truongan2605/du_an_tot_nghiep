@@ -185,7 +185,7 @@ class CheckoutController extends Controller
                 if ($markPaid) {
                     $phongIds = collect($datPhongItems)->pluck('phong_id')->filter()->unique()->toArray();
                     if (!empty($phongIds)) {
-                        Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'updated_at' => now()]);
+                        Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
                     }
 
                     DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
@@ -238,7 +238,7 @@ class CheckoutController extends Controller
 
                 $phongIds = $datPhongItems->pluck('phong_id')->filter()->unique()->toArray();
                 if (!empty($phongIds)) {
-                    Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'updated_at' => now()]);
+                    Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
                 }
 
                 DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
@@ -309,7 +309,7 @@ class CheckoutController extends Controller
 
             $phongIds = $datPhongItems->pluck('phong_id')->filter()->unique()->toArray();
             if (!empty($phongIds)) {
-                Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'updated_at' => now()]);
+                Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
             }
 
             DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();

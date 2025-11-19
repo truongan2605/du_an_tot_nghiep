@@ -229,21 +229,32 @@ class StaffController extends Controller
 
     public function checkinForm()
     {
-        $bookings = DatPhong::with(['nguoiDung', 'giaoDichs' => function ($q) {
-            $q->where('trang_thai', 'thanh_cong');
-        }])
+        $bookings = DatPhong::with([
+            'nguoiDung',
+            'giaoDichs' => function ($q) {
+                $q->where('trang_thai', 'thanh_cong');
+            },
+            'datPhongItems.phong'
+        ])
             ->whereIn('trang_thai', ['da_xac_nhan', 'da_gan_phong'])
-
             ->orderBy('ngay_nhan_phong', 'asc')
             ->get()
             ->map(function ($booking) {
                 $paid      = $booking->giaoDichs->sum('so_tien');
                 $remaining = $booking->tong_tien - $paid;
 
-                $booking->paid       = $paid;
-                $booking->remaining  = $remaining;
-                $booking->can_checkin = $remaining <= 0;
+                $hasDonDep = $booking->datPhongItems
+                    ->pluck('phong')
+                    ->filter()
+                    ->pluck('don_dep')
+                    ->contains(true);
 
+                $booking->paid = $paid;
+                $booking->remaining = $remaining;
+
+                $booking->can_checkin = ($remaining <= 0) && (!$hasDonDep);
+
+                $booking->checkin_blocked_due_to = $hasDonDep ? 'room_in_cleaning' : null;
 
                 $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
                 $today       = \Carbon\Carbon::today();
@@ -279,7 +290,20 @@ class StaffController extends Controller
             'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
         ]);
 
+        $booking = DatPhong::with(['datPhongItems.phong', 'giaoDichs'])->findOrFail($request->booking_id);
+
         $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
+
+        $phongIds = collect($booking->datPhongItems)->pluck('phong_id')->filter()->toArray();
+
+        $hasDonDep = false;
+        if (!empty($phongIds)) {
+            $hasDonDep = \App\Models\Phong::whereIn('id', $phongIds)->where('don_dep', true)->exists();
+        }
+
+        if ($hasDonDep) {
+            return redirect()->back()->with('error', 'Không thể check-in: Một hoặc nhiều phòng đang dọn dẹp. Vui lòng kiểm tra lại sau.');
+        }
 
         if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
             return redirect()->back()->with('error', 'Booking không thể check-in');
@@ -307,7 +331,7 @@ class StaffController extends Controller
 
             $phongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
             if (!empty($phongIds)) {
-                Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
+                Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o', 'don_dep' => false, 'updated_at' => now()]);
             }
         });
 

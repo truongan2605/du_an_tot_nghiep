@@ -200,6 +200,9 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         // Reports / Overview
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
+
+        Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
+            ->name('bookings.rooms.clear_cleaning');
     });
 
 

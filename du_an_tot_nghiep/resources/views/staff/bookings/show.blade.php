@@ -63,7 +63,7 @@
                                     <p class="mb-0">{{ $booking->contact_phone ?? ($booking->phone ?? 'N/A') }}</p>
                                 </div>
                             </div>
-                              <div class="d-flex align-items-center mb-3">
+                            <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Địa chỉ</small>
@@ -73,14 +73,14 @@
                             @php
                                 $cccd = $meta['checkin_cccd'] ?? null;
                             @endphp
-                            @if($cccd)
-                            <div class="d-flex align-items-center mb-3">
-                                <i class="bi bi-card-text text-muted me-3"></i>
-                                <div>
-                                    <small class="text-muted">Số CCCD/CMND</small>
-                                    <p class="mb-0 fw-semibold">{{ $cccd }}</p>
+                            @if ($cccd)
+                                <div class="d-flex align-items-center mb-3">
+                                    <i class="bi bi-card-text text-muted me-3"></i>
+                                    <div>
+                                        <small class="text-muted">Số CCCD/CMND</small>
+                                        <p class="mb-0 fw-semibold">{{ $cccd }}</p>
+                                    </div>
                                 </div>
-                            </div>
                             @endif
                             <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
@@ -132,7 +132,6 @@
                                                 'dang_o' => 'Đang ở',
                                             ];
 
-                                            // fallback an toàn: chuyển underscore -> khoảng trắng và viết hoa từ đầu (Str::title xử lý multibyte)
                                             $label =
                                                 $statusLabels[$status] ?? Str::title(str_replace('_', ' ', $status));
                                             $class = $statusClasses[$status] ?? 'bg-dark';
