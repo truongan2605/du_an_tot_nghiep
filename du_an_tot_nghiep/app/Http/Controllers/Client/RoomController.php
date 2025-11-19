@@ -18,11 +18,46 @@ use Illuminate\Support\Facades\DB;
 
 class RoomController extends Controller
 {
+    // Tăng giá 10% cho 3 ngày cuối tuần (T6, T7, CN)
+    public const WEEKEND_MULTIPLIER = 1.10;
+
     public function index(Request $request)
 {
     $perPage = 9;
 
-    // Query gốc: lấy phòng để áp filter
+    // ==== Phát hiện khoảng ngày & có dính cuối tuần hay không ====
+    $checkIn = null;
+    $checkOut = null;
+    $hasWeekend = false;
+
+    if ($request->filled('date_range')) {
+        $dates = explode(' to ', $request->date_range);
+        if (count($dates) === 2) {
+            try {
+                $checkIn = Carbon::parse(trim($dates[0]))->startOfDay();
+                $checkOut = Carbon::parse(trim($dates[1]))->startOfDay();
+            } catch (\Throwable $e) {
+                $checkIn = $checkOut = null;
+            }
+        }
+    }
+
+    if ($checkIn && $checkOut && $checkIn->lt($checkOut)) {
+        $cursor = $checkIn->copy();
+        while ($cursor->lt($checkOut)) {
+            // ISO: 5=Fri, 6=Sat, 7=Sun
+            if (in_array($cursor->dayOfWeekIso, [5, 6, 7], true)) {
+                $hasWeekend = true;
+                break;
+            }
+            $cursor->addDay();
+        }
+    }
+
+    // Nếu có dính cuối tuần thì giá thực tế tăng 10%
+    $weekendMultiplier = $hasWeekend ? 1.10 : 1.0;
+
+    // ==== Query gốc ====
     $query = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis'])
         ->orderByDesc('created_at');
 
@@ -31,7 +66,7 @@ class RoomController extends Controller
         $query->where('loai_phong_id', $request->loai_phong_id);
     }
 
-    // =============== Lọc theo khoảng giá preset ===============
+    // =============== Lọc theo khoảng giá preset (1–4) dựa trên giá NGÀY THƯỜNG ===============
     if ($request->filled('gia_khoang')) {
         switch ($request->gia_khoang) {
             case '1':
@@ -50,11 +85,17 @@ class RoomController extends Controller
     }
 
     // =============== Lọc theo giá slider ===============
+    // Thanh giá thể hiện "giá khách phải trả" => nếu có weekend thì đó là base * 1.1
     if ($request->filled('gia_min') && $request->filled('gia_max')) {
-        $query->whereBetween('gia_cuoi_cung', [
-            $request->gia_min,
-            $request->gia_max,
-        ]);
+        $filterMin = (float) $request->gia_min;
+        $filterMax = (float) $request->gia_max;
+
+        // Quy đổi ngược về giá ngày thường để whereBetween trong DB
+        $mult = $weekendMultiplier > 0 ? $weekendMultiplier : 1.0;
+        $minBase = floor($filterMin / $mult);
+        $maxBase = ceil($filterMax / $mult);
+
+        $query->whereBetween('gia_cuoi_cung', [$minBase, $maxBase]);
     }
 
     // =============== Lọc theo tiện nghi ===============
@@ -78,39 +119,22 @@ class RoomController extends Controller
 
     // ===== Tính số phòng TRỐNG theo loại phòng trong khoảng ngày đã chọn (nếu có) =====
     $availableByType = [];
-    $checkIn = null;
-    $checkOut = null;
-
-    if ($request->filled('date_range')) {
-        $dates = explode(' to ', $request->date_range);
-        if (count($dates) === 2) {
-            try {
-                $checkIn = Carbon::parse(trim($dates[0]))->startOfDay();
-                $checkOut = Carbon::parse(trim($dates[1]))->startOfDay();
-            } catch (\Throwable $e) {
-                $checkIn = $checkOut = null;
-            }
-        }
-    }
 
     if ($checkIn && $checkOut) {
         $from = $checkIn->toDateString();
         $to   = $checkOut->toDateString();
 
-        // Đếm số PHÒNG đã bận (có booking trùng ngày) theo LOẠI PHÒNG
         $busyByType = DB::table('dat_phong')
             ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
             ->join('phong', 'phong.id', '=', 'dat_phong_item.phong_id')
-            // tránh trùng tên cột -> prefix đầy đủ
             ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
             ->where(function ($q) use ($from, $to) {
                 $q->whereBetween('dat_phong.ngay_nhan_phong', [$from, $to])
-                  ->orWhereBetween('dat_phong.ngay_tra_phong', [$from, $to])
-                  ->orWhere(function ($q2) use ($from, $to) {
-                      // booking bao phủ toàn bộ khoảng chọn
-                      $q2->where('dat_phong.ngay_nhan_phong', '<=', $from)
-                         ->where('dat_phong.ngay_tra_phong', '>=', $to);
-                  });
+                    ->orWhereBetween('dat_phong.ngay_tra_phong', [$from, $to])
+                    ->orWhere(function ($q2) use ($from, $to) {
+                        $q2->where('dat_phong.ngay_nhan_phong', '<=', $from)
+                            ->where('dat_phong.ngay_tra_phong', '>=', $to);
+                    });
             })
             ->selectRaw('phong.loai_phong_id, COUNT(DISTINCT phong.id) as so_phong_ban')
             ->groupBy('phong.loai_phong_id')
@@ -128,7 +152,6 @@ class RoomController extends Controller
         /** @var \App\Models\Phong $room */
         $room = $group->first();
         $room->so_luong_phong_cung_loai = $group->count();
-        // nếu chưa chọn ngày => so_phong_trong = null
         $room->so_phong_trong = $availableByType[$typeId] ?? null;
         return $room;
     })->values();
@@ -152,8 +175,15 @@ class RoomController extends Controller
     // Dữ liệu sidebar
     $loaiPhongs = LoaiPhong::all();
     $tienNghis = TienNghi::where('active', 1)->get();
-    $giaMin = 0;
-    $giaMax = Phong::max('gia_cuoi_cung');
+
+    // ==== GIÁ MIN/MAX CHO SLIDER ====
+    // Giá ngày thường trong DB
+    $baseMin = (int) (Phong::min('gia_cuoi_cung') ?? 0);
+    $baseMax = (int) (Phong::max('gia_cuoi_cung') ?? 0);
+
+    $giaMin = $baseMin;
+    // Slider luôn cho phép tới giá cuối tuần tối đa (max + 10%)
+    $giaMax = (int) ceil($baseMax * 1.10);
 
     return view('list-room', compact(
         'phongs',
@@ -162,7 +192,8 @@ class RoomController extends Controller
         'giaMin',
         'giaMax',
         'checkIn',
-        'checkOut'
+        'checkOut',
+        'hasWeekend' // nếu sau này bạn muốn hiện note nhỏ
     ));
 }
 
@@ -230,23 +261,27 @@ class RoomController extends Controller
 
         if ($phong->relationLoaded('bedTypes') && $phong->bedTypes->count()) {
             foreach ($phong->bedTypes as $bt) {
-                $qty = (int) ($bt->pivot->quantity ?? 0);
-                if ($qty <= 0) continue;
-                $price = $bt->pivot->price !== null ? (float) $bt->pivot->price : (float) ($bt->price ?? 0);
+                $qty = (int)($bt->pivot->quantity ?? 0);
+                if ($qty <= 0) {
+                    continue;
+                }
+                $price = $bt->pivot->price !== null
+                    ? (float)$bt->pivot->price
+                    : (float)($bt->price ?? 0);
                 $bedSummary->push([
-                    'id' => $bt->id,
-                    'name' => $bt->name ?? ($bt->title ?? 'Bed'),
+                    'id'       => $bt->id,
+                    'name'     => $bt->name ?? ($bt->title ?? 'Bed'),
                     'quantity' => $qty,
-                    'price' => $price,
+                    'price'    => $price,
                     'capacity' => $bt->capacity ?? null,
-                    'icon' => $bt->icon ?? null,
+                    'icon'     => $bt->icon ?? null,
                 ]);
                 $totalBeds += $qty;
             }
         }
 
         if ($totalBeds <= 0) {
-            $totalBeds = (int) ($phong->so_giuong ?? $phong->loaiPhong->so_giuong ?? 0);
+            $totalBeds = (int)($phong->so_giuong ?? $phong->loaiPhong->so_giuong ?? 0);
         }
 
         $isWished = false;
@@ -256,6 +291,34 @@ class RoomController extends Controller
                 ->exists();
         }
 
-        return view('detail-room', compact('phong', 'related', 'avgRating', 'reviews', 'bedSummary', 'totalBeds', 'isWished'));
+        return view('detail-room', compact(
+            'phong',
+            'related',
+            'avgRating',
+            'reviews',
+            'bedSummary',
+            'totalBeds',
+            'isWished'
+        ));
+    }
+
+    /**
+     * Đếm số đêm rơi vào cuối tuần (Thứ 6, 7, CN) trong khoảng [from, to)
+     */
+    private function countWeekendNights(Carbon $fromDate, Carbon $toDate): int
+    {
+        $cursor = $fromDate->copy()->startOfDay();
+        $end = $toDate->copy()->startOfDay();
+        $count = 0;
+
+        while ($cursor < $end) {
+            // ISO day: 5 = Friday, 6 = Saturday, 7 = Sunday
+            if (in_array($cursor->dayOfWeekIso, [5, 6, 7], true)) {
+                $count++;
+            }
+            $cursor->addDay();
+        }
+
+        return $count;
     }
 }
