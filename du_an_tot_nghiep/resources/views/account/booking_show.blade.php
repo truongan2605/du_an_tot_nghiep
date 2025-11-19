@@ -51,7 +51,7 @@
                                         'dang_cho' => ['label' => 'Đang chờ', 'class' => 'bg-warning text-dark border-warning'],
                                         'dang_cho_xac_nhan' => ['label' => 'Đang chờ', 'class' => 'bg-warning text-dark border-warning'],
                                         'dang_su_dung' => ['label' => 'Đang Sử Dụng', 'class' => 'bg-success text-white border-warning'],
-                                        'da_xac_nhan' => ['label' => 'Đã xác nhận', 'class' => 'bg-primary text-white border-primary'],
+                                        'da_xac_nhan' => ['label' => 'Đã đặt cọc', 'class' => 'bg-primary text-white border-primary'],
                                         'da_huy' => ['label' => 'Đã hủy', 'class' => 'bg-danger text-white border-danger'],
                                         'hoan_thanh' => ['label' => 'Hoàn thành', 'class' => 'bg-success text-white border-success'],
                                     ];
@@ -62,7 +62,7 @@
                                 @endphp
 
                                 {{-- Status Badge --}}
-                                <span class="badge px-3 py-2 fs-6 fw-semibold {{ $s['class'] }}">{{ $s['label'] }}</span>
+                                <span class="badge {{ $s['class'] }} fw-bold" style="font-size:18px; padding:0.6rem 1rem; line-height:1;">{{ $s['label'] }}</span>
 
                                 {{-- Action Buttons --}}
                                 <div class="d-flex gap-1">
