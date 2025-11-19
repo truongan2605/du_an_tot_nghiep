@@ -743,6 +743,7 @@ class BookingController extends Controller
             return back()->withInput()->withErrors(['error' => 'Could not create booking: ' . $e->getMessage()]);
         }
     }
+    
     public function validateVoucher(Request $request)
     {
         $request->validate([
