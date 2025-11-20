@@ -56,6 +56,11 @@ class LoaiPhongController extends Controller
 
     public function store(Request $request)
     {
+        // ✨ Convert giá từ "10.000.000" → "10000000" trước khi validate
+        $request->merge([
+            'gia_mac_dinh' => str_replace('.', '', $request->gia_mac_dinh)
+        ]);
+
         $request->validate([
             'ma' => 'required|string|max:50|unique:loai_phong,ma',
             'ten' => 'required|string|max:255',
@@ -80,6 +85,10 @@ class LoaiPhongController extends Controller
         DB::beginTransaction();
         try {
             $data = $request->only(['ma', 'ten', 'mo_ta', 'gia_mac_dinh']);
+
+            // Chuyển "5.000.000" thành 5000000
+            $data['gia_mac_dinh'] = (int) str_replace('.', '', $data['gia_mac_dinh']);
+
             $data['so_luong_thuc_te'] = $request->input('so_luong_thuc_te', 0);
 
             $data['suc_chua'] = (int) $request->input('suc_chua', 0);
