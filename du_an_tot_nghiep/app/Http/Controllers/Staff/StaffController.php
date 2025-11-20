@@ -120,7 +120,7 @@ class StaffController extends Controller
             ->with('user:id,name')
             ->get()
             ->map(fn($b) => [
-                'title' => 'BK-' . $b->ma_tham_chieu,
+                'title' => $b->ma_tham_chieu,
                 'start' => $b->ngay_nhan_phong,
                 'end' => $b->ngay_tra_phong,
                 'description' => "Khách: " . ($b->user->name ?? 'Ẩn danh') . " | " . ucfirst($b->trang_thai)
@@ -289,7 +289,15 @@ class StaffController extends Controller
         $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
         
         // Kiểm tra đã có CCCD chưa
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        if (is_array($booking->snapshot_meta)) {
+            $meta = $booking->snapshot_meta;
+        } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+            /** @var string $snapshotMeta */
+            $snapshotMeta = $booking->snapshot_meta;
+            $meta = json_decode($snapshotMeta, true) ?? [];
+        } else {
+            $meta = [];
+        }
         $cccdList = $meta['checkin_cccd_list'] ?? [];
         $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
         
@@ -325,8 +333,16 @@ class StaffController extends Controller
 
         DB::transaction(function () use ($booking, $request) {
             // Xóa ảnh cũ nếu có
-            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-            
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                /** @var string $snapshotMeta */
+                $snapshotMeta = $booking->snapshot_meta;
+                $meta = json_decode($snapshotMeta, true) ?? [];
+            } else {
+                $meta = [];
+            }
+
             // Xóa ảnh cũ (backward compatibility)
             if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
                 Storage::disk('public')->delete($meta['checkin_cccd']);
@@ -383,7 +399,15 @@ class StaffController extends Controller
         ]);
         
         $booking = DatPhong::findOrFail($request->booking_id);
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        if (is_array($booking->snapshot_meta)) {
+            $meta = $booking->snapshot_meta;
+        } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+            /** @var string $snapshotMeta */
+            $snapshotMeta = $booking->snapshot_meta;
+            $meta = json_decode($snapshotMeta, true) ?? [];
+        } else {
+            $meta = [];
+        }
         
         // Lấy số lượng CCCD từ input
         $cccdCount = (int) $request->input('cccd_count', 1);
@@ -649,7 +673,7 @@ class StaffController extends Controller
             }
         }
 
-        $rooms = $query->orderBy('ma_phong')->paginate(10);
+        $rooms = $query->orderBy('ma_phong')->paginate(12);
 
         return view('staff.rooms', compact('rooms'));
     }
@@ -698,7 +722,15 @@ class StaffController extends Controller
         // Thực hiện check-in
         DB::transaction(function () use ($booking, $room) {
             // Cập nhật meta với thông tin check-in (giữ nguyên CCCD nếu đã có)
-            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                /** @var string $snapshotMeta */
+                $snapshotMeta = $booking->snapshot_meta;
+                $meta = json_decode($snapshotMeta, true) ?? [];
+            } else {
+                $meta = [];
+            }
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
@@ -727,7 +759,15 @@ class StaffController extends Controller
     {
         $booking->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'nguoiDung', 'giaoDichs']);
 
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        if (is_array($booking->snapshot_meta)) {
+            $meta = $booking->snapshot_meta;
+        } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+            /** @var string $snapshotMeta */
+            $snapshotMeta = $booking->snapshot_meta;
+            $meta = json_decode($snapshotMeta, true) ?? [];
+        } else {
+            $meta = [];
+        }
 
         $roomIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
 
@@ -823,6 +863,16 @@ class StaffController extends Controller
             }
         }
 
+        $refundItems = \App\Models\HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
+            $q->where('dat_phong_id', $booking->id);
+        })->where('type', 'refund')->get();
+
+        $earlyRefundTotal = 0;
+        if ($refundItems->isNotEmpty()) {
+            $earlyRefundTotal = $refundItems->sum('amount');
+            $earlyRefundTotal = $earlyRefundTotal < 0 ? abs($earlyRefundTotal) : $earlyRefundTotal;
+        }
+
         return view('staff.bookings.show', compact(
             'booking',
             'meta',
@@ -831,7 +881,8 @@ class StaffController extends Controller
             'instances',
             'incidentsByInstance',
             'bookingMap',
-            'roomLinesFromInvoice'
+            'roomLinesFromInvoice',
+            'earlyRefundTotal'
         ));
     }
 
