@@ -81,6 +81,31 @@ class AuditFieldTranslator
         'is_active' => 'Đang hoạt động',
     ];
 
+    /**
+     * Technical fields that should be hidden from audit display
+     * These are internal/system fields that don't provide value to end users
+     */
+    protected static $blacklistedFields = [
+        'id',
+        'created_at',
+        'updated_at', 
+        'deleted_at',
+        'spec_signature_hash',
+        'snapshot_meta',
+        'snapshot_total',
+        'snapshot_rooms',
+        'snapshot_addons',
+        'remember_token',
+        'email_verified_at',
+        'password',
+        'ip_address',
+        'user_agent',
+        'session_id',
+        'properties', // Audit log internal field
+        'old_values', // Raw old values
+        'new_values', // Raw new values
+    ];
+
     protected static $statusMap = [
         'dang_cho' => 'Đang chờ',
         'dang_cho_xac_nhan' => 'Chờ xác nhận',
@@ -191,5 +216,13 @@ class AuditFieldTranslator
             'restored' => 'Khôi phục',
             default => ucfirst($event)
         };
+    }
+
+    /**
+     * Check if a field should be hidden from audit display
+     */
+    public static function isBlacklisted($field)
+    {
+        return in_array($field, self::$blacklistedFields);
     }
 }

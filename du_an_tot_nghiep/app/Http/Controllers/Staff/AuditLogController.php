@@ -68,50 +68,82 @@ class AuditLogController extends Controller
 
             // Build human-readable summary: up to 3 fields: field: old → new
             $summaryParts = [];
-            $maxPreview = 3;
-            $count = 0;
-            foreach ($changedKeys as $k) {
-                if ($count >= $maxPreview) break;
-                $o = array_key_exists($k, (array)$old) ? $old[$k] : null;
-                $n = array_key_exists($k, (array)$new) ? $new[$k] : null;
+                // Process changes for display
+                $summary = [];
+                $detailsHtml = '';
                 
-                // Translate field name and values
-                $fieldLabel = \App\Helpers\AuditFieldTranslator::translateField($k);
-                $oStr = \App\Helpers\AuditFieldTranslator::translateValue($k, $o);
-                $nStr = \App\Helpers\AuditFieldTranslator::translateValue($k, $n);
-                
-                $oStr = $this->shorten($oStr);
-                $nStr = $this->shorten($nStr);
-                
-                $summaryParts[] = "{$fieldLabel}: {$oStr} → {$nStr}";
-                $count++;
-            }
-            $remaining = max(0, count($changedKeys) - $maxPreview);
-            if ($remaining > 0) {
-                $summaryParts[] = "+{$remaining} khác";
-            }
-            $changesSummary = empty($summaryParts) ? '-' : implode(' • ', $summaryParts);
+                // Get friendly model name for summary
+                $friendlyModel = \App\Helpers\AuditFieldTranslator::translateModel($log->auditable_type);
 
-            // Build safe HTML for modal details (table of fields) - escape values
-            $detailsHtml = '<div class="table-responsive"><table class="table table-sm mb-0">';
-            $detailsHtml .= '<thead><tr><th>Trường</th><th class="text-end">Giá trị cũ</th><th class="text-end">Giá trị mới</th></tr></thead><tbody>';
-            foreach ($changedKeys as $k) {
-                $o = array_key_exists($k, (array)$old) ? $old[$k] : null;
-                $n = array_key_exists($k, (array)$new) ? $new[$k] : null;
+                if ($log->event === 'created') {
+                    $summary[] = "Tạo mới {$friendlyModel}";
+                    if ($log->new_values) {
+                        $detailsHtml .= '<h6 class="text-success mb-2"><i class="fas fa-plus-circle me-2"></i>Giá trị mới</h6><ul class="list-unstyled small">';
+                        foreach ($log->new_values as $field => $newVal) {
+                            // Skip blacklisted fields
+                            if (\App\Helpers\AuditFieldTranslator::isBlacklisted($field)) {
+                                continue;
+                            }
+                            
+                            $label = \App\Helpers\AuditFieldTranslator::translateField($field);
+                            $formatted = \App\Helpers\AuditFieldTranslator::translateValue($field, $newVal);
+                            $detailsHtml .= "<li><strong>{$label}:</strong> {$formatted}</li>";
+                        }
+                        $detailsHtml .= '</ul>';
+                    }
+                } elseif ($log->event === 'updated' && $log->old_values && $log->new_values) {
+                    $changes = [];
+                    $detailsHtml .= '<div class="table-responsive"><table class="table table-sm mb-0">';
+                    $detailsHtml .= '<thead><tr><th>Trường</th><th class="text-end">Giá trị cũ</th><th class="text-end">Giá trị mới</th></tr></thead><tbody>';
+                    $hasChanges = false;
+                    foreach ($log->new_values as $field => $newVal) {
+                        // Skip blacklisted fields
+                        if (\App\Helpers\AuditFieldTranslator::isBlacklisted($field)) {
+                            continue;
+                        }
+                        
+                        $oldVal = $log->old_values[$field] ?? null;
+                        if ($oldVal != $newVal) {
+                            $hasChanges = true;
+                            $label = \App\Helpers\AuditFieldTranslator::translateField($field);
+                            $oldFormatted = \App\Helpers\AuditFieldTranslator::translateValue($field, $oldVal);
+                            $newFormatted = \App\Helpers\AuditFieldTranslator::translateValue($field, $newVal);
+                            
+                            $oldShort = e($this->shorten($oldFormatted));
+                            $newShort = e($this->shorten($newFormatted));
+
+                            $changes[] = "{$label}: {$oldShort} → {$newShort}";
+                            $detailsHtml .= "<tr><td class=\"small text-muted\">".e($label)."</td><td class=\"text-end small text-danger\">{$oldShort}</td><td class=\"text-end small text-success\">{$newShort}</td></tr>";
+                        }
+                    }
+                    if (!$hasChanges) {
+                        $detailsHtml .= '<tr><td colspan="3" class="small text-muted">Không có thay đổi cụ thể</td></tr>';
+                    }
+                    $detailsHtml .= '</tbody></table></div>';
+                    $summary = $changes;
+                } elseif ($log->event === 'deleted') {
+                    $summary[] = "Xóa {$friendlyModel}";
+                    if ($log->old_values) {
+                        $detailsHtml .= '<h6 class="text-danger mb-2"><i class="fas fa-trash-alt me-2"></i>Giá trị cũ (đã xóa)</h6><ul class="list-unstyled small">';
+                        foreach ($log->old_values as $field => $oldVal) {
+                            // Skip blacklisted fields
+                            if (\App\Helpers\AuditFieldTranslator::isBlacklisted($field)) {
+                                continue;
+                            }
+                            
+                            $label = \App\Helpers\AuditFieldTranslator::translateField($field);
+                            $formatted = \App\Helpers\AuditFieldTranslator::translateValue($field, $oldVal);
+                            $detailsHtml .= "<li><strong>{$label}:</strong> {$formatted}</li>";
+                        }
+                        $detailsHtml .= '</ul>';
+                    }
+                }
                 
-                // Translate field name and values
-                $fieldLabel = \App\Helpers\AuditFieldTranslator::translateField($k);
-                $oTranslated = \App\Helpers\AuditFieldTranslator::translateValue($k, $o);
-                $nTranslated = \App\Helpers\AuditFieldTranslator::translateValue($k, $n);
-                
-                $oSafe = e($this->shorten($oTranslated));
-                $nSafe = e($this->shorten($nTranslated));
-                $detailsHtml .= "<tr><td class=\"small text-muted\">".e($fieldLabel)."</td><td class=\"text-end small\">{$oSafe}</td><td class=\"text-end small\">{$nSafe}</td></tr>";
-            }
-            if (empty($changedKeys)) {
-                $detailsHtml .= '<tr><td colspan="3" class="small text-muted">Không có thay đổi cụ thể</td></tr>';
-            }
-            $detailsHtml .= '</tbody></table></div>';
+                // Limit summary to 3 items
+                $changesSummary = empty($summary) ? '-' : implode(' • ', array_slice($summary, 0, 3));
+                if (count($summary) > 3) {
+                    $changesSummary .= " (+".(count($summary) - 3)." khác)";
+                }
 
             // Meta (note) show if present - escape
             $metaNote = null;

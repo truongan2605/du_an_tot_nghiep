@@ -4,17 +4,42 @@
 
 @section('content')
 <div class="container-fluid p-3">
+    {{-- Explanatory Header --}}
+    <div class="alert alert-info border-0 shadow-sm mb-3">
+        <div class="row align-items-center">
+            <div class="col-md-9">
+                <h5 class="alert-heading mb-2">
+                    <i class="fas fa-info-circle me-2"></i>Nhật Ký Thao Tác (Audit Log)
+                </h5>
+                <p class="mb-2 small">
+                    Trang này ghi lại <strong>tất cả các thay đổi</strong> trong hệ thống để đảm bảo <strong>minh bạch và bảo mật</strong>. 
+                    Mỗi hành động được lưu trữ với thông tin: <strong>Ai</strong>, <strong>Làm gì</strong>, <strong>Khi nào</strong>, và <strong>Thay đổi ra sao</strong>.
+                </p>
+                <div class="d-flex flex-wrap gap-3 small">
+                    <div><i class="fas fa-shield-alt text-success me-1"></i> Tăng trách nhiệm nhân viên</div>
+                    <div><i class="fas fa-search text-primary me-1"></i> Phát hiện lỗi nhanh chóng</div>
+                    <div><i class="fas fa-history text-warning me-1"></i> Truy vết thay đổi dữ liệu</div>
+                </div>
+            </div>
+            <div class="col-md-3 text-md-end mt-2 mt-md-0">
+                <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#helpModal">
+                    <i class="fas fa-question-circle me-1"></i>Hướng dẫn
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- Header --}}
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div>
             <nav aria-label="breadcrumb" class="mb-1">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item"><a href="{{ route('staff.index') }}">Staff</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Audit Logs</li>
+                    <li class="breadcrumb-item active" aria-current="page">Nhật ký thao tác</li>
                 </ol>
             </nav>
-            <h4 class="mb-0">Audit Logs</h4>
-            <div class="small text-muted">Theo dõi hành động của người dùng — an toàn, không hiển thị dữ liệu thô</div>
+            <h4 class="mb-0">Danh sách thay đổi</h4>
+            <div class="small text-muted">Theo dõi hành động của người dùng — An toàn và minh bạch</div>
         </div>
 
         <div class="d-flex gap-2 align-items-center">
@@ -332,4 +357,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 </script>
+
+{{-- Include Help Modal --}}
+@include('staff.audit.help_modal')
+
 @endpush
