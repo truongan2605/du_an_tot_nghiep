@@ -201,6 +201,10 @@ class LoaiPhongController extends Controller
 
     public function update(Request $request, $id)
     {
+        $request->merge([
+            'gia_mac_dinh' => str_replace('.', '', $request->gia_mac_dinh)
+        ]);
+
         $request->validate([
             'ma' => 'required|string|max:50',
             'ten' => 'required|string|max:255',
@@ -225,6 +229,9 @@ class LoaiPhongController extends Controller
         DB::beginTransaction();
         try {
             $loaiPhong = LoaiPhong::findOrFail($id);
+
+            $cleanGia = (int) str_replace('.', '', $request->gia_mac_dinh);
+            $request->merge(['gia_mac_dinh' => $cleanGia]);
 
             $loaiPhong->update($request->only([
                 'ma',

@@ -36,8 +36,9 @@
 
             <div class="mb-3">
                 <label>Giá mặc định (VND / night)</label>
-                <input type="number" step="0.01" name="gia_mac_dinh" class="form-control"
-                    value="{{ old('gia_mac_dinh', $loaiphong->gia_mac_dinh) }}" required>
+                <input type="text" id="gia_mac_dinh" name="gia_mac_dinh" class="form-control"
+                    value="{{ number_format(old('gia_mac_dinh', $loaiphong->gia_mac_dinh), 0, ',', '.') }}"
+                    oninput="formatMoney(this)">
             </div>
 
             <div class="mb-3" hidden>
@@ -109,7 +110,8 @@
                                             <label class="form-check-label" for="vd{{ $vd->id }}">
                                                 <strong>{{ $vd->ten }}</strong>
                                                 @if (isset($vd->gia))
-                                                    <small class="text-muted ms-2">({{ number_format($vd->gia, 0, ',', '.') }}
+                                                    <small
+                                                        class="text-muted ms-2">({{ number_format($vd->gia, 0, ',', '.') }}
                                                         đ)</small>
                                                 @endif
                                             </label>
@@ -155,6 +157,37 @@
                     </div>
                 </div>
             @endforeach
+
+            <script>
+                function formatMoney(input) {
+                    let v = input.value.toLowerCase().replace(/\s+/g, '');
+
+                    if (v.endsWith('k')) {
+                        v = v.replace('k', '');
+                        v = parseInt(v || 0) * 1000;
+                    } else if (v.endsWith('m')) {
+                        v = v.replace('m', '');
+                        v = parseInt(v || 0) * 1000000;
+                    } else if (v.endsWith('b')) {
+                        v = v.replace('b', '');
+                        v = parseInt(v || 0) * 1000000000;
+                    } else {
+                        v = v.replace(/\D/g, '');
+                    }
+
+                    if (v.length > 12) {
+                        v = v.substring(0, 12);
+                    }
+
+                    if (v === "") {
+                        input.value = "";
+                        return;
+                    }
+
+                    input.value = Number(v).toLocaleString("vi-VN");
+                }
+            </script>
+
     </div>
 
     <div class="mt-3">
