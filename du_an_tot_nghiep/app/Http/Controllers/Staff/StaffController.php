@@ -710,66 +710,135 @@ class StaffController extends Controller
         ));
     }
 
+    /**
+     * Cancel a booking (staff-side) with advanced refund policy
+     */
     public function cancel($id)
     {
         $booking = DatPhong::findOrFail($id);
-        
+
         // Check if the booking status allows cancellation
-        if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan'])) {
-            return redirect()->back()->with('error', 'Không thể hủy đặt phòng với trạng thái hiện tại: ' . $booking->trang_thai);
+        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+            return back()->with('error', 'Không thể hủy đặt phòng với trạng thái hiện tại: ' . $booking->trang_thai);
         }
 
         try {
             DB::beginTransaction();
 
-            // Update booking status to cancelled
-            $booking->update(['trang_thai' => 'da_huy']);
+            // Calculate refund using advanced policy (Option B)
+            $checkInDate = Carbon::parse($booking->ngay_nhan_phong);
+            $now = Carbon::now();
+            $daysUntilCheckIn = $now->diffInDays($checkInDate, false); // FIXED: now->diffInDays(checkIn) gives positive if future
+            
+            // Determine deposit type from snapshot_meta
+            $meta = $booking->snapshot_meta ?? [];
+            $depositType = $meta['deposit_percentage'] ?? 50;
+            
+            // Calculate refund percentage using Option B logic
+            $refundPercentage = $this->calculateRefundPercentage($daysUntilCheckIn, $depositType);
+            
+            // Calculate refund amount
+            $paidAmount = $booking->deposit_amount ?? 0;
+            $refundAmount = $paidAmount * ($refundPercentage / 100);
 
-            // Delete/release giu_phong records associated with this booking
+            // Update booking status to cancelled with refund info
+            $booking->update([
+                'trang_thai' => 'da_huy',
+                'refund_amount' => $refundAmount,
+                'refund_percentage' => $refundPercentage,
+                'cancelled_at' => now(),
+                'cancellation_reason' => 'Admin/Staff hủy đặt phòng'
+            ]);
+
+            // Delete giu_phong records
             if (Schema::hasTable('giu_phong')) {
                 DB::table('giu_phong')
                     ->where('dat_phong_id', $booking->id)
                     ->delete();
             }
 
-            // Update related transactions to failed status
-            $updatedTransactions = GiaoDich::where('dat_phong_id', $booking->id)
+            // Update related transactions to failed
+            \App\Models\GiaoDich::where('dat_phong_id', $booking->id)
                 ->whereIn('trang_thai', ['dang_cho', 'thanh_cong'])
                 ->update(['trang_thai' => 'that_bai']);
 
-            Log::info('Updated transactions to failed', [
-                'booking_id' => $booking->id,
-                'updated_count' => $updatedTransactions,
-            ]);
+            // Delete dat_phong_items
+            \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
 
-            // Delete dat_phong_items (booking items)
-            $deletedItems = DatPhongItem::where('dat_phong_id', $booking->id)->delete();
-            
-            Log::info('Deleted dat_phong_items', [
-                'booking_id' => $booking->id,
-                'deleted_count' => $deletedItems,
-            ]);
+            // Create refund request if refund amount > 0
+            if ($refundAmount > 0) {
+                \App\Models\RefundRequest::create([
+                    'dat_phong_id' => $booking->id,
+                    'amount' => $refundAmount,
+                    'percentage' => $refundPercentage,
+                    'status' => 'pending',
+                    'requested_at' => now(),
+                ]);
+            }
 
             DB::commit();
 
-            Log::info('Booking cancelled by staff', [
+            Log::info('Booking cancelled by staff with refund', [
                 'booking_id' => $booking->id,
-                'staff_id' => Auth::id(),
                 'ma_tham_chieu' => $booking->ma_tham_chieu,
+                'days_until_checkin' => $daysUntilCheckIn,
+                'deposit_type' => $depositType,
+                'refund_percentage' => $refundPercentage,
+                'refund_amount' => $refundAmount,
             ]);
 
-            return redirect()->back()->with('success', 'Đã hủy đặt phòng thành công. Mã đặt phòng: ' . $booking->ma_tham_chieu);
+            $message = 'Đã hủy đặt phòng thành công. ';
+            if ($refundAmount > 0) {
+                $message .= sprintf(
+                    'Số tiền hoàn: %s ₫ (%d%%).',
+                    number_format($refundAmount, 0, ',', '.'),
+                    $refundPercentage
+                );
+            } else {
+                $message .= 'Không có tiền hoàn.';
+            }
+
+            return back()->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            Log::error('Error cancelling booking by staff', [
-                'booking_id' => $id,
-                'staff_id' => Auth::id(),
+            Log::error('Staff booking cancellation error', [
+                'booking_id' => $booking->id,
                 'error' => $e->getMessage(),
             ]);
 
-            return redirect()->back()->with('error', 'Có lỗi xảy ra khi hủy đặt phòng. Vui lòng thử lại sau.');
+            return back()->with('error', 'Có lỗi xảy ra khi hủy đặt phòng.');
+        }
+    }
+
+    /**
+     * Calculate refund percentage based on Option B policy
+     */
+    private function calculateRefundPercentage(int $daysUntilCheckIn, int $depositType): int
+    {
+        if ($depositType == 100) {
+            // Thanh toán 100% - được ưu đãi khi hủy
+            if ($daysUntilCheckIn >= 7) {
+                return 90;
+            } elseif ($daysUntilCheckIn >= 3) {
+                return 60;
+            } elseif ($daysUntilCheckIn >= 1) {
+                return 40;
+            } else {
+                return 20;
+            }
+        } else {
+            // Đặt cọc 50% - policy thông thường
+            if ($daysUntilCheckIn >= 7) {
+                return 100;
+            } elseif ($daysUntilCheckIn >= 3) {
+                return 70;
+            } elseif ($daysUntilCheckIn >= 1) {
+                return 30;
+            } else {
+                return 0;
+            }
         }
     }
 }

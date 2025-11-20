@@ -19,6 +19,7 @@ use App\Http\Controllers\Client\PaymentController;
 use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Staff\AuditLogController;
 use App\Http\Controllers\Staff\CheckoutController;
+use App\Http\Controllers\Staff\RefundController;
 use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
@@ -203,7 +204,17 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
 
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
-Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
+        Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
+
+        // Refund Management Routes
+        Route::prefix('refunds')->name('refunds.')->group(function () {
+            Route::get('/', [RefundController::class, 'index'])->name('index');
+            Route::post('/{id}/approve', [RefundController::class, 'approve'])->name('approve');
+            Route::post('/{id}/reject', [RefundController::class, 'reject'])->name('reject');
+            Route::post('/{id}/complete', [RefundController::class, 'complete'])->name('complete');
+        });
+
+        Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
 
 

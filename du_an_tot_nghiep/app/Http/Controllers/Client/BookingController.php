@@ -38,7 +38,7 @@ class BookingController extends Controller
 
         $cancelled = DatPhong::where('nguoi_dung_id', $user->id)
             ->where('trang_thai', 'da_huy')
-            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'refundRequests'])
             ->orderBy('updated_at', 'desc')
             ->get();
 
@@ -978,7 +978,7 @@ class BookingController extends Controller
     }
 
     /**
-     * Cancel a booking (client-side)
+     * Cancel a booking (client-side) with advanced refund policy
      */
     public function cancel(Request $request, $id)
     {
@@ -1004,9 +1004,30 @@ class BookingController extends Controller
         try {
             DB::beginTransaction();
 
-            // Update booking status to cancelled
-            $booking->trang_thai = 'da_huy';
-            $booking->save();
+            // Calculate refund based on advanced policy (Option B)
+            $checkInDate = Carbon::parse($booking->ngay_nhan_phong);
+            $now = Carbon::now();
+            $daysUntilCheckIn = $now->diffInDays($checkInDate, false); // FIXED: now->diffInDays(checkIn) gives positive if future
+
+            // Determine deposit type from snapshot_meta
+            $meta = $booking->snapshot_meta ?? [];
+            $depositType = $meta['deposit_percentage'] ?? 50;
+            
+            // Calculate refund percentage using Option B logic
+            $refundPercentage = $this->calculateRefundPercentage($daysUntilCheckIn, $depositType);
+            
+            // Calculate refund amount
+            $paidAmount = $booking->deposit_amount ?? 0;
+            $refundAmount = $paidAmount * ($refundPercentage / 100);
+
+            // Update booking status to cancelled with refund info
+            $booking->update([
+                'trang_thai' => 'da_huy',
+                'refund_amount' => $refundAmount,
+                'refund_percentage' => $refundPercentage,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $request->input('reason', 'Khách hàng hủy đặt phòng')
+            ]);
 
             // Delete/release giu_phong records associated with this booking
             if (Schema::hasTable('giu_phong')) {
@@ -1035,26 +1056,92 @@ class BookingController extends Controller
                 'deleted_count' => $deletedItems,
             ]);
 
+            // Create refund request if refund amount > 0
+            if ($refundAmount > 0) {
+                \App\Models\RefundRequest::create([
+                    'dat_phong_id' => $booking->id,
+                    'amount' => $refundAmount,
+                    'percentage' => $refundPercentage,
+                    'status' => 'pending',
+                    'requested_at' => now(),
+                ]);
+
+                Log::info('Refund request created', [
+                    'booking_id' => $booking->id,
+                    'amount' => $refundAmount,
+                    'percentage' => $refundPercentage,
+                ]);
+            }
+
             DB::commit();
 
-            Log::info('Booking cancelled by client', [
+            Log::info('Booking cancelled by client with refund', [
                 'booking_id' => $booking->id,
                 'user_id' => $user->id,
                 'ma_tham_chieu' => $booking->ma_tham_chieu,
+                'days_until_checkin' => $daysUntilCheckIn,
+                'deposit_type' => $depositType,
+                'refund_percentage' => $refundPercentage,
+                'refund_amount' => $refundAmount,
             ]);
 
-            return back()->with('success', 'Đã hủy đặt phòng thành công. Mã đặt phòng: ' . $booking->ma_tham_chieu);
+            // Build success message
+            $message = 'Đã hủy đặt phòng thành công. ';
+            if ($refundAmount > 0) {
+                $message .= sprintf(
+                    'Số tiền hoàn: %s ₫ (%d%% của %s ₫). Yêu cầu hoàn tiền đang được xử lý.',
+                    number_format($refundAmount, 0, ',', '.'),
+                    $refundPercentage,
+                    number_format($paidAmount, 0, ',', '.')
+                );
+            } else {
+                $message .= 'Không được hoàn tiền do hủy muộn (< 24 giờ trước check-in).';
+            }
+
+            return back()->with('success', $message);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            Log::error('Error cancelling booking', [
-                'booking_id' => $id,
+            Log::error('Client booking cancellation error', [
+                'booking_id' => $booking->id,
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return back()->with('error', 'Có lỗi xảy ra khi hủy đặt phòng. Vui lòng thử lại sau.');
+        }
+    }
+
+    /**
+     * Calculate refund percentage based on Option B policy:
+     * Different refund rates for 50% deposit vs 100% payment
+     */
+    private function calculateRefundPercentage(int $daysUntilCheckIn, int $depositType): int
+    {
+        if ($depositType == 100) {
+            // Thanh toán 100% - được ưu đãi khi hủy
+            if ($daysUntilCheckIn >= 7) {
+                return 90;  // Hoàn 90%
+            } elseif ($daysUntilCheckIn >= 3) {
+                return 60;  // Hoàn 60%
+            } elseif ($daysUntilCheckIn >= 1) {
+                return 40;  // Hoàn 40%
+            } else {
+                return 20;  // Hoàn 20%
+            }
+        } else {
+            // Đặt cọc 50% - policy thông thường
+            if ($daysUntilCheckIn >= 7) {
+                return 100; // Hoàn 100% tiền cọc
+            } elseif ($daysUntilCheckIn >= 3) {
+                return 70;  // Hoàn 70%
+            } elseif ($daysUntilCheckIn >= 1) {
+                return 30;  // Hoàn 30%
+            } else {
+                return 0;   // Không hoàn
+            }
         }
     }
 

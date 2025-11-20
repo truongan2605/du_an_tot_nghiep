@@ -363,6 +363,23 @@
                         <span class="badge bg-danger ms-2">{{ $recentAuditCount }}</span>
                     @endif
                 </a>
+
+                {{-- Quản lý hoàn tiền --}}
+                @php
+                    try {
+                        $pendingRefundsCount = \App\Models\RefundRequest::where('status', 'pending')->count();
+                    } catch (\Throwable $e) {
+                        $pendingRefundsCount = 0;
+                    }
+                @endphp
+
+                <a class="nav-link {{ request()->routeIs('staff.refunds.*') ? 'active' : '' }}"
+                   href="{{ route('staff.refunds.index') }}" data-section="section-staff">
+                    <i class="fas fa-money-bill-wave"></i> Hoàn tiền
+                    @if($pendingRefundsCount > 0)
+                        <span class="badge bg-warning text-dark ms-2">{{ $pendingRefundsCount }}</span>
+                    @endif
+                </a>
             @endif
 
             {{-- Ví dụ: nếu muốn staff cũng thấy nhật ký, thay điều kiện ở trên bằng in_array(...) --}}

@@ -279,10 +279,12 @@
                                         @php
                                             $meta = is_array($b->snapshot_meta)
                                                 ? $b->snapshot_meta
-                                                : (json_decode($b->snapshot_meta, true) ?:
-                                                []);
+                                                : (json_decode($b->snapshot_meta, true) ?: []);
                                             $label = $statusLabel($b->trang_thai);
                                             $badge = $statusBadge($b->trang_thai);
+                                            
+                                            // Get refund request
+                                            $refundRequest = $b->refundRequests->first();
                                         @endphp
                                         <div class="card border mb-3">
                                             <div class="card-header d-flex justify-content-between align-items-center">
@@ -314,6 +316,141 @@
                                                             VND</h6>
                                                     </div>
                                                 </div>
+                                                
+                                                {{-- Refund Information --}}
+                                                @if($refundRequest)
+                                                    <hr class="my-3">
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-6">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bi bi-cash-coin text-success me-2 fs-4"></i>
+                                                                <div>
+                                                                    <small class="text-muted d-block">Số tiền hoàn</small>
+                                                                    <h6 class="mb-0 text-success">
+                                                                        {{ number_format($refundRequest->amount, 0, ',', '.') }} ₫
+                                                                        <small class="text-muted">({{ $refundRequest->percentage }}%)</small>
+                                                                    </h6>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6 text-md-end mt-2 mt-md-0">
+                                                            @php
+                                                                $statusClass = match($refundRequest->status) {
+                                                                    'pending' => 'bg-warning text-dark',
+                                                                    'approved' => 'bg-info text-white',
+                                                                    'completed' => 'bg-success text-white',
+                                                                    'rejected' => 'bg-danger text-white',
+                                                                    default => 'bg-secondary'
+                                                                };
+                                                                $statusText = match($refundRequest->status) {
+                                                                    'pending' => 'Chờ xử lý',
+                                                                    'approved' => 'Đã duyệt',
+                                                                    'completed' => 'Đã hoàn tiền',
+                                                                    'rejected' => 'Từ chối',
+                                                                    default => 'N/A'
+                                                                };
+                                                            @endphp
+                                                            <span class="badge {{ $statusClass }} px-3 py-2">
+                                                                <i class="bi bi-info-circle me-1"></i>{{ $statusText }}
+                                                            </span>
+                                                            
+                                                            {{-- View Details Button --}}
+                                                            <button class="btn btn-sm btn-outline-primary ms-2" type="button" 
+                                                                    data-bs-toggle="collapse" 
+                                                                    data-bs-target="#refundDetails{{ $b->id }}" 
+                                                                    aria-expanded="false">
+                                                                <i class="bi bi-eye"></i> Chi tiết
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {{-- Expandable Refund Details --}}
+                                                    <div class="collapse mt-3" id="refundDetails{{ $b->id }}">
+                                                        <div class="card bg-light border-0">
+                                                            <div class="card-body">
+                                                                <h6 class="mb-3"><i class="bi bi-info-circle-fill text-primary me-2"></i>Thông tin hoàn tiền</h6>
+                                                                <div class="row small">
+                                                                    <div class="col-md-6">
+                                                                        <ul class="list-unstyled mb-0">
+                                                                            <li class="mb-2">
+                                                                                <i class="bi bi-calendar3 text-muted me-2"></i>
+                                                                                <strong>Ngày yêu cầu:</strong> 
+                                                                                {{ $refundRequest->requested_at->format('d/m/Y H:i') }}
+                                                                            </li>
+                                                                            <li class="mb-2">
+                                                                                <i class="bi bi-wallet2 text-muted me-2"></i>
+                                                                                <strong>Số tiền đã trả:</strong> 
+                                                                                {{ number_format($b->deposit_amount ?? 0, 0, ',', '.') }} ₫
+                                                                            </li>
+                                                                            <li>
+                                                                                <i class="bi bi-percent text-muted me-2"></i>
+                                                                                <strong>Tỷ lệ hoàn:</strong> 
+                                                                                {{ $refundRequest->percentage }}%
+                                                                            </li>
+                                                                        </ul>
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <ul class="list-unstyled mb-0">
+                                                                            @if($refundRequest->processed_at)
+                                                                                <li class="mb-2">
+                                                                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                                                                    <strong>Xử lý lúc:</strong> 
+                                                                                    {{ $refundRequest->processed_at->format('d/m/Y H:i') }}
+                                                                                </li>
+                                                                            @endif
+                                                                            @if($refundRequest->admin_note)
+                                                                                <li>
+                                                                                    <i class="bi bi-chat-left-text text-muted me-2"></i>
+                                                                                    <strong>Ghi chú:</strong> 
+                                                                                    <p class="mb-0 ms-4 text-muted">{{ $refundRequest->admin_note }}</p>
+                                                                                </li>
+                                                                            @endif
+                                                                        </ul>
+                                                                    </div>
+                                                                </div>
+                                                                
+                                                                {{-- Status Info --}}
+                                                                @if($refundRequest->status === 'pending')
+                                                                    <div class="alert alert-info alert-sm mt-3 mb-0 p-2">
+                                                                        <small>
+                                                                            <i class="bi bi-clock-history me-1"></i>
+                                                                            <strong>Đang chờ xử lý.</strong> Yêu cầu hoàn tiền của bạn đang được xem xét. Thời gian xử lý dự kiến: 2-3 ngày làm việc.
+                                                                        </small>
+                                                                    </div>
+                                                                @elseif($refundRequest->status === 'approved')
+                                                                    <div class="alert alert-primary alert-sm mt-3 mb-0 p-2">
+                                                                        <small>
+                                                                            <i class="bi bi-check-circle me-1"></i>
+                                                                            <strong>Đã duyệt.</strong> Yêu cầu của bạn đã được phê duyệt. Chúng tôi sẽ tiến hành chuyển tiền trong thời gian sớm nhất.
+                                                                        </small>
+                                                                    </div>
+                                                                @elseif($refundRequest->status === 'completed')
+                                                                    <div class="alert alert-success alert-sm mt-3 mb-0 p-2">
+                                                                        <small>
+                                                                            <i class="bi bi-patch-check-fill me-1"></i>
+                                                                            <strong>Hoàn tất!</strong> Số tiền đã được hoàn vào tài khoản của bạn. Vui lòng kiểm tra.
+                                                                        </small>
+                                                                    </div>
+                                                                @elseif($refundRequest->status === 'rejected')
+                                                                    <div class="alert alert-danger alert-sm mt-3 mb-0 p-2">
+                                                                        <small>
+                                                                            <i class="bi bi-x-circle-fill me-1"></i>
+                                                                            <strong>Từ chối.</strong> Yêu cầu hoàn tiền không được chấp nhận.
+                                                                        </small>
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @else
+                                                    <hr class="my-3">
+                                                    <div class="alert alert-warning alert-sm mb-0 p-2">
+                                                        <small>
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                                            Không có yêu cầu hoàn tiền cho đặt phòng này.
+                                                        </small>
+                                                    </div>
+                                                @endif
                                             </div>
                                         </div>
                                     @empty

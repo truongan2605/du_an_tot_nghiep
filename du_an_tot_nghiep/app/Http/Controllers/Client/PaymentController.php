@@ -169,7 +169,7 @@ class PaymentController extends Controller
                     'can_thanh_toan' => true,
                     'can_xac_nhan' => false,
                     'created_by' => Auth::id(),
-                    'snapshot_meta' => json_encode($snapshotMeta),
+                    'snapshot_meta' => $snapshotMeta, // FIXED: removed json_encode, model has 'array' cast
                     'phuong_thuc' => $validated['phuong_thuc'],
                     'contact_name' => $validated['name'],
                     'contact_address' => $validated['address'],

@@ -376,6 +376,66 @@
                                                         </div>
                                                     </div>
 
+                                                    {{-- Refund Policy Information --}}
+                                                    <div class="alert alert-info mt-3 mb-0">
+                                                        <h6 class="alert-heading">
+                                                            <i class="bi bi-info-circle me-1"></i>Chính sách hủy phòng & hoàn tiền
+                                                        </h6>
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm table-bordered mb-2">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th class="small">Thời gian hủy</th>
+                                                                        <th class="small text-center">Đặt cọc 50%</th>
+                                                                        <th class="small text-center">Thanh toán 100%</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td class="small">≥ 7 ngày trước check-in</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-success">Hoàn 100%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-success">Hoàn 90%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">3-6 ngày trước</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 70%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 60%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">1-2 ngày trước</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 30%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 40%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">< 24 giờ</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-danger">Không hoàn</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 20%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                                            <strong>Lưu ý:</strong> Thanh toán 100% ngay được ưu đãi thêm khi hủy phòng
+                                                        </small>
+                                                    </div>
+
                                                     <div class="mt-3">
                                                         <label for="phuong_thuc" class="form-label">Phương thức thanh toán</label>
                                                         <select name="phuong_thuc" id="phuong_thuc" class="form-select"

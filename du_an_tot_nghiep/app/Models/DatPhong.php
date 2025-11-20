@@ -41,7 +41,10 @@ class DatPhong extends Model
         'contact_address',
         'contact_phone',
         'deposit_amount',
-        
+        'refund_amount',
+        'refund_percentage',
+        'cancelled_at',
+        'cancellation_reason',
     ];
 
 
@@ -80,6 +83,11 @@ class DatPhong extends Model
     public function datPhongItems()
     {
         return $this->hasMany(DatPhongItem::class, 'dat_phong_id');
+    }
+
+    public function refundRequests()
+    {
+        return $this->hasMany(\App\Models\RefundRequest::class, 'dat_phong_id');
     }
 
     public function datPhongAddons(): HasMany
