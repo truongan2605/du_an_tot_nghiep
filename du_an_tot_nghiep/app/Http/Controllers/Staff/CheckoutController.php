@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use App\Services\PaymentNotificationService;
 
 class CheckoutController extends Controller
 {
@@ -124,6 +126,46 @@ class CheckoutController extends Controller
         return $item;
     }
 
+    /**
+     * Xóa ảnh CCCD từ snapshot_meta của booking
+     */
+    private function deleteCCCDImages(DatPhong $booking)
+    {
+        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        
+        // Xóa tất cả CCCD trong danh sách
+        if (!empty($meta['checkin_cccd_list']) && is_array($meta['checkin_cccd_list'])) {
+            foreach ($meta['checkin_cccd_list'] as $cccdItem) {
+                if (!empty($cccdItem['front']) && Storage::disk('public')->exists($cccdItem['front'])) {
+                    Storage::disk('public')->delete($cccdItem['front']);
+                }
+                if (!empty($cccdItem['back']) && Storage::disk('public')->exists($cccdItem['back'])) {
+                    Storage::disk('public')->delete($cccdItem['back']);
+                }
+            }
+        }
+        
+        // Xóa ảnh cũ (backward compatibility)
+        if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd']);
+        }
+        if (!empty($meta['checkin_cccd_front']) && Storage::disk('public')->exists($meta['checkin_cccd_front'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd_front']);
+        }
+        if (!empty($meta['checkin_cccd_back']) && Storage::disk('public')->exists($meta['checkin_cccd_back'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd_back']);
+        }
+
+        // Xóa thông tin ảnh khỏi snapshot_meta
+        unset($meta['checkin_cccd']);
+        unset($meta['checkin_cccd_front']);
+        unset($meta['checkin_cccd_back']);
+        unset($meta['checkin_cccd_list']);
+        
+        // Cập nhật lại snapshot_meta
+        $booking->update(['snapshot_meta' => $meta]);
+    }
+
     // Xử lý khi confirm checkout
     public function processCheckout(Request $request, DatPhong $booking)
     {
@@ -194,7 +236,15 @@ class CheckoutController extends Controller
                     $booking->trang_thai = 'hoan_thanh';
                     $booking->save();
 
+                    // Xóa ảnh CCCD sau khi checkout thành công
+                    $this->deleteCCCDImages($booking);
+
                     DB::commit();
+
+                    // Gửi thông báo checkout
+                    $notificationService = new PaymentNotificationService();
+                    $notificationService->sendCheckoutNotification($booking, $hoaDon->id);
+
                     return redirect()->route('staff.bookings.show', $booking->id)
                         ->with('success', 'Checkout hoàn tất — hoá đơn #' . $hoaDon->id . ' đã được lập và đánh dấu là đã thanh toán.');
                 }
@@ -247,7 +297,14 @@ class CheckoutController extends Controller
                 $booking->trang_thai = 'hoan_thanh';
                 $booking->save();
 
+                // Xóa ảnh CCCD sau khi checkout thành công
+                $this->deleteCCCDImages($booking);
+
                 DB::commit();
+
+                // Gửi thông báo checkout
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendCheckoutNotification($booking, $targetHoaDon->id);
 
                 return redirect()->route('staff.bookings.show', $booking->id)
                     ->with('success', 'Checkout hoàn tất — hoá đơn #' . $targetHoaDon->id . ' đã được đánh dấu là đã thanh toán.');
@@ -318,7 +375,14 @@ class CheckoutController extends Controller
             $booking->trang_thai = 'hoan_thanh';
             $booking->save();
 
+            // Xóa ảnh CCCD sau khi checkout thành công
+            $this->deleteCCCDImages($booking);
+
             DB::commit();
+
+            // Gửi thông báo checkout
+            $notificationService = new PaymentNotificationService();
+            $notificationService->sendCheckoutNotification($booking, $hoaDon->id);
 
             return redirect()->route('staff.bookings.show', $booking->id)
                 ->with('success', 'Hoá đơn #' . $hoaDon->id . ' đã được đánh dấu là đã thanh toán và checkout hoàn tất.');

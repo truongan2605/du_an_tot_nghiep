@@ -274,5 +274,350 @@ class PaymentNotificationService
             ]);
         }
     }
+
+    /**
+     * Gửi thông báo khi check-in thành công
+     */
+    public function sendCheckinNotification(DatPhong $booking): void
+    {
+        try {
+            $customerName = $booking->nguoiDung->name ?? 'N/A';
+            $checkinTime = $booking->checked_in_at ? $booking->checked_in_at->format('H:i d/m/Y') : now()->format('H:i d/m/Y');
+
+            // Thông báo cho khách hàng
+            $customerNotification = ThongBao::create([
+                'nguoi_nhan_id' => $booking->nguoi_dung_id,
+                'kenh' => 'in_app',
+                'ten_template' => 'checkin_success',
+                'payload' => [
+                    'title' => 'Check-in thành công',
+                    'message' => "Bạn đã check-in thành công cho đơn đặt phòng {$booking->ma_tham_chieu} lúc {$checkinTime}. Chúc bạn có một kỳ nghỉ vui vẻ!",
+                    'link' => "/account/bookings/{$booking->id}",
+                    'booking_id' => $booking->id,
+                    'checkin_time' => $checkinTime,
+                ],
+                'trang_thai' => 'pending',
+                'so_lan_thu' => 0,
+            ]);
+
+            // Broadcast notification to customer
+            broadcast(new NotificationCreated($customerNotification));
+
+            $customerNotification->update([
+                'trang_thai' => 'sent',
+                'so_lan_thu' => 1,
+                'lan_thu_cuoi' => now(),
+            ]);
+
+            // Gửi email cho khách hàng
+            $user = User::find($booking->nguoi_dung_id);
+            if ($user && $user->email) {
+                try {
+                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
+                    Log::info('Checkin email sent to customer', [
+                        'user_id' => $user->id,
+                        'booking_id' => $booking->id,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to send checkin email to customer (notification still sent)', [
+                        'user_id' => $user->id,
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Thông báo cho nhân viên/admin
+            $staffUsers = User::whereIn('vai_tro', ['admin', 'nhan_vien'])
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($staffUsers as $staff) {
+                $staffNotification = ThongBao::create([
+                    'nguoi_nhan_id' => $staff->id,
+                    'kenh' => 'in_app',
+                    'ten_template' => 'checkin_completed',
+                    'payload' => [
+                        'title' => 'Khách hàng đã check-in',
+                        'message' => "Khách hàng {$customerName} đã check-in cho đơn #{$booking->ma_tham_chieu} lúc {$checkinTime}",
+                        'link' => "/staff/bookings/{$booking->id}",
+                        'booking_id' => $booking->id,
+                        'customer_name' => $customerName,
+                        'checkin_time' => $checkinTime,
+                    ],
+                    'trang_thai' => 'pending',
+                    'so_lan_thu' => 0,
+                ]);
+
+                broadcast(new NotificationCreated($staffNotification));
+
+                $staffNotification->update([
+                    'trang_thai' => 'sent',
+                    'so_lan_thu' => 1,
+                    'lan_thu_cuoi' => now(),
+                ]);
+
+                if ($staff->email) {
+                    try {
+                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
+                        Log::info('Checkin email sent to staff', [
+                            'staff_id' => $staff->id,
+                            'booking_id' => $booking->id,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to send checkin email to staff (notification still sent)', [
+                            'staff_id' => $staff->id,
+                            'booking_id' => $booking->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            Log::info('Checkin notification sent', [
+                'booking_id' => $booking->id,
+                'checkin_time' => $checkinTime,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to send checkin notification', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Gửi thông báo khi checkout thành công
+     */
+    public function sendCheckoutNotification(DatPhong $booking, $hoaDonId = null): void
+    {
+        try {
+            $customerName = $booking->nguoiDung->name ?? 'N/A';
+            $checkoutTime = $booking->checkout_at ? $booking->checkout_at->format('H:i d/m/Y') : now()->format('H:i d/m/Y');
+            $hoaDonText = $hoaDonId ? " (Hóa đơn #{$hoaDonId})" : '';
+
+            // Thông báo cho khách hàng
+            $customerNotification = ThongBao::create([
+                'nguoi_nhan_id' => $booking->nguoi_dung_id,
+                'kenh' => 'in_app',
+                'ten_template' => 'checkout_success',
+                'payload' => [
+                    'title' => 'Checkout thành công',
+                    'message' => "Bạn đã checkout thành công cho đơn đặt phòng {$booking->ma_tham_chieu} lúc {$checkoutTime}{$hoaDonText}. Cảm ơn bạn đã sử dụng dịch vụ!",
+                    'link' => "/account/bookings/{$booking->id}",
+                    'booking_id' => $booking->id,
+                    'checkout_time' => $checkoutTime,
+                    'hoa_don_id' => $hoaDonId,
+                ],
+                'trang_thai' => 'pending',
+                'so_lan_thu' => 0,
+            ]);
+
+            broadcast(new NotificationCreated($customerNotification));
+
+            $customerNotification->update([
+                'trang_thai' => 'sent',
+                'so_lan_thu' => 1,
+                'lan_thu_cuoi' => now(),
+            ]);
+
+            // Gửi email cho khách hàng
+            $user = User::find($booking->nguoi_dung_id);
+            if ($user && $user->email) {
+                try {
+                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
+                    Log::info('Checkout email sent to customer', [
+                        'user_id' => $user->id,
+                        'booking_id' => $booking->id,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to send checkout email to customer (notification still sent)', [
+                        'user_id' => $user->id,
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Thông báo cho nhân viên/admin
+            $staffUsers = User::whereIn('vai_tro', ['admin', 'nhan_vien'])
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($staffUsers as $staff) {
+                $staffNotification = ThongBao::create([
+                    'nguoi_nhan_id' => $staff->id,
+                    'kenh' => 'in_app',
+                    'ten_template' => 'checkout_completed',
+                    'payload' => [
+                        'title' => 'Khách hàng đã checkout',
+                        'message' => "Khách hàng {$customerName} đã checkout cho đơn #{$booking->ma_tham_chieu} lúc {$checkoutTime}{$hoaDonText}",
+                        'link' => "/staff/bookings/{$booking->id}",
+                        'booking_id' => $booking->id,
+                        'customer_name' => $customerName,
+                        'checkout_time' => $checkoutTime,
+                        'hoa_don_id' => $hoaDonId,
+                    ],
+                    'trang_thai' => 'pending',
+                    'so_lan_thu' => 0,
+                ]);
+
+                broadcast(new NotificationCreated($staffNotification));
+
+                $staffNotification->update([
+                    'trang_thai' => 'sent',
+                    'so_lan_thu' => 1,
+                    'lan_thu_cuoi' => now(),
+                ]);
+
+                if ($staff->email) {
+                    try {
+                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
+                        Log::info('Checkout email sent to staff', [
+                            'staff_id' => $staff->id,
+                            'booking_id' => $booking->id,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to send checkout email to staff (notification still sent)', [
+                            'staff_id' => $staff->id,
+                            'booking_id' => $booking->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            Log::info('Checkout notification sent', [
+                'booking_id' => $booking->id,
+                'checkout_time' => $checkoutTime,
+                'hoa_don_id' => $hoaDonId,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to send checkout notification', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
+     * Gửi thông báo khi đã thanh toán toàn bộ
+     */
+    public function sendFullPaymentNotification(DatPhong $booking, GiaoDich $transaction = null): void
+    {
+        try {
+            $totalPaid = $booking->giaoDichs()
+                ->where('trang_thai', 'thanh_cong')
+                ->sum('so_tien');
+            
+            $customerName = $booking->nguoiDung->name ?? 'N/A';
+
+            // Thông báo cho khách hàng
+            $customerNotification = ThongBao::create([
+                'nguoi_nhan_id' => $booking->nguoi_dung_id,
+                'kenh' => 'in_app',
+                'ten_template' => 'full_payment_success',
+                'payload' => [
+                    'title' => 'Thanh toán toàn bộ thành công',
+                    'message' => "Bạn đã thanh toán toàn bộ cho đơn đặt phòng {$booking->ma_tham_chieu}. Tổng tiền: " . number_format($booking->tong_tien, 0, ',', '.') . " VNĐ. Bạn có thể tiến hành check-in.",
+                    'link' => "/account/bookings/{$booking->id}",
+                    'booking_id' => $booking->id,
+                    'total_amount' => $booking->tong_tien,
+                    'total_paid' => $totalPaid,
+                ],
+                'trang_thai' => 'pending',
+                'so_lan_thu' => 0,
+            ]);
+
+            broadcast(new NotificationCreated($customerNotification));
+
+            $customerNotification->update([
+                'trang_thai' => 'sent',
+                'so_lan_thu' => 1,
+                'lan_thu_cuoi' => now(),
+            ]);
+
+            // Gửi email cho khách hàng
+            $user = User::find($booking->nguoi_dung_id);
+            if ($user && $user->email) {
+                try {
+                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
+                    Log::info('Full payment email sent to customer', [
+                        'user_id' => $user->id,
+                        'booking_id' => $booking->id,
+                    ]);
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to send full payment email to customer (notification still sent)', [
+                        'user_id' => $user->id,
+                        'booking_id' => $booking->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            // Thông báo cho nhân viên/admin
+            $staffUsers = User::whereIn('vai_tro', ['admin', 'nhan_vien'])
+                ->where('is_active', true)
+                ->get();
+
+            foreach ($staffUsers as $staff) {
+                $staffNotification = ThongBao::create([
+                    'nguoi_nhan_id' => $staff->id,
+                    'kenh' => 'in_app',
+                    'ten_template' => 'full_payment_received',
+                    'payload' => [
+                        'title' => 'Khách hàng đã thanh toán toàn bộ',
+                        'message' => "Khách hàng {$customerName} đã thanh toán toàn bộ cho đơn #{$booking->ma_tham_chieu}. Tổng tiền: " . number_format($booking->tong_tien, 0, ',', '.') . " VNĐ",
+                        'link' => $transaction ? "/admin/giao-dich/{$transaction->id}" : "/staff/bookings/{$booking->id}",
+                        'booking_id' => $booking->id,
+                        'transaction_id' => $transaction ? $transaction->id : null,
+                        'customer_name' => $customerName,
+                        'total_amount' => $booking->tong_tien,
+                        'total_paid' => $totalPaid,
+                    ],
+                    'trang_thai' => 'pending',
+                    'so_lan_thu' => 0,
+                ]);
+
+                broadcast(new NotificationCreated($staffNotification));
+
+                $staffNotification->update([
+                    'trang_thai' => 'sent',
+                    'so_lan_thu' => 1,
+                    'lan_thu_cuoi' => now(),
+                ]);
+
+                if ($staff->email) {
+                    try {
+                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
+                        Log::info('Full payment email sent to staff', [
+                            'staff_id' => $staff->id,
+                            'booking_id' => $booking->id,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to send full payment email to staff (notification still sent)', [
+                            'staff_id' => $staff->id,
+                            'booking_id' => $booking->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+            }
+
+            Log::info('Full payment notification sent', [
+                'booking_id' => $booking->id,
+                'total_amount' => $booking->tong_tien,
+                'total_paid' => $totalPaid,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to send full payment notification', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
 }
 
