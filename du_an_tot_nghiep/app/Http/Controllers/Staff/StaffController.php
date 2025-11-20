@@ -94,6 +94,54 @@ class StaffController extends Controller
             ->where('nha_cung_cap', 'like', '%coc%')
             ->sum('so_tien');
         $availableRooms = Phong::where('trang_thai', 'trong')->count();
+        
+        // === Room Analytics Overview (Current Month) ===
+        $currentMonth = $today->month;
+        $currentYear = $today->year;
+        
+        $roomTypeStats = DB::table('dat_phong_item as dpi')
+            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
+            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('dp.ngay_nhan_phong', $currentYear)
+            ->whereMonth('dp.ngay_nhan_phong', $currentMonth)
+            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT dp.id) as total_bookings'),
+                DB::raw('SUM(dpi.tong_item) as total_revenue')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->get();
+        
+        // Get room counts for occupancy
+        $roomCounts = DB::table('phong')
+            ->select('loai_phong_id', DB::raw('COUNT(*) as total_rooms'))
+            ->groupBy('loai_phong_id')
+            ->pluck('total_rooms', 'loai_phong_id');
+        
+        $daysInMonth = $today->daysInMonth;
+        
+        $roomTypeStats = $roomTypeStats->map(function($stat) use ($roomCounts, $daysInMonth) {
+            $totalRooms = $roomCounts[$stat->id] ?? 0;
+            $maxPossibleBookings = $totalRooms * $daysInMonth;
+            $occupancyRate = $maxPossibleBookings > 0 
+                ? round(($stat->total_bookings / $maxPossibleBookings) * 100, 1)
+                : 0;
+            
+            return (object)[
+                'id' => $stat->id,
+                'ten' => $stat->ten,
+                'total_rooms' => $totalRooms,
+                'total_bookings' => $stat->total_bookings,
+                'total_revenue' => $stat->total_revenue ?? 0,
+                'occupancy_rate' => $occupancyRate
+            ];
+        });
+        
+        // Chart data for mini visualization
+        $analyticsChartLabels = $roomTypeStats->pluck('ten')->toArray();
+        $analyticsChartData = $roomTypeStats->pluck('total_bookings')->toArray();
 
         // === Dữ liệu cho biểu đồ doanh thu 7 ngày ===
         $chartLabels = [];
@@ -139,7 +187,10 @@ class StaffController extends Controller
             'events',
             'recentActivities',
             'chartLabels',
-            'revenueData'
+            'revenueData',
+            'roomTypeStats',
+            'analyticsChartLabels',
+            'analyticsChartData'
         ));
     }
 
@@ -840,5 +891,208 @@ class StaffController extends Controller
                 return 0;
             }
         }
+    }
+
+    /**
+     * Room Analytics Dashboard
+     * Shows booking statistics by room type and individual rooms
+     */
+    public function roomAnalytics(Request $request)
+    {
+        // Get month/year from request or default to current
+        $month = $request->input('month', now()->month);
+        $year = $request->input('year', now()->year);
+        
+        // Create date for display
+        $selectedDate = Carbon::create($year, $month, 1);
+        
+        // === 1. Stats by Room Type ===
+        $roomTypeStats = DB::table('dat_phong_item as dpi')
+            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
+            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('dp.ngay_nhan_phong', $year)
+            ->whereMonth('dp.ngay_nhan_phong', $month)
+            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT dp.id) as total_bookings'),
+                DB::raw('SUM(dpi.tong_item) as total_revenue')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->get();
+        
+        // Get total rooms per type for occupancy calculation
+        $roomCounts = DB::table('phong')
+            ->select('loai_phong_id', DB::raw('COUNT(*) as total_rooms'))
+            ->groupBy('loai_phong_id')
+            ->pluck('total_rooms', 'loai_phong_id');
+        
+        // Calculate occupancy rate (days in month)
+        $daysInMonth = $selectedDate->daysInMonth;
+        
+        // Enhance room type stats with totals and occupancy
+        $roomTypeStats = $roomTypeStats->map(function($stat) use ($roomCounts, $daysInMonth) {
+            $totalRooms = $roomCounts[$stat->id] ?? 0;
+            $maxPossibleBookings = $totalRooms * $daysInMonth;
+            $occupancyRate = $maxPossibleBookings > 0 
+                ? round(($stat->total_bookings / $maxPossibleBookings) * 100, 1)
+                : 0;
+            
+            return (object)[
+                'id' => $stat->id,
+                'ten' => $stat->ten,
+                'total_rooms' => $totalRooms,
+                'total_bookings' => $stat->total_bookings,
+                'total_revenue' => $stat->total_revenue ?? 0,
+                'occupancy_rate' => $occupancyRate
+            ];
+        });
+        
+        // === 2. Stats by Individual Room ===
+        $roomStats = DB::table('phong as p')
+            ->leftJoin('dat_phong_item as dpi', 'p.id', '=', 'dpi.phong_id')
+            ->leftJoin('dat_phong as dp', function($join) use ($year, $month) {
+                $join->on('dpi.dat_phong_id', '=', 'dp.id')
+                    ->whereYear('dp.ngay_nhan_phong', '=', $year)
+                    ->whereMonth('dp.ngay_nhan_phong', '=', $month)
+                    ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh']);
+            })
+            ->join('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT CASE WHEN dp.id IS NOT NULL THEN dp.id END) as booking_count'),
+                DB::raw('SUM(CASE WHEN dp.id IS NOT NULL THEN dpi.tong_item ELSE 0 END) as revenue')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderBy('lp.ten')
+            ->orderBy('p.ma_phong')
+            ->get();
+        
+        // Calculate occupancy for each room
+        $roomStats = $roomStats->map(function($room) use ($daysInMonth) {
+            $occupancyRate = $daysInMonth > 0 
+                ? round(($room->booking_count / $daysInMonth) * 100, 1)
+                : 0;
+            
+            $room->occupancy_rate = $occupancyRate;
+            return $room;
+        });
+        
+        // === 3. Prepare Chart Data ===
+        $chartLabels = $roomTypeStats->pluck('ten')->toArray();
+        $chartData = $roomTypeStats->pluck('total_bookings')->toArray();
+        
+        // === 4. Generate month options for filter ===
+        $monthOptions = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthOptions[$i] = Carbon::create(null, $i, 1)->locale('vi')->translatedFormat('F');
+        }
+        
+        $yearOptions = range(date('Y'), date('Y') - 3); // Last 3 years
+        
+        return view('staff.analytics.rooms', compact(
+            'roomTypeStats',
+            'roomStats',
+            'chartLabels',
+            'chartData',
+            'selectedDate',
+            'month',
+            'year',
+            'monthOptions',
+            'yearOptions'
+        ));
+    }
+
+    /**
+     * Export Room Analytics as PDF
+     * Simple HTML export that can be printed to PDF
+     */
+    public function exportRoomAnalyticsPDF(Request $request)
+    {
+        $month = $request->input('month', now()->month);
+        $year = $request->input('year', now()->year);
+        $selectedDate = Carbon::create($year, $month, 1);
+        
+        // Reuse same queries from roomAnalytics
+        $roomTypeStats = DB::table('dat_phong_item as dpi')
+            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
+            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('dp.ngay_nhan_phong', $year)
+            ->whereMonth('dp.ngay_nhan_phong', $month)
+            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT dp.id) as total_bookings'),
+                DB::raw('SUM(dpi.tong_item) as total_revenue')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->get();
+        
+        $roomCounts = DB::table('phong')
+            ->select('loai_phong_id', DB::raw('COUNT(*) as total_rooms'))
+            ->groupBy('loai_phong_id')
+            ->pluck('total_rooms', 'loai_phong_id');
+        
+        $daysInMonth = $selectedDate->daysInMonth;
+        
+        $roomTypeStats = $roomTypeStats->map(function($stat) use ($roomCounts, $daysInMonth) {
+            $totalRooms = $roomCounts[$stat->id] ?? 0;
+            $maxPossibleBookings = $totalRooms * $daysInMonth;
+            $occupancyRate = $maxPossibleBookings > 0 
+                ? round(($stat->total_bookings / $maxPossibleBookings) * 100, 1)
+                : 0;
+            
+            return (object)[
+                'id' => $stat->id,
+                'ten' => $stat->ten,
+                'total_rooms' => $totalRooms,
+                'total_bookings' => $stat->total_bookings,
+                'total_revenue' => $stat->total_revenue ?? 0,
+                'occupancy_rate' => $occupancyRate
+            ];
+        });
+        
+        $roomStats = DB::table('phong as p')
+            ->leftJoin('dat_phong_item as dpi', 'p.id', '=', 'dpi.phong_id')
+            ->leftJoin('dat_phong as dp', function($join) use ($year, $month) {
+                $join->on('dpi.dat_phong_id', '=', 'dp.id')
+                    ->whereYear('dp.ngay_nhan_phong', '=', $year)
+                    ->whereMonth('dp.ngay_nhan_phong', '=', $month)
+                    ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh']);
+            })
+            ->join('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT CASE WHEN dp.id IS NOT NULL THEN dp.id END) as booking_count'),
+                DB::raw('SUM(CASE WHEN dp.id IS NOT NULL THEN dpi.tong_item ELSE 0 END) as revenue')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderBy('lp.ten')
+            ->orderBy('p.ma_phong')
+            ->get();
+        
+        $roomStats = $roomStats->map(function($room) use ($daysInMonth) {
+            $occupancyRate = $daysInMonth > 0 
+                ? round(($room->booking_count / $daysInMonth) * 100, 1)
+                : 0;
+            
+            $room->occupancy_rate = $occupancyRate;
+            return $room;
+        });
+        
+        // Return printable HTML view
+        return view('staff.analytics.rooms-pdf', compact(
+            'roomTypeStats',
+            'roomStats',
+            'selectedDate'
+        ));
     }
 }

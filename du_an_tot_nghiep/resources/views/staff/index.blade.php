@@ -39,6 +39,60 @@
         @endforeach
     </div>
 
+    {{-- Room Analytics Overview Section --}}
+    @if(count($roomTypeStats ?? []) > 0)
+    <div class="card shadow-sm rounded-4 border-0 mb-4">
+        <div class="card-header bg-light border-0 py-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-semibold">
+                <i class="bi bi-graph-up text-primary me-2"></i>Thống Kê Phòng Tháng Này
+            </h6>
+            <a href="{{ route('staff.analytics.rooms') }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-arrow-right-circle me-1"></i>Xem chi tiết
+            </a>
+        </div>
+        <div class="card-body p-3">
+            {{-- Mini Stats Cards --}}
+            <div class="row g-2 mb-3">
+                @foreach($roomTypeStats as $roomType)
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 bg-light">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="fw-bold text-dark mb-0">{{ $roomType->ten }}</h6>
+                                    <span class="badge bg-secondary rounded-pill small">{{ $roomType->total_rooms }} phòng</span>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="small text-muted">Bookings</div>
+                                        <h5 class="mb-0 fw-bold">{{ $roomType->total_bookings }}</h5>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="small text-muted">Tỷ lệ</div>
+                                        <h5 class="mb-0 fw-bold 
+                                            @if($roomType->occupancy_rate >= 70) text-success
+                                            @elseif($roomType->occupancy_rate >= 40) text-warning
+                                            @else text-danger
+                                            @endif">
+                                            {{ $roomType->occupancy_rate }}%
+                                        </h5>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            {{-- Mini Bar Chart --}}
+            @if(count($analyticsChartLabels ?? []) > 0)
+            <div style="position: relative; height: 200px;">
+                <canvas id="roomAnalyticsChart"></canvas>
+            </div>
+            @endif
+        </div>
+    </div>
+    @endif
+
     <div class="card shadow-sm rounded-4 border-0 mb-4">
         <div class="card-header bg-light border-0 py-3 d-flex justify-content-between align-items-center">
             <h6 class="mb-0 fw-semibold"><i class="bi bi-bar-chart-line text-success me-2"></i> Doanh thu 7 ngày gần nhất</h6>
@@ -146,6 +200,58 @@ window.initDashboardChartsAndCalendar = function() {
         });
     } else if (chartCanvas) {
         chartCanvas.parentElement.innerHTML = '<div class="text-center text-muted py-5">Không có dữ liệu doanh thu 7 ngày gần nhất</div>';
+    }
+
+    // Room Analytics Mini Chart
+    const analyticsLabels = @json($analyticsChartLabels ?? []);
+    const analyticsData = @json($analyticsChartData ?? []);
+    const analyticsCanvas = document.getElementById('roomAnalyticsChart');
+    
+    if (analyticsCanvas && analyticsLabels.length && analyticsData.length) {
+        const analyticsCtx = analyticsCanvas.getContext('2d');
+        new Chart(analyticsCtx, {
+            type: 'bar',
+            data: {
+                labels: analyticsLabels,
+                datasets: [{
+                    label: 'Số lượng booking',
+                    data: analyticsData,
+                    backgroundColor: [
+                        'rgba(13, 110, 253, 0.8)',
+                        'rgba(25, 135, 84, 0.8)',
+                        'rgba(255, 193, 7, 0.8)',
+                        'rgba(220, 53, 69, 0.8)',
+                        'rgba(108, 117, 125, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(13, 110, 253, 1)',
+                        'rgba(25, 135, 84, 1)',
+                        'rgba(255, 193, 7, 1)',
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(108, 117, 125, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => 'Bookings: ' + ctx.parsed.y
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    }
+                }
+            }
+        });
     }
 
     const calendarEl = document.getElementById('calendar');

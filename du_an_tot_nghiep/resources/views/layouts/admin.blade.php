@@ -474,6 +474,9 @@
                                         data-url="{{ route('home') }}">
                                         <i class="fas fa-home me-2"></i>Về trang chủ
                                     </a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.reports') }}"><i class="bi bi-file-text me-2"></i>Báo cáo thống kê</a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.analytics.rooms') }}"><i class="bi bi-graph-up me-2"></i>Thống kê phòng</a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.audit-logs.index') }}"><i class="bi bi-journal-text me-2"></i>Nhật ký thao tác</a></li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
