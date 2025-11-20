@@ -149,15 +149,16 @@
 
                                 <td>
                                     @php
-                                        $cls = match($log->event) {
-                                            'created' => 'badge bg-success',
-                                            'updated' => 'badge bg-warning text-dark',
-                                            'deleted' => 'badge bg-danger',
-                                            'restored' => 'badge bg-info text-dark',
-                                            default => 'badge bg-secondary'
-                                        };
+                                        $badgeClass = \App\Helpers\AuditFieldTranslator::getEventBadgeClass($log->event);
+                                        $icon = \App\Helpers\AuditFieldTranslator::getEventIcon($log->event);
+                                        $eventLabel = \App\Helpers\AuditFieldTranslator::getEventLabel($log->event);
                                     @endphp
-                                    <span class="{{ $cls }}" data-bs-toggle="tooltip" title="Sự kiện">{{ Str::upper($log->event) }}</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fas {{ $icon }}"></i>
+                                        <span class="badge {{ $badgeClass }}" data-bs-toggle="tooltip" title="Sự kiện">
+                                            {{ $eventLabel }}
+                                        </span>
+                                    </div>
                                 </td>
 
                                 <td class="small" style="width:180px;">

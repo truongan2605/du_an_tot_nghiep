@@ -74,10 +74,16 @@ class AuditLogController extends Controller
                 if ($count >= $maxPreview) break;
                 $o = array_key_exists($k, (array)$old) ? $old[$k] : null;
                 $n = array_key_exists($k, (array)$new) ? $new[$k] : null;
-                // string truncate values
-                $oStr = $o === null ? '—' : $this->shorten($o);
-                $nStr = $n === null ? '—' : $this->shorten($n);
-                $summaryParts[] = "{$k}: {$oStr} → {$nStr}";
+                
+                // Translate field name and values
+                $fieldLabel = \App\Helpers\AuditFieldTranslator::translateField($k);
+                $oStr = \App\Helpers\AuditFieldTranslator::translateValue($k, $o);
+                $nStr = \App\Helpers\AuditFieldTranslator::translateValue($k, $n);
+                
+                $oStr = $this->shorten($oStr);
+                $nStr = $this->shorten($nStr);
+                
+                $summaryParts[] = "{$fieldLabel}: {$oStr} → {$nStr}";
                 $count++;
             }
             $remaining = max(0, count($changedKeys) - $maxPreview);
@@ -92,9 +98,15 @@ class AuditLogController extends Controller
             foreach ($changedKeys as $k) {
                 $o = array_key_exists($k, (array)$old) ? $old[$k] : null;
                 $n = array_key_exists($k, (array)$new) ? $new[$k] : null;
-                $oSafe = e($this->shorten($o));
-                $nSafe = e($this->shorten($n));
-                $detailsHtml .= "<tr><td class=\"small text-muted\">".e($k)."</td><td class=\"text-end small\">{$oSafe}</td><td class=\"text-end small\">{$nSafe}</td></tr>";
+                
+                // Translate field name and values
+                $fieldLabel = \App\Helpers\AuditFieldTranslator::translateField($k);
+                $oTranslated = \App\Helpers\AuditFieldTranslator::translateValue($k, $o);
+                $nTranslated = \App\Helpers\AuditFieldTranslator::translateValue($k, $n);
+                
+                $oSafe = e($this->shorten($oTranslated));
+                $nSafe = e($this->shorten($nTranslated));
+                $detailsHtml .= "<tr><td class=\"small text-muted\">".e($fieldLabel)."</td><td class=\"text-end small\">{$oSafe}</td><td class=\"text-end small\">{$nSafe}</td></tr>";
             }
             if (empty($changedKeys)) {
                 $detailsHtml .= '<tr><td colspan="3" class="small text-muted">Không có thay đổi cụ thể</td></tr>';
@@ -114,7 +126,9 @@ class AuditLogController extends Controller
                 'user_name' => $log->user_name ?? ($log->user?->name ?? '-'),
                 'user_id' => $log->user_id,
                 'event' => $log->event,
-                'auditable' => class_basename($log->auditable_type) . '#' . $log->auditable_id,
+                'auditable' => \App\Helpers\AuditFieldTranslator::translateModel($log->auditable_type) . ' #' . $log->auditable_id,
+                'auditable_type' => $log->auditable_type,
+                'auditable_id' => $log->auditable_id,
                 'changes_summary' => $changesSummary,
                 'detailsHtml' => $detailsHtml,
                 'isRecent' => $log->created_at->gt(now()->subDay()),
