@@ -72,10 +72,32 @@ class CheckoutController extends Controller
         $discount = $booking->discount_amount ?? 0;
         $roomSnapshot = $booking->snapshot_total ?? $roomsTotal;
         $deposit = (float) ($booking->deposit_amount ?? 0);
-
         $amountToPayNow = max(0, $extrasTotal);
 
         $address = ' Tòa nhà FPT Polytechnic., Cổng số 2, 13 Trịnh Văn Bô, Xuân Phương, Nam Từ Liêm, Hà Nội';
+
+        $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
+        $dailyTotal = collect($datPhongItems)->reduce(function ($carry, $it) {
+            $qty = $it->so_luong ?? 1;
+            $unit = $it->gia_tren_dem ?? 0;
+            return $carry + ($unit * $qty);
+        }, 0.0);
+
+        $now = Carbon::now();
+        $origCheckoutDate = $booking->ngay_tra_phong ? Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0) : null;
+
+        $earlyEligible = false;
+        $earlyDays = 0;
+        $earlyRefundEstimate = 0;
+
+        if ($origCheckoutDate && $origCheckoutDate->greaterThan($now)) {
+            $hoursDiff = $now->diffInHours($origCheckoutDate);
+            $earlyDays = (int) floor($hoursDiff / 24);
+            $earlyEligible = $hoursDiff >= 24 && $earlyDays >= 1;
+            if ($earlyEligible) {
+                $earlyRefundEstimate = round(0.5 * $dailyTotal * $earlyDays, 0);
+            }
+        }
 
         return view('staff.bookings.checkout_preview', compact(
             'booking',
@@ -87,7 +109,11 @@ class CheckoutController extends Controller
             'roomSnapshot',
             'deposit',
             'amountToPayNow',
-            'address'
+            'address',
+            'dailyTotal',
+            'earlyEligible',
+            'earlyDays',
+            'earlyRefundEstimate'
         ));
     }
 
@@ -171,6 +197,8 @@ class CheckoutController extends Controller
     {
         $data = $request->validate([
             'mark_paid' => 'nullable|boolean',
+            'early_checkout' => 'nullable|boolean',
+            'action' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
@@ -182,7 +210,6 @@ class CheckoutController extends Controller
 
             $unpaidIds = $unpaidHoaDons->pluck('id')->toArray();
 
-            // tổng phát sinh từ các hoá đơn chưa thanh toán
             $existingItems = collect();
             $extrasTotal = 0;
             if (!empty($unpaidIds)) {
@@ -192,7 +219,9 @@ class CheckoutController extends Controller
                 }
             }
 
-            $markPaid = !empty($data['mark_paid']);
+            $isEarlyRequested = (!empty($data['early_checkout']) && ($data['action'] ?? '') === 'early_checkout') || ($data['action'] ?? '') === 'early_checkout';
+
+            $markPaid = $isEarlyRequested ? true : (!empty($data['mark_paid']));
 
             $nights = 1;
             if ($booking->ngay_nhan_phong && $booking->ngay_tra_phong) {
@@ -201,6 +230,103 @@ class CheckoutController extends Controller
                 $nights = max(1, $nights);
             }
 
+            $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
+            $dailyTotal = collect($datPhongItems)->reduce(function ($carry, $it) {
+                $qty = $it->so_luong ?? 1;
+                $unit = $it->gia_tren_dem ?? 0;
+                return $carry + ($unit * $qty);
+            }, 0.0);
+
+            // --- EARLY CHECKOUT BRANCH ---
+            if ($isEarlyRequested) {
+                $now = Carbon::now();
+                $origCheckoutDate = $booking->ngay_tra_phong ? Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0) : null;
+
+                $earlyRefund = 0;
+                $earlyDays = 0;
+                $eligible = false;
+                if ($origCheckoutDate && $origCheckoutDate->greaterThan($now)) {
+                    $hoursDiff = $now->diffInHours($origCheckoutDate);
+                    $earlyDays = (int) floor($hoursDiff / 24);
+                    $eligible = $hoursDiff >= 24 && $earlyDays >= 1;
+                    if ($eligible) {
+                        $earlyRefund = round(0.5 * $dailyTotal * $earlyDays, 0);
+                    }
+                }
+
+                if (! $eligible) {
+                    DB::rollBack();
+                    return back()->withErrors(['error' => 'Checkout sớm không hợp lệ (không đủ thời gian trước thời điểm checkout chuẩn).']);
+                }
+
+                $targetHoaDon = $unpaidHoaDons->first();
+                if (! $targetHoaDon) {
+                    $hoaDon = HoaDon::create([
+                        'dat_phong_id' => $booking->id,
+                        'so_hoa_don' => 'HD' . time(),
+                        'tong_thuc_thu' => 0,
+                        'don_vi' => $booking->don_vi_tien ?? 'VND',
+                        'trang_thai' => 'da_xuat',
+                        'created_by' => Auth::id() ?? null,
+                    ]);
+                    $targetHoaDon = $hoaDon;
+                }
+
+                foreach ($datPhongItems as $it) {
+                    $exists = HoaDonItem::where('hoa_don_id', $targetHoaDon->id)
+                        ->where('type', 'room_booking')
+                        ->where('ref_id', $it->id ?? null)
+                        ->exists();
+
+                    if (! $exists) {
+                        $roomItem = $this->buildRoomItemFromDatPhongItem($targetHoaDon->id, $it, $booking, $nights);
+                        HoaDonItem::create($roomItem);
+                    }
+                }
+
+                if ($earlyRefund > 0) {
+                    HoaDonItem::create([
+                        'hoa_don_id' => $targetHoaDon->id,
+                        'type' => 'refund',
+                        'name' => 'Hoàn tiền checkout sớm',
+                        'quantity' => 1,
+                        'unit_price' => -1 * $earlyRefund,
+                        'amount' => -1 * $earlyRefund,
+                        'note' => 'Refund for early checkout',
+                    ]);
+                }
+
+                $targetHoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
+                $targetHoaDon->trang_thai = $markPaid ? 'da_thanh_toan' : 'da_xuat';
+                $targetHoaDon->save();
+
+                $phongIds = collect($datPhongItems)->pluck('phong_id')->filter()->unique()->toArray();
+                if (!empty($phongIds)) {
+                    Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
+                }
+
+                DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+
+                $booking->checkout_at = now();
+                $booking->trang_thai = 'hoan_thanh';
+                $booking->is_checkout_early = true;
+                $booking->early_checkout_refund_amount = $earlyRefund > 0 ? $earlyRefund : 0;
+                $booking->save();
+
+                DB::commit();
+
+                $msg = 'Checkout sớm hoàn tất.';
+                if ($earlyRefund > 0) {
+                    $msg .= ' Khoản hoàn tiền ước tính: ' . number_format($earlyRefund, 0) . ' ₫ đã được ghi nhận trong hoá đơn.';
+                } else {
+                    $msg .= ' Không có khoản hoàn tiền (không đủ điều kiện hoàn tiền).';
+                }
+
+                return redirect()->route('staff.bookings.show', $booking->id)
+                    ->with('success', $msg);
+            }
+
+            // --- nếu không phải early checkout thì xài flow cũ (TH1/TH2) ----
             // TH1: KHÔNG có khoản phát sinh & KHÔNG có hoá đơn chưa thanh toán
             if (empty($unpaidIds) && $extrasTotal <= 0) {
                 $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
