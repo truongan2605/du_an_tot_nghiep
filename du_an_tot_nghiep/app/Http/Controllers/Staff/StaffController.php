@@ -4,23 +4,24 @@ namespace App\Http\Controllers\Staff;
 
 
 use App\Models\Phong;
+use App\Models\HoaDon;
 use App\Models\DatPhong;
 use App\Models\GiaoDich;
 use App\Models\GiuPhong;
 use App\Models\LoaiPhong;
+use App\Models\HoaDonItem;
 use App\Models\PhongDaDat;
 use App\Models\DatPhongItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use App\Models\VatDungIncident;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
-use App\Models\HoaDon;
-use App\Models\HoaDonItem;
-use App\Models\PhongVatDungConsumption;
 use App\Models\PhongVatDungInstance;
-use App\Models\VatDungIncident;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use App\Models\PhongVatDungConsumption;
 use Illuminate\Support\Carbon as SupportCarbon;
 
 class StaffController extends Controller
@@ -712,10 +713,63 @@ class StaffController extends Controller
     public function cancel($id)
     {
         $booking = DatPhong::findOrFail($id);
-        if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
-            return redirect()->back()->with('error', 'Chỉ có thể hủy booking chờ xác nhận.');
+        
+        // Check if the booking status allows cancellation
+        if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan'])) {
+            return redirect()->back()->with('error', 'Không thể hủy đặt phòng với trạng thái hiện tại: ' . $booking->trang_thai);
         }
-        $booking->update(['trang_thai' => 'da_huy']);
-        return redirect()->route('staff.pending-bookings')->with('success', 'Booking đã được hủy thành công.');
+
+        try {
+            DB::beginTransaction();
+
+            // Update booking status to cancelled
+            $booking->update(['trang_thai' => 'da_huy']);
+
+            // Delete/release giu_phong records associated with this booking
+            if (Schema::hasTable('giu_phong')) {
+                DB::table('giu_phong')
+                    ->where('dat_phong_id', $booking->id)
+                    ->delete();
+            }
+
+            // Update related transactions to failed status
+            $updatedTransactions = GiaoDich::where('dat_phong_id', $booking->id)
+                ->whereIn('trang_thai', ['dang_cho', 'thanh_cong'])
+                ->update(['trang_thai' => 'that_bai']);
+
+            Log::info('Updated transactions to failed', [
+                'booking_id' => $booking->id,
+                'updated_count' => $updatedTransactions,
+            ]);
+
+            // Delete dat_phong_items (booking items)
+            $deletedItems = DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+            
+            Log::info('Deleted dat_phong_items', [
+                'booking_id' => $booking->id,
+                'deleted_count' => $deletedItems,
+            ]);
+
+            DB::commit();
+
+            Log::info('Booking cancelled by staff', [
+                'booking_id' => $booking->id,
+                'staff_id' => Auth::id(),
+                'ma_tham_chieu' => $booking->ma_tham_chieu,
+            ]);
+
+            return redirect()->back()->with('success', 'Đã hủy đặt phòng thành công. Mã đặt phòng: ' . $booking->ma_tham_chieu);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Error cancelling booking by staff', [
+                'booking_id' => $id,
+                'staff_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi hủy đặt phòng. Vui lòng thử lại sau.');
+        }
     }
 }

@@ -70,14 +70,7 @@
                                         <i class="bi bi-arrow-left me-1"></i> Quay lại
                                     </a>
 
-                                    @if (in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan']))
-                                        <form action="" method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn hủy đặt phòng này không?')">
-                                            @csrf
-                                            <button type="submit" class="btn btn-danger btn-sm px-3">
-                                                <i class="bi bi-x-circle me-1"></i> Hủy đặt phòng
-                                            </button>
-                                        </form>
-                                    @endif
+                                  
                                 </div>
                             </div>
                         </div>

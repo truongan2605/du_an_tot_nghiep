@@ -186,6 +186,31 @@
                                                     <div class="mt-2">
                                                         <a href="{{ route('account.booking.show', $b->id) }}"
                                                             class="btn btn-primary-soft mb-0">Quản lý đặt phòng</a>
+                                                        
+                                                        @if(in_array($b->trang_thai, ['dang_cho', 'da_xac_nhan']))
+                                                            @php
+                                                                $confirmMessage = 'Bạn có chắc chắn muốn hủy đặt phòng này không?';
+                                                            @endphp
+                                                            <form action="{{ route('account.booking.cancel', $b->id) }}" method="POST" class="d-inline-block ms-2" 
+                                                                  onsubmit="return confirm({{ json_encode($confirmMessage) }});">
+                                                                @csrf
+                                                                <button type="submit" class="btn btn-danger-soft mb-0">
+                                                                    <i class="bi bi-x-circle me-1"></i>Hủy phòng
+                                                                </button>
+                                                            </form>
+                                                        @endif
+
+                                                        @if($b->trang_thai === 'dang_cho')
+                                                            @php
+                                                                $pendingTransaction = $b->giaoDichs->where('trang_thai', 'dang_cho')->where('nha_cung_cap', 'vnpay')->first();
+                                                            @endphp
+                                                            @if($pendingTransaction)
+                                                                <a href="{{ route('account.booking.retry-payment', $b->id) }}" 
+                                                                   class="btn btn-success-soft mb-0 ms-2">
+                                                                    <i class="bi bi-credit-card me-1"></i>Tiếp tục thanh toán
+                                                                </a>
+                                                            @endif
+                                                        @endif
                                                     </div>
                                                 </div>
                                             </div>

@@ -394,6 +394,23 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
 
+        // Check if booking has been cancelled by admin/staff
+        if ($dat_phong->trang_thai === 'da_huy') {
+            $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Đơn đặt phòng đã bị hủy bởi quản trị viên']);
+            return view('payment.fail', [
+                'code' => '98', 
+                'message' => 'Đơn đặt phòng đã bị hủy. Vui lòng liên hệ quản trị viên để được hỗ trợ.'
+            ]);
+        }
+
+        // Check if transaction is already failed
+        if ($giao_dich->trang_thai === 'that_bai') {
+            return view('payment.fail', [
+                'code' => '99',
+                'message' => 'Giao dịch đã thất bại trước đó. ' . ($giao_dich->ghi_chu ?? '')
+            ]);
+        }
+
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 

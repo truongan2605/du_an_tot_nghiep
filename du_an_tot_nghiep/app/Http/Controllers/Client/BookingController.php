@@ -32,7 +32,7 @@ class BookingController extends Controller
 
         $upcoming = DatPhong::where('nguoi_dung_id', $user->id)
             ->whereIn('trang_thai', ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan', 'dang_su_dung'])
-            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'giaoDichs'])
             ->orderBy('ngay_nhan_phong', 'asc')
             ->get();
 
@@ -974,6 +974,166 @@ class BookingController extends Controller
                 'success' => false,
                 'message' => 'Có lỗi nội bộ khi áp dụng mã giảm giá.',
             ], 500);
+        }
+    }
+
+    /**
+     * Cancel a booking (client-side)
+     */
+    public function cancel(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập để hủy đặt phòng.');
+        }
+
+        // Find the booking and verify ownership
+        $booking = DatPhong::where('id', $id)
+            ->where('nguoi_dung_id', $user->id)
+            ->first();
+
+        if (!$booking) {
+            return back()->with('error', 'Không tìm thấy đặt phòng hoặc bạn không có quyền hủy đặt phòng này.');
+        }
+
+        // Check if the booking status allows cancellation
+        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+            return back()->with('error', 'Không thể hủy đặt phòng với trạng thái hiện tại: ' . $booking->trang_thai);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Update booking status to cancelled
+            $booking->trang_thai = 'da_huy';
+            $booking->save();
+
+            // Delete/release giu_phong records associated with this booking
+            if (Schema::hasTable('giu_phong')) {
+                DB::table('giu_phong')
+                    ->where('dat_phong_id', $booking->id)
+                    ->delete();
+            }
+
+            // Update related transactions to failed status
+            $updatedTransactions = \App\Models\GiaoDich::where('dat_phong_id', $booking->id)
+                ->whereIn('trang_thai', ['dang_cho', 'thanh_cong'])
+                ->update(['trang_thai' => 'that_bai']);
+
+            Log::info('Updated transactions to failed (client cancel)', [
+                'booking_id' => $booking->id,
+                'user_id' => $user->id,
+                'updated_count' => $updatedTransactions,
+            ]);
+
+            // Delete dat_phong_items (booking items)
+            $deletedItems = \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+            
+            Log::info('Deleted dat_phong_items (client cancel)', [
+                'booking_id' => $booking->id,
+                'user_id' => $user->id,
+                'deleted_count' => $deletedItems,
+            ]);
+
+            DB::commit();
+
+            Log::info('Booking cancelled by client', [
+                'booking_id' => $booking->id,
+                'user_id' => $user->id,
+                'ma_tham_chieu' => $booking->ma_tham_chieu,
+            ]);
+
+            return back()->with('success', 'Đã hủy đặt phòng thành công. Mã đặt phòng: ' . $booking->ma_tham_chieu);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Error cancelling booking', [
+                'booking_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Có lỗi xảy ra khi hủy đặt phòng. Vui lòng thử lại sau.');
+        }
+    }
+
+    /**
+     * Retry payment for a booking with pending transaction
+     */
+    public function retryPayment(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $booking = DatPhong::where('id', $id)
+            ->where('nguoi_dung_id', $user->id)
+            ->with('giaoDichs')
+            ->firstOrFail();
+
+        // Check booking status
+        if ($booking->trang_thai !== 'dang_cho') {
+            return back()->with('error', 'Chỉ có thể tiếp tục thanh toán cho đơn đang chờ.');
+        }
+
+        // Find pending VNPay transaction
+        $pendingTransaction = $booking->giaoDichs()
+            ->where('trang_thai', 'dang_cho')
+            ->where('nha_cung_cap', 'vnpay')
+            ->first();
+
+        if (!$pendingTransaction) {
+            return back()->with('error', 'Không tìm thấy giao dịch đang chờ.');
+        }
+
+        try {
+            // Generate new VNPay URL using existing transaction
+            $vnp_Url = env('VNPAY_URL');
+            $vnp_TmnCode = env('VNPAY_TMN_CODE');
+            $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+            $vnp_ReturnUrl = env('VNPAY_RETURN_URL');
+
+            // Use existing transaction ID with new timestamp
+            $merchantTxnRef = $pendingTransaction->id . '-' . time();
+
+            $inputData = [
+                "vnp_Version" => "2.1.0",
+                "vnp_TmnCode" => $vnp_TmnCode,
+                "vnp_Amount" => $pendingTransaction->so_tien * 100,
+                "vnp_Command" => "pay",
+                "vnp_CreateDate" => date('YmdHis'),
+                "vnp_CurrCode" => "VND",
+                "vnp_IpAddr" => $request->ip(),
+                "vnp_Locale" => "vn",
+                "vnp_OrderInfo" => "Thanh toán đặt phòng {$booking->ma_tham_chieu}",
+                "vnp_OrderType" => "billpayment",
+                "vnp_ReturnUrl" => $vnp_ReturnUrl,
+                "vnp_TxnRef" => $merchantTxnRef,
+            ];
+
+            ksort($inputData);
+            $query = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
+            $vnp_SecureHash = hash_hmac('sha512', $query, $vnp_HashSecret);
+            $redirectUrl = $vnp_Url . '?' . $query . '&vnp_SecureHash=' . $vnp_SecureHash;
+
+            Log::info('Retry payment for booking', [
+                'booking_id' => $booking->id,
+                'transaction_id' => $pendingTransaction->id,
+                'user_id' => $user->id,
+            ]);
+
+            return redirect()->away($redirectUrl);
+
+        } catch (\Exception $e) {
+            Log::error('Error retrying payment', [
+                'booking_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Có lỗi xảy ra khi tạo link thanh toán. Vui lòng thử lại sau.');
         }
     }
 }
