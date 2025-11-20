@@ -602,7 +602,7 @@ class StaffController extends Controller
             }
         }
 
-        $rooms = $query->orderBy('ma_phong')->paginate(10);
+        $rooms = $query->orderBy('ma_phong')->paginate(12);
 
         return view('staff.rooms', compact('rooms'));
     }
