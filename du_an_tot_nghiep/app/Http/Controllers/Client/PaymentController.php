@@ -27,6 +27,10 @@ class PaymentController extends Controller
     public function initiateVNPay(Request $request)
     {
         Log::info('initiateVNPay request:', $request->all());
+        Log::info('DEBUG: deposit_percentage value', [
+            'deposit_percentage' => $request->input('deposit_percentage'),
+            'has_deposit' => $request->has('deposit_percentage')
+        ]);
 
         try {
             $validated = $request->validate([
@@ -35,6 +39,7 @@ class PaymentController extends Controller
                 'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
                 'amount' => 'required|numeric|min:1',
                 'total_amount' => 'required|numeric|min:1|gte:amount',
+                'deposit_percentage' => 'nullable|in:50,100',  // Made nullable
                 'so_khach' => 'nullable|integer|min:1',
                 'adults' => 'required|integer|min:1',
                 'children' => 'nullable|integer|min:0',
@@ -48,9 +53,18 @@ class PaymentController extends Controller
                 'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,'
             ]);
 
-            $expectedDeposit = $validated['total_amount'] * 0.5;
+            // Default to 50% if not provided (radio button not submitted)
+            $depositPercentage = isset($validated['deposit_percentage']) 
+                ? (int) $validated['deposit_percentage'] 
+                : 50;
+            
+            // Calculate expected deposit based on user's selected percentage
+            $expectedDeposit = $validated['total_amount'] * ($depositPercentage / 100);
+            
             if (abs($validated['amount'] - $expectedDeposit) > 1000) {
-                return response()->json(['error' => 'Deposit không hợp lệ (phải khoảng 20% tổng)'], 400);
+                return response()->json([
+                    'error' => "Deposit không hợp lệ (phải là {$depositPercentage}% tổng tiền)"
+                ], 400);
             }
 
             $phong = Phong::with(['loaiPhong', 'tienNghis', 'bedTypes', 'activeOverrides'])->findOrFail($validated['phong_id']);
@@ -131,6 +145,7 @@ class PaymentController extends Controller
                 'nights' => $nights,
                 'rooms_count' => $roomsCount,
                 'tong_tien' => $snapshotTotalServer,
+                'deposit_percentage' => $depositPercentage,
                 'phuong_thuc' => $validated['phuong_thuc'],
                 'contact_name' => $validated['name'],
                 'contact_address' => $validated['address'],
@@ -358,6 +373,14 @@ class PaymentController extends Controller
 
     public function handleVNPayCallback(Request $request)
     {
+        $user = $request->user();
+        if (!$user) return response()->json(['error' => 'Authentication required'], 401);
+
+        // Debug: Log deposit_percentage from request
+        Log::info('DEBUG deposit_percentage from request', [
+            'deposit_percentage' => $request->input('deposit_percentage'),
+            'all_inputs' => $request->except(['_token'])
+        ]);
         Log::info('VNPAY Callback Received', $request->all());
 
         $inputData = collect($request->all())

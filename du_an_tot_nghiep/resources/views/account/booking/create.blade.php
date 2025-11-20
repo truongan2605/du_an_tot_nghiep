@@ -55,7 +55,7 @@
                                 <span id="modal_total_snapshot"></span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between fw-bold text-primary">
-                                <span>Đặt cọc (20%)</span>
+                                <span id="modal_deposit_label">Đặt cọc (50%)</span>
                                 <span id="modal_payable_now"></span>
                             </li>
                         </ul>
@@ -351,6 +351,32 @@
                                                         value="0">
 
                                                     <div class="mt-3">
+                                                        <label class="form-label fw-bold">
+                                                            <i class="bi bi-percent me-1"></i>Chọn hình thức thanh toán
+                                                        </label>
+                                                        <div class="card border">
+                                                            <div class="card-body p-3">
+                                                                <div class="form-check mb-2">
+                                                                    <input type="radio" name="deposit_percentage" value="50" 
+                                                                           class="form-check-input" id="deposit_50" checked>
+                                                                    <label for="deposit_50" class="form-check-label">
+                                                                        <strong>Đặt cọc 50%</strong>
+                                                                        <small class="text-muted d-block">Thanh toán phần còn lại khi check-in</small>
+                                                                    </label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input type="radio" name="deposit_percentage" value="100" 
+                                                                           class="form-check-input" id="deposit_100">
+                                                                    <label for="deposit_100" class="form-check-label">
+                                                                        <strong>Thanh toán toàn bộ 100%</strong>
+                                                                        <small class="text-muted d-block">Thanh toán ngay - Không cần thanh toán thêm</small>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mt-3">
                                                         <label for="phuong_thuc" class="form-label">Phương thức thanh toán</label>
                                                         <select name="phuong_thuc" id="phuong_thuc" class="form-select"
                                                             required>
@@ -503,11 +529,11 @@
 
                                     <div class="card-footer border-top bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span class="h6 mb-0 fw-bold">Đặt cọc (20%)</span>
+                                            <span class="h6 mb-0 fw-bold" id="deposit_percentage_label">Đặt cọc (50%)</span>
                                             <span class="h6 mb-0 fw-bold text-primary" id="payable_now_display">-</span>
                                         </div>
-                                        <small class="text-muted d-block mt-1 fst-italic">
-                                            Phần còn lại (80%) thanh toán tại khách sạn khi check in
+                                        <small class="text-muted d-block mt-1 fst-italic" id="remaining_info">
+                                            Phần còn lại (50%) thanh toán tại khách sạn khi check in
                                         </small>
                                     </div>
                                 </div>
@@ -1050,7 +1076,32 @@
                 const finalPerNight = baseTotalPerNight + adultsChargePerNightTotal + childrenChargePerNightTotal +
                     addonsPerNight;
                 const total = finalPerNight * nights;
-                const deposit = Math.ceil(total * 0.5 / 1000) * 1000;
+                
+                // Get selected deposit percentage  
+                const selectedDepositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
+                const depositPercentage = selectedDepositRadio ? parseInt(selectedDepositRadio.value) / 100 : 0.5;
+                const deposit = Math.ceil(total * depositPercentage / 1000) * 1000;
+
+                // Update deposit labels
+                const percentageText = (depositPercentage * 100) + '%';
+                const depositLabel = document.getElementById('deposit_percentage_label');
+                const modalDepositLabel = document.getElementById('modal_deposit_label');
+                const remainingInfo = document.getElementById('remaining_info');
+                
+                if (depositLabel) {
+                    depositLabel.innerText = depositPercentage === 1 ? 'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
+                }
+                if (modalDepositLabel) {
+                    modalDepositLabel.innerText = depositPercentage === 1 ? 'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
+                }
+                if (remainingInfo) {
+                    if (depositPercentage === 1) {
+                        remainingInfo.innerText = 'Đã thanh toán đủ - Không cần thanh toán thêm khi check-in';
+                    } else {
+                        const remaining = 100 - (depositPercentage * 100);
+                        remainingInfo.innerText = `Phần còn lại (${remaining}%) thanh toán tại khách sạn khi check in`;
+                    }
+                }
 
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
                 priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :
@@ -1076,6 +1127,13 @@
                 const hiddenDepositInput = document.getElementById('hidden_deposit');
                 if (hiddenDepositInput) hiddenDepositInput.value = deposit;
             }
+
+            // Add event listeners for deposit percentage radio buttons
+            document.querySelectorAll('input[name="deposit_percentage"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    updateSummary();
+                });
+            });
 
             function showToastInline(msg, isError = false, timeout = 2800) {
                 try {
@@ -1191,6 +1249,10 @@ function showVNPAYConfirmModal() {
                 const phone = document.querySelector('input[name="phone"]').value.trim();
                 const phuongThuc = 'vnpay';
 
+                // Get selected deposit percentage for the payment initiation
+                const depositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
+                const depositPercentageValue = depositRadio ? depositRadio.value : '50'; // Default to 50 if not found
+
                 try {
                     const response = await fetch("{{ route('payment.initiate') }}", {
                         method: "POST",
@@ -1211,6 +1273,7 @@ function showVNPAYConfirmModal() {
                             addons: addons,
                             rooms_count: roomsCount,
                             total_amount: tongTien,
+                            deposit_percentage: depositPercentageValue, // ADD THIS LINE
                             phuong_thuc: phuongThuc,
                             name: name,
                             address: address,
