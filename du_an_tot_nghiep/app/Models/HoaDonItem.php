@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class HoaDonItem extends Model
 {
     use HasFactory;
-
+    use Auditable;
     protected $table = 'hoa_don_items';
 
     protected $fillable = [

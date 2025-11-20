@@ -2,9 +2,9 @@
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
 
 // ===== Controllers =====
-use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\ThongBaoController;
 use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\Client\PaymentController;
 use App\Http\Controllers\Client\ProfileController;
+use App\Http\Controllers\Staff\AuditLogController;
+use App\Http\Controllers\Staff\CheckoutController;
 use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
@@ -26,23 +28,22 @@ use App\Http\Controllers\CustomerNotificationController;
 use App\Http\Controllers\InternalNotificationController;
 use App\Http\Controllers\Admin\VatDungIncidentController;
 use App\Http\Controllers\Client\BlogController as ClientBlog;
-use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
 use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
 use App\Http\Controllers\Admin\PhongConsumptionController;
-use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
+use App\Http\Controllers\Payment\ConfirmPaymentController;
 
 // Equipment/Room (extended)
-use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
+use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 
 // BLOG (Admin + Client)
 use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
-use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
-use App\Http\Controllers\Staff\CheckoutController;
+use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
+use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 
 Route::post('/booking/validate-voucher', [BookingController::class, 'validateVoucher'])->name('booking.validate_voucher')->middleware('auth');
 // ==================== CLIENT ====================
@@ -200,6 +201,9 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         // Reports / Overview
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
+
+        Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
     });
 
 

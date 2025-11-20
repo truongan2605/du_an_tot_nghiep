@@ -1,19 +1,19 @@
 <?php
 
 namespace App\Models;
-
+use App\Traits\Auditable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Support\Facades\DB;
 
 class DatPhong extends Model
 {
     use HasFactory;
-
+     use Auditable;
     protected $table = 'dat_phong';
 
     protected $fillable = [
@@ -41,6 +41,7 @@ class DatPhong extends Model
         'contact_address',
         'contact_phone',
         'deposit_amount',
+        
     ];
 
 

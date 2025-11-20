@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class Wishlist extends Model
-{
+{   
+    use Auditable;
     protected $table = 'wishlists';
 
     protected $fillable = [

@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class PhongVatDung extends Pivot
-{
+{   
+    use Auditable
+    ;
     protected $table = 'phong_vat_dung';
     public $incrementing = false;
     protected $fillable = [

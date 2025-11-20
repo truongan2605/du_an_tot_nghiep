@@ -315,38 +315,69 @@
             </div>
 
             {{-- Menu Staff (hiển thị cho cả admin và nhan_vien, bỏ Thanh toán và Tổng quan) --}}
-            @if (auth()->check() && in_array(auth()->user()->vai_tro, ['nhan_vien', 'admin']))
-                <div class="sidebar-divider"></div>
-                <div class="sidebar-section">
-                    <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
-                        data-bs-target="#section-staff" aria-expanded="false">
-                        <span>Quản lý đơn hàng</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="sidebar-section-content collapse" id="section-staff">
-                        <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}"
-                            data-url="{{ route('staff.index') }}" data-section="section-staff">
-                            <i class="fas fa-tachometer-alt"></i>Dashboard
-                        </a>
-                        <a class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}"
-                            data-url="{{ route('staff.bookings') }}" data-section="section-staff">
-                            <i class="fas fa-calendar-check"></i>Bookings
-                        </a>
-                        <a class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"
-                            data-url="{{ route('staff.rooms') }}" data-section="section-staff">
-                            <i class="fas fa-door-open"></i>Phòng
-                        </a>
-                        <a class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}"
-                            data-url="{{ route('staff.checkin') }}" data-section="section-staff">
-                            <i class="fas fa-sign-in-alt"></i>Check-in
-                        </a>
-                        {{-- <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
-                            data-url="{{ route('staff.reports') }}" data-section="section-staff">
-                            <i class="fas fa-chart-line"></i>Báo cáo
-                        </a> --}}
-                    </div>
-                </div>
+           @if (auth()->check() && in_array(auth()->user()->vai_tro, ['nhan_vien', 'admin']))
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+        <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
+            data-bs-target="#section-staff" aria-expanded="false">
+            <span>Quản lý đơn hàng</span>
+            <i class="fas fa-chevron-down"></i>
+        </div>
+
+        <div class="sidebar-section-content collapse" id="section-staff">
+            <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}"
+               href="{{ route('staff.index') }}" data-section="section-staff">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+
+            <a class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}"
+               href="{{ route('staff.bookings') }}" data-section="section-staff">
+                <i class="fas fa-calendar-check"></i> Bookings
+            </a>
+
+            <a class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"
+               href="{{ route('staff.rooms') }}" data-section="section-staff">
+                <i class="fas fa-door-open"></i> Phòng
+            </a>
+
+            <a class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}"
+               href="{{ route('staff.checkin') }}" data-section="section-staff">
+                <i class="fas fa-sign-in-alt"></i> Check-in
+            </a>
+
+            {{-- Nhật ký thao tác - chỉ hiển thị cho admin (nếu muốn staff cũng xem, bỏ điều kiện) --}}
+            @if(auth()->user()->vai_tro === 'admin')
+                @php
+                    // Quick count của audit logs trong 24 giờ; tốt hơn là truyền biến từ controller/view composer
+                    try {
+                        $recentAuditCount = \App\Models\AuditLog::where('created_at', '>=', now()->subDay())->count();
+                    } catch (\Throwable $e) {
+                        $recentAuditCount = 0;
+                    }
+                @endphp
+
+                <a class="nav-link {{ request()->routeIs('staff.audit-logs.*') ? 'active' : '' }}"
+                   href="{{ route('staff.audit-logs.index') }}" data-section="section-staff">
+                    <i class="fas fa-history"></i> Nhật ký thao tác
+                    @if($recentAuditCount)
+                        <span class="badge bg-danger ms-2">{{ $recentAuditCount }}</span>
+                    @endif
+                </a>
             @endif
+
+            {{-- Ví dụ: nếu muốn staff cũng thấy nhật ký, thay điều kiện ở trên bằng in_array(...) --}}
+            {{-- <a class="nav-link {{ request()->routeIs('staff.audit-logs.*') ? 'active' : '' }}"
+                   href="{{ route('staff.audit-logs.index') }}" data-section="section-staff">
+                    <i class="fas fa-history"></i> Nhật ký thao tác
+               </a> --}}
+
+            {{-- <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
+               href="{{ route('staff.reports') }}" data-section="section-staff">
+                <i class="fas fa-chart-line"></i> Báo cáo
+            </a> --}}
+        </div>
+    </div>
+@endif
         </div>
     </nav>
 
