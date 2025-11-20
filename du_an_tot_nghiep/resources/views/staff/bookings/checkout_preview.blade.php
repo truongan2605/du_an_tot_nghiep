@@ -139,15 +139,32 @@
             <form action="{{ route('staff.bookings.checkout.process', $booking->id) }}" method="POST">
                 @csrf
 
-                @if (($extrasTotal ?? 0) > 0)
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="mark_paid" name="mark_paid" value="1">
-                        <label class="form-check-label" for="mark_paid">
-                            Đánh dấu tất cả hoá đơn liên quan là <strong>đã thanh toán</strong> (nếu bạn đã thu tiền)
-                        </label>
-                    </div>
-                @else
+                @if (!empty($earlyEligible) && $earlyEligible)
                     <input type="hidden" name="mark_paid" value="1">
+                @else
+                    @if (($extrasTotal ?? 0) > 0)
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="mark_paid" name="mark_paid" value="1">
+                            <label class="form-check-label" for="mark_paid">
+                                Đánh dấu tất cả hoá đơn liên quan là <strong>đã thanh toán</strong> (nếu bạn đã thu tiền)
+                            </label>
+                        </div>
+                    @else
+                        <input type="hidden" name="mark_paid" value="1">
+                    @endif
+                @endif
+
+                {{-- Early checkout area --}}
+                @if (!empty($earlyEligible) && $earlyEligible)
+                    <div class="alert alert-info mb-3">
+                        <strong>Checkout sớm khả dụng:</strong>
+                        <div>Thời điểm hiện tại checkout sớm <strong>{{ $earlyDays }}</strong> ngày.</div>
+                        <div>Tổng tiền 1 đêm (tất cả phòng): <strong>{{ number_format($dailyTotal, 0) }} ₫</strong></div>
+                        <div>Ước tính hoàn tiền (50% × giá tiền 1 đêm × {{ $earlyDays }} đêm): <strong
+                                class="text-success">{{ number_format($earlyRefundEstimate, 0) }} ₫</strong></div>
+                    </div>
+
+                    <input type="hidden" name="early_checkout" value="1">
                 @endif
 
                 <div class="d-flex gap-2">
@@ -155,10 +172,18 @@
                         <i class="bi bi-arrow-left me-1"></i> Hủy
                     </a>
 
-                    <button type="submit" class="btn btn-danger btn"
-                        onclick="return confirm('Xác nhận checkout? Sau khi checkout, các phòng sẽ được giải phóng.')">
-                        <i class="bi bi-box-arrow-right me-1"></i> Xác nhận Checkout & Tạo hoá đơn
-                    </button>
+                    @if (!empty($earlyEligible) && $earlyEligible)
+                        <button type="submit" name="action" value="early_checkout" class="btn btn-warning btn"
+                            onclick="return confirm('Xác nhận checkout sớm? Hệ thống sẽ hoàn tiền ~{{ number_format($earlyRefundEstimate, 0) }} ₫ (ước tính) và giải phóng phòng.')">
+                            <i class="bi bi-box-arrow-right me-1"></i> Xác nhận Checkout sớm (Hoàn:
+                            {{ number_format($earlyRefundEstimate, 0) }}₫)
+                        </button>
+                    @else
+                        <button type="submit" class="btn btn-danger btn"
+                            onclick="return confirm('Xác nhận checkout? Sau khi checkout, các phòng sẽ được giải phóng.')">
+                            <i class="bi bi-box-arrow-right me-1"></i> Xác nhận Checkout & Tạo hoá đơn
+                        </button>
+                    @endif
                 </div>
             </form>
         @endif

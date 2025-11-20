@@ -119,7 +119,7 @@ class StaffController extends Controller
             ->with('user:id,name')
             ->get()
             ->map(fn($b) => [
-                'title' => 'BK-' . $b->ma_tham_chieu,
+                'title' => $b->ma_tham_chieu,
                 'start' => $b->ngay_nhan_phong,
                 'end' => $b->ngay_tra_phong,
                 'description' => "Khách: " . ($b->user->name ?? 'Ẩn danh') . " | " . ucfirst($b->trang_thai)
@@ -325,7 +325,7 @@ class StaffController extends Controller
         DB::transaction(function () use ($booking, $request) {
             // Xóa ảnh cũ nếu có
             $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-            
+
             // Xóa ảnh cũ (backward compatibility)
             if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
                 Storage::disk('public')->delete($meta['checkin_cccd']);
@@ -386,7 +386,7 @@ class StaffController extends Controller
 
         // Xóa ảnh cũ nếu có
         $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-        
+
         // Xóa ảnh cũ (backward compatibility)
         if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
             Storage::disk('public')->delete($meta['checkin_cccd']);
@@ -772,6 +772,16 @@ class StaffController extends Controller
             }
         }
 
+        $refundItems = \App\Models\HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
+            $q->where('dat_phong_id', $booking->id);
+        })->where('type', 'refund')->get();
+
+        $earlyRefundTotal = 0;
+        if ($refundItems->isNotEmpty()) {
+            $earlyRefundTotal = $refundItems->sum('amount');
+            $earlyRefundTotal = $earlyRefundTotal < 0 ? abs($earlyRefundTotal) : $earlyRefundTotal;
+        }
+
         return view('staff.bookings.show', compact(
             'booking',
             'meta',
@@ -780,7 +790,8 @@ class StaffController extends Controller
             'instances',
             'incidentsByInstance',
             'bookingMap',
-            'roomLinesFromInvoice'
+            'roomLinesFromInvoice',
+            'earlyRefundTotal'
         ));
     }
 

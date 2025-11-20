@@ -74,9 +74,16 @@
                                 $cccdFront = $meta['checkin_cccd_front'] ?? null;
                                 $cccdBack = $meta['checkin_cccd_back'] ?? null;
                                 $cccd = $meta['checkin_cccd'] ?? null; // Backward compatibility
-                                $hasFront = $cccdFront && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdFront);
-                                $hasBack = $cccdBack && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdBack);
-                                $isOldImage = $cccd && !$hasFront && !$hasBack && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccd);
+                                $hasFront =
+                                    $cccdFront &&
+                                    \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdFront);
+                                $hasBack =
+                                    $cccdBack && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdBack);
+                                $isOldImage =
+                                    $cccd &&
+                                    !$hasFront &&
+                                    !$hasBack &&
+                                    \Illuminate\Support\Facades\Storage::disk('public')->exists($cccd);
                             @endphp
                             @if ($hasFront || $hasBack || $isOldImage || (!empty($cccd) && !$isOldImage))
                                 <div class="d-flex align-items-start mb-3">
@@ -88,34 +95,33 @@
                                                 @if ($hasFront)
                                                     <div class="col-md-6">
                                                         <small class="text-muted d-block mb-1">Mặt trước:</small>
-                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdFront) }}" 
-                                                             alt="Mặt trước CCCD" 
-                                                             class="img-thumbnail w-100" 
-                                                             style="max-height: 300px; cursor: pointer; object-fit: contain;"
-                                                             onclick="window.open(this.src, '_blank')">
-                                                        <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
+                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdFront) }}"
+                                                            alt="Mặt trước CCCD" class="img-thumbnail w-100"
+                                                            style="max-height: 300px; cursor: pointer; object-fit: contain;"
+                                                            onclick="window.open(this.src, '_blank')">
+                                                        <br><small class="text-muted mt-1 d-block">Click để xem ảnh
+                                                            lớn</small>
                                                     </div>
                                                 @endif
                                                 @if ($hasBack)
                                                     <div class="col-md-6">
                                                         <small class="text-muted d-block mb-1">Mặt sau:</small>
-                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdBack) }}" 
-                                                             alt="Mặt sau CCCD" 
-                                                             class="img-thumbnail w-100" 
-                                                             style="max-height: 300px; cursor: pointer; object-fit: contain;"
-                                                             onclick="window.open(this.src, '_blank')">
-                                                        <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
+                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdBack) }}"
+                                                            alt="Mặt sau CCCD" class="img-thumbnail w-100"
+                                                            style="max-height: 300px; cursor: pointer; object-fit: contain;"
+                                                            onclick="window.open(this.src, '_blank')">
+                                                        <br><small class="text-muted mt-1 d-block">Click để xem ảnh
+                                                            lớn</small>
                                                     </div>
                                                 @endif
                                             </div>
                                         @elseif ($isOldImage)
                                             {{-- Backward compatibility: hiển thị ảnh cũ --}}
                                             <div class="mt-2">
-                                                <img src="{{ \Illuminate\Support\Facades\Storage::url($cccd) }}" 
-                                                     alt="Ảnh CCCD" 
-                                                     class="img-thumbnail" 
-                                                     style="max-width: 400px; max-height: 300px; cursor: pointer;"
-                                                     onclick="window.open(this.src, '_blank')">
+                                                <img src="{{ \Illuminate\Support\Facades\Storage::url($cccd) }}"
+                                                    alt="Ảnh CCCD" class="img-thumbnail"
+                                                    style="max-width: 400px; max-height: 300px; cursor: pointer;"
+                                                    onclick="window.open(this.src, '_blank')">
                                                 <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
                                             </div>
                                         @else
@@ -221,6 +227,24 @@
                                                 <i class="bi bi-clock-history me-1"></i>
                                                 Đã checkout lúc {{ $booking->checkout_at->format('d/m/Y H:i:s') }}
                                             </span>
+
+                                            @if (!empty($booking->is_checkout_early))
+                                                <div class="mt-2">
+                                                    <span class="badge bg-warning text-dark rounded-pill px-3 py-2 fs-7">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i> Đơn checkout sớm
+                                                    </span>
+
+                                                    @if (isset($earlyRefundTotal) && $earlyRefundTotal > 0)
+                                                        <small class="ms-2 text-muted">
+                                                            Số tiền hoàn lại: <strong
+                                                                class="text-success">{{ number_format($earlyRefundTotal, 0) }}
+                                                                ₫</strong>
+                                                        </small>
+                                                    @else
+                                                        <small class="ms-2 text-muted">Không có khoản hoàn trả.</small>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         @else
                                             <span class="badge bg-secondary text-white rounded-pill px-3 py-2 fs-7">
                                                 <i class="bi bi-x-circle me-1"></i>
@@ -271,7 +295,8 @@
                                 <i class="bi bi-currency-exchange text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Tổng Tiền</small>
-                                    <p class="mb-0 fs-5 fw-bold text-success">{{ number_format($booking->tong_tien, 0) }} ₫
+                                    <p class="mb-0 fs-5 fw-bold text-success">{{ number_format($booking->tong_tien, 0) }}
+                                        ₫
                                     </p>
                                 </div>
                             </div>
@@ -340,7 +365,6 @@
                                                     <i class="bi bi-check-lg me-1"></i>Đã dọn xong
                                                 </button>
                                             </form>
-
                                         @endif
 
                                         {{-- Dịch vụ gọi thêm chỉ khi booking đang sử dụng --}}

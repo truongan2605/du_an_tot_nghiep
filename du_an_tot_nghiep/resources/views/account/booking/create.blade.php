@@ -288,7 +288,7 @@
                                                             @endforeach
                                                         </ul>
                                                     @else
-                                                        <p class="mb-0"><em>Không có dịch vụ bổ sung có phí nào.</em></p>
+                                                        {{-- <p class="mb-0"><em>Không có dịch vụ bổ sung có phí nào.</em></p> --}}
                                                     @endif
                                                 @else
                                                     <p class="mb-0"><em>Không có tiện ích nào được liệt kê cho phòng này.</em></p>
