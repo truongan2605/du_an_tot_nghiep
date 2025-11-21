@@ -28,6 +28,7 @@ class Phong extends Model
         'gia_cuoi_cung',
         'img',
         'trang_thai',
+        'don_dep',
         'last_checked_at',
         'spec_signature_hash',
     ];
@@ -38,6 +39,7 @@ class Phong extends Model
         'gia_mac_dinh' => 'decimal:2',
         'gia_cuoi_cung' => 'decimal:2',
         'last_checked_at' => 'datetime',
+        'don_dep' => 'boolean',
     ];
 
     public function loaiPhong()
