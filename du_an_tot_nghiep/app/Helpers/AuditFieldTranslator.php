@@ -12,6 +12,7 @@ class AuditFieldTranslator
         'created_at' => 'Ngày tạo',
         'updated_at' => 'Ngày cập nhật',
         'deleted_at' => 'Ngày xóa',
+        'meta' => 'Dữ liệu bổ sung',
         
         // User fields
         'ho_ten' => 'Họ tên',
@@ -40,19 +41,39 @@ class AuditFieldTranslator
         'contact_name' => 'Tên liên hệ',
         'contact_phone' => 'SĐT liên hệ',
         'contact_address' => 'Địa chỉ liên hệ',
+        'can_xac_nhan' => 'Cần xác nhận',
+        
+        // Cancellation & Refund fields
+        'cancellation_reason' => 'Lý do hủy',
+        'cancelled_at' => 'Thời điểm hủy',
+        'refund_amount' => 'Số tiền hoàn',
+        'refund_percentage' => 'Tỷ lệ hoàn tiền',
+        'processed_by' => 'Người xử lý',
+        'processed_at' => 'Thời điểm xử lý',
         
         // Room fields
         'ten_phong' => 'Tên phòng',
         'ma_phong' => 'Mã phòng',
+        'phong_id' => 'Mã phòng',
+        'room_id' => 'Mã phòng',
         'loai_phong_id' => 'Loại phòng',
         'tang_id' => 'Tầng',
         'gia_mac_dinh' => 'Giá mặc định',
         'gia_cuoi_cung' => 'Giá cuối cùng',
+        'gia_tren_dem' => 'Giá trên đêm',
         'suc_chua' => 'Sức chứa',
         'so_giuong' => 'Số giường',
+        'so_luong' => 'Số lượng',
+        'so_dem' => 'Số đêm',
         'dien_tich' => 'Diện tích',
         'mo_ta' => 'Mô tả',
         'description' => 'Mô tả',
+        
+        // Room reservation fields
+        'het_han_luc' => 'Hết hạn lúc',
+        'released' => 'Đã giải phóng',
+        'released_at' => 'Thời điểm giải phóng',
+        'released_by' => 'Người giải phóng',
         
         // Payment fields
         'phuong_thuc' => 'Phương thức',
@@ -61,6 +82,12 @@ class AuditFieldTranslator
         'amount' => 'Số tiền',
         'ma_giao_dich' => 'Mã giao dịch',
         'transaction_id' => 'Mã giao dịch',
+        'provider_txn_ref' => 'Mã GD nhà cung cấp',
+        
+        // Booking item fields
+        'dat_phong_id' => 'Mã đặt phòng',
+        'booking_id' => 'Mã đặt phòng',
+        'tong_item' => 'Tổng item',
         
         // Voucher fields
         'code' => 'Mã',
@@ -152,8 +179,9 @@ class AuditFieldTranslator
             return self::$statusMap[$value];
         }
 
-        // Format dates
-        if (str_contains($field, 'date') || str_contains($field, 'ngay') || in_array($field, ['created_at', 'updated_at', 'deleted_at'])) {
+        // Format dates (bao gồm cả các trường _at và het_han_luc)
+        if (str_contains($field, 'date') || str_contains($field, 'ngay') || str_contains($field, '_at') || 
+            in_array($field, ['created_at', 'updated_at', 'deleted_at', 'cancelled_at', 'processed_at', 'released_at', 'het_han_luc'])) {
             try {
                 return Carbon::parse($value)->format('d/m/Y H:i');
             } catch (\Exception $e) {
@@ -161,18 +189,23 @@ class AuditFieldTranslator
             }
         }
 
-        // Format money
-        if (in_array($field, ['tong_tien', 'so_tien', 'gia', 'deposit_amount', 'amount', 'gia_mac_dinh', 'gia_cuoi_cung', 'gia_tri', 'value']) && is_numeric($value)) {
+        // Format money (bao gồm cả refund_amount và gia_tren_dem)
+        if (in_array($field, ['tong_tien', 'so_tien', 'gia', 'deposit_amount', 'amount', 'gia_mac_dinh', 'gia_cuoi_cung', 'gia_tri', 'value', 'refund_amount', 'gia_tren_dem']) && is_numeric($value)) {
             return number_format($value, 0, ',', '.') . ' ₫';
         }
 
-        // Format boolean
+        // Format boolean (bao gồm can_xac_nhan và released)
         if (is_bool($value)) {
             return $value ? 'Có' : 'Không';
         }
+        
+        // Handle numeric boolean (0 or 1) cho các trường như can_xac_nhan, released
+        if (in_array($field, ['can_xac_nhan', 'released', 'is_active', 'active']) && ($value === 0 || $value === 1 || $value === '0' || $value === '1')) {
+            return $value ? 'Có' : 'Không';
+        }
 
-        // Format deposit percentage
-        if ($field === 'deposit_percentage' && is_numeric($value)) {
+        // Format percentages (deposit_percentage và refund_percentage)
+        if (in_array($field, ['deposit_percentage', 'refund_percentage']) && is_numeric($value)) {
             return $value . '%';
         }
 
