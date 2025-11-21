@@ -29,8 +29,8 @@
                         <div class="mb-3 row gx-2">
                             <div class="col-md-6">
                                 <label for="gia" class="form-label">Giá (VND)</label>
-                                <input type="number" step="0.01" class="form-control @error('gia') is-invalid @enderror"
-                                    id="gia" name="gia" value="{{ old('gia') }}">
+                                <input type="text" id="gia" name="gia" class="form-control @error('gia') is-invalid @enderror"
+                                value="{{ old('gia') }}" oninput="formatMoney(this)">
                                 @error('gia')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -116,5 +116,31 @@
                 }
             });
         }
+
+        function formatMoney(input) {
+        let v = input.value.toLowerCase().replace(/\s+/g, '');
+
+        if (v.endsWith('k')) {
+            v = v.replace('k', '');
+            v = parseInt(v || 0) * 1000;
+        } else if (v.endsWith('m')) {
+            v = v.replace('m', '');
+            v = parseInt(v || 0) * 1000000;
+        } else if (v.endsWith('b')) {
+            v = v.replace('b', '');
+            v = parseInt(v || 0) * 1000000000;
+        } else {
+            v = v.replace(/\D/g, '');
+        }
+
+        if (v.length > 12) v = v.substring(0, 12);
+
+        if (v === "") {
+            input.value = "";
+            return;
+        }
+
+        input.value = Number(v).toLocaleString("vi-VN");
+    }
     </script>
 @endsection
