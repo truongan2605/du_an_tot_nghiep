@@ -214,15 +214,228 @@
                                                         
                                                         @if(in_array($b->trang_thai, ['dang_cho', 'da_xac_nhan']))
                                                             @php
-                                                                $confirmMessage = 'Bạn có chắc chắn muốn hủy đặt phòng này không?';
+                                                                // Calculate days until check-in
+                                                                $checkInDate = \Carbon\Carbon::parse($b->ngay_nhan_phong);
+                                                                $now = \Carbon\Carbon::now();
+                                                                $daysUntilCheckIn = (int) $now->diffInDays($checkInDate, false);
+                                                                
+                                                                // Determine deposit type based on deposit_amount
+                                                                $totalAmount = $b->snapshot_total ?? ($b->tong_tien ?? 0);
+                                                                $paidAmount = $b->deposit_amount ?? 0;
+                                                                $depositType = 50; // default
+                                                                if ($paidAmount > 0 && $totalAmount > 0) {
+                                                                    $percentage = ($paidAmount / $totalAmount) * 100;
+                                                                    $depositType = ($percentage >= 90) ? 100 : 50;
+                                                                }
+                                                                
+                                                                // Calculate refund percentage based on policy
+                                                                $refundPercentage = 0;
+                                                                if ($depositType == 100) {
+                                                                    if ($daysUntilCheckIn >= 7) $refundPercentage = 90;
+                                                                    elseif ($daysUntilCheckIn >= 3) $refundPercentage = 60;
+                                                                    elseif ($daysUntilCheckIn >= 1) $refundPercentage = 40;
+                                                                    else $refundPercentage = 20;
+                                                                } else {
+                                                                    if ($daysUntilCheckIn >= 7) $refundPercentage = 100;
+                                                                    elseif ($daysUntilCheckIn >= 3) $refundPercentage = 70;
+                                                                    elseif ($daysUntilCheckIn >= 1) $refundPercentage = 30;
+                                                                    else $refundPercentage = 0;
+                                                                }
+                                                                
+                                                                $refundAmount = ($paidAmount * $refundPercentage) / 100;
                                                             @endphp
-                                                            <form action="{{ route('account.booking.cancel', $b->id) }}" method="POST" class="d-inline-block ms-2" 
-                                                                  onsubmit="return confirm({{ json_encode($confirmMessage) }});">
-                                                                @csrf
-                                                                <button type="submit" class="btn btn-danger-soft mb-0">
-                                                                    <i class="bi bi-x-circle me-1"></i>Hủy phòng
-                                                                </button>
-                                                            </form>
+                                                            
+                                                            <button type="button" 
+                                                                    class="btn btn-danger-soft mb-0 ms-2" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#cancelModal{{ $b->id }}">
+                                                                <i class="bi bi-x-circle me-1"></i>Hủy phòng
+                                                            </button>
+                                                            
+                                                            <!-- Cancel Booking Modal -->
+                                                            <div class="modal fade" id="cancelModal{{ $b->id }}" tabindex="-1" aria-hidden="true">
+                                                                <div class="modal-dialog modal-dialog-centered modal-lg">
+                                                                    <div class="modal-content">
+                                                                        <div class="modal-header bg-danger bg-opacity-10 border-0">
+                                                                            <h5 class="modal-title text-danger">
+                                                                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                                                                Xác nhận hủy đặt phòng
+                                                                            </h5>
+                                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                                        </div>
+                                                                        <div class="modal-body p-4">
+                                                                            <!-- Booking Info -->
+                                                                            <div class="alert alert-light border mb-4">
+                                                                                <div class="d-flex align-items-center mb-2">
+                                                                                    <i class="bi bi-info-circle text-primary me-2 fs-5"></i>
+                                                                                    <h6 class="mb-0">Thông tin đặt phòng</h6>
+                                                                                </div>
+                                                                                <div class="row small mt-3">
+                                                                                    <div class="col-md-6 mb-2">
+                                                                                        <strong>Mã đặt phòng:</strong> {{ $b->ma_tham_chieu }}
+                                                                                    </div>
+                                                                                    <div class="col-md-6 mb-2">
+                                                                                        <strong>Ngày nhận phòng:</strong> {{ $checkInDate->format('d/m/Y') }}
+                                                                                    </div>
+                                                                                    <div class="col-md-6">
+                                                                                        <strong>Số tiền đã thanh toán:</strong> 
+                                                                                        <span class="text-danger">{{ number_format($paidAmount, 0, ',', '.') }} ₫</span>
+                                                                                    </div>
+                                                                                    <div class="col-md-6">
+                                                                                        <strong>Thời gian còn lại:</strong> 
+                                                                                        <span class="badge bg-info">{{ $daysUntilCheckIn }} ngày</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <!-- Refund Calculation -->
+                                                                            <div class="card border-success mb-4">
+                                                                                <div class="card-header bg-success bg-opacity-10 border-0">
+                                                                                    <h6 class="mb-0 text-success">
+                                                                                        <i class="bi bi-calculator me-2"></i>
+                                                                                        Số tiền được hoàn trả
+                                                                                    </h6>
+                                                                                </div>
+                                                                                <div class="card-body">
+                                                                                    <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                                                                                        <div>
+                                                                                            <small class="text-muted d-block">Hình thức thanh toán</small>
+                                                                                            <span class="fw-semibold">{{ $depositType == 100 ? 'Thanh toán 100%' : 'Đặt cọc 50%' }}</span>
+                                                                                        </div>
+                                                                                        <div class="text-end">
+                                                                                            <small class="text-muted d-block">Tỷ lệ hoàn tiền</small>
+                                                                                            <span class="badge bg-primary fs-6">{{ $refundPercentage }}%</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                                        <span class="text-muted">Số tiền đã trả:</span>
+                                                                                        <span class="fw-semibold">{{ number_format($paidAmount, 0, ',', '.') }} ₫</span>
+                                                                                    </div>
+                                                                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                                                                        <span class="text-muted">Tỷ lệ hoàn:</span>
+                                                                                        <span class="fw-semibold">{{ $refundPercentage }}%</span>
+                                                                                    </div>
+                                                                                    <hr class="my-3">
+                                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                                        <span class="fw-bold text-success fs-5">Bạn sẽ nhận lại:</span>
+                                                                                        <span class="fw-bold text-success fs-4">{{ number_format($refundAmount, 0, ',', '.') }} ₫</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <!-- Refund Policy Table -->
+                                                                            <div class="accordion" id="policyAccordion{{ $b->id }}">
+                                                                                <div class="accordion-item border">
+                                                                                    <h2 class="accordion-header">
+                                                                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#policyDetails{{ $b->id }}">
+                                                                                            <i class="bi bi-file-text me-2"></i>
+                                                                                            Chính sách hoàn tiền chi tiết
+                                                                                        </button>
+                                                                                    </h2>
+                                                                                    <div id="policyDetails{{ $b->id }}" class="accordion-collapse collapse">
+                                                                                        <div class="accordion-body">
+                                                                                            <div class="row">
+                                                                                                <div class="col-md-6">
+                                                                                                    <h6 class="text-primary mb-3">Đặt cọc 50%</h6>
+                                                                                                    <div class="table-responsive">
+                                                                                                        <table class="table table-sm table-bordered">
+                                                                                                            <thead class="table-light">
+                                                                                                                <tr>
+                                                                                                                    <th>Thời gian hủy</th>
+                                                                                                                    <th>Hoàn lại</th>
+                                                                                                                </tr>
+                                                                                                            </thead>
+                                                                                                            <tbody class="small">
+                                                                                                                <tr class="{{ $depositType == 50 && $daysUntilCheckIn >= 7 ? 'table-success' : '' }}">
+                                                                                                                    <td>≥ 7 ngày trước</td>
+                                                                                                                    <td><strong>100%</strong></td>
+                                                                                                                </tr>
+                                                                                                                <tr class="{{ $depositType == 50 && $daysUntilCheckIn >= 3 && $daysUntilCheckIn < 7 ? 'table-success' : '' }}">
+                                                                                                                    <td>3-6 ngày trước</td>
+                                                                                                                    <td><strong>70%</strong></td>
+                                                                                                                </tr>
+                                                                                                                <tr class="{{ $depositType == 50 && $daysUntilCheckIn >= 1 && $daysUntilCheckIn < 3 ? 'table-success' : '' }}">
+                                                                                                                    <td>1-2 ngày trước</td>
+                                                                                                                    <td><strong>30%</strong></td>
+                                                                                                                </tr>
+                                                                                                                <tr class="{{ $depositType == 50 && $daysUntilCheckIn < 1 ? 'table-danger' : '' }}">
+                                                                                                                    <td>< 24 giờ</td>
+                                                                                                                    <td><strong>0%</strong></td>
+                                                                                                                </tr>
+                                                                                                            </tbody>
+                                                                                                        </table>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                <div class="col-md-6">
+                                                                                                    <h6 class="text-success mb-3">Thanh toán 100%</h6>
+                                                                                                    <div class="table-responsive">
+                                                                                                        <table class="table table-sm table-bordered">
+                                                                                                            <thead class="table-light">
+                                                                                                                <tr>
+                                                                                                                    <th>Thời gian hủy</th>
+                                                                                                                    <th>Hoàn lại</th>
+                                                                                                                </tr>
+                                                                                                            </thead>
+                                                                                                            <tbody class="small">
+                                                                                                                <tr class="{{ $depositType == 100 && $daysUntilCheckIn >= 7 ? 'table-success' : '' }}">
+                                                                                                                    <td>≥ 7 ngày trước</td>
+                                                                                                                    <td><strong>90%</strong></td>
+                                                                                                                </tr>
+                                                                                                                <tr class="{{ $depositType == 100 && $daysUntilCheckIn >= 3 && $daysUntilCheckIn < 7 ? 'table-success' : '' }}">
+                                                                                                                    <td>3-6 ngày trước</td>
+                                                                                                                    <td><strong>60%</strong></td>
+                                                                                                                </tr>
+                                                                                                                <tr class="{{ $depositType == 100 && $daysUntilCheckIn >= 1 && $daysUntilCheckIn < 3 ? 'table-success' : '' }}">
+                                                                                                                    <td>1-2 ngày trước</td>
+                                                                                                                    <td><strong>40%</strong></td>
+                                                                                                                </tr>
+                                                                                                                <tr class="{{ $depositType == 100 && $daysUntilCheckIn < 1 ? 'table-warning' : '' }}">
+                                                                                                                    <td>< 24 giờ</td>
+                                                                                                                    <td><strong>20%</strong></td>
+                                                                                                                </tr>
+                                                                                                            </tbody>
+                                                                                                        </table>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <div class="alert alert-info alert-sm mt-3 mb-0">
+                                                                                                <small>
+                                                                                                    <i class="bi bi-info-circle me-1"></i>
+                                                                                                    <strong>Lưu ý:</strong> Khách hàng thanh toán 100% được ưu đãi tỷ lệ hoàn tiền cao hơn khi hủy phòng.
+                                                                                                </small>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <!-- Warning Message -->
+                                                                            @if($refundPercentage == 0)
+                                                                                <div class="alert alert-danger mt-4 mb-0">
+                                                                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                                                                    <strong>Cảnh báo:</strong> Hủy phòng trong vòng 24 giờ trước check-in sẽ không được hoàn tiền!
+                                                                                </div>
+                                                                            @elseif($refundPercentage < 50)
+                                                                                <div class="alert alert-warning mt-4 mb-0">
+                                                                                    <i class="bi bi-exclamation-circle me-2"></i>
+                                                                                    <strong>Lưu ý:</strong> Do hủy gần ngày nhận phòng, số tiền hoàn lại sẽ thấp hơn.
+                                                                                </div>
+                                                                            @endif
+                                                                        </div>
+                                                                        <div class="modal-footer border-0 pt-0">
+                                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                                                <i class="bi bi-arrow-left me-1"></i>Quay lại
+                                                                            </button>
+                                                                            <form action="{{ route('account.booking.cancel', $b->id) }}" method="POST" class="d-inline">
+                                                                                @csrf
+                                                                                <button type="submit" class="btn btn-danger">
+                                                                                    <i class="bi bi-check-circle me-1"></i>Xác nhận hủy phòng
+                                                                                </button>
+                                                                            </form>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
                                                         @endif
 
                                                         @if($b->trang_thai === 'dang_cho')
@@ -345,125 +558,246 @@
                                                 {{-- Refund Information --}}
                                                 @if($refundRequest)
                                                     <hr class="my-3">
-                                                    <div class="row align-items-center">
-                                                        <div class="col-md-6">
-                                                            <div class="d-flex align-items-center">
-                                                                <i class="bi bi-cash-coin text-success me-2 fs-4"></i>
-                                                                <div>
-                                                                    <small class="text-muted d-block">Số tiền hoàn</small>
-                                                                    <h6 class="mb-0 text-success">
-                                                                        {{ number_format($refundRequest->amount, 0, ',', '.') }} ₫
-                                                                        <small class="text-muted">({{ $refundRequest->percentage }}%)</small>
-                                                                    </h6>
+                                                    
+                                                    {{-- Refund Summary Card --}}
+                                                    <div class="card border-0 bg-light-success mb-3">
+                                                        <div class="card-body p-3">
+                                                            <div class="row align-items-center">
+                                                                <div class="col-md-8">
+                                                                    <div class="d-flex align-items-start">
+                                                                        <div class="icon-lg bg-success bg-opacity-10 rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center">
+                                                                            <i class="bi bi-cash-coin text-success fs-4"></i>
+                                                                        </div>
+                                                                        <div class="ms-3">
+                                                                            <h6 class="mb-1">Thông tin hoàn tiền</h6>
+                                                                            <div class="d-flex flex-wrap gap-3 mt-2">
+                                                                                <div>
+                                                                                    <small class="text-muted d-block">Số tiền hoàn trả</small>
+                                                                                    <h5 class="mb-0 text-success fw-bold">
+                                                                                        {{ number_format($refundRequest->amount, 0, ',', '.') }} ₫
+                                                                                    </h5>
+                                                                                </div>
+                                                                                <div class="vr d-none d-md-block"></div>
+                                                                                <div>
+                                                                                    <small class="text-muted d-block">Tỷ lệ hoàn tiền</small>
+                                                                                    <h5 class="mb-0 text-primary fw-bold">{{ $refundRequest->percentage }}%</h5>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                                                                    @php
+                                                                        $statusClass = match($refundRequest->status) {
+                                                                            'pending' => 'bg-warning text-dark',
+                                                                            'approved' => 'bg-info text-white',
+                                                                            'completed' => 'bg-success text-white',
+                                                                            'rejected' => 'bg-danger text-white',
+                                                                            default => 'bg-secondary'
+                                                                        };
+                                                                        $statusText = match($refundRequest->status) {
+                                                                            'pending' => 'Chờ xử lý',
+                                                                            'approved' => 'Đã duyệt',
+                                                                            'completed' => 'Đã hoàn tiền',
+                                                                            'rejected' => 'Từ chối',
+                                                                            default => 'N/A'
+                                                                        };
+                                                                        $statusIcon = match($refundRequest->status) {
+                                                                            'pending' => 'bi-clock-history',
+                                                                            'approved' => 'bi-check-circle',
+                                                                            'completed' => 'bi-patch-check-fill',
+                                                                            'rejected' => 'bi-x-circle-fill',
+                                                                            default => 'bi-info-circle'
+                                                                        };
+                                                                    @endphp
+                                                                    <span class="badge {{ $statusClass }} px-3 py-2 fs-6">
+                                                                        <i class="bi {{ $statusIcon }} me-1"></i>{{ $statusText }}
+                                                                    </span>
+                                                                    <div class="mt-2">
+                                                                        <button class="btn btn-sm btn-primary" type="button" 
+                                                                                data-bs-toggle="collapse" 
+                                                                                data-bs-target="#refundDetails{{ $b->id }}" 
+                                                                                aria-expanded="false">
+                                                                            <i class="bi bi-chevron-down"></i> Xem chi tiết
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-6 text-md-end mt-2 mt-md-0">
-                                                            @php
-                                                                $statusClass = match($refundRequest->status) {
-                                                                    'pending' => 'bg-warning text-dark',
-                                                                    'approved' => 'bg-info text-white',
-                                                                    'completed' => 'bg-success text-white',
-                                                                    'rejected' => 'bg-danger text-white',
-                                                                    default => 'bg-secondary'
-                                                                };
-                                                                $statusText = match($refundRequest->status) {
-                                                                    'pending' => 'Chờ xử lý',
-                                                                    'approved' => 'Đã duyệt',
-                                                                    'completed' => 'Đã hoàn tiền',
-                                                                    'rejected' => 'Từ chối',
-                                                                    default => 'N/A'
-                                                                };
-                                                            @endphp
-                                                            <span class="badge {{ $statusClass }} px-3 py-2">
-                                                                <i class="bi bi-info-circle me-1"></i>{{ $statusText }}
-                                                            </span>
-                                                            
-                                                            {{-- View Details Button --}}
-                                                            <button class="btn btn-sm btn-outline-primary ms-2" type="button" 
-                                                                    data-bs-toggle="collapse" 
-                                                                    data-bs-target="#refundDetails{{ $b->id }}" 
-                                                                    aria-expanded="false">
-                                                                <i class="bi bi-eye"></i> Chi tiết
-                                                            </button>
-                                                        </div>
                                                     </div>
                                                     
-                                                    {{-- Expandable Refund Details --}}
-                                                    <div class="collapse mt-3" id="refundDetails{{ $b->id }}">
-                                                        <div class="card bg-light border-0">
+                                                    {{-- Expandable Detailed Breakdown --}}
+                                                    <div class="collapse" id="refundDetails{{ $b->id }}">
+                                                        <div class="card border mb-3">
+                                                            <div class="card-header bg-white">
+                                                                <h6 class="mb-0">
+                                                                    <i class="bi bi-receipt text-primary me-2"></i>
+                                                                    Chi tiết thanh toán & hoàn tiền
+                                                                </h6>
+                                                            </div>
                                                             <div class="card-body">
-                                                                <h6 class="mb-3"><i class="bi bi-info-circle-fill text-primary me-2"></i>Thông tin hoàn tiền</h6>
-                                                                <div class="row small">
+                                                                {{-- Financial Breakdown --}}
+                                                                <div class="row mb-4">
                                                                     <div class="col-md-6">
-                                                                        <ul class="list-unstyled mb-0">
-                                                                            <li class="mb-2">
-                                                                                <i class="bi bi-calendar3 text-muted me-2"></i>
-                                                                                <strong>Ngày yêu cầu:</strong> 
-                                                                                {{ $refundRequest->requested_at->format('d/m/Y H:i') }}
-                                                                            </li>
-                                                                            <li class="mb-2">
-                                                                                <i class="bi bi-wallet2 text-muted me-2"></i>
-                                                                                <strong>Số tiền đã trả:</strong> 
-                                                                                {{ number_format($b->deposit_amount ?? 0, 0, ',', '.') }} ₫
-                                                                            </li>
-                                                                            <li>
-                                                                                <i class="bi bi-percent text-muted me-2"></i>
-                                                                                <strong>Tỷ lệ hoàn:</strong> 
-                                                                                {{ $refundRequest->percentage }}%
-                                                                            </li>
-                                                                        </ul>
+                                                                        <div class="bg-light rounded p-3 h-100">
+                                                                            <h6 class="mb-3 text-primary">
+                                                                                <i class="bi bi-wallet2 me-2"></i>Thông tin thanh toán gốc
+                                                                            </h6>
+                                                                            <ul class="list-unstyled mb-0">
+                                                                                <li class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                                                                                    <span class="text-muted">
+                                                                                        <i class="bi bi-receipt text-muted me-2"></i>Tổng giá trị đặt phòng:
+                                                                                    </span>
+                                                                                    <strong>{{ number_format($b->snapshot_total ?? ($b->tong_tien ?? 0), 0, ',', '.') }} ₫</strong>
+                                                                                </li>
+                                                                                <li class="d-flex justify-content-between mb-2">
+                                                                                    <span class="text-muted">
+                                                                                        <i class="bi bi-credit-card text-muted me-2"></i>Số tiền đã thanh toán:
+                                                                                    </span>
+                                                                                    <strong class="text-danger">{{ number_format($b->deposit_amount ?? 0, 0, ',', '.') }} ₫</strong>
+                                                                                </li>
+                                                                            </ul>
+                                                                        </div>
                                                                     </div>
-                                                                    <div class="col-md-6">
-                                                                        <ul class="list-unstyled mb-0">
-                                                                            @if($refundRequest->processed_at)
-                                                                                <li class="mb-2">
-                                                                                    <i class="bi bi-check-circle text-success me-2"></i>
-                                                                                    <strong>Xử lý lúc:</strong> 
-                                                                                    {{ $refundRequest->processed_at->format('d/m/Y H:i') }}
+                                                                    <div class="col-md-6 mt-3 mt-md-0">
+                                                                        <div class="bg-success bg-opacity-10 rounded p-3 h-100">
+                                                                            <h6 class="mb-3 text-success">
+                                                                                <i class="bi bi-arrow-return-left me-2"></i>Chi tiết hoàn tiền
+                                                                            </h6>
+                                                                            <ul class="list-unstyled mb-0">
+                                                                                <li class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                                                                                    <span class="text-muted">
+                                                                                        <i class="bi bi-percent text-muted me-2"></i>Tỷ lệ được hoàn:
+                                                                                    </span>
+                                                                                    <strong class="text-primary">{{ $refundRequest->percentage }}%</strong>
                                                                                 </li>
-                                                                            @endif
-                                                                            @if($refundRequest->admin_note)
-                                                                                <li>
-                                                                                    <i class="bi bi-chat-left-text text-muted me-2"></i>
-                                                                                    <strong>Ghi chú:</strong> 
-                                                                                    <p class="mb-0 ms-4 text-muted">{{ $refundRequest->admin_note }}</p>
+                                                                                <li class="d-flex justify-content-between mb-2 pb-2 border-bottom">
+                                                                                    <span class="text-muted">
+                                                                                        <i class="bi bi-calculator text-muted me-2"></i>Cách tính:
+                                                                                    </span>
+                                                                                    <span class="small">{{ number_format($b->deposit_amount ?? 0, 0, ',', '.') }} × {{ $refundRequest->percentage }}%</span>
                                                                                 </li>
-                                                                            @endif
-                                                                        </ul>
+                                                                                <li class="d-flex justify-content-between">
+                                                                                    <span class="fw-semibold text-success">
+                                                                                        <i class="bi bi-cash-coin me-2"></i>Số tiền nhận lại:
+                                                                                    </span>
+                                                                                    <strong class="text-success fs-5">{{ number_format($refundRequest->amount, 0, ',', '.') }} ₫</strong>
+                                                                                </li>
+                                                                            </ul>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                                
-                                                                {{-- Status Info --}}
-                                                                @if($refundRequest->status === 'pending')
-                                                                    <div class="alert alert-info alert-sm mt-3 mb-0 p-2">
-                                                                        <small>
-                                                                            <i class="bi bi-clock-history me-1"></i>
-                                                                            <strong>Đang chờ xử lý.</strong> Yêu cầu hoàn tiền của bạn đang được xem xét. Thời gian xử lý dự kiến: 2-3 ngày làm việc.
-                                                                        </small>
+
+                                                                {{-- Timeline --}}
+                                                                <div class="border-top pt-3">
+                                                                    <h6 class="mb-3">
+                                                                        <i class="bi bi-clock-history text-primary me-2"></i>
+                                                                        Tiến trình xử lý
+                                                                    </h6>
+                                                                    <div class="timeline-refund">
+                                                                        <div class="timeline-item {{ $refundRequest->status !== 'rejected' ? 'completed' : 'rejected' }}">
+                                                                            <div class="timeline-marker">
+                                                                                <i class="bi bi-check-circle-fill"></i>
+                                                                            </div>
+                                                                            <div class="timeline-content">
+                                                                                <h6 class="mb-1">Yêu cầu hoàn tiền</h6>
+                                                                                <small class="text-muted">
+                                                                                    <i class="bi bi-calendar3 me-1"></i>
+                                                                                    {{ $refundRequest->requested_at->format('d/m/Y H:i') }}
+                                                                                </small>
+                                                                                <p class="mb-0 mt-1 small">Yêu cầu hoàn tiền đã được tạo tự động khi đặt phòng bị hủy</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        
+                                                                        @if($refundRequest->status === 'rejected')
+                                                                            <div class="timeline-item rejected">
+                                                                                <div class="timeline-marker">
+                                                                                    <i class="bi bi-x-circle-fill"></i>
+                                                                                </div>
+                                                                                <div class="timeline-content">
+                                                                                    <h6 class="mb-1 text-danger">Yêu cầu bị từ chối</h6>
+                                                                                    @if($refundRequest->processed_at)
+                                                                                        <small class="text-muted">
+                                                                                            <i class="bi bi-calendar3 me-1"></i>
+                                                                                            {{ $refundRequest->processed_at->format('d/m/Y H:i') }}
+                                                                                        </small>
+                                                                                    @endif
+                                                                                    @if($refundRequest->admin_note)
+                                                                                        <div class="alert alert-danger alert-sm mt-2 mb-0 p-2">
+                                                                                            <small>
+                                                                                                <i class="bi bi-chat-left-text me-1"></i>
+                                                                                                <strong>Lý do:</strong> {{ $refundRequest->admin_note }}
+                                                                                            </small>
+                                                                                        </div>
+                                                                                    @endif
+                                                                                </div>
+                                                                            </div>
+                                                                        @else
+                                                                            <div class="timeline-item {{ in_array($refundRequest->status, ['approved', 'completed']) ? 'completed' : '' }}">
+                                                                                <div class="timeline-marker">
+                                                                                    <i class="bi {{ in_array($refundRequest->status, ['approved', 'completed']) ? 'bi-check-circle-fill' : 'bi-circle' }}"></i>
+                                                                                </div>
+                                                                                <div class="timeline-content">
+                                                                                    <h6 class="mb-1">Phê duyệt</h6>
+                                                                                    @if(in_array($refundRequest->status, ['approved', 'completed']))
+                                                                                        <small class="text-muted">
+                                                                                            <i class="bi bi-calendar3 me-1"></i>
+                                                                                            {{ $refundRequest->processed_at ? $refundRequest->processed_at->format('d/m/Y H:i') : 'Đã phê duyệt' }}
+                                                                                        </small>
+                                                                                        <p class="mb-0 mt-1 small text-success">
+                                                                                            <i class="bi bi-check-circle me-1"></i>
+                                                                                            Yêu cầu đã được phê duyệt bởi quản trị viên
+                                                                                        </p>
+                                                                                    @else
+                                                                                        <p class="mb-0 mt-1 small text-muted">Đang chờ quản trị viên xem xét và phê duyệt</p>
+                                                                                    @endif
+                                                                                    @if($refundRequest->admin_note && in_array($refundRequest->status, ['approved', 'completed']))
+                                                                                        <div class="alert alert-info alert-sm mt-2 mb-0 p-2">
+                                                                                            <small>
+                                                                                                <i class="bi bi-chat-left-text me-1"></i>
+                                                                                                <strong>Ghi chú:</strong> {{ $refundRequest->admin_note }}
+                                                                                            </small>
+                                                                                        </div>
+                                                                                    @endif
+                                                                                </div>
+                                                                            </div>
+                                                                            
+                                                                            <div class="timeline-item {{ $refundRequest->status === 'completed' ? 'completed' : '' }}">
+                                                                                <div class="timeline-marker">
+                                                                                    <i class="bi {{ $refundRequest->status === 'completed' ? 'bi-check-circle-fill' : 'bi-circle' }}"></i>
+                                                                                </div>
+                                                                                <div class="timeline-content">
+                                                                                    <h6 class="mb-1">Hoàn tiền</h6>
+                                                                                    @if($refundRequest->status === 'completed')
+                                                                                        @if($refundRequest->processed_at)
+                                                                                            <small class="text-muted">
+                                                                                                <i class="bi bi-calendar3 me-1"></i>
+                                                                                                {{ $refundRequest->processed_at->format('d/m/Y H:i') }}
+                                                                                            </small>
+                                                                                        @endif
+                                                                                        <div class="alert alert-success alert-sm mt-2 mb-0 p-2">
+                                                                                            <small>
+                                                                                                <i class="bi bi-patch-check-fill me-1"></i>
+                                                                                                <strong>Hoàn tất!</strong> Số tiền <strong>{{ number_format($refundRequest->amount, 0, ',', '.') }} ₫</strong> đã được hoàn vào tài khoản của bạn.
+                                                                                            </small>
+                                                                                        </div>
+                                                                                    @else
+                                                                                        <p class="mb-0 mt-1 small text-muted">
+                                                                                            @if($refundRequest->status === 'approved')
+                                                                                                Đang tiến hành chuyển tiền. Thời gian dự kiến: 1-2 ngày làm việc
+                                                                                            @else
+                                                                                                Chờ phê duyệt trước khi hoàn tiền
+                                                                                            @endif
+                                                                                        </p>
+                                                                                    @endif
+                                                                                </div>
+                                                                            </div>
+                                                                        @endif
                                                                     </div>
-                                                                @elseif($refundRequest->status === 'approved')
-                                                                    <div class="alert alert-primary alert-sm mt-3 mb-0 p-2">
-                                                                        <small>
-                                                                            <i class="bi bi-check-circle me-1"></i>
-                                                                            <strong>Đã duyệt.</strong> Yêu cầu của bạn đã được phê duyệt. Chúng tôi sẽ tiến hành chuyển tiền trong thời gian sớm nhất.
-                                                                        </small>
-                                                                    </div>
-                                                                @elseif($refundRequest->status === 'completed')
-                                                                    <div class="alert alert-success alert-sm mt-3 mb-0 p-2">
-                                                                        <small>
-                                                                            <i class="bi bi-patch-check-fill me-1"></i>
-                                                                            <strong>Hoàn tất!</strong> Số tiền đã được hoàn vào tài khoản của bạn. Vui lòng kiểm tra.
-                                                                        </small>
-                                                                    </div>
-                                                                @elseif($refundRequest->status === 'rejected')
-                                                                    <div class="alert alert-danger alert-sm mt-3 mb-0 p-2">
-                                                                        <small>
-                                                                            <i class="bi bi-x-circle-fill me-1"></i>
-                                                                            <strong>Từ chối.</strong> Yêu cầu hoàn tiền không được chấp nhận.
-                                                                        </small>
-                                                                    </div>
-                                                                @endif
+                                                                </div>
+
+                                                                {{-- Help Information --}}
+                                                              
                                                             </div>
                                                         </div>
                                                     </div>
@@ -592,3 +926,145 @@
         </div>
     </section>
 @endsection
+
+@push('styles')
+<style>
+    /* Refund Information Styling */
+    .bg-light-success {
+        background-color: #f0fdf4 !important;
+    }
+
+    /* Timeline Styles */
+    .timeline-refund {
+        position: relative;
+        padding-left: 0;
+        margin: 0;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 45px;
+        padding-bottom: 30px;
+        margin-bottom: 0;
+    }
+
+    .timeline-item:last-child {
+        padding-bottom: 0;
+    }
+
+    .timeline-item:not(:last-child)::before {
+        content: '';
+        position: absolute;
+        left: 18px;
+        top: 30px;
+        bottom: -10px;
+        width: 2px;
+        background-color: #e5e7eb;
+    }
+
+    .timeline-item.completed:not(:last-child)::before {
+        background-color: #10b981;
+    }
+
+    .timeline-item.rejected:not(:last-child)::before {
+        background-color: #ef4444;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: #f3f4f6;
+        border: 3px solid #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .timeline-item.completed .timeline-marker {
+        background-color: #10b981;
+        color: #fff;
+    }
+
+    .timeline-item.rejected .timeline-marker {
+        background-color: #ef4444;
+        color: #fff;
+    }
+
+    .timeline-marker i {
+        font-size: 16px;
+        color: #9ca3af;
+    }
+
+    .timeline-item.completed .timeline-marker i,
+    .timeline-item.rejected .timeline-marker i {
+        color: #fff;
+    }
+
+    .timeline-content {
+        flex: 1;
+    }
+
+    .timeline-content h6 {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: #1f2937;
+    }
+
+    .timeline-content small {
+        color: #6b7280;
+    }
+
+    .timeline-content p {
+        color: #6b7280;
+        font-size: 0.875rem;
+    }
+
+    /* Icon sizing */
+    .icon-lg {
+        width: 48px;
+        height: 48px;
+    }
+
+    /* Accordion FAQ styling */
+    .accordion-button:not(.collapsed) {
+        color: #0d6efd;
+        background-color: transparent;
+    }
+
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: transparent;
+    }
+
+    /* Alert sizing */
+    .alert-sm {
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .timeline-item {
+            padding-left: 35px;
+        }
+
+        .timeline-item:not(:last-child)::before {
+            left: 13px;
+        }
+
+        .timeline-marker {
+            width: 28px;
+            height: 28px;
+        }
+
+        .timeline-marker i {
+            font-size: 14px;
+        }
+    }
+</style>
+@endpush
