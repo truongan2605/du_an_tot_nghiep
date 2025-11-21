@@ -216,7 +216,8 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
             Route::post('/{id}/reject', [RefundController::class, 'reject'])->name('reject');
             Route::post('/{id}/complete', [RefundController::class, 'complete'])->name('complete');
         });
-
+         Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
+            ->name('bookings.rooms.clear_cleaning');
         Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
 
