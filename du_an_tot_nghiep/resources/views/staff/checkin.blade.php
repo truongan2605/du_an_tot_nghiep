@@ -55,6 +55,8 @@
             </div>
         @endif
 
+        @endif
+
         <!-- Compact Stats -->
         <div class="row mb-3 g-2">
             <div class="col-6 col-md-3">
