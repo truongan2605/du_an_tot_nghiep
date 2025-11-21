@@ -120,30 +120,55 @@
                                             'dang_su_dung' => 'bg-success',
                                             'da_xac_nhan' => 'bg-primary',
                                             'da_huy' => 'bg-danger',
-                                            'hoan_thanh' => 'bg-success',
+                                            'hoan_thanh' => 'bg-info',
                                         ];
                                         return $map[$t] ?? 'bg-secondary';
                                     };
-                                    
+
                                     // Format ngày tháng tiếng Việt
                                     $formatDateVi = function ($date, $format = 'D, d M Y') {
-                                        if (!$date) return '';
-                                        
+                                        if (!$date) {
+                                            return '';
+                                        }
+
                                         $carbon = \Carbon\Carbon::parse($date);
-                                        
+
                                         $days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
-                                        $months = ['', 'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 
-                                                   'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
-                                        
+                                        $months = [
+                                            '',
+                                            'Tháng 1',
+                                            'Tháng 2',
+                                            'Tháng 3',
+                                            'Tháng 4',
+                                            'Tháng 5',
+                                            'Tháng 6',
+                                            'Tháng 7',
+                                            'Tháng 8',
+                                            'Tháng 9',
+                                            'Tháng 10',
+                                            'Tháng 11',
+                                            'Tháng 12',
+                                        ];
+
                                         if ($format === 'D, d M Y') {
                                             $dayName = $days[$carbon->dayOfWeek];
                                             $monthName = $months[$carbon->month];
-                                            return $dayName . ', ' . $carbon->format('d') . ' ' . $monthName . ' ' . $carbon->format('Y');
+                                            return $dayName .
+                                                ', ' .
+                                                $carbon->format('d') .
+                                                ' ' .
+                                                $monthName .
+                                                ' ' .
+                                                $carbon->format('Y');
                                         } elseif ($format === 'd M Y H:i') {
                                             $monthName = $months[$carbon->month];
-                                            return $carbon->format('d') . ' ' . $monthName . ' ' . $carbon->format('Y H:i');
+                                            return $carbon->format('d') .
+                                                ' ' .
+                                                $monthName .
+                                                ' ' .
+                                                $carbon->format('Y H:i');
                                         }
-                                        
+
                                         return $carbon->format($format);
                                     };
                                 @endphp
@@ -305,8 +330,35 @@
                                             $label = $statusLabel($b->trang_thai);
                                             $badge = $statusBadge($b->trang_thai);
 
-                                            // Lấy danh sách phòng đã đặt, loại bỏ null
                                             $rooms = collect($b->datPhongItems)->pluck('phong')->filter();
+                                            if ($rooms->isEmpty()) {
+                                                $roomItems = collect($b->hoaDons ?? [])
+                                                    ->flatMap(function ($hd) {
+                                                        return collect($hd->hoaDonItems ?? [])->filter(function ($it) {
+                                                            return ($it->type ?? '') === 'room_booking';
+                                                        });
+                                                    })
+                                                    ->map(function ($it) {
+                                                        if (!empty($it->phong)) {
+                                                            return $it->phong;
+                                                        }
+
+                                                        $loai = $it->loaiPhong ?? null;
+
+                                                        return (object) [
+                                                            'ten_phong' =>
+                                                                $it->phong?->ten_phong ??
+                                                                ($it->name ?? 'Phòng chưa gán'),
+                                                            'loaiPhong' =>
+                                                                $loai ?:
+                                                                (object) [
+                                                                    'ten_loai' => $it->loaiPhong?->ten_loai ?? null,
+                                                                ],
+                                                        ];
+                                                    })
+                                                    ->filter();
+                                                $rooms = $roomItems;
+                                            }
                                         @endphp
 
                                         <div class="card border mb-3">
@@ -349,13 +401,10 @@
                                                         <ul class="mt-2 mb-0">
                                                             @foreach ($rooms as $p)
                                                                 <li>
-                                                                    {{ $p->ten_phong ?? 'Phòng chưa gán' }}
-                                                                    @if ($p->loaiPhong)
-                                                                        -
-                                                                        {{ $p->loaiPhong->ten_loai ?? 'Loại phòng không xác định' }}
+                                                                    {{ $p->ten_phong ?? ($p->name ?? 'Phòng chưa gán') }}
+                                                                    @if (!empty($p->loaiPhong) && ($p->loaiPhong->ten_loai ?? null))
+                                                                        - {{ $p->loaiPhong->ten_loai }}
                                                                     @endif
-                                                                    <small class="text-muted">(Tầng
-                                                                        {{ $p->tang->ten_tang ?? 'N/A' }})</small>
                                                                 </li>
                                                             @endforeach
                                                         </ul>
@@ -374,7 +423,6 @@
                                         <div class="alert alert-info">Không có đặt phòng đã hoàn thành.</div>
                                     @endforelse
                                 </div>
-
 
                             </div>
 

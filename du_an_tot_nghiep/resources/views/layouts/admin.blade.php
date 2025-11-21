@@ -372,6 +372,14 @@
                         <h5 class="mb-0" id="pageTitle">@yield('title', 'Admin Panel')</h5>
                     </div>
                     <div class="d-flex align-items-center gap-3">
+                        {{-- Nút Staff Panel giờ chỉ là link, vì layout chung --}}
+                        @if (auth()->check() && auth()->user()->vai_tro === 'admin')
+                            <a href="{{ route('staff.index') }}" class="btn btn-outline-success btn-sm"
+                                data-url="{{ route('staff.index') }}">
+                                <i class="fas fa-user-tie me-1"></i>Staff
+                            </a>
+                        @endif
+
                         <!-- Notification Bell (giữ nguyên) -->
                         <div class="dropdown">
                             <button class="btn btn-outline-primary position-relative btn-sm" type="button"
@@ -418,7 +426,8 @@
                                 <i class="fas fa-user me-1"></i>{{ auth()->user()?->name ?? 'Guest' }}
                             </button>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ route('home') }}">
+                                <li><a class="dropdown-item" href="{{ route('home') }}"
+                                        data-url="{{ route('home') }}">
                                         <i class="fas fa-home me-2"></i>Về trang chủ
                                     </a></li>
                                 <li>

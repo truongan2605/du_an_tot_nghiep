@@ -130,15 +130,6 @@
                     <div class="card-footer p-3 border-0 bg-light">
                         @if ($status === 'trong')
                             <button class="btn btn-success btn-sm w-100" disabled>Sẵn sàng</button>
-                        @elseif ($status === 'cho_checkin' && $currentBooking)
-                            {{-- Hiển thị nút Check-in khi phòng có booking và trạng thái là "Chờ check-in" --}}
-                            <button type="button" class="btn btn-success btn-sm w-100" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#checkinModal{{ $room->id }}"
-                                    data-booking-id="{{ $currentBooking->id }}"
-                                    data-room-id="{{ $room->id }}">
-                                <i class="bi bi-check-circle me-1"></i>Check-in
-                            </button>
                         @elseif ($currentBooking)
                             <a href="{{ route('staff.bookings.show', $currentBooking->id) }}" class="btn btn-primary btn-sm w-100">Xem booking</a>
                         @else
@@ -151,56 +142,6 @@
                     </div>
                 </div>
             </div>
-
-            {{-- Modal Check-in --}}
-            @if ($status === 'cho_checkin' && $currentBooking)
-            <div class="modal fade" id="checkinModal{{ $room->id }}" tabindex="-1" aria-labelledby="checkinModalLabel{{ $room->id }}" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header bg-success text-white">
-                            <h5 class="modal-title" id="checkinModalLabel{{ $room->id }}">
-                                <i class="bi bi-check-circle me-2"></i>Check-in Phòng {{ $room->ma_phong }}
-                            </h5>
-                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
-                        </div>
-                        <form action="{{ route('staff.rooms.checkin', $room->id) }}" method="POST" id="checkinForm{{ $room->id }}">
-                            @csrf
-                            <input type="hidden" name="booking_id" value="{{ $currentBooking->id }}">
-                            <div class="modal-body">
-                                <div class="mb-3">
-                                    <label class="form-label fw-semibold">Thông tin Booking</label>
-                                    <div class="card bg-light p-2">
-                                        <small class="text-muted d-block">Mã booking: <strong>{{ $currentBooking->ma_tham_chieu }}</strong></small>
-                                        <small class="text-muted d-block">Khách hàng: <strong>{{ $currentBooking->nguoiDung?->name ?? 'N/A' }}</strong></small>
-                                        <small class="text-muted d-block">Ngày nhận: <strong>{{ \Carbon\Carbon::parse($currentBooking->ngay_nhan_phong)->format('d/m/Y') }}</strong></small>
-                                    </div>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="cccd{{ $room->id }}" class="form-label fw-semibold">
-                                        Số CCCD/CMND <span class="text-danger">*</span>
-                                    </label>
-                                    <input type="text" 
-                                           class="form-control" 
-                                           id="cccd{{ $room->id }}" 
-                                           name="cccd" 
-                                           placeholder="Nhập số CCCD/CMND của khách"
-                                           required
-                                           pattern="[0-9]{9,12}"
-                                           title="Vui lòng nhập số CCCD/CMND hợp lệ (9-12 chữ số)">
-                                    <small class="form-text text-muted">Vui lòng nhập số CCCD/CMND của khách hàng</small>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                                <button type="submit" class="btn btn-success">
-                                    <i class="bi bi-check-circle me-1"></i>Xác nhận Check-in
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            @endif
 
             {{-- Modal Booking List --}}
             @if($bookingCount > 0)

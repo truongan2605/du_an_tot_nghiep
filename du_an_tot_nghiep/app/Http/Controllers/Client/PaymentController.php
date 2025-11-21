@@ -17,6 +17,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use App\Services\PaymentNotificationService;
 
 class PaymentController extends Controller
 {
@@ -449,6 +450,17 @@ class PaymentController extends Controller
                     Mail::to($dat_phong->nguoiDung->email)->queue(new PaymentSuccess($dat_phong, $dat_phong->nguoiDung->name));
                 }
 
+                // Gửi thông báo thanh toán cọc hoặc thanh toán toàn bộ
+                $totalPaid = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                $notificationService = new PaymentNotificationService();
+                if ($totalPaid >= $dat_phong->tong_tien) {
+                    // Thanh toán toàn bộ
+                    $notificationService->sendFullPaymentNotification($dat_phong, $giao_dich);
+                } else {
+                    // Thanh toán cọc
+                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
+                }
+
                 return view('payment.success', compact('dat_phong'));
             } else {
                 $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Mã lỗi: ' . $vnp_ResponseCode]);
@@ -548,6 +560,17 @@ class PaymentController extends Controller
 
                 if (!empty($phongIdsToOccupy)) {
                     Phong::whereIn('id', array_unique($phongIdsToOccupy))->update(['trang_thai' => 'dang_o']);
+                }
+
+                // Gửi thông báo thanh toán cọc hoặc thanh toán toàn bộ
+                $totalPaid = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                $notificationService = new PaymentNotificationService();
+                if ($totalPaid >= $dat_phong->tong_tien) {
+                    // Thanh toán toàn bộ
+                    $notificationService->sendFullPaymentNotification($dat_phong, $giao_dich);
+                } else {
+                    // Thanh toán cọc
+                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
                 }
 
                 return response()->json(['RspCode' => '00', 'Message' => 'Confirm Success']);
@@ -673,6 +696,19 @@ class PaymentController extends Controller
             return back()->with('error', 'Booking không hợp lệ để thanh toán phần còn lại.');
         }
 
+        // Kiểm tra CCCD trước khi thanh toán
+        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $cccdList = $meta['checkin_cccd_list'] ?? [];
+        $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
+        
+        // Backward compatibility: kiểm tra CCCD cũ nếu chưa có danh sách mới
+        if (!$hasCCCD) {
+            $hasOldCCCD = !empty($meta['checkin_cccd_front']) || !empty($meta['checkin_cccd_back']) || !empty($meta['checkin_cccd']);
+            if (!$hasOldCCCD) {
+                return back()->with('error', 'Vui lòng upload ảnh CCCD/CMND (mặt trước và mặt sau) trước khi thanh toán.');
+            }
+        }
+
         $paid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
         $remaining = $booking->tong_tien - $paid;
 
@@ -703,6 +739,17 @@ class PaymentController extends Controller
 
             if ($nhaCungCap === 'tien_mat') {
                 $booking->update(['trang_thai' => 'dang_su_dung', 'checked_in_at' => now()]);
+                
+                // Gửi thông báo thanh toán toàn bộ hoặc thanh toán phần còn lại
+                $totalPaid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                $notificationService = new PaymentNotificationService();
+                if ($totalPaid >= $booking->tong_tien) {
+                    // Thanh toán toàn bộ
+                    $notificationService->sendFullPaymentNotification($booking, $giaoDich);
+                } else {
+                    // Thanh toán phần còn lại (không phải cọc, nhưng vẫn gửi thông báo)
+                    $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
+                }
             }
 
             return $giaoDich;
@@ -828,6 +875,10 @@ class PaymentController extends Controller
                     Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
                     Log::info('Room status updated', ['phong_ids' => $phongIds, 'new_status' => 'dang_o']);
                 }
+
+                // Gửi thông báo thanh toán toàn bộ
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendFullPaymentNotification($booking, $transaction);
 
                 return redirect()->route('staff.checkin')->with('success', 'Thanh toán thành công! Phòng đã được chuyển sang trạng thái đang sử dụng.');
             }
