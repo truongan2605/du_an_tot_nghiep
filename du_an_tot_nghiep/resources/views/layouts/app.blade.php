@@ -242,6 +242,11 @@
             border: none;
             box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
         }
+        .sticky-sidebar {
+    position: sticky;
+    top: 80px; /* chỉnh tùy độ cao header */
+}
+
 
         .btn-wishlist i {
             color: #fff;

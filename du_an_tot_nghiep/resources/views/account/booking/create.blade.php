@@ -387,7 +387,8 @@
                     </div>
 
                     <aside class="col-xl-4">
-                        <div class="row g-4">
+    <div class="position-sticky" style="top: 80px;">
+        <div class="row g-4">
                             <!-- Price summary START -->
                             <div class="col-md-6 col-xl-12">
                                 <div class="card shadow rounded-3 border-0">
@@ -514,10 +515,12 @@
                             </div>
                             <!-- Price summary END -->
                         </div>
+    </div>
 
                     </aside>
                 </div>
             </div>
+
         </section>
     </main>
 @endsection
