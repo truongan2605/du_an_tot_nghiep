@@ -65,6 +65,10 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 Route::get('/booking/availability', [BookingController::class, 'availability'])->name('booking.availability');
 Route::post('/booking/apply-voucher', [BookingController::class, 'applyVoucher'])->name('booking.apply-voucher');
 
+// ==================== ROOM COMPARISON ====================
+Route::get('/compare', [RoomController::class, 'compare'])->name('rooms.compare');
+Route::get('/api/rooms/compare-data', [RoomController::class, 'getCompareData'])->name('rooms.compare-data');
+
 // ==================== ADMIN ====================
 Route::prefix('admin')
     ->name('admin.')

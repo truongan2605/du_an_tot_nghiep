@@ -239,11 +239,25 @@
                                                         </h4>
                                                     </div>
 
-                                                    {{-- Luôn cho phép chọn phòng, kiểm tra còn phòng ở trang đặt phòng --}}
-                                                    <a href="{{ route('rooms.show', $phong->id) }}"
-                                                        class="btn btn-dark rounded-pill px-4 py-2">
-                                                        Chọn phòng
-                                                    </a>
+                                                    <div class="d-flex gap-2">
+                                                        {{-- Compare Button --}}
+                                                        <button type="button" 
+                                                                class="btn btn-outline-primary rounded-pill px-3 py-2 compare-btn"
+                                                                data-room-id="{{ $phong->id }}"
+                                                                data-room-name="{{ $loaiPhong->ten ?? $phong->name }}"
+                                                                data-room-price="{{ $phong->gia_cuoi_cung }}"
+                                                                data-room-image="{{ asset('storage/' . ($phong->images->first()->image_path ?? 'template/stackbros/assets/images/default-room.jpg')) }}"
+                                                                title="So sánh phòng">
+                                                            <i class="bi bi-plus-circle me-1"></i>
+                                                            <span class="compare-text">So sánh</span>
+                                                        </button>
+                                                        
+                                                        {{-- Select Room Button --}}
+                                                        <a href="{{ route('rooms.show', $phong->id) }}"
+                                                            class="btn btn-dark rounded-pill px-4 py-2">
+                                                            Chọn phòng
+                                                        </a>
+                                                    </div>
                                                 </div>
 
                                             </div>
@@ -268,6 +282,29 @@
             </div>
         </div>
     </section>
+
+    {{-- Sticky Compare Bar --}}
+    <div id="compareBar" class="compare-bar" style="display: none;">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-check2-square fs-4"></i>
+                    <div>
+                        <h6 class="mb-0">So sánh phòng</h6>
+                        <small class="text-muted"><span id="compareCount">0</span> phòng đã chọn (Tối đa 4)</small>
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-light btn-sm" id="clearCompare">
+                        <i class="bi bi-trash me-1"></i> Xóa tất cả
+                    </button>
+                    <a href="{{ route('rooms.compare') }}" class="btn btn-light btn-sm">
+                        <i class="bi bi-arrow-right-circle me-1"></i> So sánh ngay
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     @push('scripts')
         <script src="https://cdn.jsdelivr.net/npm/nouislider@15.7.0/dist/nouislider.min.js"></script>
@@ -304,6 +341,103 @@
                     minLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[0]) + 'đ';
                     maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[1]) + 'đ';
                 });
+            });
+        </script>
+
+        {{-- Compare Rooms JavaScript --}}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const MAX_COMPARE = 4;
+                const STORAGE_KEY = 'compareRooms';
+
+                // Get compared rooms from localStorage
+                function getComparedRooms() {
+                    const stored = localStorage.getItem(STORAGE_KEY);
+                    return stored ? JSON.parse(stored) : [];
+                }
+
+                // Save compared rooms to localStorage
+                function saveComparedRooms(rooms) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+                }
+
+                // Update compare bar visibility and count
+                function updateCompareBar() {
+                    const rooms = getComparedRooms();
+                    const compareBar = document.getElementById('compareBar');
+                    const compareCount = document.getElementById('compareCount');
+                    
+                    if (rooms.length > 0) {
+                        compareBar.style.display = 'block';
+                        compareCount.textContent = rooms.length;
+                    } else {
+                        compareBar.style.display = 'none';
+                    }
+
+                    // Update all compare buttons state
+                    document.querySelectorAll('.compare-btn').forEach(btn => {
+                        const roomId = parseInt(btn.dataset.roomId);
+                        const isCompared = rooms.some(r => r.id === roomId);
+                        
+                        if (isCompared) {
+                            btn.classList.remove('btn-outline-primary');
+                            btn.classList.add('btn-success');
+                            btn.querySelector('.compare-text').textContent = 'Đã chọn';
+                            btn.querySelector('i').classList.remove('bi-plus-circle');
+                            btn.querySelector('i').classList.add('bi-check-circle-fill');
+                        } else {
+                            btn.classList.remove('btn-success');
+                            btn.classList.add('btn-outline-primary');
+                            btn.querySelector('.compare-text').textContent = 'So sánh';
+                            btn.querySelector('i').classList.remove('bi-check-circle-fill');
+                            btn.querySelector('i').classList.add('bi-plus-circle');
+                        }
+                    });
+                }
+
+                // Add/Remove room from compare
+                document.querySelectorAll('.compare-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const roomId = parseInt(this.dataset.roomId);
+                        let rooms = getComparedRooms();
+                        
+                        const existingIndex = rooms.findIndex(r => r.id === roomId);
+                        
+                        if (existingIndex !== -1) {
+                            // Remove from compare
+                            rooms.splice(existingIndex, 1);
+                            saveComparedRooms(rooms);
+                            updateCompareBar();
+                        } else {
+                            // Add to compare
+                            if (rooms.length >= MAX_COMPARE) {
+                                alert(`Bạn chỉ có thể so sánh tối đa ${MAX_COMPARE} phòng cùng lúc!`);
+                                return;
+                            }
+                            
+                            rooms.push({
+                                id: roomId,
+                                name: this.dataset.roomName,
+                                price: parseFloat(this.dataset.roomPrice),
+                                image: this.dataset.roomImage
+                            });
+                            
+                            saveComparedRooms(rooms);
+                            updateCompareBar();
+                        }
+                    });
+                });
+
+                // Clear all comparisons
+                document.getElementById('clearCompare').addEventListener('click', function() {
+                    if (confirm('Bạn có chắc muốn xóa tất cả phòng đã chọn?')) {
+                        localStorage.removeItem(STORAGE_KEY);
+                        updateCompareBar();
+                    }
+                });
+
+                // Initial update
+                updateCompareBar();
             });
         </script>
     @endpush
@@ -418,6 +552,73 @@
         @media (max-width: 768px) {
             .room-carousel-inner {
                 height: 200px;
+            }
+        }
+
+        /* Compare Bar Styles */
+        .compare-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .compare-bar h6 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .compare-bar .btn-outline-light {
+            border-color: rgba(255, 255, 255, 0.5);
+            color: white;
+        }
+
+        .compare-bar .btn-outline-light:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-color: white;
+        }
+
+        .compare-bar .btn-light {
+            background-color: white;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .compare-bar .btn-light:hover {
+            background-color: #f8f9fa;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .compare-bar .d-flex {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .compare-bar .gap-2 {
+                width: 100%;
+            }
+            
+            .compare-bar .btn {
+                width: 100%;
             }
         }
     </style>
