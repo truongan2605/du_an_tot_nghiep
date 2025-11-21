@@ -71,6 +71,10 @@ class TienNghiController extends Controller
 
     public function update(Request $request, TienNghi $tienNghi)
     {
+        $request->merge([
+            'gia' => $request->gia ? str_replace('.', '', $request->gia) : null
+        ]);
+
         $request->validate([
             'ten' => 'required|string|max:255',
             'mo_ta' => 'nullable|string',
