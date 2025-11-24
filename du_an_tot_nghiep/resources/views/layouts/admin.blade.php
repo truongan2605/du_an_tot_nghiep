@@ -698,7 +698,8 @@
                 const timeAgo = getTimeAgo(notification.created_at);
 
                 html += `
-                    <div class="dropdown-item ${isUnread ? 'bg-light' : ''}" style="white-space: normal;">
+                    <div class="dropdown-item ${isUnread ? 'bg-light' : ''}" style="white-space: normal; cursor: pointer;" 
+                         onclick="showAdminNotificationDetail(${notification.id})">
                         <div class="d-flex align-items-start">
                             <div class="flex-shrink-0 me-2">
                                 <i class="fas fa-bell text-primary"></i>
@@ -770,6 +771,256 @@
                 .catch(error => {
                     console.error('Error marking all as read:', error);
                 });
+        }
+
+        // Show notification detail
+        function showAdminNotificationDetail(notificationId) {
+            // Đóng dropdown
+            const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('adminNotificationDropdown'));
+            if (dropdown) {
+                dropdown.hide();
+            }
+
+            // Load chi tiết thông báo
+            fetch(`/admin/admin-notifications/${notificationId}/detail`, {
+                credentials: 'include',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Tạo modal nếu chưa có
+                let modal = document.getElementById('adminNotificationDetailModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'adminNotificationDetailModal';
+                    modal.className = 'modal fade';
+                    modal.setAttribute('tabindex', '-1');
+                    modal.setAttribute('aria-labelledby', 'adminNotificationDetailModalLabel');
+                    modal.setAttribute('aria-hidden', 'true');
+                    document.body.appendChild(modal);
+                }
+
+                // Format JSON payload
+                const jsonPayload = JSON.stringify(data.payload, null, 2);
+
+                // Format date và time
+                const createdDate = data.created_at.split(' ')[0];
+                const createdTime = data.created_at.split(' ')[1];
+                
+                // Get status icon
+                const statusIcon = data.trang_thai === 'read' ? 'fa-eye' : 
+                                 data.trang_thai === 'sent' ? 'fa-check-circle' : 
+                                 data.trang_thai === 'pending' ? 'fa-clock' : 'fa-exclamation-circle';
+
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header border-0 pb-0">
+                                <div class="d-flex align-items-center w-100">
+                                    <i class="fas fa-bell fa-2x text-primary me-3"></i>
+                                    <div class="flex-grow-1">
+                                        <h4 class="modal-title mb-1" id="adminNotificationDetailModalLabel">Chi tiết thông báo</h4>
+                                        <p class="text-muted mb-0 small">Thông tin chi tiết về thông báo của bạn</p>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                                        <i class="fas fa-arrow-left me-1"></i>Quay lại
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <!-- Main Content -->
+                                    <div class="col-lg-8">
+                                        <!-- Status Card -->
+                                        <div class="card border-0 shadow-sm mb-4">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                                                            <i class="fas ${statusIcon} fa-2x text-primary"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h5 class="mb-1">${data.status_text}</h5>
+                                                            <p class="text-muted mb-0 small">
+                                                                <span class="badge bg-success">${data.kenh}</span> • ${data.ten_template}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="text-muted small">
+                                                            <i class="far fa-calendar me-1"></i>${createdDate}
+                                                        </div>
+                                                        <div class="text-muted small">
+                                                            <i class="far fa-clock me-1"></i>${createdTime}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Content Card -->
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-header bg-white border-0 pb-2">
+                                                <h6 class="mb-0 fw-bold">
+                                                    <i class="fas fa-file-alt text-primary me-2"></i>Nội dung thông báo
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-4">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="fas fa-heading text-primary me-1"></i>Tiêu đề
+                                                    </h6>
+                                                    <div class="bg-primary bg-opacity-10 p-3 rounded">
+                                                        <h5 class="mb-0 text-primary fw-bold">${data.title}</h5>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-4">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="fas fa-comment text-primary me-1"></i>Nội dung
+                                                    </h6>
+                                                    <div class="bg-light p-3 rounded border">
+                                                        <p class="mb-0">${data.message}</p>
+                                                    </div>
+                                                </div>
+
+                                                ${data.link ? `
+                                                <div class="mb-3">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="fas fa-link text-primary me-1"></i>Liên kết
+                                                    </h6>
+                                                    <a href="${data.link}" class="btn btn-outline-primary btn-sm mb-2" target="_blank">
+                                                        <i class="fas fa-external-link-alt me-1"></i>Xem chi tiết
+                                                    </a>
+                                                    <div class="text-muted small">${data.link}</div>
+                                                </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sidebar -->
+                                    <div class="col-lg-4">
+                                        <!-- Info Card -->
+                                        <div class="card border-0 shadow-sm mb-4">
+                                            <div class="card-header bg-white border-0 pb-2">
+                                                <h6 class="mb-0 fw-bold">
+                                                    <i class="fas fa-info-circle text-primary me-2"></i>Thông tin thông báo
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="text-muted small">
+                                                            <i class="far fa-tag me-1"></i>Loại thông báo
+                                                        </span>
+                                                        <span class="badge bg-primary">${data.ten_template}</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="text-muted small">
+                                                            <i class="fas fa-broadcast-tower me-1"></i>Kênh
+                                                        </span>
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-bell me-1"></i>${data.kenh}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="text-muted small">
+                                                            <i class="far fa-plus-circle me-1"></i>Ngày tạo
+                                                        </span>
+                                                        <span class="small fw-bold">${data.created_at}</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-0">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="text-muted small">
+                                                            <i class="far fa-edit me-1"></i>Cập nhật cuối
+                                                        </span>
+                                                        <span class="small fw-bold">${data.updated_at}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Actions Card -->
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-header bg-white border-0 pb-2">
+                                                <h6 class="mb-0 fw-bold">
+                                                    <i class="fas fa-tools text-primary me-2"></i>Thao tác
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="d-grid gap-2">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                                                        <i class="fas fa-arrow-left me-1"></i>Quay lại
+                                                    </button>
+                                                    <a href="/admin/admin-notifications/${notificationId}" class="btn btn-outline-primary btn-sm" target="_blank">
+                                                        <i class="fas fa-external-link-alt me-1"></i>Xem chi tiết
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Hiển thị modal
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+
+                // Đánh dấu đã đọc nếu chưa đọc
+                if (data.trang_thai !== 'read') {
+                    markAdminNotificationAsRead(notificationId);
+                }
+
+                // Reload notifications sau khi đánh dấu đã đọc
+                setTimeout(() => {
+                    loadAdminNotifications();
+                    loadAdminUnreadCount();
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error loading notification detail:', error);
+                // Nếu lỗi, chuyển đến trang chi tiết
+                window.location.href = `/admin/admin-notifications/${notificationId}`;
+            });
+        }
+
+        // Mark notification as read
+        function markAdminNotificationAsRead(notificationId) {
+            fetch(`/admin/admin-notifications/${notificationId}/mark-read`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Cập nhật UI
+                    loadAdminNotifications();
+                    loadAdminUnreadCount();
+                }
+            })
+            .catch(error => {
+                console.error('Error marking notification as read:', error);
+            });
         }
 
         // Get time ago

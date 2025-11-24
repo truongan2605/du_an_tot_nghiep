@@ -313,7 +313,14 @@ class CheckoutController extends Controller
                 $booking->early_checkout_refund_amount = $earlyRefund > 0 ? $earlyRefund : 0;
                 $booking->save();
 
+                // Xóa ảnh CCCD sau khi checkout sớm thành công
+                $this->deleteCCCDImages($booking);
+
                 DB::commit();
+
+                // Gửi thông báo checkout sớm
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendEarlyCheckoutNotification($booking, $targetHoaDon->id, $earlyDays, $earlyRefund);
 
                 $msg = 'Checkout sớm hoàn tất.';
                 if ($earlyRefund > 0) {

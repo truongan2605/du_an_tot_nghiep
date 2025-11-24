@@ -445,8 +445,7 @@
                                                    min="1" 
                                                    max="20"
                                                    value="{{ $existingCCCDCount > 0 ? $existingCCCDCount : $computedAdults }}"
-                                                   required
-                                                   onchange="updateCCCDInputs({{ $booking->id }}, this.value)">
+                                                   required>
                                             <small class="form-text text-muted">
                                                 Nhập số lượng CCCD cần nhập
                                             </small>
@@ -470,8 +469,8 @@
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <button type="button" class="btn btn-outline-primary w-100" onclick="updateCCCDInputs({{ $booking->id }}, document.getElementById('cccdCount{{ $booking->id }}').value)">
-                                                <i class="bi bi-arrow-clockwise me-1"></i>Cập nhật
+                                            <button type="button" class="btn btn-primary w-100" onclick="confirmCCCDCount({{ $booking->id }})">
+                                                <i class="bi bi-check-circle me-1"></i>Xác nhận
                                             </button>
                                         </div>
                                     </div>
@@ -484,7 +483,7 @@
                                     </small>
                                 </div>
                                 
-                                <div class="mb-3">
+                                <div class="mb-3" id="cccdUploadSection{{ $booking->id }}" style="display: none;">
                                     <label class="form-label fw-semibold">
                                         Ảnh CCCD/CMND <span class="text-danger">*</span>
                                     </label>
@@ -500,78 +499,6 @@
                                     </small>
                                 </div>
                                 
-                                <script>
-                                    function setCCCDCount(bookingId, count) {
-                                        const countInput = document.getElementById('cccdCount' + bookingId);
-                                        if (countInput) {
-                                            countInput.value = count;
-                                            updateCCCDInputs(bookingId, count);
-                                        }
-                                    }
-                                    
-                                    function updateCCCDInputs(bookingId, count) {
-                                        const container = document.getElementById('cccdInputsContainer' + bookingId);
-                                        container.innerHTML = '';
-                                        
-                                        if (count < 1) {
-                                            container.innerHTML = '<div class="alert alert-warning">Vui lòng nhập số lượng lớn hơn 0</div>';
-                                            return;
-                                        }
-                                        
-                                        for (let i = 0; i < count; i++) {
-                                            const card = document.createElement('div');
-                                            card.className = 'card mb-3 border-primary';
-                                            card.innerHTML = `
-                                                <div class="card-header bg-light">
-                                                    <strong>Người ${i + 1}</strong>
-                                                </div>
-                                                <div class="card-body">
-                                                    <div class="row g-3">
-                                                        <div class="col-md-6">
-                                                            <label for="cccdFront${bookingId}_${i}" class="form-label small">
-                                                                Mặt trước <span class="text-danger">*</span>
-                                                            </label>
-                                                            <input type="file" 
-                                                                   class="form-control" 
-                                                                   id="cccdFront${bookingId}_${i}"
-                                                                   name="cccd_image_front_${i}" 
-                                                                   accept="image/*" 
-                                                                   required
-                                                                   onchange="previewCCCDImage(this, 'previewFront${bookingId}_${i}')">
-                                                            <div id="previewFront${bookingId}_${i}" class="mt-2" style="display: none;">
-                                                                <img id="previewImgFront${bookingId}_${i}" src="" alt="Preview mặt trước" class="img-thumbnail w-100" style="max-height: 200px; object-fit: contain;">
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-6">
-                                                            <label for="cccdBack${bookingId}_${i}" class="form-label small">
-                                                                Mặt sau <span class="text-danger">*</span>
-                                                            </label>
-                                                            <input type="file" 
-                                                                   class="form-control" 
-                                                                   id="cccdBack${bookingId}_${i}"
-                                                                   name="cccd_image_back_${i}" 
-                                                                   accept="image/*" 
-                                                                   required
-                                                                   onchange="previewCCCDImage(this, 'previewBack${bookingId}_${i}')">
-                                                            <div id="previewBack${bookingId}_${i}" class="mt-2" style="display: none;">
-                                                                <img id="previewImgBack${bookingId}_${i}" src="" alt="Preview mặt sau" class="img-thumbnail w-100" style="max-height: 200px; object-fit: contain;">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            `;
-                                            container.appendChild(card);
-                                        }
-                                    }
-                                    
-                                    // Khởi tạo khi trang load
-                                    document.addEventListener('DOMContentLoaded', function() {
-                                        const countInput = document.getElementById('cccdCount{{ $booking->id }}');
-                                        if (countInput) {
-                                            updateCCCDInputs({{ $booking->id }}, countInput.value);
-                                        }
-                                    });
-                                </script>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
@@ -908,4 +835,155 @@
             }
         }
     </style>
+    
+    <script>
+    // Functions cho CCCD upload - đặt ở global scope và expose vào window ngay lập tức
+    // Đặt trong section để đảm bảo load sớm
+    (function() {
+        window.setCCCDCount = function(bookingId, count) {
+        const countInput = document.getElementById('cccdCount' + bookingId);
+        if (countInput) {
+            countInput.value = count;
+        }
+    };
+    
+    window.confirmCCCDCount = function(bookingId) {
+        console.log('confirmCCCDCount called with bookingId:', bookingId);
+        
+        const countInput = document.getElementById('cccdCount' + bookingId);
+        if (!countInput) {
+            console.error('Không tìm thấy input số lượng với ID: cccdCount' + bookingId);
+            alert('Không tìm thấy input số lượng');
+            return;
+        }
+        
+        const count = parseInt(countInput.value);
+        console.log('Số lượng CCCD:', count);
+        
+        if (count < 1 || isNaN(count)) {
+            alert('Vui lòng nhập số lượng lớn hơn 0');
+            countInput.focus();
+            return;
+        }
+        
+        // Hiển thị phần nhập ảnh
+        const uploadSection = document.getElementById('cccdUploadSection' + bookingId);
+        console.log('Upload section element:', uploadSection);
+        
+        if (uploadSection) {
+            uploadSection.style.display = 'block';
+            console.log('Đã hiển thị phần upload');
+            
+            // Scroll đến phần nhập ảnh
+            setTimeout(() => {
+                uploadSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        } else {
+            console.error('Không tìm thấy phần upload với ID: cccdUploadSection' + bookingId);
+            alert('Không tìm thấy phần upload ảnh. Vui lòng tải lại trang.');
+            return;
+        }
+        
+        // Tạo các input upload
+        console.log('Gọi updateCCCDInputs với bookingId:', bookingId, 'count:', count);
+        window.updateCCCDInputs(bookingId, count);
+    };
+    
+    window.updateCCCDInputs = function(bookingId, count) {
+        console.log('updateCCCDInputs called with bookingId:', bookingId, 'count:', count);
+        
+        const container = document.getElementById('cccdInputsContainer' + bookingId);
+        if (!container) {
+            console.error('Không tìm thấy container cho booking ID:', bookingId);
+            alert('Không tìm thấy container upload. Vui lòng tải lại trang.');
+            return;
+        }
+        
+        console.log('Container found, clearing...');
+        container.innerHTML = '';
+        
+        if (count < 1 || isNaN(count)) {
+            container.innerHTML = '<div class="alert alert-warning">Vui lòng nhập số lượng lớn hơn 0</div>';
+            return;
+        }
+        
+        console.log('Tạo', count, 'input upload...');
+        for (let i = 0; i < count; i++) {
+            const card = document.createElement('div');
+            card.className = 'card mb-3 border-primary';
+            card.innerHTML = `
+                <div class="card-header bg-light">
+                    <strong>Người ${i + 1}</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="cccdFront${bookingId}_${i}" class="form-label small">
+                                Mặt trước <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="cccdFront${bookingId}_${i}"
+                                   name="cccd_image_front_${i}" 
+                                   accept="image/*" 
+                                   required
+                                   onchange="previewCCCDImage(this, 'previewFront${bookingId}_${i}')">
+                            <div id="previewFront${bookingId}_${i}" class="mt-2" style="display: none;">
+                                <img id="previewImgFront${bookingId}_${i}" src="" alt="Preview mặt trước" class="img-thumbnail w-100" style="max-height: 200px; object-fit: contain;">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cccdBack${bookingId}_${i}" class="form-label small">
+                                Mặt sau <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="cccdBack${bookingId}_${i}"
+                                   name="cccd_image_back_${i}" 
+                                   accept="image/*" 
+                                   required
+                                   onchange="previewCCCDImage(this, 'previewBack${bookingId}_${i}')">
+                            <div id="previewBack${bookingId}_${i}" class="mt-2" style="display: none;">
+                                <img id="previewImgBack${bookingId}_${i}" src="" alt="Preview mặt sau" class="img-thumbnail w-100" style="max-height: 200px; object-fit: contain;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+        }
+        
+        console.log('Đã tạo xong', count, 'input upload trong container');
+        console.log('Container HTML length:', container.innerHTML.length);
+    };
+    
+    // Reset phần upload khi modal được mở - sử dụng event delegation
+    document.addEventListener('show.bs.modal', function(event) {
+        const modal = event.target;
+        // Kiểm tra nếu là modal CCCD
+        if (modal.id && modal.id.startsWith('cccdModal')) {
+            // Lấy booking ID từ modal ID
+            const bookingId = modal.id.replace('cccdModal', '');
+            
+            // Ẩn phần upload khi modal mở
+            const uploadSection = document.getElementById('cccdUploadSection' + bookingId);
+            if (uploadSection) {
+                uploadSection.style.display = 'none';
+            }
+            
+            // Xóa các input đã tạo
+            const container = document.getElementById('cccdInputsContainer' + bookingId);
+            if (container) {
+                container.innerHTML = '';
+            }
+        }
+    });
+    
+    // Đảm bảo các function đã được định nghĩa
+    console.log('CCCD functions initialized:', {
+        confirmCCCDCount: typeof window.confirmCCCDCount,
+        setCCCDCount: typeof window.setCCCDCount,
+        updateCCCDInputs: typeof window.updateCCCDInputs
+    });
+    </script>
 @endsection
