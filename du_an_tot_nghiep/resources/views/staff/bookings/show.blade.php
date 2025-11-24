@@ -63,7 +63,7 @@
                                     <p class="mb-0">{{ $booking->contact_phone ?? ($booking->phone ?? 'N/A') }}</p>
                                 </div>
                             </div>
-                              <div class="d-flex align-items-center mb-3">
+                            <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Địa chỉ</small>
@@ -71,16 +71,111 @@
                                 </div>
                             </div>
                             @php
-                                $cccd = $meta['checkin_cccd'] ?? null;
+                                $cccdList = $meta['checkin_cccd_list'] ?? [];
+                                $hasCCCDList = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
+                                
+                                // Backward compatibility
+                                $cccdFront = $meta['checkin_cccd_front'] ?? null;
+                                $cccdBack = $meta['checkin_cccd_back'] ?? null;
+                                $cccd = $meta['checkin_cccd'] ?? null; // Backward compatibility
+                                $hasFront =
+                                    $cccdFront &&
+                                    \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdFront);
+                                $hasBack =
+                                    $cccdBack && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdBack);
+                                $isOldImage =
+                                    $cccd &&
+                                    !$hasFront &&
+                                    !$hasBack &&
+                                    \Illuminate\Support\Facades\Storage::disk('public')->exists($cccd);
                             @endphp
-                            @if($cccd)
-                            <div class="d-flex align-items-center mb-3">
-                                <i class="bi bi-card-text text-muted me-3"></i>
-                                <div>
-                                    <small class="text-muted">Số CCCD/CMND</small>
-                                    <p class="mb-0 fw-semibold">{{ $cccd }}</p>
+                            @if ($hasCCCDList || $hasFront || $hasBack || $isOldImage || (!empty($cccd) && !$isOldImage))
+                                <div class="d-flex align-items-start mb-3">
+                                    <i class="bi bi-card-text text-muted me-3 mt-1"></i>
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted">Ảnh CCCD/CMND 
+                                            @if($hasCCCDList)
+                                                <span class="badge bg-info ms-2">{{ count($cccdList) }} người</span>
+                                            @endif
+                                        </small>
+                                        
+                                        @if ($hasCCCDList)
+                                            {{-- Hiển thị tất cả CCCD trong danh sách --}}
+                                            <div class="row g-3 mt-2">
+                                                @foreach($cccdList as $index => $cccdItem)
+                                                    <div class="col-12 col-md-6 col-lg-4">
+                                                        <div class="card border-primary">
+                                                            <div class="card-header bg-light text-center">
+                                                                <strong>Người {{ $index + 1 }}</strong>
+                                                            </div>
+                                                            <div class="card-body p-2">
+                                                                @if(!empty($cccdItem['front']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdItem['front']))
+                                                                    <div class="mb-2">
+                                                                        <small class="text-muted d-block mb-1">Mặt trước:</small>
+                                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdItem['front']) }}" 
+                                                                             alt="Mặt trước CCCD người {{ $index + 1 }}" 
+                                                                             class="img-thumbnail w-100" 
+                                                                             style="max-height: 250px; cursor: pointer; object-fit: contain;"
+                                                                             onclick="window.open(this.src, '_blank')">
+                                                                    </div>
+                                                                @endif
+                                                                @if(!empty($cccdItem['back']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdItem['back']))
+                                                                    <div>
+                                                                        <small class="text-muted d-block mb-1">Mặt sau:</small>
+                                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdItem['back']) }}" 
+                                                                             alt="Mặt sau CCCD người {{ $index + 1 }}" 
+                                                                             class="img-thumbnail w-100" 
+                                                                             style="max-height: 250px; cursor: pointer; object-fit: contain;"
+                                                                             onclick="window.open(this.src, '_blank')">
+                                                                    </div>
+                                                                @endif
+                                                                <small class="text-muted d-block mt-2 text-center">Click để xem ảnh lớn</small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @elseif ($hasFront || $hasBack)
+                                            {{-- Backward compatibility: hiển thị CCCD cũ --}}
+                                            <div class="row g-2 mt-2">
+                                                @if ($hasFront)
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted d-block mb-1">Mặt trước:</small>
+                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdFront) }}"
+                                                            alt="Mặt trước CCCD" class="img-thumbnail w-100"
+                                                            style="max-height: 300px; cursor: pointer; object-fit: contain;"
+                                                            onclick="window.open(this.src, '_blank')">
+                                                        <br><small class="text-muted mt-1 d-block">Click để xem ảnh
+                                                            lớn</small>
+                                                    </div>
+                                                @endif
+                                                @if ($hasBack)
+                                                    <div class="col-md-6">
+                                                        <small class="text-muted d-block mb-1">Mặt sau:</small>
+                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdBack) }}"
+                                                            alt="Mặt sau CCCD" class="img-thumbnail w-100"
+                                                            style="max-height: 300px; cursor: pointer; object-fit: contain;"
+                                                            onclick="window.open(this.src, '_blank')">
+                                                        <br><small class="text-muted mt-1 d-block">Click để xem ảnh
+                                                            lớn</small>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @elseif ($isOldImage)
+                                            {{-- Backward compatibility: hiển thị ảnh cũ --}}
+                                            <div class="mt-2">
+                                                <img src="{{ \Illuminate\Support\Facades\Storage::url($cccd) }}"
+                                                    alt="Ảnh CCCD" class="img-thumbnail"
+                                                    style="max-width: 400px; max-height: 300px; cursor: pointer;"
+                                                    onclick="window.open(this.src, '_blank')">
+                                                <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
+                                            </div>
+                                        @else
+                                            {{-- Backward compatibility: nếu là text cũ --}}
+                                            <p class="mb-0 fw-semibold">{{ $cccd }}</p>
+                                        @endif
+                                    </div>
                                 </div>
-                            </div>
                             @endif
                             <div class="d-flex align-items-center mb-3">
                                 <i class="bi bi-telephone-fill text-muted me-3"></i>
@@ -132,7 +227,6 @@
                                                 'dang_o' => 'Đang ở',
                                             ];
 
-                                            // fallback an toàn: chuyển underscore -> khoảng trắng và viết hoa từ đầu (Str::title xử lý multibyte)
                                             $label =
                                                 $statusLabels[$status] ?? Str::title(str_replace('_', ' ', $status));
                                             $class = $statusClasses[$status] ?? 'bg-dark';
@@ -179,6 +273,24 @@
                                                 <i class="bi bi-clock-history me-1"></i>
                                                 Đã checkout lúc {{ $booking->checkout_at->format('d/m/Y H:i:s') }}
                                             </span>
+
+                                            @if (!empty($booking->is_checkout_early))
+                                                <div class="mt-2">
+                                                    <span class="badge bg-warning text-dark rounded-pill px-3 py-2 fs-7">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i> Đơn checkout sớm
+                                                    </span>
+
+                                                    @if (isset($earlyRefundTotal) && $earlyRefundTotal > 0)
+                                                        <small class="ms-2 text-muted">
+                                                            Số tiền hoàn lại: <strong
+                                                                class="text-success">{{ number_format($earlyRefundTotal, 0) }}
+                                                                ₫</strong>
+                                                        </small>
+                                                    @else
+                                                        <small class="ms-2 text-muted">Không có khoản hoàn trả.</small>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         @else
                                             <span class="badge bg-secondary text-white rounded-pill px-3 py-2 fs-7">
                                                 <i class="bi bi-x-circle me-1"></i>
@@ -229,7 +341,8 @@
                                 <i class="bi bi-currency-exchange text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Tổng Tiền</small>
-                                    <p class="mb-0 fs-5 fw-bold text-success">{{ number_format($booking->tong_tien, 0) }} ₫
+                                    <p class="mb-0 fs-5 fw-bold text-success">{{ number_format($booking->tong_tien, 0) }}
+                                        ₫
                                     </p>
                                 </div>
                             </div>
@@ -281,6 +394,24 @@
                                 <div class="row align-items-center text-sm">
                                     <div class="col-md-3 d-flex align-items-center">
                                         <strong class="text-primary">#{{ $phongCode ?? 'Chưa gán' }}</strong>
+                                        @php
+                                            // nếu $item là dat_phong_item model thì lấy object phong nếu có
+                                            $phongObj = $isArrayLine ? null : $item->phong ?? null;
+                                        @endphp
+
+                                        {{-- nút đánh dấu đã dọn xong (chỉ khi booking da_xac_nhan & phòng có don_dep true) --}}
+                                        @if ($booking->trang_thai === 'da_xac_nhan' && !empty($phongId) && ($phongObj?->don_dep ?? false))
+                                            {{-- Simple POST form (reload page) --}}
+                                            <form
+                                                action="{{ route('staff.bookings.rooms.clear_cleaning', ['booking' => $booking->id, 'room' => $phongId]) }}"
+                                                method="POST" class="d-inline ms-2">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success"
+                                                    title="Đánh dấu đã dọn xong">
+                                                    <i class="bi bi-check-lg me-1"></i>Đã dọn xong
+                                                </button>
+                                            </form>
+                                        @endif
 
                                         {{-- Dịch vụ gọi thêm chỉ khi booking đang sử dụng --}}
                                         @if ($booking->trang_thai === 'dang_su_dung')
