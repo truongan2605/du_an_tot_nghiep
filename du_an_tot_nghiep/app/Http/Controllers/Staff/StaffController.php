@@ -985,10 +985,20 @@ class StaffController extends Controller
                     ->delete();
             }
 
-            // Update related transactions to failed
-            \App\Models\GiaoDich::where('dat_phong_id', $booking->id)
-                ->whereIn('trang_thai', ['dang_cho', 'thanh_cong'])
-                ->update(['trang_thai' => 'that_bai']);
+            // NOTE: Do NOT change existing successful transactions to 'that_bai'
+            // Keep audit trail of actual money received
+            // If refund needed, create NEW refund transaction instead
+            
+            // Create refund transaction if refund amount > 0
+            if ($refundAmount > 0) {
+                \App\Models\GiaoDich::create([
+                    'dat_phong_id' => $booking->id,
+                    'so_tien' => $refundAmount,
+                    'trang_thai' => 'da_hoan',
+                    'nha_cung_cap' => 'Hoàn tiền hủy phòng',
+                    'ghi_chu' => "Hoàn {$refundPercentage}% tiền cọc do staff hủy booking",
+                ]);
+            }
 
             // Delete dat_phong_items
             \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
