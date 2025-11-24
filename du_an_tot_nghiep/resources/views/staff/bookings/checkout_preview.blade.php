@@ -167,6 +167,29 @@
                     <input type="hidden" name="early_checkout" value="1">
                 @endif
 
+                {{-- Late checkout area --}}
+                @if (!empty($lateEligible) && $lateEligible)
+                    <div class="alert alert-warning mb-3">
+                        <strong>Checkout muộn khả dụng:</strong>
+                        <div>
+                            Đã quá giờ checkout chuẩn
+                            <strong>
+                                {{ $lateHoursFull }}
+                                giờ{{ $lateMinutesRemainder ? ' ' . $lateMinutesRemainder . ' phút' : '' }}
+                            </strong> (tính từ 12:00).
+                        </div>
+                        <div>Tổng tiền 1 đêm (tất cả phòng): <strong>{{ number_format($dailyTotal, 0) }} ₫</strong></div>
+                        <div>Ước tính phí checkout muộn:
+                            <strong class="text-danger">{{ number_format($lateFeeEstimate, 0) }} ₫</strong>
+                            (tính theo: {{ number_format($dailyTotal / 24, 0) }} ₫/giờ ×
+                            {{ number_format($lateHoursFloat, 2) }} giờ)
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="mark_paid" value="1">
+                @endif
+
+
                 <div class="d-flex gap-2">
                     <a href="{{ route('staff.bookings.show', $booking->id) }}" class="btn btn-outline-secondary btn">
                         <i class="bi bi-arrow-left me-1"></i> Hủy
@@ -177,6 +200,12 @@
                             onclick="return confirm('Xác nhận checkout sớm? Hệ thống sẽ hoàn tiền ~{{ number_format($earlyRefundEstimate, 0) }} ₫ (ước tính) và giải phóng phòng.')">
                             <i class="bi bi-box-arrow-right me-1"></i> Xác nhận Checkout sớm (Hoàn:
                             {{ number_format($earlyRefundEstimate, 0) }}₫)
+                        </button>
+                    @elseif (!empty($lateEligible) && $lateEligible)
+                        <button type="submit" name="action" value="late_checkout" class="btn btn-danger btn"
+                            onclick="return confirm('Xác nhận checkout muộn? Hệ thống sẽ tính phí ~{{ number_format($lateFeeEstimate, 0) }} ₫ (ước tính) và giải phóng phòng.')">
+                            <i class="bi bi-clock-history me-1"></i> Xác nhận Checkout muộn (Phí:
+                            {{ number_format($lateFeeEstimate, 0) }}₫)
                         </button>
                     @else
                         <button type="submit" class="btn btn-danger btn"

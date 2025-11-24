@@ -41,6 +41,11 @@ class DatPhong extends Model
         'contact_address',
         'contact_phone',
         'deposit_amount',
+        'is_checkout_early',
+        'early_checkout_refund_amount',
+        'is_late_checkout',
+        'late_checkout_fee_amount',
+
     ];
 
 
@@ -58,6 +63,8 @@ class DatPhong extends Model
         'can_xac_nhan' => 'boolean',
         'checked_in_at' => 'datetime',
         'deposit_amount' => 'decimal:2',
+        'is_late_checkout' => 'boolean',
+        'late_checkout_fee_amount' => 'decimal:0',
     ];
 
     // Relationships
