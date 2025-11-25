@@ -178,14 +178,44 @@ class StaffController extends Controller
         $recentActivities = DatPhong::whereIn('trang_thai', $activeStatus)
             ->orderByDesc('updated_at')->take(20)->get();
 
+        // Cancelled bookings count
+        $cancelledBookings = DatPhong::where('trang_thai', 'da_huy')->count();
+
+        // Today's check-ins (bookings with check-in date today)
+        $todayCheckins = DatPhong::whereDate('ngay_nhan_phong', $today)
+            ->whereIn('trang_thai', ['da_xac_nhan', 'da_gan_phong'])
+            ->with(['datPhongItems.phong'])
+            ->orderBy('ngay_nhan_phong')
+            ->limit(10)
+            ->get();
+
+        // Today's check-outs (bookings with check-out date today)
+        $todayCheckouts = DatPhong::whereDate('ngay_tra_phong', $today)
+            ->where('trang_thai', 'dang_su_dung')
+            ->with(['datPhongItems.phong'])
+            ->orderBy('ngay_tra_phong')
+            ->limit(10)
+            ->get();
+
         return view('staff.index', compact(
             'pendingBookings',
             'todayRevenue',
+            'todayRefund',
+            'todayNetRevenue',
             'weeklyRevenue',
+            'weeklyRefund',
+            'weeklyNetRevenue',
             'totalBookings',
             'monthlyRevenue',
+            'monthlyRefund',
+            'monthlyNetRevenue',
             'totalRevenue',
+            'totalRefund',
+            'totalNetRevenue',
             'availableRooms',
+            'cancelledBookings',
+            'todayCheckins',
+            'todayCheckouts',
             'events',
             'recentActivities',
             'chartLabels',
