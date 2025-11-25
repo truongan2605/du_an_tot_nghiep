@@ -273,6 +273,15 @@
                                                 class="badge bg-success-subtle text-success border border-success rounded-pill px-3 py-2 fs-7">
                                                 <i class="bi bi-clock-history me-1"></i>
                                                 Đã checkout lúc {{ $booking->checkout_at->format('d/m/Y H:i:s') }}
+                                                @if (!empty($booking->checkout_by))
+                                                    @php
+                                                        $checkoutUser = \App\Models\User::find($booking->checkout_by);
+                                                    @endphp
+                                                    @if ($checkoutUser)
+                                                        &nbsp;·&nbsp; <small class="text-muted">Bởi:
+                                                            <strong>{{ $checkoutUser->name }}</strong></small>
+                                                    @endif
+                                                @endif
                                             </span>
 
                                             @if (!empty($booking->is_checkout_early))
@@ -653,7 +662,6 @@
                                                         @endphp
 
                                                         @if ($hasPaid)
-                                                          
                                                         @else
                                                             <form method="POST"
                                                                 action="{{ route('phong.consumptions.destroy', $c->id) }}"

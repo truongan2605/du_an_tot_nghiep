@@ -99,7 +99,7 @@ class CheckoutController extends Controller
             }
         }
 
-        // --- Late checkout (muộn) detection & estimate (hour-based, whole hours) ---
+        // --- Late checkout ---
         $lateEligible = false;
         $lateHoursFull = 0;
         $lateMinutesRemainder = 0;
@@ -117,13 +117,38 @@ class CheckoutController extends Controller
             }
         }
 
-        // For early: UI shows earlyRefundEstimate minus extrasTotal.
         $earlyNet = $earlyRefundEstimate - $extrasTotal;
         $earlyNetIsRefund = $earlyNet >= 0;
         $earlyNetDisplay = (int) round(abs($earlyNet), 0);
 
         $lateNet = $lateFeeEstimate + $extrasTotal;
         $lateNetDisplay = (int) round($lateNet, 0);
+
+        $roomIdsForBooking = collect($booking->datPhongItems)->pluck('phong_id')->filter()->unique()->values()->all();
+
+        $nextBookings = collect();
+        $blockingNextBooking = null;
+
+        if (!empty($roomIdsForBooking)) {
+            $nextBookings = \App\Models\DatPhong::whereHas('datPhongItems', function ($q) use ($roomIdsForBooking) {
+                $q->whereIn('phong_id', $roomIdsForBooking);
+            })
+                ->where('id', '!=', $booking->id)
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->whereNotNull('ngay_nhan_phong')
+                ->where('ngay_nhan_phong', '>=', $booking->ngay_tra_phong ?? now()->toDateString())
+                ->orderBy('ngay_nhan_phong', 'asc')
+                ->get();
+
+            $blockingNextBooking = $nextBookings->first();
+        }
+
+        $hasNextBooking = $nextBookings->isNotEmpty();
+        $blockingNextBookingStart = null;
+        if ($blockingNextBooking && !empty($blockingNextBooking->ngay_nhan_phong)) {
+            $blockingNextBookingStart = \Carbon\Carbon::parse($blockingNextBooking->ngay_nhan_phong);
+        }
+
 
         return view('staff.bookings.checkout_preview', compact(
             'booking',
@@ -148,7 +173,11 @@ class CheckoutController extends Controller
             'earlyNet',
             'earlyNetIsRefund',
             'earlyNetDisplay',
-            'lateNetDisplay'
+            'lateNetDisplay',
+            'nextBookings',
+            'blockingNextBooking',
+            'hasNextBooking',
+            'blockingNextBookingStart',
         ));
     }
 
@@ -192,7 +221,7 @@ class CheckoutController extends Controller
     private function deleteCCCDImages(DatPhong $booking)
     {
         $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-        
+
         // Xóa tất cả CCCD trong danh sách
         if (!empty($meta['checkin_cccd_list']) && is_array($meta['checkin_cccd_list'])) {
             foreach ($meta['checkin_cccd_list'] as $cccdItem) {
@@ -204,7 +233,7 @@ class CheckoutController extends Controller
                 }
             }
         }
-        
+
         // Xóa ảnh cũ (backward compatibility)
         if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
             Storage::disk('public')->delete($meta['checkin_cccd']);
@@ -221,7 +250,7 @@ class CheckoutController extends Controller
         unset($meta['checkin_cccd_front']);
         unset($meta['checkin_cccd_back']);
         unset($meta['checkin_cccd_list']);
-        
+
         // Cập nhật lại snapshot_meta
         $booking->update(['snapshot_meta' => $meta]);
     }
@@ -344,6 +373,7 @@ class CheckoutController extends Controller
                 DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
                 $booking->checkout_at = now();
+                $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
                 $booking->is_checkout_early = true;
                 $booking->early_checkout_refund_amount = $earlyRefund > 0 ? $earlyRefund : 0;
@@ -445,6 +475,7 @@ class CheckoutController extends Controller
                 DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
                 $booking->checkout_at = now();
+                $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
                 $booking->is_late_checkout = true;
                 $booking->late_checkout_fee_amount = $lateFee > 0 ? $lateFee : 0;
@@ -494,6 +525,7 @@ class CheckoutController extends Controller
                     DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
                     $booking->checkout_at = now();
+                    $booking->checkout_by = Auth::id();
                     $booking->trang_thai = 'hoan_thanh';
                     $booking->save();
 
@@ -555,6 +587,7 @@ class CheckoutController extends Controller
                 DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
                 $booking->checkout_at = now();
+                $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
                 $booking->save();
 
@@ -633,6 +666,7 @@ class CheckoutController extends Controller
             DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
             $booking->checkout_at = now();
+            $booking->checkout_by = Auth::id();
             $booking->trang_thai = 'hoan_thanh';
             $booking->save();
 

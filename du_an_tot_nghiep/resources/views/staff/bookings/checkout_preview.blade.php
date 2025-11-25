@@ -252,6 +252,28 @@
                     </div>
                 @endif
 
+                @if (!empty($lateEligible) && $lateEligible && !empty($blockingNextBooking))
+                    <div class="alert alert-warning mb-3">
+                        <div class="mt-2">
+                            <strong>Lưu ý:</strong> Có booking kế tiếp cho cùng phòng
+                            ({{ $blockingNextBooking->ma_tham_chieu ?? '#' . $blockingNextBooking->id }})
+                            dự kiến check-in ngày
+                            <strong>
+                                {{
+                                    $blockingNextBookingStart
+                                        ? $blockingNextBookingStart->format('d/m/Y')
+                                        : \Carbon\Carbon::parse($blockingNextBooking->ngay_nhan_phong ?? now())->format('d/m/Y') }}
+                            </strong>.
+                            Bạn <strong>không thể</strong> cho khách ở muộn nếu muốn giữ phòng cho booking sau đó — cân nhắc
+                            chuyển phòng hoặc hẹn khách.
+                            <div class="mt-1">
+                                <a href="{{ route('staff.bookings.show', $blockingNextBooking->id) }}"
+                                    class="btn btn-sm btn-outline-secondary">Mở booking kế tiếp</a>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 {{-- Buttons --}}
                 <div class="d-flex gap-2 d-print-none">
                     <a href="{{ route('staff.bookings.show', $booking->id) }}" class="btn btn-outline-secondary btn">

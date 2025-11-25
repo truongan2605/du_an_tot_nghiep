@@ -371,7 +371,6 @@ class PhongConsumptionController extends Controller
                 }
             }
 
-            // Trả kho / cập nhật pivot phong_vat_dung giống logic xưa
             $qty = (int)$consumption->quantity;
             $pivot = DB::table('phong_vat_dung')
                 ->where('phong_id', $consumption->phong_id)
@@ -455,7 +454,6 @@ class PhongConsumptionController extends Controller
                 ->select(DB::raw('COALESCE(SUM(hoa_don_items.quantity),0) as qty'))
                 ->value('qty');
 
-            // --- 2) Remaining available to bill
             $remaining = max(0, $reservationQty - $invoicedQty);
 
             if ($qty > $remaining) {
@@ -465,7 +463,6 @@ class PhongConsumptionController extends Controller
                 ])->withInput();
             }
 
-            // --- 4) Lấy hoặc tạo hoá đơn
             $hoaDon = HoaDon::where('dat_phong_id', $datPhong->id)
                 ->where('trang_thai', '!=', 'da_thanh_toan')
                 ->orderBy('id', 'desc')
@@ -481,7 +478,6 @@ class PhongConsumptionController extends Controller
                 ]);
             }
 
-            // --- 5) Thêm item vào hoá đơn (chỉ item ở đây, ref_id null như yêu cầu)
             $item = HoaDonItem::create([
                 'hoa_don_id' => $hoaDon->id,
                 'type' => 'consumption',
@@ -494,7 +490,6 @@ class PhongConsumptionController extends Controller
                 'note' => $data['note'] ?? null,
             ]);
 
-            // --- 6) Cập nhật tổng hoá đơn
             $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $amount;
             $hoaDon->save();
 

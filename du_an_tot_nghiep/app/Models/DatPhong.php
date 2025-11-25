@@ -21,6 +21,8 @@ class DatPhong extends Model
         'nguoi_dung_id',
         'trang_thai',
         'ngay_nhan_phong',
+        'checkout_at',
+        'checkout_by',
         'checked_in_at',
         'ngay_tra_phong',
         'so_khach',
@@ -261,6 +263,11 @@ class DatPhong extends Model
     public function voucherUsages(): HasMany
     {
         return $this->hasMany(VoucherUsage::class, 'dat_phong_id');
+    }
+
+    public function checkoutByUser()
+    {
+        return $this->belongsTo(User::class, 'checkout_by');
     }
 
     public function phongDaDats()
