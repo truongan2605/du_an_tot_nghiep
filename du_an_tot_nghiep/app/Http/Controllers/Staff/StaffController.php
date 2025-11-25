@@ -371,7 +371,7 @@ class StaffController extends Controller
 
         $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
         
-        // Kiểm tra đã có CCCD chưa
+        // Kiểm tra đã có CCCD chưa HOẶC đang submit CCCD mới
         if (is_array($booking->snapshot_meta)) {
             $meta = $booking->snapshot_meta;
         } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
@@ -381,15 +381,24 @@ class StaffController extends Controller
         } else {
             $meta = [];
         }
+        
+        // Kiểm tra có CCCD trong database
         $cccdList = $meta['checkin_cccd_list'] ?? [];
         $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
         
         // Backward compatibility: kiểm tra CCCD cũ
         if (!$hasCCCD) {
-            $hasOldCCCD = !empty($meta['checkin_cccd_front']) || !empty($meta['checkin_cccd_back']) || !empty($meta['checkin_cccd']);
-            if (!$hasOldCCCD) {
-                return redirect()->back()->with('error', "Cần nhập CCCD/CMND trước khi check-in.");
-            }
+            $hasCCCD = !empty($meta['checkin_cccd_front']) 
+                || !empty($meta['checkin_cccd_back']) 
+                || !empty($meta['checkin_cccd']);
+        }
+        
+        // QUAN TRỌNG: Kiểm tra xem user có ĐANG SUBMIT ảnh CCCD mới không
+        $isSubmittingNewCCCD = $request->hasFile('cccd_image_front') || $request->hasFile('cccd_image_back');
+        
+        // Chỉ báo lỗi nếu KHÔNG có CCCD cũ VÀ KHÔNG submit CCCD mới
+        if (!$hasCCCD && !$isSubmittingNewCCCD) {
+            return redirect()->back()->with('error', "Cần nhập CCCD/CMND trước khi check-in.");
         }
 
         $phongIds = collect($booking->datPhongItems)->pluck('phong_id')->filter()->toArray();
