@@ -782,6 +782,35 @@ class StaffController extends Controller
             $earlyRefundTotal = $earlyRefundTotal < 0 ? abs($earlyRefundTotal) : $earlyRefundTotal;
         }
 
+        $finalInvoice = null;
+        $finalInvoiceTotal = null;
+        $finalInvoiceId = null;
+        if ($booking->trang_thai === 'hoan_thanh') {
+            $finalInvoice = HoaDon::where('dat_phong_id', $booking->id)
+                ->where('trang_thai', 'da_thanh_toan')
+                ->orderByDesc('id')
+                ->first()
+                ?? HoaDon::where('dat_phong_id', $booking->id)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($finalInvoice) {
+                $finalInvoiceTotal = (float) $finalInvoice->tong_thuc_thu;
+                $finalInvoiceId = $finalInvoice->id;
+            }
+        }
+
+        $lateFeeTotal = 0;
+        $lateItems = \App\Models\HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
+            $q->where('dat_phong_id', $booking->id);
+        })->where('type', 'late_fee')->get();
+
+        if ($lateItems->isNotEmpty()) {
+            $lateFeeTotal = (float) $lateItems->sum('amount');
+        } else {
+            $lateFeeTotal = (float) ($booking->late_checkout_fee_amount ?? 0);
+        }
+
         return view('staff.bookings.show', compact(
             'booking',
             'meta',
@@ -791,7 +820,11 @@ class StaffController extends Controller
             'incidentsByInstance',
             'bookingMap',
             'roomLinesFromInvoice',
-            'earlyRefundTotal'
+            'earlyRefundTotal',
+            'finalInvoice',
+            'finalInvoiceTotal',
+            'finalInvoiceId',
+            'lateFeeTotal'
         ));
     }
 

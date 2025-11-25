@@ -73,7 +73,7 @@
                             @php
                                 $cccdFront = $meta['checkin_cccd_front'] ?? null;
                                 $cccdBack = $meta['checkin_cccd_back'] ?? null;
-                                $cccd = $meta['checkin_cccd'] ?? null; // Backward compatibility
+                                $cccd = $meta['checkin_cccd'] ?? null;
                                 $hasFront =
                                     $cccdFront &&
                                     \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdFront);
@@ -116,7 +116,6 @@
                                                 @endif
                                             </div>
                                         @elseif ($isOldImage)
-                                            {{-- Backward compatibility: hiển thị ảnh cũ --}}
                                             <div class="mt-2">
                                                 <img src="{{ \Illuminate\Support\Facades\Storage::url($cccd) }}"
                                                     alt="Ảnh CCCD" class="img-thumbnail"
@@ -125,7 +124,6 @@
                                                 <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
                                             </div>
                                         @else
-                                            {{-- Backward compatibility: nếu là text cũ --}}
                                             <p class="mb-0 fw-semibold">{{ $cccd }}</p>
                                         @endif
                                     </div>
@@ -152,8 +150,8 @@
                                                 'dang_su_dung' => 'bg-success',
                                                 'dang_cho' => 'bg-warning text-dark',
                                                 'dang_cho_xac_nhan' => 'bg-info text-dark',
-                                                'da_xac_nhan' => 'bg-success', // đã xác nhận
-                                                'da_gan_phong' => 'bg-info text-dark', // đã gán phòng
+                                                'da_xac_nhan' => 'bg-success',
+                                                'da_gan_phong' => 'bg-info text-dark',
                                                 'da_huy' => 'bg-secondary',
                                                 'hoan_thanh' => 'bg-primary',
                                                 'dang_o' => 'bg-indigo text-white',
@@ -245,6 +243,20 @@
                                                     @endif
                                                 </div>
                                             @endif
+
+                                            @if (!empty($booking->is_late_checkout) || $lateFeeTotal > 0)
+                                                <div class="mt-2">
+                                                    <span class="badge bg-danger text-white rounded-pill px-3 py-2 fs-7">
+                                                        <i class="bi bi-exclamation-octagon me-1"></i> Đơn checkout muộn
+                                                    </span>
+
+                                                    <small class="ms-2 text-muted">
+                                                        Phí checkout muộn:
+                                                        <strong class="text-danger">{{ number_format($lateFeeTotal, 0) }}
+                                                            ₫</strong>
+                                                    </small>
+                                                </div>
+                                            @endif
                                         @else
                                             <span class="badge bg-secondary text-white rounded-pill px-3 py-2 fs-7">
                                                 <i class="bi bi-x-circle me-1"></i>
@@ -295,8 +307,18 @@
                                 <i class="bi bi-currency-exchange text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Tổng Tiền</small>
-                                    <p class="mb-0 fs-5 fw-bold text-success">{{ number_format($booking->tong_tien, 0) }}
-                                        ₫
+                                    <p class="mb-0 fs-5 fw-bold text-success">
+                                        @if (!empty($finalInvoiceTotal))
+                                            {{-- Nếu booking đã hoàn thành: hiển thị số tiền lấy từ hoá đơn --}}
+                                            {{ number_format($finalInvoiceTotal, 0) }} ₫
+                                            @if (!empty($finalInvoiceId))
+                                                <small class="d-block text-muted mt-1">
+                                                    (theo hoá đơn #{{ $finalInvoiceId }})
+                                                </small>
+                                            @endif
+                                        @else
+                                            {{ number_format($booking->tong_tien, 0) }} ₫
+                                        @endif
                                     </p>
                                 </div>
                             </div>

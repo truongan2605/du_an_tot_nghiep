@@ -26,7 +26,6 @@ class CheckoutController extends Controller
             $nights = max(1, $nights);
         }
 
-        // room lines & rooms total
         $roomLines = [];
         $roomsTotal = 0;
         foreach ($booking->datPhongItems as $item) {
@@ -45,7 +44,6 @@ class CheckoutController extends Controller
             $roomsTotal += $lineTotal;
         }
 
-        // unpaid invoices / extras
         $unpaidHoaDons = HoaDon::where('dat_phong_id', $booking->id)
             ->where('trang_thai', '!=', 'da_thanh_toan')
             ->get();
@@ -69,7 +67,6 @@ class CheckoutController extends Controller
             }
         }
 
-        // totals / misc
         $discount = $booking->discount_amount ?? 0;
         $roomSnapshot = $booking->snapshot_total ?? $roomsTotal;
         $deposit = (float) ($booking->deposit_amount ?? 0);
@@ -87,6 +84,7 @@ class CheckoutController extends Controller
         $now = Carbon::now();
         $origCheckoutDate = $booking->ngay_tra_phong ? Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0) : null;
 
+        // --- Early checkout eligibility & estimate ---
         $earlyEligible = false;
         $earlyDays = 0;
         $earlyRefundEstimate = 0;
@@ -117,6 +115,14 @@ class CheckoutController extends Controller
             }
         }
 
+        // For early: UI shows earlyRefundEstimate minus extrasTotal.
+        $earlyNet = $earlyRefundEstimate - $extrasTotal;
+        $earlyNetIsRefund = $earlyNet >= 0;
+        $earlyNetDisplay = (int) round(abs($earlyNet), 0);
+
+        $lateNet = $lateFeeEstimate + $extrasTotal;
+        $lateNetDisplay = (int) round($lateNet, 0);
+
         return view('staff.bookings.checkout_preview', compact(
             'booking',
             'roomLines',
@@ -136,7 +142,11 @@ class CheckoutController extends Controller
             'lateHoursFull',
             'lateMinutesRemainder',
             'lateHoursFloat',
-            'lateFeeEstimate'
+            'lateFeeEstimate',
+            'earlyNet',
+            'earlyNetIsRefund',
+            'earlyNetDisplay',
+            'lateNetDisplay'
         ));
     }
 
@@ -192,7 +202,6 @@ class CheckoutController extends Controller
 
             $unpaidIds = $unpaidHoaDons->pluck('id')->toArray();
 
-            // existing extra items total
             $existingItems = collect();
             $extrasTotal = 0;
             if (!empty($unpaidIds)) {
@@ -202,11 +211,9 @@ class CheckoutController extends Controller
                 }
             }
 
-            // detect actions
             $isEarlyRequested = ($data['action'] ?? '') === 'early_checkout';
             $isLateRequested = ($data['action'] ?? '') === 'late_checkout';
 
-            // if early or late requested, force markPaid true (we collect/settle invoice immediately)
             $markPaid = $isEarlyRequested || $isLateRequested ? true : (!empty($data['mark_paid']));
 
             // nights & daily total

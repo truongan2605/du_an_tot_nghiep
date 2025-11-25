@@ -4,7 +4,6 @@
     <style>
         /* Print helpers */
         @media print {
-
             body * {
                 visibility: hidden;
             }
@@ -26,14 +25,13 @@
                 margin: 10mm;
             }
 
-            /* hoặc margin: 0; */
             .no-print {
                 display: none !important;
             }
         }
     </style>
 
-    <div div id="printable" class="container py-4">
+    <div id="printable" class="container py-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3>Checkout — Booking #{{ $booking->ma_tham_chieu }}</h3>
             <div class="d-print-none">
@@ -60,7 +58,7 @@
             </div>
         </div>
 
-        {{-- Room lines (unchanged) --}}
+        {{-- Room lines --}}
         <h5>Chi tiết phòng</h5>
         <div class="table-responsive mb-3">
             <table class="table table-sm">
@@ -102,6 +100,7 @@
             @endforelse
         </ul>
 
+        {{-- Totals card --}}
         <div class="card mb-3">
             <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -135,6 +134,7 @@
             </div>
         </div>
 
+        {{-- Issued invoices (chờ thanh toán) --}}
         @php
             $issuedInvoices = \App\Models\HoaDon::where('dat_phong_id', $booking->id)
                 ->where('trang_thai', 'da_xuat')
@@ -165,6 +165,10 @@
                                         <i class="bi bi-cash-stack"></i> Xác nhận đã thanh toán
                                     </button>
                                 </form>
+                                <a href="{{ route('staff.bookings.invoice.print', ['hoaDon' => $hd->id]) }}"
+                                    class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-printer"></i> In hoá đơn
+                                </a>
                             </div>
                         </div>
                     @endforeach
@@ -198,12 +202,28 @@
 
                 {{-- Early checkout area --}}
                 @if (!empty($earlyEligible) && $earlyEligible)
+                    @php
+                        $earlyNet = $earlyNet ?? $earlyRefundEstimate - ($extrasTotal ?? 0);
+                        $earlyNetIsRefund = $earlyNetIsRefund ?? $earlyNet >= 0;
+                        $earlyNetDisplay = $earlyNetDisplay ?? (int) round(abs($earlyNet), 0);
+                    @endphp
+
                     <div class="alert alert-info mb-3">
                         <strong>Checkout sớm:</strong>
                         <div>Thời điểm hiện tại checkout sớm <strong>{{ $earlyDays }}</strong> ngày.</div>
                         <div>Tổng tiền 1 đêm (tất cả phòng): <strong>{{ number_format($dailyTotal, 0) }} ₫</strong></div>
-                        <div>Ước tính hoàn tiền (50% × giá tiền 1 đêm × {{ $earlyDays }} đêm): <strong
-                                class="text-success">{{ number_format($earlyRefundEstimate, 0) }} ₫</strong></div>
+
+                        <div class="mt-2">
+                            @if ($earlyNetIsRefund)
+                                <div>Ước tính <strong class="text-success">hoàn</strong> (đã trừ các khoản phát sinh):
+                                    <strong class="text-success">{{ number_format($earlyNetDisplay, 0) }} ₫</strong>
+                                </div>
+                            @else
+                                <div>Ước tính <strong class="text-danger">phải thu thêm</strong> (phát sinh > khoản hoàn):
+                                    <strong class="text-danger">{{ number_format($earlyNetDisplay, 0) }} ₫</strong>
+                                </div>
+                            @endif
+                        </div>
                     </div>
 
                     <input type="hidden" name="early_checkout" value="1">
@@ -211,26 +231,32 @@
 
                 {{-- Late checkout area --}}
                 @if (!empty($lateEligible) && $lateEligible)
+                    @php
+                        $lateNetDisplay =
+                            $lateNetDisplay ?? (int) round(($lateFeeEstimate ?? 0) + ($extrasTotal ?? 0), 0);
+                    @endphp
+
                     <div class="alert alert-warning mb-3">
                         <strong>Checkout muộn:</strong>
                         <div>
                             Đã quá giờ checkout chuẩn
                             <strong>
-                                {{ $lateHoursFull }}
-                                giờ{{ $lateMinutesRemainder ? ' ' . $lateMinutesRemainder . ' phút' : '' }}
+                                {{ $lateHoursFull ?? 0 }}
+                                giờ{{ !empty($lateMinutesRemainder) && $lateMinutesRemainder ? ' ' . $lateMinutesRemainder . ' phút' : '' }}
                             </strong>
                             (tính từ
                             {{ $booking->ngay_tra_phong ? \Carbon\Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0)->format('d/m/Y H:i') : '12:00' }}).
                         </div>
                         <div>Tổng tiền 1 đêm (tất cả phòng): <strong>{{ number_format($dailyTotal, 0) }} ₫</strong></div>
-                        <div>Ước tính phí checkout muộn:
-                            <strong class="text-danger">{{ number_format($lateFeeEstimate, 0) }} ₫</strong>
-                            (tính theo: {{ number_format($dailyTotal / 24, 0) }} ₫/giờ ×
-                            {{ number_format($lateHoursFloat, 0) }} giờ )
+                        <div class="mt-2">Phí checkout muộn (đã cộng phát sinh):
+                            <strong class="text-danger">{{ number_format($lateNetDisplay, 0) }} ₫</strong>
+                            <div class="small text-muted"> (tính theo: {{ number_format($dailyTotal / 24 ?? 0, 0) }} ₫/giờ
+                                × {{ number_format($lateHoursFloat ?? 0, 0) }} giờ)</div>
                         </div>
                     </div>
                 @endif
 
+                {{-- Buttons --}}
                 <div class="d-flex gap-2 d-print-none">
                     <a href="{{ route('staff.bookings.show', $booking->id) }}" class="btn btn-outline-secondary btn">
                         <i class="bi bi-arrow-left me-1"></i> Hủy
@@ -238,15 +264,19 @@
 
                     @if (!empty($earlyEligible) && $earlyEligible)
                         <button type="submit" name="action" value="early_checkout" class="btn btn-warning btn"
-                            onclick="return confirm('Xác nhận checkout sớm? Hệ thống sẽ hoàn tiền ~{{ number_format($earlyRefundEstimate, 0) }} ₫ (ước tính) và giải phóng phòng.')">
-                            <i class="bi bi-box-arrow-right me-1"></i> Xác nhận Checkout sớm (Hoàn:
-                            {{ number_format($earlyRefundEstimate, 0) }}₫)
+                            onclick="return confirm('Xác nhận checkout sớm?')">
+                            <i class="bi bi-box-arrow-right me-1"></i>
+                            @if ($earlyNetIsRefund)
+                                Xác nhận Checkout sớm (Hoàn: {{ number_format($earlyNetDisplay, 0) }} ₫)
+                            @else
+                                Xác nhận Checkout sớm (Thu thêm: {{ number_format($earlyNetDisplay, 0) }} ₫)
+                            @endif
                         </button>
                     @elseif (!empty($lateEligible) && $lateEligible)
                         <button type="submit" name="action" value="late_checkout" class="btn btn-danger btn"
-                            onclick="return confirm('Xác nhận checkout muộn? Hệ thống sẽ tính phí ~{{ number_format($lateFeeEstimate, 0) }} ₫ (ước tính) và giải phóng phòng.')">
+                            onclick="return confirm('Xác nhận checkout muộn?')">
                             <i class="bi bi-clock-history me-1"></i> Xác nhận Checkout muộn (Phí:
-                            {{ number_format($lateFeeEstimate, 0) }}₫)
+                            {{ number_format($lateNetDisplay, 0) }} ₫)
                         </button>
                     @else
                         <button type="submit" class="btn btn-danger btn"
