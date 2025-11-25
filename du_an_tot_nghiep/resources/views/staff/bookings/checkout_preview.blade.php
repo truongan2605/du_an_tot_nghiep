@@ -1,8 +1,51 @@
 @extends('layouts.admin')
 
 @section('content')
-    <div class="container py-4">
-        <h3>Checkout — Booking #{{ $booking->ma_tham_chieu }}</h3>
+    <style>
+        /* Print helpers */
+        @media print {
+
+            body * {
+                visibility: hidden;
+            }
+
+            #printable,
+            #printable * {
+                visibility: visible;
+            }
+
+            #printable {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+
+            /* Tùy chỉnh lề in (nếu muốn) */
+            @page {
+                margin: 10mm;
+            }
+
+            /* hoặc margin: 0; */
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <div div id="printable" class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Checkout — Booking #{{ $booking->ma_tham_chieu }}</h3>
+            <div class="d-print-none">
+                <!-- Print button -->
+                <button type="button" class="btn btn-outline-primary me-2" onclick="window.print()">
+                    <i class="bi bi-printer"></i> In hoá đơn
+                </button>
+                <a href="{{ route('staff.bookings.show', $booking->id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Quay lại
+                </a>
+            </div>
+        </div>
 
         <div class="card mb-3">
             <div class="card-body">
@@ -92,7 +135,6 @@
             </div>
         </div>
 
-
         @php
             $issuedInvoices = \App\Models\HoaDon::where('dat_phong_id', $booking->id)
                 ->where('trang_thai', 'da_xuat')
@@ -113,8 +155,7 @@
                                     thái: <span class="badge bg-warning text-dark">{{ $hd->trang_thai }}</span></div>
                             </div>
 
-                            <div class="d-flex gap-2 align-items-center">
-
+                            <div class="d-flex gap-2 align-items-center d-print-none">
                                 <form
                                     action="{{ route('staff.bookings.invoices.confirm', ['booking' => $booking->id, 'hoaDon' => $hd->id]) }}"
                                     method="POST"
@@ -130,7 +171,7 @@
                 </div>
             </div>
 
-            <div class="mb-4">
+            <div class="mb-4 d-print-none">
                 <a href="{{ route('staff.bookings.show', $booking->id) }}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left me-1"></i> Quay lại
                 </a>
@@ -139,7 +180,8 @@
             <form action="{{ route('staff.bookings.checkout.process', $booking->id) }}" method="POST">
                 @csrf
 
-                @if (!empty($earlyEligible) && $earlyEligible)
+                {{-- If either early or late eligible -> hide mark_paid checkbox and force paid --}}
+                @if ((!empty($earlyEligible) && $earlyEligible) || (!empty($lateEligible) && $lateEligible))
                     <input type="hidden" name="mark_paid" value="1">
                 @else
                     @if (($extrasTotal ?? 0) > 0)
@@ -157,7 +199,7 @@
                 {{-- Early checkout area --}}
                 @if (!empty($earlyEligible) && $earlyEligible)
                     <div class="alert alert-info mb-3">
-                        <strong>Checkout sớm khả dụng:</strong>
+                        <strong>Checkout sớm:</strong>
                         <div>Thời điểm hiện tại checkout sớm <strong>{{ $earlyDays }}</strong> ngày.</div>
                         <div>Tổng tiền 1 đêm (tất cả phòng): <strong>{{ number_format($dailyTotal, 0) }} ₫</strong></div>
                         <div>Ước tính hoàn tiền (50% × giá tiền 1 đêm × {{ $earlyDays }} đêm): <strong
@@ -170,27 +212,26 @@
                 {{-- Late checkout area --}}
                 @if (!empty($lateEligible) && $lateEligible)
                     <div class="alert alert-warning mb-3">
-                        <strong>Checkout muộn khả dụng:</strong>
+                        <strong>Checkout muộn:</strong>
                         <div>
                             Đã quá giờ checkout chuẩn
                             <strong>
                                 {{ $lateHoursFull }}
                                 giờ{{ $lateMinutesRemainder ? ' ' . $lateMinutesRemainder . ' phút' : '' }}
-                            </strong> (tính từ 12:00).
+                            </strong>
+                            (tính từ
+                            {{ $booking->ngay_tra_phong ? \Carbon\Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0)->format('d/m/Y H:i') : '12:00' }}).
                         </div>
                         <div>Tổng tiền 1 đêm (tất cả phòng): <strong>{{ number_format($dailyTotal, 0) }} ₫</strong></div>
                         <div>Ước tính phí checkout muộn:
                             <strong class="text-danger">{{ number_format($lateFeeEstimate, 0) }} ₫</strong>
                             (tính theo: {{ number_format($dailyTotal / 24, 0) }} ₫/giờ ×
-                            {{ number_format($lateHoursFloat, 2) }} giờ)
+                            {{ number_format($lateHoursFloat, 0) }} giờ )
                         </div>
                     </div>
-
-                    <input type="hidden" name="mark_paid" value="1">
                 @endif
 
-
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 d-print-none">
                     <a href="{{ route('staff.bookings.show', $booking->id) }}" class="btn btn-outline-secondary btn">
                         <i class="bi bi-arrow-left me-1"></i> Hủy
                     </a>
