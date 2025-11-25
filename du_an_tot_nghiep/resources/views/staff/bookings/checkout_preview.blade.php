@@ -165,10 +165,6 @@
                                         <i class="bi bi-cash-stack"></i> Xác nhận đã thanh toán
                                     </button>
                                 </form>
-                                <a href="{{ route('staff.bookings.invoice.print', ['hoaDon' => $hd->id]) }}"
-                                    class="btn btn-sm btn-outline-secondary">
-                                    <i class="bi bi-printer"></i> In hoá đơn
-                                </a>
                             </div>
                         </div>
                     @endforeach
