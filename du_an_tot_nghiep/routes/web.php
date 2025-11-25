@@ -125,6 +125,8 @@ Route::prefix('admin')
             ->name('internal-notifications.resend');
 
         Route::resource('admin-notifications', AdminNotificationController::class);
+        Route::post('admin-notifications/{id}/mark-read', [AdminNotificationController::class, 'markAsRead'])->name('admin.admin-notifications.mark-read');
+        Route::get('admin-notifications/{id}/detail', [AdminNotificationController::class, 'getDetail'])->name('admin.admin-notifications.detail');
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
 
         // ===== Room Equipment / Consumptions / Instances / Incidents =====

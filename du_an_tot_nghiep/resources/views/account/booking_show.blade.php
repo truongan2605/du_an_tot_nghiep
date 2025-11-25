@@ -182,18 +182,68 @@
 
                             {{-- CCCD Information --}}
                             @php
+                                $cccdList = $meta['checkin_cccd_list'] ?? [];
+                                $hasCCCDList = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
+                                
+                                // Backward compatibility
                                 $cccdFront = $meta['checkin_cccd_front'] ?? null;
                                 $cccdBack = $meta['checkin_cccd_back'] ?? null;
-                                $cccd = $meta['checkin_cccd'] ?? null; // Backward compatibility
+                                $cccd = $meta['checkin_cccd'] ?? null;
                                 $hasFront = $cccdFront && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdFront);
                                 $hasBack = $cccdBack && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdBack);
                                 $isOldImage = $cccd && !$hasFront && !$hasBack && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccd);
                             @endphp
-                            @if($hasFront || $hasBack || $isOldImage || (!empty($cccd) && !$isOldImage))
+                            @if($hasCCCDList || $hasFront || $hasBack || $isOldImage || (!empty($cccd) && !$isOldImage))
                             <hr class="my-4">
-                            <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-card-text me-2 text-info"></i> Thông tin CCCD/CMND</h6>
+                            <h6 class="mb-3 d-flex align-items-center">
+                                <i class="bi bi-card-text me-2 text-info"></i> Thông tin CCCD/CMND
+                                @if($hasCCCDList)
+                                    <span class="badge bg-info ms-2">{{ count($cccdList) }} người</span>
+                                @endif
+                            </h6>
                             <div class="alert alert-info border-0 p-3">
-                                @if ($hasFront || $hasBack)
+                                @if ($hasCCCDList)
+                                    {{-- Hiển thị tất cả CCCD trong danh sách --}}
+                                    <div class="row g-3">
+                                        @foreach($cccdList as $index => $cccdItem)
+                                            <div class="col-12 col-md-6 col-lg-4">
+                                                <div class="card border-primary h-100">
+                                                    <div class="card-header bg-light text-center">
+                                                        <strong>Người {{ $index + 1 }}</strong>
+                                                    </div>
+                                                    <div class="card-body p-3">
+                                                        @if(!empty($cccdItem['front']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdItem['front']))
+                                                            <div class="mb-3">
+                                                                <div class="text-center">
+                                                                    <small class="text-muted d-block mb-2">Mặt trước</small>
+                                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdItem['front']) }}" 
+                                                                         alt="Mặt trước CCCD người {{ $index + 1 }}" 
+                                                                         class="img-thumbnail w-100" 
+                                                                         style="max-height: 300px; cursor: pointer; object-fit: contain;"
+                                                                         onclick="window.open(this.src, '_blank')">
+                                                                </div>
+                                                            </div>
+                                                        @endif
+                                                        @if(!empty($cccdItem['back']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdItem['back']))
+                                                            <div>
+                                                                <div class="text-center">
+                                                                    <small class="text-muted d-block mb-2">Mặt sau</small>
+                                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdItem['back']) }}" 
+                                                                         alt="Mặt sau CCCD người {{ $index + 1 }}" 
+                                                                         class="img-thumbnail w-100" 
+                                                                         style="max-height: 300px; cursor: pointer; object-fit: contain;"
+                                                                         onclick="window.open(this.src, '_blank')">
+                                                                </div>
+                                                            </div>
+                                                        @endif
+                                                        <small class="text-muted d-block mt-2 text-center">Click để xem ảnh lớn</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @elseif ($hasFront || $hasBack)
+                                    {{-- Backward compatibility: hiển thị CCCD cũ --}}
                                     <div class="row g-3">
                                         @if ($hasFront)
                                             <div class="col-md-6">
