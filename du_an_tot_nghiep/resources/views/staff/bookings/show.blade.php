@@ -252,6 +252,14 @@
                                                 <i class="bi bi-clock-history me-1"></i>
                                                 Đã check-in lúc {{ $booking->checked_in_at->format('d/m/Y H:i:s') }}
                                             </span>
+                                            @if ($booking->checkedInBy)
+                                                <div class="mt-2">
+                                                    <small class="text-muted">
+                                                        <i class="bi bi-person-check me-1"></i>
+                                                        Nhân viên: <strong>{{ $booking->checkedInBy->name }}</strong>
+                                                    </small>
+                                                </div>
+                                            @endif
                                         @else
                                             <span class="badge bg-secondary text-white rounded-pill px-3 py-2 fs-7">
                                                 <i class="bi bi-x-circle me-1"></i>

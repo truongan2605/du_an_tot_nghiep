@@ -22,6 +22,7 @@ class DatPhong extends Model
         'trang_thai',
         'ngay_nhan_phong',
         'checked_in_at',
+        'checked_in_by',
         'ngay_tra_phong',
         'so_khach',
         'tong_tien',
@@ -78,6 +79,11 @@ class DatPhong extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(Authenticatable::class, 'created_by');
+    }
+
+    public function checkedInBy(): BelongsTo
+    {
+        return $this->belongsTo(Authenticatable::class, 'checked_in_by');
     }
 
     public function datPhongItems()

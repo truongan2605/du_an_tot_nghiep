@@ -778,7 +778,11 @@ class PaymentController extends Controller
             ]);
 
             if ($nhaCungCap === 'tien_mat') {
-                $booking->update(['trang_thai' => 'dang_su_dung', 'checked_in_at' => now()]);
+                $booking->update([
+                    'trang_thai' => 'dang_su_dung',
+                    'checked_in_at' => now(),
+                    'checked_in_by' => Auth::id(),
+                ]);
                 
                 // Gửi thông báo thanh toán toàn bộ hoặc thanh toán phần còn lại
                 $totalPaid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
@@ -901,6 +905,7 @@ class PaymentController extends Controller
                 $oldStatus = $booking->trang_thai;
                 $booking->trang_thai = 'dang_su_dung';
                 $booking->checked_in_at = now();
+                $booking->checked_in_by = Auth::id();
                 $booking->save();
 
                 Log::info('Booking status updated AFTER save', [

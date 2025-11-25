@@ -315,6 +315,7 @@ class StaffController extends Controller
     {
         $bookings = DatPhong::with([
             'nguoiDung',
+            'checkedInBy',
             'giaoDichs' => function ($q) {
                 $q->where('trang_thai', 'thanh_cong');
             },
@@ -451,6 +452,7 @@ class StaffController extends Controller
             $booking->update([
                 'trang_thai' => 'dang_su_dung',
                 'checked_in_at' => now(),
+                'checked_in_by' => Auth::id(),
                 'snapshot_meta' => $meta,
             ]);
 
@@ -820,6 +822,7 @@ class StaffController extends Controller
             $booking->update([
                 'trang_thai' => 'dang_su_dung',
                 'checked_in_at' => now(),
+                'checked_in_by' => Auth::id(),
                 'snapshot_meta' => $meta,
             ]);
 
@@ -839,7 +842,7 @@ class StaffController extends Controller
 
     public function showBooking(DatPhong $booking)
     {
-        $booking->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'nguoiDung', 'giaoDichs']);
+        $booking->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'nguoiDung', 'checkedInBy', 'giaoDichs']);
 
         if (is_array($booking->snapshot_meta)) {
             $meta = $booking->snapshot_meta;
