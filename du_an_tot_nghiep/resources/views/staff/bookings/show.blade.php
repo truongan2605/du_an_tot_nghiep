@@ -73,11 +73,11 @@
                             @php
                                 $cccdList = $meta['checkin_cccd_list'] ?? [];
                                 $hasCCCDList = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
-                                
+
                                 // Backward compatibility
                                 $cccdFront = $meta['checkin_cccd_front'] ?? null;
                                 $cccdBack = $meta['checkin_cccd_back'] ?? null;
-                                $cccd = $meta['checkin_cccd'] ?? null; // Backward compatibility
+                                $cccd = $meta['checkin_cccd'] ?? null;
                                 $hasFront =
                                     $cccdFront &&
                                     \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdFront);
@@ -93,43 +93,46 @@
                                 <div class="d-flex align-items-start mb-3">
                                     <i class="bi bi-card-text text-muted me-3 mt-1"></i>
                                     <div class="flex-grow-1">
-                                        <small class="text-muted">Ảnh CCCD/CMND 
-                                            @if($hasCCCDList)
+                                        <small class="text-muted">Ảnh CCCD/CMND
+                                            @if ($hasCCCDList)
                                                 <span class="badge bg-info ms-2">{{ count($cccdList) }} người</span>
                                             @endif
                                         </small>
-                                        
+
                                         @if ($hasCCCDList)
                                             {{-- Hiển thị tất cả CCCD trong danh sách --}}
                                             <div class="row g-3 mt-2">
-                                                @foreach($cccdList as $index => $cccdItem)
+                                                @foreach ($cccdList as $index => $cccdItem)
                                                     <div class="col-12 col-md-6 col-lg-4">
                                                         <div class="card border-primary">
                                                             <div class="card-header bg-light text-center">
                                                                 <strong>Người {{ $index + 1 }}</strong>
                                                             </div>
                                                             <div class="card-body p-2">
-                                                                @if(!empty($cccdItem['front']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdItem['front']))
+                                                                @if (!empty($cccdItem['front']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdItem['front']))
                                                                     <div class="mb-2">
-                                                                        <small class="text-muted d-block mb-1">Mặt trước:</small>
-                                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdItem['front']) }}" 
-                                                                             alt="Mặt trước CCCD người {{ $index + 1 }}" 
-                                                                             class="img-thumbnail w-100" 
-                                                                             style="max-height: 250px; cursor: pointer; object-fit: contain;"
-                                                                             onclick="window.open(this.src, '_blank')">
+                                                                        <small class="text-muted d-block mb-1">Mặt
+                                                                            trước:</small>
+                                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdItem['front']) }}"
+                                                                            alt="Mặt trước CCCD người {{ $index + 1 }}"
+                                                                            class="img-thumbnail w-100"
+                                                                            style="max-height: 250px; cursor: pointer; object-fit: contain;"
+                                                                            onclick="window.open(this.src, '_blank')">
                                                                     </div>
                                                                 @endif
-                                                                @if(!empty($cccdItem['back']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdItem['back']))
+                                                                @if (!empty($cccdItem['back']) && \Illuminate\Support\Facades\Storage::disk('public')->exists($cccdItem['back']))
                                                                     <div>
-                                                                        <small class="text-muted d-block mb-1">Mặt sau:</small>
-                                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdItem['back']) }}" 
-                                                                             alt="Mặt sau CCCD người {{ $index + 1 }}" 
-                                                                             class="img-thumbnail w-100" 
-                                                                             style="max-height: 250px; cursor: pointer; object-fit: contain;"
-                                                                             onclick="window.open(this.src, '_blank')">
+                                                                        <small class="text-muted d-block mb-1">Mặt
+                                                                            sau:</small>
+                                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($cccdItem['back']) }}"
+                                                                            alt="Mặt sau CCCD người {{ $index + 1 }}"
+                                                                            class="img-thumbnail w-100"
+                                                                            style="max-height: 250px; cursor: pointer; object-fit: contain;"
+                                                                            onclick="window.open(this.src, '_blank')">
                                                                     </div>
                                                                 @endif
-                                                                <small class="text-muted d-block mt-2 text-center">Click để xem ảnh lớn</small>
+                                                                <small class="text-muted d-block mt-2 text-center">Click để
+                                                                    xem ảnh lớn</small>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -162,7 +165,6 @@
                                                 @endif
                                             </div>
                                         @elseif ($isOldImage)
-                                            {{-- Backward compatibility: hiển thị ảnh cũ --}}
                                             <div class="mt-2">
                                                 <img src="{{ \Illuminate\Support\Facades\Storage::url($cccd) }}"
                                                     alt="Ảnh CCCD" class="img-thumbnail"
@@ -171,7 +173,6 @@
                                                 <br><small class="text-muted mt-1 d-block">Click để xem ảnh lớn</small>
                                             </div>
                                         @else
-                                            {{-- Backward compatibility: nếu là text cũ --}}
                                             <p class="mb-0 fw-semibold">{{ $cccd }}</p>
                                         @endif
                                     </div>
@@ -198,8 +199,8 @@
                                                 'dang_su_dung' => 'bg-success',
                                                 'dang_cho' => 'bg-warning text-dark',
                                                 'dang_cho_xac_nhan' => 'bg-info text-dark',
-                                                'da_xac_nhan' => 'bg-success', // đã xác nhận
-                                                'da_gan_phong' => 'bg-info text-dark', // đã gán phòng
+                                                'da_xac_nhan' => 'bg-success',
+                                                'da_gan_phong' => 'bg-info text-dark',
                                                 'da_huy' => 'bg-secondary',
                                                 'hoan_thanh' => 'bg-primary',
                                                 'dang_o' => 'bg-indigo text-white',
@@ -280,6 +281,15 @@
                                                 class="badge bg-success-subtle text-success border border-success rounded-pill px-3 py-2 fs-7">
                                                 <i class="bi bi-clock-history me-1"></i>
                                                 Đã checkout lúc {{ $booking->checkout_at->format('d/m/Y H:i:s') }}
+                                                @if (!empty($booking->checkout_by))
+                                                    @php
+                                                        $checkoutUser = \App\Models\User::find($booking->checkout_by);
+                                                    @endphp
+                                                    @if ($checkoutUser)
+                                                        &nbsp;·&nbsp; <small class="text-muted">Bởi:
+                                                            <strong>{{ $checkoutUser->name }}</strong></small>
+                                                    @endif
+                                                @endif
                                             </span>
 
                                             @if (!empty($booking->is_checkout_early))
@@ -297,6 +307,20 @@
                                                     @else
                                                         <small class="ms-2 text-muted">Không có khoản hoàn trả.</small>
                                                     @endif
+                                                </div>
+                                            @endif
+
+                                            @if (!empty($booking->is_late_checkout) || $lateFeeTotal > 0)
+                                                <div class="mt-2">
+                                                    <span class="badge bg-danger text-white rounded-pill px-3 py-2 fs-7">
+                                                        <i class="bi bi-exclamation-octagon me-1"></i> Đơn checkout muộn
+                                                    </span>
+
+                                                    <small class="ms-2 text-muted">
+                                                        Phí checkout muộn:
+                                                        <strong class="text-danger">{{ number_format($lateFeeTotal, 0) }}
+                                                            ₫</strong>
+                                                    </small>
                                                 </div>
                                             @endif
                                         @else
@@ -349,8 +373,18 @@
                                 <i class="bi bi-currency-exchange text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Tổng Tiền</small>
-                                    <p class="mb-0 fs-5 fw-bold text-success">{{ number_format($booking->tong_tien, 0) }}
-                                        ₫
+                                    <p class="mb-0 fs-5 fw-bold text-success">
+                                        @if (!empty($finalInvoiceTotal))
+                                            {{-- Nếu booking đã hoàn thành: hiển thị số tiền lấy từ hoá đơn --}}
+                                            {{ number_format($finalInvoiceTotal, 0) }} ₫
+                                            @if (!empty($finalInvoiceId))
+                                                <small class="d-block text-muted mt-1">
+                                                    (theo hoá đơn #{{ $finalInvoiceId }})
+                                                </small>
+                                            @endif
+                                        @else
+                                            {{ number_format($booking->tong_tien, 0) }} ₫
+                                        @endif
                                     </p>
                                 </div>
                             </div>
@@ -403,13 +437,10 @@
                                     <div class="col-md-3 d-flex align-items-center">
                                         <strong class="text-primary">#{{ $phongCode ?? 'Chưa gán' }}</strong>
                                         @php
-                                            // nếu $item là dat_phong_item model thì lấy object phong nếu có
                                             $phongObj = $isArrayLine ? null : $item->phong ?? null;
                                         @endphp
 
-                                        {{-- nút đánh dấu đã dọn xong (chỉ khi booking da_xac_nhan & phòng có don_dep true) --}}
                                         @if ($booking->trang_thai === 'da_xac_nhan' && !empty($phongId) && ($phongObj?->don_dep ?? false))
-                                            {{-- Simple POST form (reload page) --}}
                                             <form
                                                 action="{{ route('staff.bookings.rooms.clear_cleaning', ['booking' => $booking->id, 'room' => $phongId]) }}"
                                                 method="POST" class="d-inline ms-2">
@@ -592,28 +623,65 @@
                                         <div class="small text-muted mb-2">Đồ ăn / Dịch vụ đã gọi thêm</div>
                                         <ul class="mb-0 ps-3">
                                             @foreach ($roomCons as $c)
-                                                <li class="small mb-1">
-                                                    <strong>{{ $c->quantity }} ×
-                                                        {{ $c->vatDung?->ten ?? '#VD' . $c->vat_dung_id }}</strong>
-                                                    — <span
-                                                        class="fw-semibold">{{ number_format($c->unit_price * $c->quantity, 0) }}
-                                                        ₫</span>
-                                                    @if ($c->billed_at)
-                                                        <span class="badge bg-success ms-2 small">Đã tính</span>
-                                                    @else
-                                                        <span class="badge bg-warning text-dark ms-2 small">Chưa
-                                                            tính</span>
-                                                    @endif
-                                                    <div class="text-muted small mt-1">
-                                                        @if ($c->consumed_at)
-                                                            <span title="Thời gian tiêu thụ">Thời gian đánh dấu
-                                                                {{ \Carbon\Carbon::parse($c->consumed_at)->format('d/m H:i') }}</span>
-                                                            &nbsp;·&nbsp;
+                                                <li class="small mb-1 d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <strong>{{ $c->quantity }} ×
+                                                            {{ $c->vatDung?->ten ?? '#VD' . $c->vat_dung_id }}</strong>
+                                                        — <span
+                                                            class="fw-semibold">{{ number_format($c->unit_price * $c->quantity, 0) }}
+                                                            ₫</span>
+                                                        @if ($c->billed_at)
+                                                            <span class="badge bg-success ms-2 small">Đã tính</span>
+                                                        @else
+                                                            <span class="badge bg-warning text-dark ms-2 small">Chưa
+                                                                tính</span>
                                                         @endif
-                                                        <strong title="Người tạo">Người đánh dấu:
-                                                            {{ $c->creator?->name ?? ($c->created_by ? 'UID#' . $c->created_by : '—') }}</strong>
-                                                        @if ($c->note)
-                                                            &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }}
+
+                                                        <div class="text-muted small mt-1">
+                                                            @if ($c->consumed_at)
+                                                                <span title="Thời gian tiêu thụ">Thời gian đánh dấu
+                                                                    {{ \Carbon\Carbon::parse($c->consumed_at)->format('d/m H:i') }}</span>
+                                                                &nbsp;·&nbsp;
+                                                            @endif
+                                                            <strong title="Người tạo">Người đánh dấu:
+                                                                {{ $c->creator?->name ?? ($c->created_by ? 'UID#' . $c->created_by : '—') }}</strong>
+                                                            @if ($c->note)
+                                                                &nbsp;·&nbsp; Ghi chú: {{ Str::limit($c->note, 80) }}
+                                                            @endif
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="text-end">
+                                                        @php
+                                                            $linkedHoaDonIds = \App\Models\HoaDonItem::where(
+                                                                'type',
+                                                                'consumption',
+                                                            )
+                                                                ->where('ref_id', $c->id)
+                                                                ->pluck('hoa_don_id')
+                                                                ->unique()
+                                                                ->toArray();
+                                                            $hasPaid = \App\Models\HoaDon::whereIn(
+                                                                'id',
+                                                                $linkedHoaDonIds,
+                                                            )
+                                                                ->where('trang_thai', 'da_thanh_toan')
+                                                                ->exists();
+                                                        @endphp
+
+                                                        @if ($hasPaid)
+                                                        @else
+                                                            <form method="POST"
+                                                                action="{{ route('phong.consumptions.destroy', $c->id) }}"
+                                                                class="d-inline-block">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit"
+                                                                    class="btn btn-sm btn-outline-danger"
+                                                                    onclick="return confirm('Xác nhận xóa đánh dấu tiêu thụ này? Hành động sẽ trả kho và cập nhật hoá đơn liên quan (nếu có).')">
+                                                                    <i class="bi bi-trash"></i> Xóa
+                                                                </button>
+                                                            </form>
                                                         @endif
                                                     </div>
                                                 </li>
@@ -684,13 +752,6 @@
                                                             ₫</span>
                                                     @endif
 
-                                                    {{-- @if ($isBilled)
-                                                        <span class="badge bg-success ms-2 small">Đã tính vào hoá đơn
-                                                            #{{ $billedBookingCode }}</span>
-                                                    @else
-                                                        <span class="badge bg-warning text-dark ms-2 small">Chưa
-                                                            tính</span>
-                                                    @endif --}}
 
                                                     {{-- Luôn show booking code (nếu có) để dễ truy cứu --}}
                                                     @if ($belongsBookingCode)

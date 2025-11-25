@@ -172,7 +172,7 @@
                                                 đ</strong></td>
                                     </tr>
                                     <tr>
-                                        <td>Tổng tiện nghi mặc định</td>
+                                        <td>Tổng dịch vụ mặc định</td>
                                         <td class="text-end">{{ number_format($typeAmenitiesSum, 0, ',', '.') }} đ</td>
                                     </tr>
                                     <tr class="table-active">
@@ -213,12 +213,12 @@
 
                 <!-- Tiện nghi -->
                 <div class="mt-4">
-                    <h5 class="fw-bold">Tiện nghi</h5>
+                    <h5 class="fw-bold">Dịch vụ</h5>
 
                     <div class="row">
                         <div class="col-12">
                             <div class="card border-success">
-                                <div class="card-header bg-success text-white">Tiện nghi</div>
+                                <div class="card-header bg-success text-white">Dịch vụ</div>
                                 <div class="card-body">
                                     @if ($tienNghiLoaiPhong->count())
                                         <ul class="list-unstyled mb-0">
@@ -231,7 +231,7 @@
                                             @endforeach
                                         </ul>
                                     @else
-                                        <p><em>Không có tiện nghi mặc định</em></p>
+                                        <p><em>Không có dịch vụ mặc định</em></p>
                                     @endif
                                 </div>
                             </div>

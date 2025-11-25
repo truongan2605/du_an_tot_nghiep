@@ -21,6 +21,8 @@ class DatPhong extends Model
         'nguoi_dung_id',
         'trang_thai',
         'ngay_nhan_phong',
+        'checkout_at',
+        'checkout_by',
         'checked_in_at',
         'checked_in_by',
         'ngay_tra_phong',
@@ -46,6 +48,11 @@ class DatPhong extends Model
         'refund_percentage',
         'cancelled_at',
         'cancellation_reason',
+        'is_checkout_early',
+        'early_checkout_refund_amount',
+        'is_late_checkout',
+        'late_checkout_fee_amount',
+
     ];
 
 
@@ -63,6 +70,8 @@ class DatPhong extends Model
         'can_xac_nhan' => 'boolean',
         'checked_in_at' => 'datetime',
         'deposit_amount' => 'decimal:2',
+        'is_late_checkout' => 'boolean',
+        'late_checkout_fee_amount' => 'decimal:0',
     ];
 
     // Relationships
@@ -269,6 +278,11 @@ class DatPhong extends Model
     public function voucherUsages(): HasMany
     {
         return $this->hasMany(VoucherUsage::class, 'dat_phong_id');
+    }
+
+    public function checkoutByUser()
+    {
+        return $this->belongsTo(User::class, 'checkout_by');
     }
 
     public function phongDaDats()

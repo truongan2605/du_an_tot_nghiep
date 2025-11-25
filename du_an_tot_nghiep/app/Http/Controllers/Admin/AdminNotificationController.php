@@ -253,4 +253,49 @@ class AdminNotificationController extends Controller
 
         return response()->json($notifications);
     }
+
+    /**
+     * API: Lấy chi tiết thông báo (cho modal)
+     */
+    public function getDetail($id)
+    {
+        $notification = ThongBao::with('nguoiNhan')->findOrFail($id);
+        
+        // Kiểm tra quyền xem (chỉ admin hoặc người nhận)
+        if (Auth::user()->vai_tro !== 'admin' && $notification->nguoi_nhan_id !== Auth::id()) {
+            abort(403, 'Không có quyền xem thông báo này');
+        }
+
+        $payload = $notification->payload;
+        
+        $statusConfig = [
+            'pending' => ['class' => 'bg-warning', 'text' => 'Chờ xử lý'],
+            'sent' => ['class' => 'bg-success', 'text' => 'Đã gửi'],
+            'read' => ['class' => 'bg-primary', 'text' => 'Đã đọc'],
+            'failed' => ['class' => 'bg-danger', 'text' => 'Thất bại'],
+        ];
+        $config = $statusConfig[$notification->trang_thai] ?? $statusConfig['pending'];
+
+        return response()->json([
+            'id' => $notification->id,
+            'title' => $payload['title'] ?? 'Không có tiêu đề',
+            'message' => $payload['message'] ?? 'Không có nội dung',
+            'link' => $payload['link'] ?? null,
+            'payload' => $payload,
+            'ten_template' => $notification->ten_template,
+            'kenh' => $notification->kenh,
+            'trang_thai' => $notification->trang_thai,
+            'status_class' => $config['class'],
+            'status_text' => $config['text'],
+            'so_lan_thu' => $notification->so_lan_thu,
+            'lan_thu_cuoi' => $notification->lan_thu_cuoi ? $notification->lan_thu_cuoi->format('d/m/Y H:i:s') : null,
+            'created_at' => $notification->created_at->format('d/m/Y H:i:s'),
+            'updated_at' => $notification->updated_at->format('d/m/Y H:i:s'),
+            'nguoi_nhan' => [
+                'name' => $notification->nguoiNhan->name ?? 'N/A',
+                'email' => $notification->nguoiNhan->email ?? 'N/A',
+                'vai_tro' => $notification->nguoiNhan->vai_tro ?? 'N/A',
+            ],
+        ]);
+    }
 }

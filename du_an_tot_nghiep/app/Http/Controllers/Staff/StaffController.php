@@ -582,28 +582,6 @@ class StaffController extends Controller
         return view('staff.checkout', compact('bookings'));
     }
 
-    // public function processCheckout(Request $request)
-    // {
-    //     $request->validate([
-    //         'booking_id' => 'required|exists:dat_phong,id'
-    //     ]);
-    //     $booking = DatPhong::findOrFail($request->booking_id);
-    //     if (!in_array($booking->trang_thai, ['da_gan_phong', 'dang_o'])) {
-    //         return redirect()->back()->with('error', 'Booking không thể check-out');
-    //     }
-    //     DB::transaction(function () use ($booking) {
-    //         $booking->update([
-    //             'trang_thai' => 'hoan_thanh',
-    //             'can_xac_nhan' => false,
-    //         ]);
-    //         $phongIds = $booking->datPhongItems->pluck('phong_id')->toArray();
-    //         Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_don_dep']);
-    //         PhongDaDat::whereIn('phong_id', $phongIds)
-    //             ->whereIn('dat_phong_item_id', $booking->datPhongItems->pluck('id'))
-    //             ->update(['trang_thai' => 'hoan_thanh']);
-    //     });
-    //     return redirect()->route('staff.rooms')->with('success', 'Check-out thành công cho booking #' . $booking->ma_tham_chieu);
-    // }
 
     public function pendingPayments()
     {
@@ -625,78 +603,6 @@ class StaffController extends Controller
         return view('staff.bookings', compact('bookings'));
     }
 
-    // public function pendingBookings()
-    // {
-    //     $bookings = DatPhong::whereIn('trang_thai', ['dang_cho', 'dang_cho_xac_nhan'])
-    //         ->with(['nguoiDung', 'datPhongItems.loaiPhong', 'phongDaDats.phong'])
-    //         ->paginate(10);
-    //     $availableRooms = Phong::where('trang_thai', 'trong')
-    //         ->with(['tang', 'loaiPhong'])
-    //         ->get();
-    //     return view('staff.pending-bookings', compact('bookings', 'availableRooms'));
-    // }
-
-    // public function confirm(Request $request, $id)
-    // {
-    //     $request->validate([
-    //         'phong_id' => 'nullable|exists:phong,id',
-    //         'dat_phong_id' => 'required|exists:dat_phong,id',
-    //         'staff_id' => 'required|exists:users,id'
-    //     ]);
-    //     $dat_phong = DatPhong::findOrFail($request->dat_phong_id);
-    //     if ($dat_phong->trang_thai !== 'dang_cho_xac_nhan') {
-    //         return response()->json(['error' => 'Booking không thể xác nhận ở trạng thái hiện tại'], 400);
-    //     }
-    //     $booking = DatPhong::with('datPhongItems.loaiPhong')->findOrFail($id);
-    //     if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
-    //         return redirect()->back()->with('error', 'Booking không thể xác nhận.');
-    //     }
-    //     DB::transaction(function () use ($booking, $request) {
-
-    //         if (is_null($booking->deposit_amount) || $booking->deposit_amount == 0) {
-    //             $booking->deposit_amount = $request->deposit_amount ?? ($booking->tong_tien * 0.2);
-    //         }
-    //         $booking->trang_thai = 'da_xac_nhan';
-    //         $booking->save();
-    //         $datPhongItem = $booking->datPhongItems->first();
-    //         if (!$datPhongItem) {
-    //             $loaiPhong = LoaiPhong::first();
-    //             if (!$loaiPhong) {
-    //                 throw new \Exception('Chưa có loại phòng nào trong hệ thống.');
-    //             }
-    //             $datPhongItem = DatPhongItem::create([
-    //                 'dat_phong_id' => $booking->id,
-    //                 'loai_phong_id' => $loaiPhong->id,
-    //                 'so_luong' => 1,
-    //                 'gia_tren_dem' => $loaiPhong->gia_tren_dem ?? 0,
-    //                 'so_dem' => $loaiPhong->so_dem ?? 1,
-    //             ]);
-    //         }
-    //         if ($request->filled('phong_id')) {
-    //             $phong_id = $request->phong_id;
-    //             if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
-    //                 PhongDaDat::create([
-    //                     'dat_phong_item_id' => $datPhongItem->id,
-    //                     'phong_id' => $phong_id,
-    //                     'trang_thai' => 'da_dat',
-    //                     'checkin_datetime' => $booking->ngay_nhan_phong,
-    //                     'checkout_datetime' => $booking->ngay_tra_phong,
-    //                 ]);
-    //                 Phong::find($phong_id)->update(['trang_thai' => 'da_dat']);
-    //                 $booking->trang_thai = 'da_gan_phong';
-    //                 $booking->save();
-    //             } else {
-    //                 throw new \Exception('Phòng không khả dụng.');
-    //             }
-    //         }
-    //     });
-    //     if ($booking->trang_thai === 'da_gan_phong') {
-    //         return redirect()->route('staff.index')
-    //             ->with('success', 'Booking đã được xác nhận và gán phòng thành công.');
-    //     }
-    //     return redirect()->route('staff.assign-rooms', $booking->id)
-    //         ->with('success', 'Booking đã được xác nhận. Vui lòng tiến hành gán phòng.');
-    // }
 
     protected function checkAvailability($phong_id, $start, $end)
     {
@@ -958,6 +864,35 @@ class StaffController extends Controller
             $earlyRefundTotal = $earlyRefundTotal < 0 ? abs($earlyRefundTotal) : $earlyRefundTotal;
         }
 
+        $finalInvoice = null;
+        $finalInvoiceTotal = null;
+        $finalInvoiceId = null;
+        if ($booking->trang_thai === 'hoan_thanh') {
+            $finalInvoice = HoaDon::where('dat_phong_id', $booking->id)
+                ->where('trang_thai', 'da_thanh_toan')
+                ->orderByDesc('id')
+                ->first()
+                ?? HoaDon::where('dat_phong_id', $booking->id)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($finalInvoice) {
+                $finalInvoiceTotal = (float) $finalInvoice->tong_thuc_thu;
+                $finalInvoiceId = $finalInvoice->id;
+            }
+        }
+
+        $lateFeeTotal = 0;
+        $lateItems = \App\Models\HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
+            $q->where('dat_phong_id', $booking->id);
+        })->where('type', 'late_fee')->get();
+
+        if ($lateItems->isNotEmpty()) {
+            $lateFeeTotal = (float) $lateItems->sum('amount');
+        } else {
+            $lateFeeTotal = (float) ($booking->late_checkout_fee_amount ?? 0);
+        }
+
         return view('staff.bookings.show', compact(
             'booking',
             'meta',
@@ -967,7 +902,11 @@ class StaffController extends Controller
             'incidentsByInstance',
             'bookingMap',
             'roomLinesFromInvoice',
-            'earlyRefundTotal'
+            'earlyRefundTotal',
+            'finalInvoice',
+            'finalInvoiceTotal',
+            'finalInvoiceId',
+            'lateFeeTotal'
         ));
     }
 

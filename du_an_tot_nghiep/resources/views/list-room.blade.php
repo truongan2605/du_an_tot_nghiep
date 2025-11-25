@@ -100,7 +100,7 @@
                             </ul>
 
                             {{-- Amenities --}}
-                            <h6>Tiện nghi</h6>
+                            <h6>Dịch vụ</h6>
                             <ul class="list-unstyled">
                                 @php
                                     $selectedTienNghi = (array) request('tien_nghi', []);
@@ -226,7 +226,7 @@
                                                                 class="text-decoration-none">Xem thêm+</a>
                                                         @endif
                                                     @else
-                                                        <span>Chưa có tiện nghi</span>
+                                                        <span>Chưa có dịch vụ</span>
                                                     @endif
                                                 </div>
 

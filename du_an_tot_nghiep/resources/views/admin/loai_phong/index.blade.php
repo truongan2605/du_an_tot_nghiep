@@ -15,7 +15,7 @@
                 </div>
 
                 <div class="col-md-5">
-                    <label class="form-label fw-bold text-primary">Tiện nghi</label>
+                    <label class="form-label fw-bold text-primary">Dịch vụ</label>
                     <select name="tien_nghi_ids[]" class="form-select select2-multiple shadow-sm" multiple>
                         @foreach ($dsTienNghis as $tn)
                             <option value="{{ $tn->id }}"
@@ -58,7 +58,7 @@
                         <th style="width:140px" class="text-end">Giá mặc định</th>
                         <th style="width:120px" class="text-center">SL thực tế</th>
                         <th style="width:120px" class="text-center">Đang ở</th>
-                        <th style="min-width:180px">Tiện nghi</th>
+                        <th style="min-width:180px">Dịch vụ</th>
                         <th style="width:220px" class="text-center">Hành động</th>
                     </tr>
                 </thead>
