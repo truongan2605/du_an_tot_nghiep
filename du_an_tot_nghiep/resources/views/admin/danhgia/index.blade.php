@@ -16,7 +16,7 @@
                 <div class="card h-100 shadow-sm border-0">
                     <div class="card-body d-flex flex-column justify-content-between">
                         <div>
-                            <h5 class="card-title">{{ $phong->ten ?? 'Tên phòng trống' }}</h5>
+                            <h5 class="card-title">{{ $phong->name ?? 'Tên phòng trống' }}</h5>
                             <p class="card-text mb-2">
                                 @if($count > 0)
                                     <span class="fw-semibold">⭐ {{ number_format($avg,1) }}/5</span> 

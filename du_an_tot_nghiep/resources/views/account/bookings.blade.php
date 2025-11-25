@@ -414,9 +414,7 @@
                                                 </div>
                                                
                                             </div>
-                                            <a href="{{ route('client.danhgia.create', $datPhong->id) }}" 
-   class="btn btn-outline-primary w-100 mt-2">
-    Đánh giá
+  
 </a>
                                         </div>
                                     @empty
