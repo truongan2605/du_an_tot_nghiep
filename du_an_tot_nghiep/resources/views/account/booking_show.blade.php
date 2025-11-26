@@ -26,11 +26,11 @@
             return $carbon->format($format);
         };
 
-        // Calculate countdown
-        $checkInDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+        // Calculate countdown using actual check-in time (14:00)
+        $checkInDateTime = \Carbon\Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0, 0);
         $now = \Carbon\Carbon::now();
-        $daysUntilCheckIn = (int) $now->diffInDays($checkInDate, false);
-        $hoursUntilCheckIn = (int) $now->diffInHours($checkInDate, false);
+        $daysUntilCheckIn = (int) $now->diffInDays($checkInDateTime, false);
+        $hoursUntilCheckIn = (int) $now->diffInHours($checkInDateTime, false);
         
         // Calculate refund if cancelled now
         $totalAmount = $booking->snapshot_total ?? ($booking->tong_tien ?? 0);
@@ -103,6 +103,14 @@
                                     <button onclick="window.print()" class="btn btn-outline-primary btn-sm px-3">
                                         <i class="bi bi-printer me-1"></i> In xác nhận
                                     </button>
+
+                                    @if(in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']) && $daysUntilCheckIn >= 1)
+                                        <button type="button" class="btn btn-outline-primary btn-sm px-3" 
+                                                data-bs-toggle="modal" data-bs-target="#changeRoomModal"
+                                                title="Đổi phòng trước 24h check-in. Phòng đắt hơn: thanh toán chênh lệch. Phòng rẻ hơn: nhận voucher.">
+                                            <i class="bi bi-arrow-left-right me-1"></i> Đổi phòng
+                                        </button>
+                                    @endif
 
                                     @if(in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']))
                                         <button type="button" class="btn btn-danger btn-sm px-3" data-bs-toggle="modal" data-bs-target="#cancelModal">
@@ -651,6 +659,208 @@
             </div>
         </div>
     @endif
+
+    {{-- Room Change Modal --}}
+    @if(in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']) && $daysUntilCheckIn >= 1)
+        <div class="modal fade" id="changeRoomModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary bg-opacity-10 border-0">
+                        <h5 class="modal-title text-primary">
+                            <i class="bi bi-arrow-left-right me-2"></i>
+                            Đổi Phòng - {{ $booking->ma_tham_chieu }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        {{-- Room Change Policy --}}
+                        <div class="alert alert-info border-info mb-4">
+                            <div class="d-flex align-items-start">
+                                <i class="bi bi-info-circle-fill fs-4 me-3 text-info"></i>
+                                <div class="flex-grow-1">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="bi bi-shield-check me-1"></i> Chính sách đổi phòng
+                                    </h6>
+                                    <ul class="mb-0 small">
+                                        <li class="mb-1">
+                                            <strong>Thời gian:</strong> Chỉ áp dụng trước <strong>24 giờ</strong> check-in
+                                        </li>
+                                        <li class="mb-1">
+                                            <strong>Phòng đắt hơn:</strong> Thanh toán chênh lệch qua VNPay
+                                        </li>
+                                        <li class="mb-1">
+                                            <strong>Phòng rẻ hơn:</strong> Nhận voucher (hạn 6 tháng) hoặc hoàn tiền về ví VNPay
+                                        </li>
+                                        <li class="mb-1">
+                                            <strong>Giới hạn:</strong> Tối đa <strong>2 lần</strong> đổi phòng cho mỗi booking
+                                        </li>
+                                        <li class="mb-0">
+                                            <strong>Miễn phí:</strong> Không mất phí nếu đổi sang phòng cùng giá
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Current Room Section --}}
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3">
+                                <i class="bi bi-pin-fill me-2"></i>Phòng hiện tại
+                            </h6>
+                            @if($booking->datPhongItems && $booking->datPhongItems->count() > 0)
+                                @php
+                                    $currentItem = $booking->datPhongItems->first();
+                                    $currentRoom = $currentItem->phong;
+                                    $currentRoomType = $currentItem->loaiPhong;
+                                @endphp
+                                <div class="card border-primary bg-light">
+                                    <div class="card-body p-3">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-2">
+                                                @if($currentRoom && $currentRoom->images && $currentRoom->images->count() > 0)
+                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($currentRoom->images->first()->image_path) }}" 
+                                                         alt="Room" class="img-thumbnail" style="height: 80px; object-fit: cover;">
+                                                @else
+                                                    <div class="bg-secondary text-white d-flex align-items-center justify-content-center" 
+                                                         style="height: 80px; border-radius: 8px;">
+                                                        <i class="bi bi-image fs-3"></i>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6 class="mb-1">
+                                                    <strong class="text-primary">#{{ $currentRoom->ma_phong ?? 'N/A' }}</strong>
+                                                    - {{ $currentRoomType->name ?? 'N/A' }}
+                                                </h6>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-people me-1"></i>{{ $currentRoomType->so_nguoi ?? 2 }} người
+                                                    <span class="mx-2">•</span>
+                                                    <i class="bi bi-star-fill text-warning me-1"></i>{{ $currentRoomType->hang ?? 'Standard' }}
+                                                </small>
+                                            </div>
+                                            <div class="col-md-4 text-end">
+                                                <div class="text-muted small mb-1">Giá hiện tại</div>
+                                                <div class="h5 mb-0 text-success fw-bold">
+                                                    {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }} ₫<small class="text-muted">/đêm</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+
+                        <hr class="my-4">
+
+                        {{-- Available Rooms Section --}}
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="text-muted mb-0">
+                                    <i class="bi bi-house-door me-2"></i>Chọn phòng mới
+                                </h6>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select form-select-sm" id="filterRoomType" style="width: auto;">
+                                        <option value="">Tất cả loại phòng</option>
+                                        <option value="deluxe">Deluxe</option>
+                                        <option value="suite">Suite</option>
+                                        <option value="premium">Premium</option>
+                                    </select>
+                                    <select class="form-select form-select-sm" id="filterPrice" style="width: auto;">
+                                        <option value="">Mọi mức giá</option>
+                                        <option value="same">Cùng giá</option>
+                                        <option value="cheaper">Rẻ hơn</option>
+                                        <option value="expensive">Đắt hơn</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {{-- Available Rooms Grid (Template - will be populated via AJAX) --}}
+                            <div class="row g-3" id="availableRoomsGrid">
+                                {{-- Loading State --}}
+                                <div class="col-12 text-center py-5" id="loadingRooms">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Đang tải...</span>
+                                    </div>
+                                    <p class="text-muted mt-3">Đang tìm phòng trống...</p>
+                                </div>
+
+                                {{-- Sample Room Cards (These will be generated dynamically) --}}
+                                {{-- Example structure for JavaScript to replicate:
+                                <div class="col-md-4 room-card-wrapper" data-room-id="123" data-price="2000000" data-type="suite">
+                                    <div class="card room-card h-100 border-2">
+                                        <div class="position-relative">
+                                            <img src="..." class="card-img-top" style="height: 150px; object-fit: cover;">
+                                            <span class="position-absolute top-0 end-0 m-2 badge bg-success">+500,000đ</span>
+                                        </div>
+                                        <div class="card-body">
+                                            <h6 class="card-title mb-2">#305 - Suite Room</h6>
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <span class="text-muted small">Giá/đêm</span>
+                                                <strong class="text-success">2,000,000đ</strong>
+                                            </div>
+                                            <button class="btn btn-outline-primary btn-sm w-100 select-room-btn">
+                                                <i class="bi bi-check-circle me-1"></i>Chọn phòng
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                --}}
+                            </div>
+                        </div>
+
+                        {{-- Price Summary Section (Hidden by default, shown when room selected) --}}
+                        <div id="priceSummarySection" class="d-none">
+                            <hr class="my-4">
+                            <div class="alert alert-info border-0">
+                                <h6 class="mb-3">
+                                    <i class="bi bi-calculator me-2"></i>Tổng quan giá
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Tổng tiền cũ:</span>
+                                            <strong id="oldTotal">{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }} ₫</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Số đêm còn lại:</span>
+                                            <strong id="nightsRemaining">{{ $meta['nights'] ?? 1 }} đêm</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Chênh lệch/đêm:</span>
+                                            <strong id="priceDiffPerNight" class="text-primary">0 ₫</strong>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-white border">
+                                            <div class="card-body p-3">
+                                                <div class="text-muted small mb-1">Tổng chênh lệch</div>
+                                                <div class="h4 mb-2" id="totalDifference">0 ₫</div>
+                                                <hr class="my-2">
+                                                <div class="text-muted small mb-1">Tổng tiền mới</div>
+                                                <div class="h3 mb-0 text-success fw-bold" id="newTotal">{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }} ₫</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Chênh lệch được tính dựa trên số đêm còn lại của kỳ nghỉ
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle me-1"></i>Hủy
+                        </button>
+                        <button type="button" class="btn btn-primary" id="confirmChangeBtn" disabled>
+                            <i class="bi bi-check-circle me-1"></i>Xác nhận đổi phòng
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 @endsection
 
 @push('styles')
@@ -736,6 +946,67 @@
         .timeline-content small {
             font-size: 12px;
         }
+
+        /* Room Change Modal Styles */
+        .room-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid #e5e7eb;
+        }
+
+        .room-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+            border-color: #0d6efd;
+        }
+
+        .room-card.selected {
+            border: 3px solid #0d6efd;
+            box-shadow: 0 4px 16px rgba(13, 110, 253, 0.3);
+            background-color: #f8f9ff;
+        }
+
+        .room-card.selected .select-room-btn {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+
+        .room-card .card-img-top {
+            transition: transform 0.3s ease;
+        }
+
+        .room-card:hover .card-img-top {
+            transform: scale(1.05);
+        }
+
+        .price-badge-increase {
+            background-color: #ef4444 !important;
+        }
+
+        .price-badge-decrease {
+            background-color: #10b981 !important;
+        }
+
+        .price-badge-same {
+            background-color: #6c757d !important;
+        }
+
+        /* Responsive adjustments for room change modal */
+        @media (max-width: 768px) {
+            .room-card-wrapper {
+                margin-bottom: 1rem;
+            }
+
+            #changeRoomModal .modal-dialog {
+                margin: 0.5rem;
+            }
+
+            #availableRoomsGrid {
+                max-height: 400px;
+                overflow-y: auto;
+            }
+        }
         
         @media (max-width: 768px) {
             .card-header { 
@@ -776,4 +1047,248 @@
             .card { box-shadow: none !important; border: 1px solid #ddd !important; }
         }
     </style>
+@endpush
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const changeRoomModal = document.getElementById('changeRoomModal');
+            if (!changeRoomModal) return;
+
+            // Data for demo purposes - will be replaced with AJAX call
+            const currentRoomPrice = {{ $booking->datPhongItems->first()->gia_tren_dem ?? 0 }};
+            const nightsRemaining = {{ $meta['nights'] ?? 1 }};
+            const oldTotal = {{ $booking->tong_tien ?? 0 }};
+            
+            let selectedRoomId = null;
+            let selectedRoomPrice = 0;
+
+            // Sample room data (will be fetched via AJAX in production)
+            const sampleRooms = [
+                {
+                    id: 201,
+                    code: '201',
+                    name: 'Deluxe Room',
+                    type: 'deluxe',
+                    price: currentRoomPrice,
+                    image: '/storage/rooms/default.jpg',
+                    capacity: 2
+                },
+                {
+                    id: 305,
+                    code: '305',
+                    name: 'Suite Room',
+                    type: 'suite',
+                    price: currentRoomPrice + 500000,
+                    image: '/storage/rooms/default.jpg',
+                    capacity: 4
+                },
+                {
+                    id: 102,
+                    code: '102',
+                    name: 'Standard Room',
+                    type: 'standard',
+                    price: currentRoomPrice - 300000,
+                    image: '/storage/rooms/default.jpg',
+                    capacity: 2
+                }
+            ];
+
+            // Load available rooms when modal opens
+            changeRoomModal.addEventListener('show.bs.modal', function() {
+                loadAvailableRooms();
+            });
+
+            function loadAvailableRooms() {
+                const grid = document.getElementById('availableRoomsGrid');
+                const loading = document.getElementById('loadingRooms');
+                
+                // Simulate loading delay
+                setTimeout(() => {
+                    loading.remove();
+                    renderRoomCards(sampleRooms);
+                }, 1000);
+
+                // TODO: Replace with actual AJAX call
+                // fetch('/api/available-rooms?booking_id={{ $booking->id }}')
+                //     .then(response => response.json())
+                //     .then(data => {
+                //         loading.remove();
+                //         renderRoomCards(data.rooms);
+                //     });
+            }
+
+            function renderRoomCards(rooms) {
+                const grid = document.getElementById('availableRoomsGrid');
+                grid.innerHTML = '';
+
+                rooms.forEach(room => {
+                    const priceDiff = room.price - currentRoomPrice;
+                    const priceDiffFormatted = Math.abs(priceDiff).toLocaleString('vi-VN');
+                    
+                    let badgeClass = 'price-badge-same';
+                    let badgeText = 'Cùng giá';
+                    
+                    if (priceDiff > 0) {
+                        badgeClass = 'price-badge-increase';
+                        badgeText = '+' + priceDiffFormatted + 'đ';
+                    } else if (priceDiff < 0) {
+                        badgeClass = 'price-badge-decrease';
+                        badgeText = '-' + priceDiffFormatted + 'đ';
+                    }
+
+                    const cardHtml = `
+                        <div class="col-md-4 room-card-wrapper" data-room-id="${room.id}" data-price="${room.price}" data-type="${room.type}">
+                            <div class="card room-card h-100">
+                                <div class="position-relative overflow-hidden">
+                                    <img src="${room.image}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="${room.name}">
+                                    <span class="position-absolute top-0 end-0 m-2 badge ${badgeClass}">${badgeText}</span>
+                                </div>
+                                <div class="card-body">
+                                    <h6 class="card-title mb-2 text-primary fw-bold">#${room.code} - ${room.name}</h6>
+                                    <div class="text-muted small mb-2">
+                                        <i class="bi bi-people me-1"></i>${room.capacity} người
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span class="text-muted small">Giá/đêm</span>
+                                        <strong class="text-success">${room.price.toLocaleString('vi-VN')}đ</strong>
+                                    </div>
+                                    <button class="btn btn-outline-primary btn-sm w-100 select-room-btn" data-room-id="${room.id}">
+                                        <i class="bi bi-check-circle me-1"></i>Chọn phòng
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    grid.insertAdjacentHTML('beforeend', cardHtml);
+                });
+
+                // Attach click handlers
+                attachRoomSelectionHandlers();
+            }
+
+            function attachRoomSelectionHandlers() {
+                const roomCards = document.querySelectorAll('.select-room-btn');
+                
+                roomCards.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const roomId = this.getAttribute('data-room-id');
+                        const wrapper = this.closest('.room-card-wrapper');
+                        const price = parseFloat(wrapper.getAttribute('data-price'));
+                        
+                        selectRoom(roomId, price, wrapper);
+                    });
+                });
+            }
+
+            function selectRoom(roomId, price, wrapper) {
+                // Remove previous selection
+                document.querySelectorAll('.room-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                document.querySelectorAll('.select-room-btn').forEach(btn => {
+                    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Chọn phòng';
+                });
+
+                // Mark new selection
+                const card = wrapper.querySelector('.room-card');
+                card.classList.add('selected');
+                
+                const btn = wrapper.querySelector('.select-room-btn');
+                btn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Đã chọn';
+                
+                selectedRoomId = roomId;
+                selectedRoomPrice = price;
+
+                // Update price summary
+                updatePriceSummary(price);
+
+                // Enable confirm button
+                document.getElementById('confirmChangeBtn').disabled = false;
+            }
+
+            function updatePriceSummary(newRoomPrice) {
+                const priceDiffPerNight = newRoomPrice - currentRoomPrice;
+                const totalDifference = priceDiffPerNight * nightsRemaining;
+                const newTotal = oldTotal + totalDifference;
+
+                // Show price summary section
+                document.getElementById('priceSummarySection').classList.remove('d-none');
+
+                // Update values
+                document.getElementById('priceDiffPerNight').textContent = formatCurrency(priceDiffPerNight);
+                document.getElementById('totalDifference').textContent = formatCurrency(totalDifference);
+                document.getElementById('newTotal').textContent = formatCurrency(newTotal);
+
+                // Color coding
+                const diffElement = document.getElementById('totalDifference');
+                if (totalDifference > 0) {
+                    diffElement.classList.remove('text-success');
+                    diffElement.classList.add('text-danger');
+                } else if (totalDifference < 0) {
+                    diffElement.classList.remove('text-danger');
+                    diffElement.classList.add('text-success');
+                } else {
+                    diffElement.classList.remove('text-danger', 'text-success');
+                }
+            }
+
+            function formatCurrency(amount) {
+                const sign = amount >= 0 ? '+' : '';
+                return sign + amount.toLocaleString('vi-VN') + ' ₫';
+            }
+
+            // Confirm button handler
+            document.getElementById('confirmChangeBtn').addEventListener('click', function() {
+                if (!selectedRoomId) {
+                    alert('Vui lòng chọn phòng muốn đổi!');
+                    return;
+                }
+
+                // TODO: Submit room change request
+                alert(`Đang xử lý đổi sang phòng #${selectedRoomId}...\n(Chức năng backend đang được phát triển)`);
+                
+                // Will be replaced with actual form submission:
+                // const form = document.createElement('form');
+                // form.method = 'POST';
+                // form.action = '/account/booking/{{ $booking->id }}/change-room';
+                // form.innerHTML = `
+                //     @csrf
+                //     <input type="hidden" name="new_room_id" value="${selectedRoomId}">
+                // `;
+                // document.body.appendChild(form);
+                // form.submit();
+            });
+
+            // Filter handlers
+            document.getElementById('filterRoomType').addEventListener('change', filterRooms);
+            document.getElementById('filterPrice').addEventListener('change', filterRooms);
+
+            function filterRooms() {
+                const typeFilter = document.getElementById('filterRoomType').value;
+                const priceFilter = document.getElementById('filterPrice').value;
+                const roomWrappers = document.querySelectorAll('.room-card-wrapper');
+
+                roomWrappers.forEach(wrapper => {
+                    let show = true;
+                    const roomType = wrapper.getAttribute('data-type');
+                    const roomPrice = parseFloat(wrapper.getAttribute('data-price'));
+                    const priceDiff = roomPrice - currentRoomPrice;
+
+                    // Type filter
+                    if (typeFilter && roomType !== typeFilter) {
+                        show = false;
+                    }
+
+                    // Price filter
+                    if (priceFilter === 'same' && priceDiff !== 0) show = false;
+                    if (priceFilter === 'cheaper' && priceDiff >= 0) show = false;
+                    if (priceFilter === 'expensive' && priceDiff <= 0) show = false;
+
+                    wrapper.style.display = show ? 'block' : 'none';
+                });
+            }
+        });
+    </script>
 @endpush

@@ -71,10 +71,23 @@ class BookingController extends Controller
 
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (json_decode($dat_phong->snapshot_meta, true) ?: []);
 
+        // Calculate days until check-in for room change button visibility (using 14:00 ch eck-in time)
+        $checkInDateTime = Carbon::parse($dat_phong->ngay_nhan_phong)->setTime(14, 0, 0);
+        $now = Carbon::now();
+        $daysUntilCheckIn = $now->diffInDays($checkInDateTime, false);
+
+        // Calculate refund amount for cancel modal
+        $depositType = $meta['deposit_percentage'] ?? 50;
+        $refundPercentage = $this->calculateRefundPercentage($daysUntilCheckIn, $depositType);
+        $paidAmount = $dat_phong->deposit_amount ?? 0;
+        $refundAmount = $paidAmount * ($refundPercentage / 100);
+
         return view('account.booking_show', [
             'booking' => $dat_phong,
             'meta' => $meta,
             'user' => $user,
+            'daysUntilCheckIn' => $daysUntilCheckIn,
+            'refundAmount' => $refundAmount,
         ]);
     }
 
@@ -1011,9 +1024,10 @@ class BookingController extends Controller
             DB::beginTransaction();
 
             // Calculate refund based on advanced policy (Option B)
-            $checkInDate = Carbon::parse($booking->ngay_nhan_phong);
+            // Use actual check-in time (14:00) for accurate calculation
+            $checkInDateTime = Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0, 0);
             $now = Carbon::now();
-            $daysUntilCheckIn = $now->diffInDays($checkInDate, false); // FIXED: now->diffInDays(checkIn) gives positive if future
+            $daysUntilCheckIn = $now->diffInDays($checkInDateTime, false); // Calculates full days until 14:00 check-in time
 
             // Determine deposit type from snapshot_meta
             $meta = $booking->snapshot_meta ?? [];
