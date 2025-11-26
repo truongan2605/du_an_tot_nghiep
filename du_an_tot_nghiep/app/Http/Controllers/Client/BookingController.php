@@ -91,6 +91,94 @@ class BookingController extends Controller
         ]);
     }
 
+    /**
+     * Get available rooms for room change
+     * Returns list of available rooms of same type during booking dates
+     */
+    public function getAvailableRooms(Request $request, DatPhong $booking)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        // Verify ownership
+        if ($booking->nguoi_dung_id !== $user->id) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        // Get current room
+        $currentItem = $booking->datPhongItems->first();
+        if (!$currentItem || !$currentItem->phong) {
+            return response()->json(['success' => false, 'message' => 'No room assigned'], 404);
+        }
+
+        $currentRoom = $currentItem->phong;
+        $currentRoomType = $currentItem->loaiPhong;
+        $currentPrice = $currentItem->gia_tren_dem ?? 0;
+
+        // Get dates
+        $checkIn = Carbon::parse($booking->ngay_nhan_phong);
+        $checkOut = Carbon::parse($booking->ngay_tra_phong);
+
+        // Get ALL available rooms (not limited to same type - allow upgrade/downgrade)
+        $allRooms = Phong::where('trang_thai', '!=', 'bao_tri')
+            ->pluck('id')
+            ->toArray();
+
+        // Get booked room IDs in this date range (ANY type)
+        $fromStartStr = $checkIn->copy()->setTime(14, 0)->toDateTimeString();
+        $toEndStr = $checkOut->copy()->setTime(12, 0)->toDateTimeString();
+
+        $bookedRoomIds = DB::table('dat_phong_item')
+            ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+            ->whereNotNull('dat_phong_item.phong_id')
+            ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+            ->whereRaw("CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?", [$toEndStr, $fromStartStr])
+            ->pluck('dat_phong_item.phong_id')
+            ->toArray();
+
+        // Available = All - Booked - Current
+        $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
+
+        // Load room details
+        $availableRooms = Phong::whereIn('id', $availableRoomIds)
+            ->with(['loaiPhong', 'images'])
+            ->get()
+            ->map(function ($room) use ($currentPrice) {
+                $roomPrice = $room->tong_gia ?? $room->gia_mac_dinh ?? 0;
+                $priceDiff = $roomPrice - $currentPrice;
+                
+                // Get image - try multiple sources
+                $imagePath = '/images/room-placeholder.jpg'; // Default fallback
+                if ($room->images && $room->images->count() > 0) {
+                    $firstImage = $room->images->first();
+                    if ($firstImage->image_url) {
+                        $imagePath = $firstImage->image_url;
+                    } elseif ($firstImage->image_path) {
+                        $imagePath = asset('storage/' . $firstImage->image_path);
+                    }
+                }
+
+                return [
+                    'id' => $room->id,
+                    'code' => $room->ma_phong,
+                    'name' => $room->loaiPhong->ten ?? 'Room', // Changed 'name' to 'ten'
+                    'type' => $room->loaiPhong->slug ?? 'standard',
+                    'price' => $roomPrice, // Using 'price' to match frontend
+                    'price_difference' => $priceDiff,
+                    'image' => $imagePath,
+                    'capacity' => $room->loaiPhong->so_nguoi ?? 2
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'available_rooms' => $availableRooms
+        ]);
+    }
+
     public function create(Phong $phong)
     {
         $phong->load(['loaiPhong', 'tienNghis', 'images', 'bedTypes', 'activeOverrides']);

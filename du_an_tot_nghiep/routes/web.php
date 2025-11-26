@@ -289,6 +289,7 @@ Route::middleware('auth')
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
         Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel'])->name('booking.cancel');
         Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
+        Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
     });
 
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================

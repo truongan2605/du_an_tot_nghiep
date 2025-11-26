@@ -730,7 +730,7 @@
                                             <div class="col-md-6">
                                                 <h6 class="mb-1">
                                                     <strong class="text-primary">#{{ $currentRoom->ma_phong ?? 'N/A' }}</strong>
-                                                    - {{ $currentRoomType->name ?? 'N/A' }}
+                                                    - {{ $currentRoomType->ten ?? 'N/A' }}
                                                 </h6>
                                                 <small class="text-muted">
                                                     <i class="bi bi-people me-1"></i>{{ $currentRoomType->so_nguoi ?? 2 }} người
@@ -761,15 +761,13 @@
                                 <div class="d-flex gap-2">
                                     <select class="form-select form-select-sm" id="filterRoomType" style="width: auto;">
                                         <option value="">Tất cả loại phòng</option>
-                                        <option value="deluxe">Deluxe</option>
-                                        <option value="suite">Suite</option>
-                                        <option value="premium">Premium</option>
+                                        {{-- Options will be populated dynamically --}}
                                     </select>
                                     <select class="form-select form-select-sm" id="filterPrice" style="width: auto;">
                                         <option value="">Mọi mức giá</option>
                                         <option value="same">Cùng giá</option>
-                                        <option value="cheaper">Rẻ hơn</option>
-                                        <option value="expensive">Đắt hơn</option>
+                                        <option value="cheaper">Rẻ hơn (Downgrade)</option>
+                                        <option value="expensive">Đắt hơn (Upgrade)</option>
                                     </select>
                                 </div>
                             </div>
@@ -1063,59 +1061,153 @@
             let selectedRoomId = null;
             let selectedRoomPrice = 0;
 
-            // Sample room data (will be fetched via AJAX in production)
-            const sampleRooms = [
-                {
-                    id: 201,
-                    code: '201',
-                    name: 'Deluxe Room',
-                    type: 'deluxe',
-                    price: currentRoomPrice,
-                    image: '/storage/rooms/default.jpg',
-                    capacity: 2
-                },
-                {
-                    id: 305,
-                    code: '305',
-                    name: 'Suite Room',
-                    type: 'suite',
-                    price: currentRoomPrice + 500000,
-                    image: '/storage/rooms/default.jpg',
-                    capacity: 4
-                },
-                {
-                    id: 102,
-                    code: '102',
-                    name: 'Standard Room',
-                    type: 'standard',
-                    price: currentRoomPrice - 300000,
-                    image: '/storage/rooms/default.jpg',
-                    capacity: 2
-                }
-            ];
-
             // Load available rooms when modal opens
             changeRoomModal.addEventListener('show.bs.modal', function() {
                 loadAvailableRooms();
             });
 
+            let allAvailableRooms = []; // Store all rooms for filtering
+
             function loadAvailableRooms() {
                 const grid = document.getElementById('availableRoomsGrid');
                 const loading = document.getElementById('loadingRooms');
                 
-                // Simulate loading delay
-                setTimeout(() => {
-                    loading.remove();
-                    renderRoomCards(sampleRooms);
-                }, 1000);
+                // Fetch from API
+                fetch('/account/bookings/{{ $booking->id }}/available-rooms', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch');
+                    return response.json();
+                })
+                .then(data => {
+                    if (loading && loading.parentElement) loading.remove();
+                    
+                    if (data.success && data.available_rooms && data.available_rooms.length > 0) {
+                        allAvailableRooms = data.available_rooms;
+                        populateRoomTypeFilter(data.available_rooms);
+                        renderRoomCards(data.available_rooms);
+                        setupFilters();
+                    } else {
+                        showNoRoomsMessage();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (loading && loading.parentElement) loading.remove();
+                    showErrorMessage();
+                });
+            }
 
-                // TODO: Replace with actual AJAX call
-                // fetch('/api/available-rooms?booking_id={{ $booking->id }}')
-                //     .then(response => response.json())
-                //     .then(data => {
-                //         loading.remove();
-                //         renderRoomCards(data.rooms);
-                //     });
+            function populateRoomTypeFilter(rooms) {
+                const typeFilter = document.getElementById('filterRoomType');
+                const uniqueTypes = [...new Set(rooms.map(r => r.name))]; // Get unique room type names
+                
+                // Count rooms per type
+                const typeCounts = {};
+                rooms.forEach(r => {
+                    typeCounts[r.name] = (typeCounts[r.name] || 0) + 1;
+                });
+                
+                // Clear existing options except first
+                typeFilter.innerHTML = '<option value="">Tất cả loại phòng</option>';
+                
+                // Add dynamic options
+                uniqueTypes.forEach(typeName => {
+                    const option = document.createElement('option');
+                    option.value = typeName;
+                    option.textContent = `${typeName} (${typeCounts[typeName]})`;
+                    typeFilter.appendChild(option);
+                });
+            }
+
+            function setupFilters() {
+                const typeFilter = document.getElementById('filterRoomType');
+                const priceFilter = document.getElementById('filterPrice');
+                
+                typeFilter.addEventListener('change', applyFilters);
+                priceFilter.addEventListener('change', applyFilters);
+            }
+
+            function applyFilters() {
+                const typeFilter = document.getElementById('filterRoomType').value;
+                const priceFilter = document.getElementById('filterPrice').value;
+                
+                console.log('Applying filters:', {typeFilter, priceFilter}); // DEBUG
+                console.log('All rooms:', allAvailableRooms); // DEBUG
+                
+                let filteredRooms = [...allAvailableRooms];
+                
+                // Filter by room type
+                if (typeFilter) {
+                    filteredRooms = filteredRooms.filter(r => {
+                        const match = r.name === typeFilter;
+                        if (!match) {
+                            console.log(`Room ${r.code} name "${r.name}" doesn't match "${typeFilter}"`); // DEBUG
+                        }
+                        return match;
+                    });
+                    console.log('After type filter:', filteredRooms.length, 'rooms'); // DEBUG
+                }
+                
+                // Filter by price
+                if (priceFilter === 'same') {
+                    filteredRooms = filteredRooms.filter(r => r.price_difference === 0);
+                } else if (priceFilter === 'cheaper') {
+                    filteredRooms = filteredRooms.filter(r => r.price_difference < 0);
+                } else if (priceFilter === 'expensive') {
+                    filteredRooms = filteredRooms.filter(r => r.price_difference > 0);
+                }
+                
+                console.log('Final filtered rooms:', filteredRooms.length); // DEBUG
+                
+                // Re-render with filtered results
+                if (filteredRooms.length > 0) {
+                    renderRoomCards(filteredRooms);
+                } else {
+                    const grid = document.getElementById('availableRoomsGrid');
+                    grid.innerHTML = `
+                        <div class="col-12 text-center py-4">
+                            <i class="bi bi-funnel text-muted fs-1 d-block mb-2"></i>
+                            <p class="text-muted">Không có phòng nào phù hợp với bộ lọc</p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="resetFilters()">Xóa bộ lọc</button>
+                        </div>
+                    `;
+                }
+            }
+
+            function resetFilters() {
+                document.getElementById('filterRoomType').value = '';
+                document.getElementById('filterPrice').value = '';
+                renderRoomCards(allAvailableRooms);
+            }
+
+            function showNoRoomsMessage() {
+                const grid = document.getElementById('availableRoomsGrid');
+                grid.innerHTML = `
+                    <div class="col-12 text-center py-5">
+                        <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+                        <h5 class="text-muted">Không có phòng trống</h5>
+                        <p class="text-muted">Hiện tại không có phòng nào phù hợp để đổi.</p>
+                    </div>
+                `;
+            }
+
+            function showErrorMessage() {
+                const grid = document.getElementById('availableRoomsGrid');
+                grid.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Không thể tải danh sách phòng. Vui lòng thử lại.
+                        </div>
+                    </div>
+                `;
             }
 
             function renderRoomCards(rooms) {
