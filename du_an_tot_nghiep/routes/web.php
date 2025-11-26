@@ -167,15 +167,7 @@ Route::prefix('admin')
     Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
     Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
 
-    // Hiển thị form đánh giá
-Route::get('/danh-gia/{booking}', [DanhGiaController::class, 'create'])
-    ->middleware('auth')
-    ->name('danhgia.create');
 
-// Lưu đánh giá
-Route::post('/danh-gia/{booking}', [DanhGiaController::class, 'store'])
-    ->middleware('auth')
-    ->name('danhgia.store');
 
         // ==================== BLOG (ADMIN) ====================
         Route::prefix('blog')->name('blog.')->group(function () {
@@ -283,19 +275,16 @@ Route::middleware('auth')
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
 
-        // danh gia
-       Route::middleware('auth')->group(function() {
-    Route::post('/phong/{phongId}/danh-gia', [DanhGiaController::class, 'store'])
-        ->name('client.danhgia.store');
-});
+       // Danh sách đặt phòng
+    Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
 
-Route::get('/danh-gia/{datPhongId}', [DanhGiaController::class, 'create'])
-        ->name('client.danhgia.create');
+     Route::get('danh-gia/{datPhong}', [DanhGiaController::class, 'create'])
+            ->name('danhgia.create');
 
-    Route::post('/danh-gia/{datPhongId}', [DanhGiaController::class, 'store'])
-        ->name('client.danhgia.store');
+        // Lưu đánh giá
+        Route::post('danh-gia/{datPhong}', [DanhGiaController::class, 'store'])
+            ->name('danhgia.store');
     });
-
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
 Route::middleware('auth')->group(function () {
     Route::post('/vouchers/claim/{id}', [ClientVoucherController::class, 'claim'])->name('client.vouchers.claim');

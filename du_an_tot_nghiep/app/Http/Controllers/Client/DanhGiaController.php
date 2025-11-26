@@ -2,52 +2,69 @@
 namespace App\Http\Controllers\Client;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Phong;
-use App\Models\DatPhong;
 use App\Models\DanhGiaSpace;
+use App\Models\DatPhong;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class DanhGiaController extends Controller
 {
-    public function store(Request $request, $phongId)
+    // Hiển thị form đánh giá
+    public function create($datPhongId)
     {
-        $user = Auth::user();
+        $booking = DatPhong::with('phong')->findOrFail($datPhongId);
 
-        // Lấy đơn đặt phòng đã checkout
-        $datPhong = DatPhong::where('phong_id', $phongId)
-            ->where('user_id', $user->id)
-            ->where('trang_thai', 'da_checkout')
-            ->first();
+        if ($booking->user_id != Auth::id()) {
+            abort(403);
+        }
 
-        if (!$datPhong) {
+        // Chỉ đánh giá khi đã checkout
+        if ($booking->trang_thai !== 'da_checkout') {
             return back()->with('error', 'Bạn chỉ có thể đánh giá sau khi đã trả phòng.');
         }
 
+        return view('account.danhgia.form', compact('booking'));
+    }
+
+    // Lưu đánh giá vào DB
+    public function store(Request $request, $datPhongId)
+    {
+        $booking = DatPhong::with('phong')->findOrFail($datPhongId);
+
+        if ($booking->user_id != Auth::id()) {
+            abort(403);
+        }
+
+        if ($booking->trang_thai !== 'da_checkout') {
+            return back()->with('error', 'Bạn chưa hoàn thành chuyến lưu trú.');
+        }
+
         // Kiểm tra đã đánh giá chưa
-        $daDanhGia = DanhGiaSpace::where('dat_phong_id', $datPhong->id)
-            ->where('user_id', $user->id)
+        $alreadyRated = DanhGiaSpace::where('dat_phong_id', $booking->id)
+            ->where('user_id', Auth::id())
             ->exists();
 
-        if ($daDanhGia) {
+        if ($alreadyRated) {
             return back()->with('error', 'Bạn đã đánh giá phòng này rồi.');
         }
 
         // Validate
         $request->validate([
             'rating' => 'required|integer|min:1|max:5',
-            'noi_dung' => 'required|string',
+            'noi_dung' => 'required|string|max:1000',
         ]);
 
-        // Lưu đánh giá
+        // Tạo đánh giá
         DanhGiaSpace::create([
-            'phong_id' => $phongId,
-            'user_id' => $user->id,
-            'dat_phong_id' => $datPhong->id,
-            'rating' => $request->rating,
-            'noi_dung' => $request->noi_dung,
+            'phong_id'      => $booking->phong_id,
+            'user_id'       => Auth::id(),
+            'dat_phong_id'  => $booking->id,
+            'rating'        => $request->rating,
+            'noi_dung'      => $request->noi_dung,
+            'is_new'        => 1,
         ]);
 
-        return back()->with('success', 'Cảm ơn bạn đã đánh giá phòng!');
+        return redirect()->route('account.booking.index')
+            ->with('success', 'Cảm ơn bạn đã đánh giá!');
     }
 }

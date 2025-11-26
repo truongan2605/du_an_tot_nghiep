@@ -97,6 +97,7 @@
                                     <a class="nav-link mb-0" data-bs-toggle="tab" href="#tab-3"><i
                                             class="bi bi-patch-check fa-fw me-1"></i>Đặt phòng đã hoàn thành</a>
                                 </li>
+                                
                             </ul>
 
                             <div class="tab-content p-2 p-sm-4" id="nav-tabContent">
@@ -170,6 +171,7 @@
                                         }
 
                                         return $carbon->format($format);
+                                        
                                     };
                                 @endphp
 
@@ -392,6 +394,13 @@
                                                             {{ number_format($b->snapshot_total ?? ($b->tong_tien ?? 0), 0, ',', '.') }}
                                                             VND</h6>
                                                     </div>
+                                                    @if($b->trang_thai == 'hoan_thanh')
+    <a href="{{ route('account.danhgia.create', $b->id) }}"
+       class="btn btn-warning w-100 mt-2">
+        Đánh giá phòng
+    </a>
+@endif
+
                                                 </div>
 
                                                 {{-- Danh sách phòng đã đặt --}}
