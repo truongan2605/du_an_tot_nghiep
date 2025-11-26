@@ -130,6 +130,11 @@ class DatPhong extends Model
         return $this->hasMany(\App\Models\VatDungIncident::class, 'dat_phong_id');
     }
 
+    public function roomChanges(): HasMany
+    {
+        return $this->hasMany(\App\Models\RoomChange::class, 'dat_phong_id');
+    }
+
     public function computeVatDungTotal(): float
     {
         // consumptions

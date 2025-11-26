@@ -67,7 +67,15 @@ class BookingController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        $dat_phong->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'datPhongAddons', 'voucherUsages', 'datPhongItems.datPhong']);
+        $dat_phong->load([
+            'datPhongItems.phong', 
+            'datPhongItems.loaiPhong', 
+            'datPhongAddons', 
+            'voucherUsages', 
+            'datPhongItems.datPhong',
+            'roomChanges.oldRoom',
+            'roomChanges.newRoom'
+        ]);
 
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : (json_decode($dat_phong->snapshot_meta, true) ?: []);
 
@@ -177,6 +185,312 @@ class BookingController extends Controller
             'success' => true,
             'available_rooms' => $availableRooms
         ]);
+    }
+
+    /**
+     * Process room change request
+     * POST /account/bookings/{booking}/change-room
+     */
+    public function changeRoom(Request $request, DatPhong $booking)
+    {
+        $user = $request->user();
+        
+        // 1. Ownership check
+        if ($booking->nguoi_dung_id !== $user->id) {
+            return back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
+        }
+        
+        // 2. Status check
+        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+            return back()->with('error', 'Không thể đổi phòng với trạng thái hiện tại.');
+        }
+        
+        // 3. Time check (>= 24h before check-in)
+        $checkInDate = Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0, 0);
+        $daysUntil = Carbon::now()->diffInDays($checkInDate, false);
+        
+        if ($daysUntil < 1) {
+            return back()->with('error', 'Chỉ có thể đổi phòng trước 24 giờ check-in.');
+        }
+        
+        // 4. Validate new room
+        $request->validate([
+            'new_room_id' => 'required|exists:phong,id'
+        ]);
+        
+        $newRoom = Phong::find($request->new_room_id);
+        if (!$newRoom) {
+            return back()->with('error', 'Phòng không tồn tại.');
+        }
+        
+        // 5. Check max changes (limit 2 changes per booking)
+        $changeCount = \App\Models\RoomChange::where('dat_phong_id', $booking->id)
+            ->where('status', 'completed')
+            ->count();
+        
+        if ($changeCount >= 2) {
+            return back()->with('error', 'Đã đạt giới hạn đổi phòng (tối đa 2 lần).');
+        }
+        
+        // 6. Get current room info
+        $currentItem = $booking->datPhongItems->first();
+        if (!$currentItem || !$currentItem->phong) {
+            return back()->with('error', 'Không tìm thấy thông tin phòng hiện tại.');
+        }
+        
+        $currentRoom = $currentItem->phong;
+        $currentPrice = $currentItem->gia_tren_dem;
+        
+        // 7. Calculate prices
+        $newPrice = $newRoom->tong_gia ?? $newRoom->gia_mac_dinh ?? 0;
+        $checkIn = Carbon::parse($booking->ngay_nhan_phong);
+        $checkOut = Carbon::parse($booking->ngay_tra_phong);
+        $nights = $checkIn->diffInDays($checkOut);
+        
+        $oldTotal = $currentPrice * $nights;
+        $newTotal = $newPrice * $nights;
+        $priceDiff = $newTotal - $oldTotal;
+        
+        // 8. Create room change record
+        $roomChange = \App\Models\RoomChange::create([
+            'dat_phong_id' => $booking->id,
+            'old_room_id' => $currentRoom->id,
+            'new_room_id' => $newRoom->id,
+            'old_price' => $currentPrice,
+            'new_price' => $newPrice,
+            'price_difference' => $priceDiff,
+            'nights' => $nights,
+            'changed_by_type' => 'customer',
+            'changed_by_user_id' => $user->id,
+            'status' => 'pending'
+        ]);
+        
+        // 9. Handle payment based on price difference
+        if ($priceDiff > 0) {
+            // UPGRADE - Need payment
+            $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
+            $newDeposit = $newTotal * ($depositPct / 100);
+            $paymentNeeded = $newDeposit - $booking->deposit_amount;
+            
+            // Store room_change_id in session for callback
+            session(['room_change_id' => $roomChange->id]);
+            
+            // Redirect to VNPay
+            return $this->redirectToVNPayForRoomChange($booking, $roomChange, $paymentNeeded);
+            
+        } elseif ($priceDiff < 0) {
+            // DOWNGRADE - Will be implemented in next iteration
+            return back()->with('info', 'Chức năng downgrade đang được phát triển.');
+            
+        } else {
+            // SAME PRICE - Direct update
+            return $this->completeRoomChange($roomChange);
+        }
+    }
+    
+    /**
+     * Redirect to VNPay for room change payment
+     */
+    private function redirectToVNPayForRoomChange($booking, $roomChange, $amount)
+    {
+        $vnp_TmnCode = env('VNPAY_TMN_CODE');
+        $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+        $vnp_Url = env('VNPAY_URL');
+        $vnp_ReturnUrl = route('booking.change-room.callback');
+        
+        $vnp_TxnRef = 'RC' . $roomChange->id . '_' . time(); // Room Change prefix
+        $vnp_OrderInfo = 'Thanh toán đổi phòng #' . $booking->ma_tham_chieu;
+        $vnp_OrderType = 'billpayment';
+        $vnp_Amount = $amount * 100; // VNPay uses smallest unit
+        $vnp_Locale = 'vn';
+        $vnp_IpAddr = request()->ip();
+        
+        $inputData = array(
+            "vnp_Version" => "2.1.0",
+            "vnp_TmnCode" => $vnp_TmnCode,
+            "vnp_Amount" => $vnp_Amount,
+            "vnp_Command" => "pay",
+            "vnp_CreateDate" => date('YmdHis'),
+            "vnp_CurrCode" => "VND",
+            "vnp_IpAddr" => $vnp_IpAddr,
+            "vnp_Locale" => $vnp_Locale,
+            "vnp_OrderInfo" => $vnp_OrderInfo,
+            "vnp_OrderType" => $vnp_OrderType,
+            "vnp_ReturnUrl" => $vnp_ReturnUrl,
+            "vnp_TxnRef" => $vnp_TxnRef,
+        );
+        
+        ksort($inputData);
+        $query = "";
+        $i = 0;
+        $hashdata = "";
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashdata .= urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+            $query .= urlencode($key) . "=" . urlencode($value) . '&';
+        }
+        
+        $vnp_Url = $vnp_Url . "?" . $query;
+        $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+        $vnp_Url .= 'vnp_SecureHash=' . $vnpSecureHash;
+        
+        return redirect($vnp_Url);
+    }
+    
+    /**
+     * VNPay callback handler for room change
+     * GET /account/bookings/change-room/callback
+     */
+    public function changeRoomCallback(Request $request)
+    {
+        $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+        $inputData = $request->all();
+        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
+        
+        unset($inputData['vnp_SecureHash']);
+        ksort($inputData);
+        
+        $hashData = "";
+        $i = 0;
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashData .= '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashData .= urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+        }
+        
+        $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+        
+        // Verify signature
+        if ($secureHash !== $vnp_SecureHash) {
+            return redirect('/account/bookings')->with('error', 'Chữ ký không hợp lệ.');
+        }
+        
+        // Get room change from session
+        $roomChangeId = session('room_change_id');
+        if (!$roomChangeId) {
+            return redirect('/account/bookings')->with('error', 'Không tìm thấy thông tin đổi phòng.');
+        }
+        
+        $roomChange = \App\Models\RoomChange::find($roomChangeId);
+        if (!$roomChange) {
+            return redirect('/account/bookings')->with('error', 'Không tìm thấy yêu cầu đổi phòng.');
+        }
+        
+        // Check payment result
+        if ($request->vnp_ResponseCode == '00') {
+            // Payment successful
+            $roomChange->payment_info = [
+                'vnp_TxnRef' => $request->vnp_TxnRef,
+                'vnp_TransactionNo' => $request->vnp_TransactionNo,
+                'vnp_Amount' => $request->vnp_Amount / 100,
+                'vnp_BankCode' => $request->vnp_BankCode,
+                'vnp_PayDate' => $request->vnp_PayDate,
+            ];
+            $roomChange->save();
+            
+            // Complete room change
+            $result = $this->completeRoomChange($roomChange);
+            
+            // Clear session
+            session()->forget('room_change_id');
+            
+            if ($result) {
+                return redirect('/account/bookings/' . $roomChange->dat_phong_id)
+                    ->with('success', 'Đổi phòng thành công! Thanh toán đã được xác nhận.');
+            } else {
+                return redirect('/account/bookings/' . $roomChange->dat_phong_id)
+                    ->with('error', 'Có lỗi khi cập nhật thông tin phòng.');
+            }
+        } else {
+            // Payment failed
+            $roomChange->status = 'failed';
+            $roomChange->payment_info = ['error_code' => $request->vnp_ResponseCode];
+            $roomChange->save();
+            
+            session()->forget('room_change_id');
+            
+            return redirect('/account/bookings/' . $roomChange->dat_phong_id)
+                ->with('error', 'Thanh toán không thành công. Vui lòng thử lại.');
+        }
+    }
+    
+    /**
+     * Complete room change (update booking)
+     */
+    private function completeRoomChange($roomChange)
+    {
+        try {
+            DB::beginTransaction();
+            
+            $booking = $roomChange->booking;
+            $currentItem = $booking->datPhongItems->first();
+            
+            // 1. Update dat_phong_item
+            $newRoom = $roomChange->newRoom;
+            $currentItem->phong_id = $roomChange->new_room_id;
+            $currentItem->loai_phong_id = $newRoom->loai_phong_id; // CRITICAL: Update room type
+            $currentItem->gia_tren_dem = $roomChange->new_price;
+            $currentItem->save();
+            
+            // 2. Update dat_phong totals
+            $newTotal = $roomChange->new_price * $roomChange->nights;
+            $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
+            $newDeposit = $newTotal * ($depositPct / 100);
+            
+            $booking->tong_tien = $newTotal;
+            $booking->snapshot_total = $newTotal;
+            $booking->deposit_amount = $newDeposit;
+            $booking->save();
+            
+            // 3. Create giao_dich record if payment was made
+            // Reload room_change to get fresh payment_info
+            $roomChange->refresh();
+            
+            if ($roomChange->payment_info && is_array($roomChange->payment_info) && isset($roomChange->payment_info['vnp_Amount'])) {
+                \App\Models\GiaoDich::create([
+                    'dat_phong_id' => $booking->id,
+                    'nha_cung_cap' => 'vnpay',
+                    'provider_txn_ref' => $roomChange->payment_info['vnp_TransactionNo'] ?? null,
+                    'so_tien' => $roomChange->payment_info['vnp_Amount'],
+                    'don_vi' => 'VND',
+                    'trang_thai' => 'thanh_cong',
+                    'ghi_chu' => 'Thanh toán đổi phòng - Chênh lệch giá',
+                ]);
+            } else {
+                // No payment needed (same price) - still create a record for audit
+                \App\Models\GiaoDich::create([
+                    'dat_phong_id' => $booking->id,
+                    'nha_cung_cap' => 'system',
+                    'provider_txn_ref' => null,
+                    'so_tien' => 0,
+                    'don_vi' => 'VND',
+                    'trang_thai' => 'thanh_cong',
+                    'ghi_chu' => 'Đổi phòng cùng giá - Không cần thanh toán',
+                ]);
+            }
+            
+            // 4. Update room change status
+            $roomChange->status = 'completed';
+            $roomChange->save();
+            
+            // 5. Send email notification
+            // TODO: Implement email notification
+            
+            DB::commit();
+            return true;
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Room change completion failed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     public function create(Phong $phong)

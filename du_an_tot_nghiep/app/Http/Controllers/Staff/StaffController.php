@@ -757,7 +757,16 @@ class StaffController extends Controller
 
     public function showBooking(DatPhong $booking)
     {
-        $booking->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'nguoiDung', 'checkedInBy', 'giaoDichs']);
+        $booking->load([
+            'datPhongItems.phong', 
+            'datPhongItems.loaiPhong', 
+            'nguoiDung', 
+            'checkedInBy', 
+            'giaoDichs',
+            'roomChanges.oldRoom',
+            'roomChanges.newRoom',
+            'roomChanges.changedByUser'
+        ]);
 
         if (is_array($booking->snapshot_meta)) {
             $meta = $booking->snapshot_meta;

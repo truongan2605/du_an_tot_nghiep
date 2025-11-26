@@ -859,9 +859,79 @@
             </div>
         </div>
     @endif
+
+    {{-- Room Changes History --}}
+    @if($booking->roomChanges && $booking->roomChanges->count() > 0)
+        <div class="container mt-5">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-light py-3">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-clock-history me-2 text-info"></i>
+                        Lịch Sử Đổi Phòng
+                        <span class="badge bg-info ms-2">{{ $booking->roomChanges->count() }}</span>
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    @foreach($booking->roomChanges->sortByDesc('created_at') as $change)
+                        <div class="row align-items-center mb-3 pb-3 {{ !$loop->last ? 'border-bottom' : '' }}">
+                            <div class="col-md-2">
+                                <small class="text-muted d-block">
+                                    <i class="bi bi-calendar me-1"></i>
+                                    {{ $change->created_at->format('d/m/Y') }}
+                                </small>
+                                <small class="text-muted">{{ $change->created_at->format('H:i') }}</small>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="d-flex align-items-center">
+                                    <div class="text-center">
+                                        <strong class="text-danger">{{ $change->oldRoom->ma_phong ?? 'N/A' }}</strong>
+                                        <div class="small text-muted">{{ number_format($change->old_price) }}đ</div>
+                                    </div>
+                                    <div class="mx-3">
+                                        <i class="bi bi-arrow-right fs-4 text-primary"></i>
+                                    </div>
+                                    <div class="text-center">
+                                        <strong class="text-success">{{ $change->newRoom->ma_phong ?? 'N/A' }}</strong>
+                                        <div class="small text-muted">{{ number_format($change->new_price) }}đ</div>
+                                    </div>
+                                    <div class="ms-3">
+                                        @if($change->price_difference > 0)
+                                            <span class="badge bg-danger">+{{ number_format($change->price_difference) }}đ</span>
+                                        @elseif($change->price_difference < 0)
+                                            <span class="badge bg-success">{{ number_format($change->price_difference) }}đ</span>
+                                        @else
+                                            <span class="badge bg-secondary">Cùng giá</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 text-end">
+                                @if($change->status === 'completed')
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Hoàn tất
+                                    </span>
+                                @elseif($change->status === 'pending')
+                                    <span class="badge bg-warning">
+                                        <i class="bi bi-hourglass me-1"></i>Đang xử lý
+                                    </span>
+                                @else
+                                    <span class="badge bg-danger">
+                                        <i class="bi bi-x-circle me-1"></i>Thất bại
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endif
 @endsection
 
 @push('styles')
+    {{-- SweetAlert2 CSS --}}
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    
     <style>
         .card { border-radius: 12px; }
         .table-hover tbody tr:hover { background-color: rgba(0,0,0,.03); }
@@ -1048,6 +1118,9 @@
 @endpush
 
 @push('scripts')
+    {{-- SweetAlert2 JS --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const changeRoomModal = document.getElementById('changeRoomModal');
@@ -1380,6 +1453,130 @@
 
                     wrapper.style.display = show ? 'block' : 'none';
                 });
+            }
+            
+            // Confirm change button handler
+            document.getElementById('confirmChangeBtn').addEventListener('click', function() {
+                if (!selectedRoomId) {
+                    alert('Vui lòng chọn phòng!');
+                    return;
+                }
+                
+                const nights = {{ $meta['nights'] ?? 1 }};
+                const oldTotal = currentRoomPrice * nights;
+                const newTotal = selectedRoomPrice * nights;
+                const priceDiff = newTotal - oldTotal;
+                
+                // Get selected room info
+                const selectedWrapper = document.querySelector(`.room-card-wrapper[data-room-id="${selectedRoomId}"]`);
+                const selectedRoomCode = selectedWrapper.querySelector('.card-title').textContent.trim();
+                
+                // Show confirmation based on price difference
+                if (priceDiff > 0) {
+                    // UPGRADE - Show payment confirmation
+                    showUpgradeConfirmation(selectedRoomCode, priceDiff, nights, oldTotal, newTotal);
+                } else if (priceDiff < 0) {
+                    // DOWNGRADE - Show refund/voucher options
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Chức năng downgrade',
+                        text: 'Tính năng đổi sang phòng rẻ hơn đang được phát triển.',
+                        confirmButtonText: 'OK'
+                    });
+                } else {
+                    // SAME PRICE - Direct confirmation
+                    showSamePriceConfirmation(selectedRoomCode);
+                }
+            });
+            
+            function showUpgradeConfirmation(roomCode, priceDiff, nights, oldTotal, newTotal) {
+                const depositPct = {{ $booking->snapshot_meta['deposit_percentage'] ?? 50 }};
+                const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
+                const newDeposit = newTotal * (depositPct / 100);
+                const paymentNeeded = newDeposit - currentDeposit;
+                
+                Swal.fire({
+                    title: 'Xác nhận đổi phòng',
+                    html: `
+                        <div class="text-start">
+                            <div class="mb-3">
+                                <strong>Phòng cũ:</strong> {{ $currentRoom->ma_phong ?? 'N/A' }}<br>
+                                <strong>Tổng cũ:</strong> ${formatMoney(oldTotal)}
+                            </div>
+                            <div class="mb-3">
+                                <strong>Phòng mới:</strong> ${roomCode}<br>
+                                <strong>Tổng mới:</strong> ${formatMoney(newTotal)}
+                            </div>
+                            <hr>
+                            <div class="mb-3 text-danger">
+                                <strong>Chênh lệch:</strong> +${formatMoney(priceDiff)}<br>
+                                <small>(${formatMoney(priceDiff/nights)}/đêm × ${nights} đêm)</small>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Đã cọc:</strong> ${formatMoney(currentDeposit)} (${depositPct}%)
+                            </div>
+                            <div class="alert alert-primary mb-0">
+                                <strong class="fs-5">CẦN THANH TOÁN:</strong><br>
+                                <span class="fs-4 text-primary">${formatMoney(paymentNeeded)}</span>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="bi bi-credit-card me-1"></i> Thanh toán VNPay',
+                    cancelButtonText: 'Hủy',
+                    confirmButtonColor: '#0d6efd'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        submitRoomChange();
+                    }
+                });
+            }
+            
+            function showSamePriceConfirmation(roomCode) {
+                Swal.fire({
+                    title: 'Xác nhận đổi phòng',
+                    html: `
+                        <p>Bạn có chắc muốn đổi sang phòng <strong>${roomCode}</strong>?</p>
+                        <p class="text-success">Không cần thanh toán thêm (cùng giá).</p>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Xác nhận đổi phòng',
+                    cancelButtonText: 'Hủy'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        submitRoomChange();
+                    }
+                });
+            }
+            
+            function submitRoomChange() {
+                // Create and submit form
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/account/bookings/{{ $booking->id }}/change-room';
+                
+                // CSRF token
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = '{{ csrf_token() }}';
+                form.appendChild(csrf);
+                
+                // New room ID
+                const roomInput = document.createElement('input');
+                roomInput.type = 'hidden';
+                roomInput.name = 'new_room_id';
+                roomInput.value = selectedRoomId;
+                form.appendChild(roomInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+            
+            function formatMoney(amount) {
+                return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
             }
         });
     </script>

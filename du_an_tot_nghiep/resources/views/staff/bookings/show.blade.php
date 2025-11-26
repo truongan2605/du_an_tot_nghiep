@@ -410,7 +410,78 @@
                 </div>
 
 
+
                 <hr class="my-5">
+
+                {{-- Room Changes History --}}
+                @if($booking->roomChanges && $booking->roomChanges->count() > 0)
+                    <div class="mb-5">
+                        <h6 class="text-primary fw-bold mb-4">
+                            <i class="bi bi-arrow-left-right me-2"></i>Lịch Sử Đổi Phòng
+                            <span class="badge bg-warning text-dark ms-2">{{ $booking->roomChanges->count() }}</span>
+                        </h6>
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                @foreach($booking->roomChanges->sortByDesc('created_at') as $change)
+                                    <div class="row align-items-center mb-3 pb-3 {{ !$loop->last ? 'border-bottom' : '' }}">
+                                        <div class="col-md-2">
+                                            <small class="text-muted d-block">
+                                                <i class="bi bi-calendar me-1"></i>
+                                                {{ $change->created_at->format('d/m/Y H:i') }}
+                                            </small>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <div class="d-flex align-items-center">
+                                                <div class="text-center">
+                                                    <strong class="text-danger">{{ $change->oldRoom->ma_phong ?? 'N/A' }}</strong>
+                                                    <div class="small text-muted">{{ number_format($change->old_price) }}đ</div>
+                                                </div>
+                                                <div class="mx-3">
+                                                    <i class="bi bi-arrow-right fs-4 text-primary"></i>
+                                                </div>
+                                                <div class="text-center">
+                                                    <strong class="text-success">{{ $change->newRoom->ma_phong ?? 'N/A' }}</strong>
+                                                    <div class="small text-muted">{{ number_format($change->new_price) }}đ</div>
+                                                </div>
+                                                <div class="ms-3">
+                                                    @if($change->price_difference > 0)
+                                                        <span class="badge bg-danger">+{{ number_format($change->price_difference) }}đ</span>
+                                                    @elseif($change->price_difference < 0)
+                                                        <span class="badge bg-success">{{ number_format($change->price_difference) }}đ</span>
+                                                    @else
+                                                        <span class="badge bg-secondary">Cùng giá</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 text-end">
+                                            @if($change->status === 'completed')
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle me-1"></i>Hoàn tất
+                                                </span>
+                                            @elseif($change->status === 'pending')
+                                                <span class="badge bg-warning">
+                                                    <i class="bi bi-hourglass me-1"></i>Đang xử lý
+                                                </span>
+                                            @else
+                                                <span class="badge bg-danger">
+                                                    <i class="bi bi-x-circle me-1"></i>Thất bại
+                                                </span>
+                                            @endif
+                                            <div class="small text-muted mt-1">
+                                                @if($change->changed_by_type === 'customer')
+                                                    <i class="bi bi-person me-1"></i>Khách hàng
+                                                @else
+                                                    <i class="bi bi-person-badge me-1"></i>{{ $change->changedByUser->name ?? 'Staff' }}
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                @endif
 
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-door-open-fill me-2"></i>Phòng Đã Gán</h6>
 
