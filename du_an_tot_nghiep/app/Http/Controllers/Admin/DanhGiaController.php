@@ -31,20 +31,20 @@ class DanhGiaController extends Controller
 
 
     // Chi tiết đánh giá 1 phòng
-    public function show($id)
-    {
-        $phong = Phong::findOrFail($id);
+   public function show($id)
+{
+    $phong = Phong::findOrFail($id);
 
-        $danhGias = DanhGiaSpace::where('phong_id', $id)
-            ->whereNull('parent_id')
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+    $danhGias = DanhGiaSpace::where('phong_id', $id)
+        ->whereNull('parent_id')
+        ->orderBy('created_at', 'desc')
+        ->paginate(10);
 
-        // Đánh dấu đã xem
-        DanhGiaSpace::where('phong_id', $id)->update(['is_new' => 0]);
+    DanhGiaSpace::where('phong_id', $id)->update(['is_new' => 0]);
 
-        return view('admin.danhgia.show', compact('phong', 'danhGias'));
-    }
+    return view('admin.danhgia.show', compact('phong', 'danhGias'));
+}
+
 
   public function store(Request $request, $phongId)
 {

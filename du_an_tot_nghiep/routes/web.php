@@ -167,6 +167,16 @@ Route::prefix('admin')
     Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
     Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
 
+    // Hiển thị form đánh giá
+Route::get('/danh-gia/{booking}', [DanhGiaController::class, 'create'])
+    ->middleware('auth')
+    ->name('danhgia.create');
+
+// Lưu đánh giá
+Route::post('/danh-gia/{booking}', [DanhGiaController::class, 'store'])
+    ->middleware('auth')
+    ->name('danhgia.store');
+
         // ==================== BLOG (ADMIN) ====================
         Route::prefix('blog')->name('blog.')->group(function () {
             Route::get('posts/trash', [AdminPost::class, 'trash'])->name('posts.trash');

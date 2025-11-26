@@ -5,7 +5,7 @@
 @section('content')
 <div class="container mt-4">
 
-    <h3 class="fw-bold mb-3">Đánh giá cho phòng: {{ $phong->ten ?? 'Không có tên' }}</h3>
+    <h3 class="fw-bold mb-3">Đánh giá cho phòng: {{ $phong->name ?? 'Không có tên' }}</h3>
 
     @if ($danhGias->count() == 0)
         <div class="alert alert-secondary">Phòng này chưa có đánh giá nào.</div>
