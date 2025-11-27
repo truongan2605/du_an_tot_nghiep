@@ -213,17 +213,27 @@ class BookingController extends Controller
             return back()->with('error', 'Chỉ có thể đổi phòng trước 24 giờ check-in.');
         }
         
-        // 4. Validate new room
+        // 4. Validate request
         $request->validate([
-            'new_room_id' => 'required|exists:phong,id'
+            'old_room_id' => 'required|exists:phong,id',
+            'new_room_id' => 'required|exists:phong,id|different:old_room_id'
         ]);
+        
+        // 5. Get current room item (find specific room in booking)
+        $currentItem = $booking->datPhongItems()
+            ->where('phong_id', $request->old_room_id)
+            ->first();
+            
+        if (!$currentItem) {
+            return back()->with('error', 'Phòng không thuộc booking này.');
+        }
         
         $newRoom = Phong::find($request->new_room_id);
         if (!$newRoom) {
-            return back()->with('error', 'Phòng không tồn tại.');
+            return back()->with('error', 'Phòng mới không tồn tại.');
         }
         
-        // 5. Check max changes (limit 2 changes per booking)
+        // 6. Check max changes (limit 2 changes per booking)
         $changeCount = \App\Models\RoomChange::where('dat_phong_id', $booking->id)
             ->where('status', 'completed')
             ->count();
@@ -232,16 +242,11 @@ class BookingController extends Controller
             return back()->with('error', 'Đã đạt giới hạn đổi phòng (tối đa 2 lần).');
         }
         
-        // 6. Get current room info
-        $currentItem = $booking->datPhongItems->first();
-        if (!$currentItem || !$currentItem->phong) {
-            return back()->with('error', 'Không tìm thấy thông tin phòng hiện tại.');
-        }
-        
+        // 7. Get current room info (already have $currentItem from step 5)
         $currentRoom = $currentItem->phong;
         $currentPrice = $currentItem->gia_tren_dem;
         
-        // 7. Calculate prices
+        // 8. Calculate prices
         $newPrice = $newRoom->tong_gia ?? $newRoom->gia_mac_dinh ?? 0;
         $checkIn = Carbon::parse($booking->ngay_nhan_phong);
         $checkOut = Carbon::parse($booking->ngay_tra_phong);
@@ -402,7 +407,17 @@ class BookingController extends Controller
             session()->forget('room_change_id');
             
             if ($result) {
+                $oldRoom = $roomChange->oldRoom;
+                $newRoom = $roomChange->newRoom;
+                $priceDiff = $roomChange->price_difference;
+                
                 return redirect('/account/bookings/' . $roomChange->dat_phong_id)
+                    ->with('room_change_success', [
+                        'old_room' => $oldRoom->ma_phong ?? 'N/A',
+                        'new_room' => $newRoom->ma_phong ?? 'N/A',
+                        'price_difference' => $priceDiff,
+                        'payment_amount' => $roomChange->payment_info['vnp_Amount'] ?? 0
+                    ])
                     ->with('success', 'Đổi phòng thành công! Thanh toán đã được xác nhận.');
             } else {
                 return redirect('/account/bookings/' . $roomChange->dat_phong_id)
@@ -430,7 +445,15 @@ class BookingController extends Controller
             DB::beginTransaction();
             
             $booking = $roomChange->booking;
-            $currentItem = $booking->datPhongItems->first();
+            
+            // Find the specific room item that was changed (not just first!)
+            $currentItem = $booking->datPhongItems()
+                ->where('phong_id', $roomChange->old_room_id)
+                ->first();
+                
+            if (!$currentItem) {
+                throw new \Exception('Room item not found for room change');
+            }
             
             // 1. Update dat_phong_item
             $newRoom = $roomChange->newRoom;

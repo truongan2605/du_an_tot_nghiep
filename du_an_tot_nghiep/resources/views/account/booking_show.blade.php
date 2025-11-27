@@ -706,57 +706,71 @@
                         <div class="mb-4">
                             <h6 class="text-muted mb-3">
                                 <i class="bi bi-pin-fill me-2"></i>Phòng hiện tại
+                                @if($booking->datPhongItems && $booking->datPhongItems->count() > 1)
+                                    <span class="badge bg-info">{{ $booking->datPhongItems->count() }} phòng</span>
+                                @endif
                             </h6>
+                            
                             @if($booking->datPhongItems && $booking->datPhongItems->count() > 0)
-                                @php
-                                    $currentItem = $booking->datPhongItems->first();
-                                    $currentRoom = $currentItem->phong;
-                                    $currentRoomType = $currentItem->loaiPhong;
-                                @endphp
-                                <div class="card border-primary bg-light">
-                                    <div class="card-body p-3">
-                                        <div class="row align-items-center">
-                                            <div class="col-md-2">
-                                                @if($currentRoom && $currentRoom->images && $currentRoom->images->count() > 0)
-                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($currentRoom->images->first()->image_path) }}" 
-                                                         alt="Room" class="img-thumbnail" style="height: 80px; object-fit: cover;">
-                                                @else
-                                                    <div class="bg-secondary text-white d-flex align-items-center justify-content-center" 
-                                                         style="height: 80px; border-radius: 8px;">
-                                                        <i class="bi bi-image fs-3"></i>
+                                @foreach($booking->datPhongItems as $index => $currentItem)
+                                    @php
+                                        $currentRoom = $currentItem->phong;
+                                        $currentRoomType = $currentItem->loaiPhong;
+                                    @endphp
+                                    
+                                    <div class="card border-primary bg-light {{ $index > 0 ? 'mt-3' : '' }}">
+                                        <div class="card-body p-3">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-2">
+                                                    @if($currentRoom && $currentRoom->images && $currentRoom->images->count() > 0)
+                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($currentRoom->images->first()->image_path) }}" 
+                                                             alt="Room" class="img-thumbnail" style="height: 80px; object-fit: cover;">
+                                                    @else
+                                                        <div class="bg-secondary text-white d-flex align-items-center justify-content-center" 
+                                                             style="height: 80px; border-radius: 8px;">
+                                                            <i class="bi bi-image fs-3"></i>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                <div class="col-md-5">
+                                                    <h6 class="mb-1">
+                                                        <strong class="text-primary">#{{ $currentRoom->ma_phong ?? 'N/A' }}</strong>
+                                                        - {{ $currentRoomType->ten ?? 'N/A' }}
+                                                    </h6>
+                                                    <small class="text-muted">
+                                                        <i class="bi bi-people me-1"></i>{{ $currentRoomType->so_nguoi ?? 2 }} người
+                                                        <span class="mx-2">•</span>
+                                                        <i class="bi bi-star-fill text-warning me-1"></i>{{ $currentRoomType->hang ?? 'Standard' }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-md-3 text-center">
+                                                    <div class="text-muted small mb-1">Giá hiện tại</div>
+                                                    <div class="h6 mb-0 text-success fw-bold">
+                                                        {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }} ₫<small class="text-muted">/đêm</small>
                                                     </div>
-                                                @endif
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h6 class="mb-1">
-                                                    <strong class="text-primary">#{{ $currentRoom->ma_phong ?? 'N/A' }}</strong>
-                                                    - {{ $currentRoomType->ten ?? 'N/A' }}
-                                                </h6>
-                                                <small class="text-muted">
-                                                    <i class="bi bi-people me-1"></i>{{ $currentRoomType->so_nguoi ?? 2 }} người
-                                                    <span class="mx-2">•</span>
-                                                    <i class="bi bi-star-fill text-warning me-1"></i>{{ $currentRoomType->hang ?? 'Standard' }}
-                                                </small>
-                                            </div>
-                                            <div class="col-md-4 text-end">
-                                                <div class="text-muted small mb-1">Giá hiện tại</div>
-                                                <div class="h5 mb-0 text-success fw-bold">
-                                                    {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }} ₫<small class="text-muted">/đêm</small>
+                                                </div>
+                                                <div class="col-md-2 text-end">
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            onclick="openChangeRoomModal('{{ $currentRoom->id }}', '{{ $currentRoom->ma_phong }}')">
+                                                        <i class="bi bi-shuffle me-1"></i>Đổi phòng
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                @endforeach
                             @endif
                         </div>
 
                         <hr class="my-4">
 
-                        {{-- Available Rooms Section --}}
-                        <div class="mb-4">
+                        {{-- Available Rooms Section (Hidden by default, shows when clicking change room) --}}
+                        <div class="mb-4" id="availableRoomsSection" style="display: none;">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h6 class="text-muted mb-0">
-                                    <i class="bi bi-house-door me-2"></i>Chọn phòng mới
+                                    <i class="bi bi-house-door me-2"></i>
+                                    <span id="changeRoomTitle">Chọn phòng mới</span>
                                 </h6>
                                 <div class="d-flex gap-2">
                                     <select class="form-select form-select-sm" id="filterRoomType" style="width: auto;">
@@ -769,6 +783,9 @@
                                         <option value="cheaper">Rẻ hơn (Downgrade)</option>
                                         <option value="expensive">Đắt hơn (Upgrade)</option>
                                     </select>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="hideAvailableRooms()">
+                                        <i class="bi bi-x-lg me-1"></i>Hủy
+                                    </button>
                                 </div>
                             </div>
 
@@ -1133,11 +1150,83 @@
             
             let selectedRoomId = null;
             let selectedRoomPrice = 0;
-
-            // Load available rooms when modal opens
-            changeRoomModal.addEventListener('show.bs.modal', function() {
+            let oldRoomId = null; // Track which room is being changed
+            let oldRoomCode = ''; // Track room code for display
+            
+            // Global function for onclick (can be called multiple times safely)
+            window.openChangeRoomModal = function(roomId, roomCode) {
+                oldRoomId = roomId;
+                oldRoomCode = roomCode;
+                
+                console.log('Changing room:', roomCode, 'ID:', roomId);
+                
+                // Update section title
+                const title = document.getElementById('changeRoomTitle');
+                if (title) {
+                    title.textContent = `Chọn phòng mới cho #${roomCode}`;
+                }
+                
+                // Show available rooms section
+                const section = document.getElementById('availableRoomsSection');
+                if (section) {
+                    section.style.display = 'block';
+                    
+                    // Scroll to section smoothly
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                
+                // Load available rooms
                 loadAvailableRooms();
-            });
+            };
+            
+            // Global function to hide available rooms section
+            window.hideAvailableRooms = function() {
+                const section = document.getElementById('availableRoomsSection');
+                if (section) {
+                    section.style.display = 'none';
+                }
+                
+                // Reset state
+                selectedRoomId = null;
+                selectedRoomPrice = 0;
+                oldRoomId = null;
+                oldRoomCode = '';
+                
+                // Clear room selection in UI
+                document.querySelectorAll('.room-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+            };
+
+            
+            // Reset modal state when closed (only attach once)
+            if (!window.modalResetListenerAttached) {
+                window.modalResetListenerAttached = true;
+                
+                changeRoomModal.addEventListener('hide.bs.modal', function() {
+                    console.log('Modal closing, resetting state...');
+                    selectedRoomId = null;
+                    selectedRoomPrice = 0;
+                    oldRoomId = null;
+                    oldRoomCode = '';
+                    
+                    // Clear room selection in UI
+                    document.querySelectorAll('.room-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+                    
+                    // Disable confirm button
+                    const confirmBtn = document.getElementById('confirmChangeBtn');
+                    if (confirmBtn) {
+                        confirmBtn.disabled = true;
+                    }
+                });
+            }
+
+
+
+            // NOTE: loadAvailableRooms() is called by button click handlers
+            // No need for separate modal event listener
 
             let allAvailableRooms = []; // Store all rooms for filtering
 
@@ -1564,6 +1653,13 @@
                 csrf.value = '{{ csrf_token() }}';
                 form.appendChild(csrf);
                 
+                // Old room ID (which room to change)
+                const oldRoomInput = document.createElement('input');
+                oldRoomInput.type = 'hidden';
+                oldRoomInput.name = 'old_room_id';
+                oldRoomInput.value = oldRoomId;
+                form.appendChild(oldRoomInput);
+                
                 // New room ID
                 const roomInput = document.createElement('input');
                 roomInput.type = 'hidden';
@@ -1578,6 +1674,52 @@
             function formatMoney(amount) {
                 return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
             }
+            
+            // Check for room change success and show notification
+            @if(session('room_change_success'))
+                @php
+                    $changeInfo = session('room_change_success');
+                @endphp
+                Swal.fire({
+                    icon: 'success',
+                    title: '🎉 Đổi phòng thành công!',
+                    html: `
+                        <div class="text-start">
+                            <p class="mb-3">Thanh toán đã được xác nhận. Thông tin phòng đã được cập nhật:</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-borderless">
+                                    <tr>
+                                        <td class="text-muted">Phòng cũ:</td>
+                                        <td><strong class="text-danger">#{{ $changeInfo['old_room'] }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Phòng mới:</td>
+                                        <td><strong class="text-success">#{{ $changeInfo['new_room'] }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Chênh lệch:</td>
+                                        <td><strong class="text-primary">{{ number_format($changeInfo['price_difference']) }}đ</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-muted">Đã thanh toán:</td>
+                                        <td><strong class="text-info">{{ number_format($changeInfo['payment_amount']) }}đ</strong></td>
+                                    </tr>
+                                </table>
+                            </div>
+                            <p class="mt-3 mb-0 small text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Chi tiết đổi phòng đã được ghi nhận trong lịch sử bên dưới.
+                            </p>
+                        </div>
+                    `,
+                    confirmButtonText: 'Đã hiểu',
+                    confirmButtonColor: '#28a745',
+                    width: '500px',
+                    showClass: {
+                        popup: 'animate__animated animate__bounceIn'
+                    }
+                });
+            @endif
         });
     </script>
 @endpush
