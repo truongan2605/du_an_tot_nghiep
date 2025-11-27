@@ -115,8 +115,42 @@ class BookingController extends Controller
             return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
         }
 
-        // Get current room
-        $currentItem = $booking->datPhongItems->first();
+        // Get current room (support multi-room bookings)
+        $oldRoomId = $request->get('old_room_id'); // OLD_ROOM_ID from frontend
+        
+        // Cast to integer to avoid type mismatch in query
+        if ($oldRoomId) {
+            $oldRoomId = (int) $oldRoomId;
+        }
+        
+        \Log::info('🔍 Available rooms API called', [
+            'booking_id' => $booking->id,
+            'old_room_id_param' => $oldRoomId,
+            'old_room_id_type' => gettype($oldRoomId),
+            'all_booking_room_ids' => $booking->datPhongItems->pluck('phong_id')->toArray()
+        ]);
+        
+        if ($oldRoomId) {
+            // Find specific room for multi-room bookings
+            $currentItem = $booking->datPhongItems()
+                ->where('phong_id', $oldRoomId)
+                ->first();
+                
+            \Log::info('🎯 Found specific room', [
+                'current_item_id' => $currentItem ? $currentItem->id : null,
+                'current_room_id' => $currentItem ? $currentItem->phong_id : null,
+                'query_phong_id' => $oldRoomId
+            ]);
+        } else {
+            // Fallback to first room for backward compatibility
+            $currentItem = $booking->datPhongItems->first();
+            
+            \Log::info('⚠️ No old_room_id, using first room', [
+                'current_item_id' => $currentItem ? $currentItem->id : null,
+                'current_room_id' => $currentItem ? $currentItem->phong_id : null
+            ]);
+        }
+        
         if (!$currentItem || !$currentItem->phong) {
             return response()->json(['success' => false, 'message' => 'No room assigned'], 404);
         }
@@ -252,11 +286,24 @@ class BookingController extends Controller
         $checkOut = Carbon::parse($booking->ngay_tra_phong);
         $nights = $checkIn->diffInDays($checkOut);
         
-        $oldTotal = $currentPrice * $nights;
-        $newTotal = $newPrice * $nights;
-        $priceDiff = $newTotal - $oldTotal;
+        // Calculate for THIS room change only
+        $oldRoomTotal = $currentPrice * $nights;
+        $newRoomTotal = $newPrice * $nights;
+        $priceDiff = $newRoomTotal - $oldRoomTotal;
         
-        // 8. Create room change record
+        // CRITICAL: Calculate FULL BOOKING total after change (for multi-room support)
+        $currentBookingTotal = $booking->tong_tien;  // Current total of ALL rooms
+        $newBookingTotal = $currentBookingTotal - $oldRoomTotal + $newRoomTotal;  // Remove old, add new
+        
+        \Log::info('💰 Room change payment calculation', [
+            'old_room_total' => $oldRoomTotal,
+            'new_room_total' => $newRoomTotal,
+            'price_diff' => $priceDiff,
+            'current_booking_total' => $currentBookingTotal,
+            'new_booking_total' => $newBookingTotal
+        ]);
+        
+        // 9. Create room change record
         $roomChange = \App\Models\RoomChange::create([
             'dat_phong_id' => $booking->id,
             'old_room_id' => $currentRoom->id,
@@ -270,12 +317,22 @@ class BookingController extends Controller
             'status' => 'pending'
         ]);
         
-        // 9. Handle payment based on price difference
+        // 10. Handle payment based on price difference
         if ($priceDiff > 0) {
             // UPGRADE - Need payment
             $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
-            $newDeposit = $newTotal * ($depositPct / 100);
-            $paymentNeeded = $newDeposit - $booking->deposit_amount;
+            
+            // Calculate new deposit based on FULL BOOKING total (not just changed room)
+            $newDepositRequired = $newBookingTotal * ($depositPct / 100);
+            $paymentNeeded = $newDepositRequired - $booking->deposit_amount;
+            
+            \Log::info('💳 Upgrade payment calculation', [
+                'deposit_pct' => $depositPct,
+                'new_booking_total' => $newBookingTotal,
+                'new_deposit_required' => $newDepositRequired,
+                'already_paid' => $booking->deposit_amount,
+                'payment_needed' => $paymentNeeded
+            ]);
             
             // Store room_change_id in session for callback
             session(['room_change_id' => $roomChange->id]);
@@ -478,15 +535,39 @@ class BookingController extends Controller
             $currentItem->gia_tren_dem = $roomChange->new_price;
             $currentItem->save();
             
-            // 2. Update dat_phong totals
-            $newTotal = $roomChange->new_price * $roomChange->nights;
-            $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
-            $newDeposit = $newTotal * ($depositPct / 100);
+            // 2. Update dat_phong totals (MULTI-ROOM SUPPORT)
+            $oldRoomTotal = $roomChange->old_price * $roomChange->nights;
+            $newRoomTotal = $roomChange->new_price * $roomChange->nights;
             
-            $booking->tong_tien = $newTotal;
-            $booking->snapshot_total = $newTotal;
-            $booking->deposit_amount = $newDeposit;
+            // Calculate NEW booking total by removing old room and adding new room
+            $currentBookingTotal = $booking->tong_tien;  // All rooms current total
+            $newBookingTotal = $currentBookingTotal - $oldRoomTotal + $newRoomTotal;
+            
+            // Calculate new deposit required based on FULL booking
+            $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
+            $newDepositRequired = $newBookingTotal * ($depositPct / 100);
+            
+            // Calculate how much was just paid for THIS change
+            $paymentMade = 0;
+            if ($roomChange->payment_info && is_array($roomChange->payment_info) && isset($roomChange->payment_info['vnp_Amount'])) {
+                $paymentMade = $roomChange->payment_info['vnp_Amount'];
+            }
+            
+            // Update booking totals
+            $booking->tong_tien = $newBookingTotal;
+            $booking->snapshot_total = $newBookingTotal;
+            $booking->deposit_amount = $booking->deposit_amount + $paymentMade;  // Add payment to existing deposit
             $booking->save();
+            
+            \Log::info('✅ Booking totals updated after room change', [
+                'old_room_total' => $oldRoomTotal,
+                'new_room_total' => $newRoomTotal,
+                'current_booking_total' => $currentBookingTotal,
+                'new_booking_total' => $newBookingTotal,
+                'old_deposit' => $booking->deposit_amount - $paymentMade,
+                'payment_made' => $paymentMade,
+                'new_deposit' => $booking->deposit_amount
+            ]);
             
             // 3. Create giao_dich record if payment was made
             // Reload room_change to get fresh payment_info

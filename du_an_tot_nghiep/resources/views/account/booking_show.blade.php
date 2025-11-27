@@ -1145,9 +1145,16 @@
             if (!changeRoomModal) return;
 
             // Data for demo purposes - will be replaced with AJAX call
-            const currentRoomPrice = {{ $booking->datPhongItems->first()->gia_tren_dem ?? 0 }};
+            let currentRoomPrice = {{ $booking->datPhongItems->first()->gia_tren_dem ?? 0 }};  // Default to first, will be updated
             const nightsRemaining = {{ $meta['nights'] ?? 1 }};
             const oldTotal = {{ $booking->tong_tien ?? 0 }};
+            
+            // Map of room prices for lookup
+            const roomPrices = {
+                @foreach($booking->datPhongItems as $item)
+                    {{ $item->phong_id }}: {{ $item->gia_tren_dem }},
+                @endforeach
+            };
             
             let selectedRoomId = null;
             let selectedRoomPrice = 0;
@@ -1159,7 +1166,20 @@
                 oldRoomId = roomId;
                 oldRoomCode = roomCode;
                 
-                console.log('Changing room:', roomCode, 'ID:', roomId);
+                // CRITICAL: Update currentRoomPrice based on which room is being changed
+                currentRoomPrice = roomPrices[roomId] || 0;
+                
+                console.log('Changing room:', roomCode, 'ID:', roomId, 'Price:', currentRoomPrice);
+                
+                // CRITICAL: Clear cached data when switching rooms
+                allAvailableRooms = [];
+                selectedRoomId = null;
+                selectedRoomPrice = 0;
+                
+                // Clear UI selections
+                document.querySelectorAll('.room-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
                 
                 // Update section title
                 const title = document.getElementById('changeRoomTitle');
@@ -1176,7 +1196,7 @@
                     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
                 
-                // Load available rooms
+                // FORCE reload available rooms (not using cache)
                 loadAvailableRooms();
             };
             
@@ -1235,8 +1255,16 @@
                 const grid = document.getElementById('availableRoomsGrid');
                 const loading = document.getElementById('loadingRooms');
                 
+                // Build URL with old_room_id parameter for multi-room support
+                let apiUrl = '/account/bookings/{{ $booking->id }}/available-rooms';
+                if (oldRoomId) {
+                    apiUrl += `?old_room_id=${oldRoomId}`;
+                }
+                
+                console.log('🔍 Loading available rooms for oldRoomId:', oldRoomId, 'URL:', apiUrl);
+                
                 // Fetch from API
-                fetch('/account/bookings/{{ $booking->id }}/available-rooms', {
+                fetch(apiUrl, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
@@ -1553,9 +1581,21 @@
                 }
                 
                 const nights = {{ $meta['nights'] ?? 1 }};
-                const oldTotal = currentRoomPrice * nights;
-                const newTotal = selectedRoomPrice * nights;
-                const priceDiff = newTotal - oldTotal;
+                const oldRoomTotal = currentRoomPrice * nights;  // This room only
+                const newRoomTotal = selectedRoomPrice * nights;  // New room only
+                const priceDiff = newRoomTotal - oldRoomTotal;
+                
+                // CRITICAL: Calculate FULL BOOKING total (for multi-room support)
+                const currentBookingTotal = {{ $booking->tong_tien }};  // All rooms
+                const newBookingTotal = currentBookingTotal - oldRoomTotal + newRoomTotal;
+                
+                console.log('💰 Payment calculation:', {
+                    oldRoomTotal,
+                    newRoomTotal,
+                    priceDiff,
+                    currentBookingTotal,
+                    newBookingTotal
+                });
                 
                 // Get selected room info
                 const selectedWrapper = document.querySelector(`.room-card-wrapper[data-room-id="${selectedRoomId}"]`);
@@ -1564,7 +1604,7 @@
                 // Show confirmation based on price difference
                 if (priceDiff > 0) {
                     // UPGRADE - Show payment confirmation
-                    showUpgradeConfirmation(selectedRoomCode, priceDiff, nights, oldTotal, newTotal);
+                    showUpgradeConfirmation(selectedRoomCode, priceDiff, nights, oldRoomTotal, newRoomTotal, currentBookingTotal, newBookingTotal);
                 } else if (priceDiff < 0) {
                     // DOWNGRADE - Show refund/voucher options
                     Swal.fire({
@@ -1579,11 +1619,22 @@
                 }
             });
             
-            function showUpgradeConfirmation(roomCode, priceDiff, nights, oldTotal, newTotal) {
+            function showUpgradeConfirmation(roomCode, priceDiff, nights, oldRoomTotal, newRoomTotal, currentBookingTotal, newBookingTotal) {
                 const depositPct = {{ $booking->snapshot_meta['deposit_percentage'] ?? 50 }};
                 const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
-                const newDeposit = newTotal * (depositPct / 100);
-                const paymentNeeded = newDeposit - currentDeposit;
+                
+                // Calculate based on FULL BOOKING total (not just changed room)
+                const newDepositRequired = newBookingTotal * (depositPct / 100);
+                const paymentNeeded = newDepositRequired - currentDeposit;
+                
+                console.log('💳 Upgrade confirmation:', {
+                    depositPct,
+                    currentBookingTotal,
+                    newBookingTotal,
+                    newDepositRequired,
+                    currentDeposit,
+                    paymentNeeded
+                });
                 
                 Swal.fire({
                     title: 'Xác nhận đổi phòng',
@@ -1591,19 +1642,23 @@
                         <div class="text-start">
                             <div class="mb-3">
                                 <strong>Phòng cũ:</strong> {{ $currentRoom->ma_phong ?? 'N/A' }}<br>
-                                <strong>Tổng cũ:</strong> ${formatMoney(oldTotal)}
+                                <strong>Giá phòng cũ:</strong> ${formatMoney(oldRoomTotal)}
                             </div>
                             <div class="mb-3">
                                 <strong>Phòng mới:</strong> ${roomCode}<br>
-                                <strong>Tổng mới:</strong> ${formatMoney(newTotal)}
+                                <strong>Giá phòng mới:</strong> ${formatMoney(newRoomTotal)}
                             </div>
                             <hr>
                             <div class="mb-3 text-danger">
-                                <strong>Chênh lệch:</strong> +${formatMoney(priceDiff)}<br>
+                                <strong>Chênh lệch phòng:</strong> +${formatMoney(priceDiff)}<br>
                                 <small>(${formatMoney(priceDiff/nights)}/đêm × ${nights} đêm)</small>
                             </div>
-                            <div class="mb-3">
-                                <strong>Đã cọc:</strong> ${formatMoney(currentDeposit)} (${depositPct}%)
+                            <hr>
+                            <div class="mb-3 bg-light p-2 rounded">
+                                <strong>Tổng booking hiện tại:</strong> ${formatMoney(currentBookingTotal)}<br>
+                                <strong>Tổng booking mới:</strong> ${formatMoney(newBookingTotal)}<br>
+                                <strong>Deposit cần (${depositPct}%):</strong> ${formatMoney(newDepositRequired)}<br>
+                                <strong>Đã cọc:</strong> ${formatMoney(currentDeposit)}
                             </div>
                             <div class="alert alert-primary mb-0">
                                 <strong class="fs-5">CẦN THANH TOÁN:</strong><br>
