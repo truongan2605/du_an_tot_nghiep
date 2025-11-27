@@ -289,7 +289,23 @@ class BookingController extends Controller
             
         } else {
             // SAME PRICE - Direct update
-            return $this->completeRoomChange($roomChange);
+            $result = $this->completeRoomChange($roomChange);
+            
+            if ($result) {
+                $oldRoom = $roomChange->oldRoom;
+                $newRoom = $roomChange->newRoom;
+                
+                return redirect('/account/bookings/' . $roomChange->dat_phong_id)
+                    ->with('room_change_success', [
+                        'old_room' => $oldRoom->ma_phong ?? 'N/A',
+                        'new_room' => $newRoom->ma_phong ?? 'N/A',
+                        'price_difference' => 0,
+                        'payment_amount' => 0
+                    ])
+                    ->with('success', 'Đổi phòng thành công! Không cần thanh toán thêm (cùng giá).');
+            } else {
+                return back()->with('error', 'Có lỗi khi cập nhật thông tin phòng.');
+            }
         }
     }
     

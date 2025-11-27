@@ -299,7 +299,8 @@
                                                         $pricePer = $it->gia_tren_dem ?? 0;
                                                         $nights = $it->so_dem ?? 1;
                                                         $qty = $it->so_luong ?? 1;
-                                                        $subtotal = $it->tong_item ?? $pricePer * $nights * $qty;
+                                                        // Always calculate from current price (handles room changes)
+                                                        $subtotal = $pricePer * $nights * $qty;
                                                     @endphp
                                                     <tr>
                                                         <td>
@@ -1718,6 +1719,28 @@
                     showClass: {
                         popup: 'animate__animated animate__bounceIn'
                     }
+                });
+            @endif
+            
+            // Check for errors and show notification
+            @if(session('error'))
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: '{{ session('error') }}',
+                    confirmButtonText: 'Đóng',
+                    confirmButtonColor: '#dc3545'
+                });
+            @endif
+            
+            // Check for info messages
+            @if(session('info'))
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Thông báo',
+                    text: '{{ session('info') }}',
+                    confirmButtonText: 'Đã hiểu',
+                    confirmButtonColor: '#0dcaf0'
                 });
             @endif
         });
