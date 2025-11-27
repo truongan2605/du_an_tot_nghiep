@@ -1,0 +1,59 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class RefundRequest extends Model
+{
+    protected $fillable = [
+        'dat_phong_id',
+        'amount',
+        'percentage',
+        'status',
+        'requested_at',
+        'processed_at',
+        'admin_note',
+        'processed_by',
+    ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'percentage' => 'integer',
+        'requested_at' => 'datetime',
+        'processed_at' => 'datetime',
+    ];
+
+    public function datPhong(): BelongsTo
+    {
+        return $this->belongsTo(DatPhong::class, 'dat_phong_id');
+    }
+
+    public function processedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    public function getStatusBadgeClassAttribute(): string
+    {
+        return match($this->status) {
+            'pending' => 'bg-warning',
+            'approved' => 'bg-info',
+            'completed' => 'bg-success',
+            'rejected' => 'bg-danger',
+            default => 'bg-secondary'
+        };
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return match($this->status) {
+            'pending' => 'Chờ xử lý',
+            'approved' => 'Đã duyệt',
+            'completed' => 'Hoàn tiền',
+            'rejected' => 'Từ chối',
+            default => $this->status
+        };
+    }
+}

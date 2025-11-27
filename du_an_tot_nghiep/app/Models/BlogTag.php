@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class BlogTag extends Model
-{
+{   
+    use Auditable;
     //
     protected $fillable = ['name', 'slug'];
     public function posts()

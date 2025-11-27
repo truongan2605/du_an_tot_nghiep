@@ -45,7 +45,7 @@
                             @endforeach
                         </ul>
                     @else
-                        <em>Chưa có tiện nghi</em>
+                        <em>Chưa có dịch vụ</em>
                     @endif
                 </td>
             </tr>

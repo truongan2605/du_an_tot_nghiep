@@ -322,14 +322,56 @@ class PhongConsumptionController extends Controller
 
     public function destroy(PhongVatDungConsumption $consumption)
     {
-        if ($consumption->billed_at) {
-            return back()->withErrors(['error' => 'Đã tính hoá đơn, không thể xóa.']);
-        }
-
         DB::beginTransaction();
         try {
-            $qty = (int)$consumption->quantity;
+            $linkedItems = \App\Models\HoaDonItem::where('type', 'consumption')
+                ->where('ref_id', $consumption->id)
+                ->get();
 
+            $hoaDonIds = $linkedItems->pluck('hoa_don_id')->unique()->values()->all();
+
+            $paidExists = \App\Models\HoaDon::whereIn('id', $hoaDonIds)
+                ->where('trang_thai', 'da_thanh_toan')
+                ->exists();
+
+            if ($paidExists) {
+                DB::rollBack();
+                return back()->withErrors(['error' => 'Không thể xóa: có hoá đơn liên quan đã được thanh toán. Vui lòng thực hiện hoàn/ghi sổ trước khi xóa.']);
+            }
+
+            foreach ($hoaDonIds as $hdId) {
+                $hoaDon = \App\Models\HoaDon::lockForUpdate()->find($hdId);
+                if (! $hoaDon) continue;
+
+                $sumRemove = (float) $linkedItems->where('hoa_don_id', $hdId)->sum('amount');
+
+                \App\Models\HoaDonItem::where('hoa_don_id', $hdId)
+                    ->where('type', 'consumption')
+                    ->where('ref_id', $consumption->id)
+                    ->delete();
+
+                $remaining = (float) \App\Models\HoaDonItem::where('hoa_don_id', $hdId)->sum('amount');
+
+                if ($remaining <= 0) {
+                    \App\Models\HoaDon::where('id', $hdId)->delete();
+                } else {
+                    // cập nhật lại tổng
+                    $hoaDon->tong_thuc_thu = $remaining;
+                    $hoaDon->updated_at = now();
+                    $hoaDon->save();
+                }
+
+                // Trừ tổng vào dat_phong.tong_tien nếu có dat_phong liên quan
+                if (!empty($consumption->dat_phong_id)) {
+                    DB::table('dat_phong')->where('id', $consumption->dat_phong_id)
+                        ->update([
+                            'tong_tien' => DB::raw('GREATEST(COALESCE(tong_tien,0) - ' . (float) $sumRemove . ', 0)'),
+                            'updated_at' => now()
+                        ]);
+                }
+            }
+
+            $qty = (int)$consumption->quantity;
             $pivot = DB::table('phong_vat_dung')
                 ->where('phong_id', $consumption->phong_id)
                 ->where('vat_dung_id', $consumption->vat_dung_id)
@@ -360,7 +402,7 @@ class PhongConsumptionController extends Controller
             $consumption->delete();
 
             DB::commit();
-            return back()->with('success', 'Xóa thành công và trả kho.');
+            return back()->with('success', 'Xóa thành công và trả kho; đã cập nhật hoá đơn liên quan (nếu có).');
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Lỗi xóa: ' . $e->getMessage()]);
@@ -412,7 +454,6 @@ class PhongConsumptionController extends Controller
                 ->select(DB::raw('COALESCE(SUM(hoa_don_items.quantity),0) as qty'))
                 ->value('qty');
 
-            // --- 2) Remaining available to bill
             $remaining = max(0, $reservationQty - $invoicedQty);
 
             if ($qty > $remaining) {
@@ -422,7 +463,6 @@ class PhongConsumptionController extends Controller
                 ])->withInput();
             }
 
-            // --- 4) Lấy hoặc tạo hoá đơn
             $hoaDon = HoaDon::where('dat_phong_id', $datPhong->id)
                 ->where('trang_thai', '!=', 'da_thanh_toan')
                 ->orderBy('id', 'desc')
@@ -438,7 +478,6 @@ class PhongConsumptionController extends Controller
                 ]);
             }
 
-            // --- 5) Thêm item vào hoá đơn (chỉ item ở đây, ref_id null như yêu cầu)
             $item = HoaDonItem::create([
                 'hoa_don_id' => $hoaDon->id,
                 'type' => 'consumption',
@@ -451,7 +490,6 @@ class PhongConsumptionController extends Controller
                 'note' => $data['note'] ?? null,
             ]);
 
-            // --- 6) Cập nhật tổng hoá đơn
             $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $amount;
             $hoaDon->save();
 

@@ -46,7 +46,7 @@
 
             {{-- Tiện nghi (shared block for create & edit) --}}
             <div class="mb-3">
-                <label class="form-label">Tiện nghi</label>
+                <label class="form-label">Dịch vụ</label>
                 <div class="card">
                     <div class="card-body" style="max-height:260px; overflow-y:auto;">
                         @php
@@ -78,7 +78,7 @@
                                 @endforeach
                             </div>
                         @else
-                            <p class="text-muted mb-0">Chưa có tiện nghi nào.</p>
+                            <p class="text-muted mb-0">Chưa có dịch vụ nào.</p>
                         @endif
                     </div>
                 </div>

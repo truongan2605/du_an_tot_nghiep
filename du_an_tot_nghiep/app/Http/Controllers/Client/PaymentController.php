@@ -28,6 +28,10 @@ class PaymentController extends Controller
     public function initiateVNPay(Request $request)
     {
         Log::info('initiateVNPay request:', $request->all());
+        Log::info('DEBUG: deposit_percentage value', [
+            'deposit_percentage' => $request->input('deposit_percentage'),
+            'has_deposit' => $request->has('deposit_percentage')
+        ]);
 
         try {
             $validated = $request->validate([
@@ -36,6 +40,7 @@ class PaymentController extends Controller
                 'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
                 'amount' => 'required|numeric|min:1',
                 'total_amount' => 'required|numeric|min:1|gte:amount',
+                'deposit_percentage' => 'nullable|in:50,100',  // Made nullable
                 'so_khach' => 'nullable|integer|min:1',
                 'adults' => 'required|integer|min:1',
                 'children' => 'nullable|integer|min:0',
@@ -49,9 +54,18 @@ class PaymentController extends Controller
                 'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,'
             ]);
 
-            $expectedDeposit = $validated['total_amount'] * 0.2;
+            // Default to 50% if not provided (radio button not submitted)
+            $depositPercentage = isset($validated['deposit_percentage']) 
+                ? (int) $validated['deposit_percentage'] 
+                : 50;
+            
+            // Calculate expected deposit based on user's selected percentage
+            $expectedDeposit = $validated['total_amount'] * ($depositPercentage / 100);
+            
             if (abs($validated['amount'] - $expectedDeposit) > 1000) {
-                return response()->json(['error' => 'Deposit không hợp lệ (phải khoảng 20% tổng)'], 400);
+                return response()->json([
+                    'error' => "Deposit không hợp lệ (phải là {$depositPercentage}% tổng tiền)"
+                ], 400);
             }
 
             $phong = Phong::with(['loaiPhong', 'tienNghis', 'bedTypes', 'activeOverrides'])->findOrFail($validated['phong_id']);
@@ -132,6 +146,7 @@ class PaymentController extends Controller
                 'nights' => $nights,
                 'rooms_count' => $roomsCount,
                 'tong_tien' => $snapshotTotalServer,
+                'deposit_percentage' => $depositPercentage,
                 'phuong_thuc' => $validated['phuong_thuc'],
                 'contact_name' => $validated['name'],
                 'contact_address' => $validated['address'],
@@ -155,7 +170,7 @@ class PaymentController extends Controller
                     'can_thanh_toan' => true,
                     'can_xac_nhan' => false,
                     'created_by' => Auth::id(),
-                    'snapshot_meta' => json_encode($snapshotMeta),
+                    'snapshot_meta' => $snapshotMeta, // FIXED: removed json_encode, model has 'array' cast
                     'phuong_thuc' => $validated['phuong_thuc'],
                     'contact_name' => $validated['name'],
                     'contact_address' => $validated['address'],
@@ -359,6 +374,14 @@ class PaymentController extends Controller
 
     public function handleVNPayCallback(Request $request)
     {
+        $user = $request->user();
+        if (!$user) return response()->json(['error' => 'Authentication required'], 401);
+
+        // Debug: Log deposit_percentage from request
+        Log::info('DEBUG deposit_percentage from request', [
+            'deposit_percentage' => $request->input('deposit_percentage'),
+            'all_inputs' => $request->except(['_token'])
+        ]);
         Log::info('VNPAY Callback Received', $request->all());
 
         $inputData = collect($request->all())
@@ -394,6 +417,23 @@ class PaymentController extends Controller
 
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
+
+        // Check if booking has been cancelled by admin/staff
+        if ($dat_phong->trang_thai === 'da_huy') {
+            $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Đơn đặt phòng đã bị hủy bởi quản trị viên']);
+            return view('payment.fail', [
+                'code' => '98', 
+                'message' => 'Đơn đặt phòng đã bị hủy. Vui lòng liên hệ quản trị viên để được hỗ trợ.'
+            ]);
+        }
+
+        // Check if transaction is already failed
+        if ($giao_dich->trang_thai === 'that_bai') {
+            return view('payment.fail', [
+                'code' => '99',
+                'message' => 'Giao dịch đã thất bại trước đó. ' . ($giao_dich->ghi_chu ?? '')
+            ]);
+        }
 
         $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
@@ -738,7 +778,11 @@ class PaymentController extends Controller
             ]);
 
             if ($nhaCungCap === 'tien_mat') {
-                $booking->update(['trang_thai' => 'dang_su_dung', 'checked_in_at' => now()]);
+                $booking->update([
+                    'trang_thai' => 'dang_su_dung',
+                    'checked_in_at' => now(),
+                    'checked_in_by' => Auth::id(),
+                ]);
                 
                 // Gửi thông báo thanh toán toàn bộ hoặc thanh toán phần còn lại
                 $totalPaid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
@@ -861,6 +905,7 @@ class PaymentController extends Controller
                 $oldStatus = $booking->trang_thai;
                 $booking->trang_thai = 'dang_su_dung';
                 $booking->checked_in_at = now();
+                $booking->checked_in_by = Auth::id();
                 $booking->save();
 
                 Log::info('Booking status updated AFTER save', [
