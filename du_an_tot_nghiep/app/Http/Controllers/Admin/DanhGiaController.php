@@ -96,4 +96,28 @@ class DanhGiaController extends Controller
 
         return back()->with('success', 'Đã cập nhật trạng thái đánh giá');
     }
+
+public function reply(Request $request, $id)
+{
+    $request->validate([
+        'noi_dung' => 'required|string'
+    ]);
+
+    $parent = DanhGiaSpace::findOrFail($id);
+
+    DanhGiaSpace::create([
+        'phong_id'      => $parent->phong_id,
+        'user_id'       => Auth::id(),
+        'dat_phong_id'  => $parent->dat_phong_id,   // ⭐ KHÔNG ĐỂ NULL NỮA
+        'rating'        => null,
+        'noi_dung'      => $request->noi_dung,
+        'parent_id'     => $parent->id,
+        'status'        => 1
+    ]);
+
+    return back()->with('success', 'Đã trả lời bình luận.');
+}
+
+
+
 }

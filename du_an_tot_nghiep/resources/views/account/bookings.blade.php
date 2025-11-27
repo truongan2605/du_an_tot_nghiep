@@ -394,12 +394,24 @@
                                                             {{ number_format($b->snapshot_total ?? ($b->tong_tien ?? 0), 0, ',', '.') }}
                                                             VND</h6>
                                                     </div>
-                                                    @if($b->trang_thai == 'hoan_thanh')
-    <a href="{{ route('account.danhgia.create', $b->id) }}"
-       class="btn btn-warning w-100 mt-2">
+                                                   @if($b->trang_thai == 'hoan_thanh')
+    <a href="{{ route('account.danhgia.create', $b->id) }}" class="btn btn-warning">
         Đánh giá phòng
     </a>
+    @if(session('success'))
+    <div class="alert alert-success">
+        {{ session('success') }}
+    </div>
 @endif
+
+@if(session('error'))
+    <div class="alert alert-danger">
+        {{ session('error') }}
+    </div>
+@endif
+
+@endif
+
 
                                                 </div>
 

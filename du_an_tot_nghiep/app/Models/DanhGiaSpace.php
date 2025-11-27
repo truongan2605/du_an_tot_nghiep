@@ -40,9 +40,15 @@ public function phong()
 
    
 
-    public function replies()
-    {
-        return $this->hasMany(DanhGiaSpace::class, 'parent_id');
-    }
-    
+  public function replies()
+{
+    return $this->hasMany(DanhGiaSpace::class, 'parent_id');
+}
+
+public function parent()
+{
+    return $this->belongsTo(DanhGiaSpace::class, 'parent_id');
+}
+
+
 }

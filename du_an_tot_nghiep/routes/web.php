@@ -45,6 +45,8 @@ use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
 use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 use App\Http\Controllers\Staff\CheckoutController;
+use App\Http\Controllers\Client\DanhGiaController as ClientDanhGiaController;
+
 
 Route::post('/booking/validate-voucher', [BookingController::class, 'validateVoucher'])->name('booking.validate_voucher')->middleware('auth');
 // ==================== CLIENT ====================
@@ -166,6 +168,11 @@ Route::prefix('admin')
         Route::get('/danh-gia', [DanhGiaController::class, 'index'])->name('danhgia.index');
     Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
     Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
+// trả lời
+    Route::post('/danh-gia/{id}/reply', 
+        [DanhGiaController::class, 'reply']
+    )->name('danhgia.reply');
+
 
 
 
@@ -278,12 +285,15 @@ Route::middleware('auth')
        // Danh sách đặt phòng
     Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
 
-     Route::get('danh-gia/{datPhong}', [DanhGiaController::class, 'create'])
+    // Hiển thị form đánh giá
+ // Hiển thị form đánh giá
+        Route::get('/danh-gia/{booking}', [ClientDanhGiaController::class, 'create'])
             ->name('danhgia.create');
 
         // Lưu đánh giá
-        Route::post('danh-gia/{datPhong}', [DanhGiaController::class, 'store'])
+        Route::post('/danh-gia/{booking}', [ClientDanhGiaController::class, 'store'])
             ->name('danhgia.store');
+
     });
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
 Route::middleware('auth')->group(function () {
