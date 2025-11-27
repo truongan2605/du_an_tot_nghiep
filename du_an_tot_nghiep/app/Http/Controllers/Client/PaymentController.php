@@ -34,12 +34,13 @@ class PaymentController extends Controller
         ]);
 
         try {
+            // Validate input data
             $validated = $request->validate([
                 'phong_id' => 'required|exists:phong,id',
                 'ngay_nhan_phong' => 'required|date|after_or_equal:today',
                 'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
                 'amount' => 'required|numeric|min:1',
-                'total_amount' => 'required|numeric|min:1|gte:amount',
+                'total_amount' => 'required|numeric|min:1',
                 'deposit_percentage' => 'nullable|in:50,100',  // Made nullable
                 'so_khach' => 'nullable|integer|min:1',
                 'adults' => 'required|integer|min:1',
@@ -51,7 +52,12 @@ class PaymentController extends Controller
                 'phuong_thuc' => 'required|in:vnpay',
                 'name' => 'required|string|max:255|min:2',
                 'address' => 'required|string|max:500|min:5',
-                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,'
+                'phone' => [
+                    'required',
+                    'string',
+                    'regex:/^0[1-9]\d{8,9}$/', // Chấp nhận số điện thoại Việt Nam: 0[1-9]xxxxxxx (9-10 chữ số)
+                    // Bỏ rule unique để cho phép user dùng lại số phone cho nhiều booking
+                ]
             ]);
 
             // Default to 50% if not provided (radio button not submitted)
@@ -59,13 +65,59 @@ class PaymentController extends Controller
                 ? (int) $validated['deposit_percentage'] 
                 : 50;
             
-            // Calculate expected deposit based on user's selected percentage
-            $expectedDeposit = $validated['total_amount'] * ($depositPercentage / 100);
-            
-            if (abs($validated['amount'] - $expectedDeposit) > 1000) {
+            // Validate amount vs total_amount
+            // Frontend làm tròn amount lên hàng nghìn, nên amount có thể lớn hơn total_amount một chút
+            // Cho phép amount lớn hơn total_amount tối đa 2000 (do làm tròn)
+            if ($validated['amount'] > $validated['total_amount'] + 2000) {
                 return response()->json([
-                    'error' => "Deposit không hợp lệ (phải là {$depositPercentage}% tổng tiền)"
+                    'error' => "Số tiền thanh toán không hợp lệ (lớn hơn tổng tiền quá nhiều)"
                 ], 400);
+            }
+            
+            // Validate amount matches deposit percentage (chỉ validate khi deposit < 100%)
+            // Khi 100%, chỉ cần kiểm tra amount gần bằng total_amount (đã kiểm tra ở trên)
+            if ($depositPercentage < 100) {
+                // Validate amount matches deposit percentage
+                // Frontend làm tròn lên đến hàng nghìn: Math.ceil(total * percentage / 1000) * 1000
+                // Nên ta cũng làm tròn tương tự để so sánh
+                $expectedDepositRaw = $validated['total_amount'] * ($depositPercentage / 100);
+                $expectedDepositRounded = ceil($expectedDepositRaw / 1000) * 1000;
+                
+                // Cho phép sai số tối đa 2000 để tránh lỗi do làm tròn
+                // (frontend làm tròn lên, có thể chênh lệch tối đa ~1000, cộng thêm buffer)
+                $tolerance = 2000;
+                $difference = abs($validated['amount'] - $expectedDepositRounded);
+                
+                if ($difference > $tolerance) {
+                    Log::warning('Deposit validation failed', [
+                        'amount' => $validated['amount'],
+                        'expected_raw' => $expectedDepositRaw,
+                        'expected_rounded' => $expectedDepositRounded,
+                        'total_amount' => $validated['total_amount'],
+                        'deposit_percentage' => $depositPercentage,
+                        'difference' => $difference,
+                    ]);
+                    return response()->json([
+                        'error' => "Deposit không hợp lệ (phải là {$depositPercentage}% tổng tiền). Amount: {$validated['amount']}, Expected: {$expectedDepositRounded}"
+                    ], 400);
+                }
+            } else {
+                // Khi 100%, validate amount gần bằng total_amount (đã làm tròn)
+                $expectedTotalRounded = ceil($validated['total_amount'] / 1000) * 1000;
+                $tolerance = 2000;
+                $difference = abs($validated['amount'] - $expectedTotalRounded);
+                
+                if ($difference > $tolerance) {
+                    Log::warning('Full payment validation failed', [
+                        'amount' => $validated['amount'],
+                        'total_amount' => $validated['total_amount'],
+                        'expected_rounded' => $expectedTotalRounded,
+                        'difference' => $difference,
+                    ]);
+                    return response()->json([
+                        'error' => "Số tiền thanh toán không hợp lệ. Amount: {$validated['amount']}, Expected: {$expectedTotalRounded}"
+                    ], 400);
+                }
             }
 
             $phong = Phong::with(['loaiPhong', 'tienNghis', 'bedTypes', 'activeOverrides'])->findOrFail($validated['phong_id']);
@@ -155,8 +207,11 @@ class PaymentController extends Controller
 
             return DB::transaction(function () use (
                 $validated, $maThamChieu, $snapshotMeta, $phong, $request, $from, $to, $nights,
-                $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons
+                $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons, $depositPercentage
             ) {
+                // Nếu thanh toán 100% thì không cần thanh toán thêm nữa
+                $canThanhToan = $depositPercentage < 100;
+                
                 $dat_phong = DatPhong::create([
                     'ma_tham_chieu' => $maThamChieu,
                     'nguoi_dung_id' => Auth::id(),
@@ -167,7 +222,7 @@ class PaymentController extends Controller
                     'deposit_amount' => $validated['amount'],
                     'so_khach' => $validated['so_khach'] ?? ($validated['adults'] + ($validated['children'] ?? 0)),
                     'trang_thai' => 'dang_cho',
-                    'can_thanh_toan' => true,
+                    'can_thanh_toan' => $canThanhToan,
                     'can_xac_nhan' => false,
                     'created_by' => Auth::id(),
                     'snapshot_meta' => $snapshotMeta, // FIXED: removed json_encode, model has 'array' cast
@@ -192,7 +247,16 @@ class PaymentController extends Controller
                 $requiredSignature = $phong->spec_signature_hash ?? $phong->specSignatureHash();
                 $availableNow = $this->computeAvailableRoomsCount($phong->loai_phong_id, $from, $to, $requiredSignature);
                 if ($roomsCount > $availableNow) {
-                    throw new \Exception("Only {$availableNow} room(s) available.");
+                    Log::warning('Room availability check failed', [
+                        'phong_id' => $validated['phong_id'],
+                        'loai_phong_id' => $phong->loai_phong_id,
+                        'rooms_requested' => $roomsCount,
+                        'rooms_available' => $availableNow,
+                        'from' => $from->toDateString(),
+                        'to' => $to->toDateString(),
+                        'required_signature' => $requiredSignature,
+                    ]);
+                    throw new \Exception("Không đủ phòng trống. Hiện có {$availableNow} phòng khả dụng, bạn yêu cầu {$roomsCount} phòng. Vui lòng thử lại sau hoặc chọn ngày khác.");
                 }
 
                 $holdBase = [
@@ -366,9 +430,28 @@ class PaymentController extends Controller
 
                 return response()->json(['redirect_url' => $redirectUrl, 'dat_phong_id' => $dat_phong->id]);
             });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('VNPay initiate validation error', [
+                'errors' => $e->errors(),
+                'request' => $request->all()
+            ]);
+            return response()->json(['error' => 'Dữ liệu không hợp lệ: ' . implode(', ', array_map(function($errors) {
+                return implode(', ', $errors);
+            }, $e->errors()))], 422);
         } catch (\Throwable $e) {
-            Log::error('VNPay initiate error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
+            Log::error('VNPay initiate error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->except(['_token'])
+            ]);
+            return response()->json([
+                'error' => 'Lỗi hệ thống: ' . $e->getMessage(),
+                'debug' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ] : null
+            ], 500);
         }
     }
 
