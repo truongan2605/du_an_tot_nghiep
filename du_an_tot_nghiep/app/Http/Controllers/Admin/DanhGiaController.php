@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DanhGiaSpace;
 use App\Models\Phong;
 use App\Models\DatPhong; // cần dùng
+use App\Models\LoaiPhong;
 use Illuminate\Http\Request; // sửa từ Symfony sang Laravel
 use App\Models\User; // nhớ import
 use Illuminate\Support\Facades\Auth;
@@ -14,18 +15,34 @@ use Illuminate\Support\Facades\Auth;
 class DanhGiaController extends Controller
 {
     // Danh sách phòng + trung bình đánh giá
-  public function index()
+public function index(Request $request)
 {
-    $phongs = Phong::withCount([
-        'danhGias as tong_danh_gia' => function ($q) {
-            $q->whereNull('parent_id'); // ⭐ chỉ đếm đánh giá gốc của khách
-        }
-    ])
-    ->withAvg('danhGias as rating_trung_binh', 'rating')
-    ->paginate(10);
+    $query = Phong::query()
+        ->withCount([
+            'danhGias as tong_danh_gia' => function ($q) {
+                $q->whereNull('parent_id');
+            }
+        ])
+        ->withAvg('danhGias as rating_trung_binh', 'rating');
 
-    return view('admin.danhgia.index', compact('phongs'));
+    // ⭐ Tìm theo loại phòng
+    if ($request->filled('loai_phong')) {
+        $query->where('loai_phong_id', $request->loai_phong);
+    }
+
+    // ⭐ Tìm theo tên phòng
+    if ($request->filled('keyword')) {
+        $query->where('name', 'LIKE', '%' . $request->keyword . '%');
+    }
+
+    $phongs = $query->paginate(10);
+
+    // Lấy danh sách loại phòng cho filter
+    $loaiPhongs = LoaiPhong::all();
+
+    return view('admin.danhgia.index', compact('phongs', 'loaiPhongs'));
 }
+
 
 
 
