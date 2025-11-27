@@ -341,8 +341,33 @@ class BookingController extends Controller
             return $this->redirectToVNPayForRoomChange($booking, $roomChange, $paymentNeeded);
             
         } elseif ($priceDiff < 0) {
-            // DOWNGRADE - Will be implemented in next iteration
-            return back()->with('info', 'Chức năng downgrade đang được phát triển.');
+            // DOWNGRADE - Auto refund via voucher
+            $result = $this->completeRoomChange($roomChange);
+            
+            if ($result) {
+                // Calculate refund amount
+                $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
+                $newDepositRequired = $newBookingTotal * ($depositPct / 100);
+                $refundAmount = $booking->deposit_amount - $newDepositRequired;
+                
+                // Create voucher for refund
+                $voucher = $this->createRefundVoucher($booking, $refundAmount, $roomChange);
+                
+                $oldRoom = $roomChange->oldRoom;
+                $newRoom = $roomChange->newRoom;
+                
+                return redirect('/account/bookings/' . $roomChange->dat_phong_id)
+                    ->with('room_change_success', [
+                        'old_room' => $oldRoom->ma_phong ?? 'N/A',
+                        'new_room' => $newRoom->ma_phong ?? 'N/A',
+                        'price_difference' => $priceDiff,
+                        'refund_amount' => $refundAmount,
+                        'voucher_code' => $voucher->code
+                    ])
+                    ->with('success', 'Đổi phòng thành công! Voucher hoàn tiền đã được tạo.');
+            } else {
+                return back()->with('error', 'Có lỗi khi cập nhật thông tin phòng.');
+            }
             
         } else {
             // SAME PRICE - Direct update
@@ -611,6 +636,44 @@ class BookingController extends Controller
             \Log::error('Room change completion failed: ' . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Create refund voucher for downgrade room change
+     */
+    private function createRefundVoucher($booking, $refundAmount, $roomChange)
+    {
+        $code = 'DOWNGRADE' . strtoupper(\Str::random(8));
+        $expiryDate = \Carbon\Carbon::now()->addDays(30); // 30 days validity
+        
+        $voucher = \App\Models\Voucher::create([
+            'code' => $code,
+            'name' => "Hoàn tiền đổi phòng - {$code}",
+            'type' => 'fixed',  // Fixed amount type (not 'tien')
+            'value' => $refundAmount,
+            'qty' => 1,
+            'start_date' => \Carbon\Carbon::now(),
+            'end_date' => $expiryDate,
+            'min_order_amount' => 0,
+            'applicable_to' => 'all',
+            'note' => "Hoàn tiền đổi phòng từ {$roomChange->oldRoom->ma_phong} sang {$roomChange->newRoom->ma_phong}",
+            'usage_limit_per_user' => 1,
+            'active' => true  // Set true so voucher can be used
+        ]);
+        
+        // Link voucher to user using relationship
+        $voucher->users()->attach($booking->nguoi_dung_id, [
+            'claimed_at' => \Carbon\Carbon::now()
+        ]);
+        
+        \Log::info('🎫 Refund voucher created for downgrade', [
+            'voucher_code' => $code,
+            'amount' => $refundAmount,
+            'booking_id' => $booking->id,
+            'room_change_id' => $roomChange->id
+        ]);
+        
+        return $voucher;
     }
 
     public function create(Phong $phong)

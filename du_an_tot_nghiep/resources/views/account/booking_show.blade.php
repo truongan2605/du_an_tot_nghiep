@@ -1606,13 +1606,8 @@
                     // UPGRADE - Show payment confirmation
                     showUpgradeConfirmation(selectedRoomCode, priceDiff, nights, oldRoomTotal, newRoomTotal, currentBookingTotal, newBookingTotal);
                 } else if (priceDiff < 0) {
-                    // DOWNGRADE - Show refund/voucher options
-                    Swal.fire({
-                        icon: 'info',
-                        title: 'Chức năng downgrade',
-                        text: 'Tính năng đổi sang phòng rẻ hơn đang được phát triển.',
-                        confirmButtonText: 'OK'
-                    });
+                    // DOWNGRADE - Show voucher preview
+                    showDowngradeConfirmation(selectedRoomCode, priceDiff, nights, oldRoomTotal, newRoomTotal, currentBookingTotal, newBookingTotal);
                 } else {
                     // SAME PRICE - Direct confirmation
                     showSamePriceConfirmation(selectedRoomCode);
@@ -1696,6 +1691,58 @@
                 });
             }
             
+            function showDowngradeConfirmation(roomCode, priceDiff, nights, oldRoomTotal, newRoomTotal, currentBookingTotal, newBookingTotal) {
+                const depositPct = {{ $booking->snapshot_meta['deposit_percentage'] ?? 50 }};
+                const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
+                
+                const newDepositRequired = newBookingTotal * (depositPct / 100);
+                const refundAmount = currentDeposit - newDepositRequired;
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Xác nhận đổi phòng',
+                    html: `
+                        <div class="text-start">
+                            <p class="mb-3">Bạn đang đổi sang phòng rẻ hơn:</p>
+                            <div class="mb-3">
+                                <strong>Phòng cũ:</strong> {{ $currentRoom->ma_phong ?? 'N/A' }}<br>
+                                <strong>Giá phòng cũ:</strong> ${formatMoney(oldRoomTotal)}
+                            </div>
+                            <div class="mb-3">
+                                <strong>Phòng mới:</strong> ${roomCode}<br>
+                                <strong>Giá phòng mới:</strong> ${formatMoney(newRoomTotal)}
+                            </div>
+                            <hr>
+                            <div class="mb-3 text-success">
+                                <strong>Chênh lệch phòng:</strong> ${formatMoney(priceDiff)}<br>
+                                <small>(${formatMoney(Math.abs(priceDiff/nights))}/đêm × ${nights} đêm)</small>
+                            </div>
+                            <hr>
+                            <div class="alert alert-success mb-0">
+                                <i class="bi bi-gift me-2"></i>
+                                <strong class="fs-6">BẠN SẼ NHẬN:</strong><br>
+                                <div class="my-2 p-2 bg-white rounded">
+                                    <div class="fs-4 text-success fw-bold">Voucher ${formatMoney(refundAmount)}</div>
+                                    <small class="text-muted">Hạn sử dụng: 30 ngày</small>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Voucher sẽ tự động được thêm vào tài khoản của bạn
+                                </small>
+                            </div>
+                        </div>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng',
+                    cancelButtonText: 'Hủy',
+                    confirmButtonColor: '#28a745'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        submitRoomChange();
+                    }
+                });
+            }
+            
             function submitRoomChange() {
                 // Create and submit form
                 const form = document.createElement('form');
@@ -1741,7 +1788,35 @@
                     title: '🎉 Đổi phòng thành công!',
                     html: `
                         <div class="text-start">
-                            <p class="mb-3">Thanh toán đã được xác nhận. Thông tin phòng đã được cập nhật:</p>
+                            @if(isset($changeInfo['voucher_code']))
+                                {{-- Downgrade with voucher --}}
+                                <p class="mb-3">Phòng đã được thay đổi và voucher hoàn tiền đã được tạo!</p>
+                                <div class="alert alert-success mb-3">
+                                    <h5 class="mb-2"><i class="bi bi-gift me-2"></i>Voucher hoàn tiền</h5>
+                                    <div class="bg-white p-3 rounded border">
+                                        <div class="text-center mb-2">
+                                            <h4 class="text-primary mb-0">{{ $changeInfo['voucher_code'] }}</h4>
+                                        </div>
+                                        <hr class="my-2">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Giá trị:</span>
+                                            <strong class="text-success">{{ number_format($changeInfo['refund_amount']) }}đ</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Hạn sử dụng:</span>
+                                            <strong>30 ngày</strong>
+                                        </div>
+                                    </div>
+                                    <p class="mt-2 mb-0 small text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Voucher đã được thêm vào tài khoản của bạn
+                                    </p>
+                                </div>
+                            @else
+                                {{-- Upgrade or same price --}}
+                                <p class="mb-3">Thanh toán đã được xác nhận. Thông tin phòng đã được cập nhật:</p>
+                            @endif
+                            
                             <div class="table-responsive">
                                 <table class="table table-sm table-borderless">
                                     <tr>
@@ -1752,14 +1827,16 @@
                                         <td class="text-muted">Phòng mới:</td>
                                         <td><strong class="text-success">#{{ $changeInfo['new_room'] }}</strong></td>
                                     </tr>
-                                    <tr>
-                                        <td class="text-muted">Chênh lệch:</td>
-                                        <td><strong class="text-primary">{{ number_format($changeInfo['price_difference']) }}đ</strong></td>
-                                    </tr>
-                                    <tr>
-                                        <td class="text-muted">Đã thanh toán:</td>
-                                        <td><strong class="text-info">{{ number_format($changeInfo['payment_amount']) }}đ</strong></td>
-                                    </tr>
+                                    @if(!isset($changeInfo['voucher_code']))
+                                        <tr>
+                                            <td class="text-muted">Chênh lệch:</td>
+                                            <td><strong class="text-primary">{{ number_format($changeInfo['price_difference']) }}đ</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Đã thanh toán:</td>
+                                            <td><strong class="text-info">{{ number_format($changeInfo['payment_amount']) }}đ</strong></td>
+                                        </tr>
+                                    @endif
                                 </table>
                             </div>
                             <p class="mt-3 mb-0 small text-muted">
