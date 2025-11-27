@@ -14,48 +14,39 @@ class AutoBlockLateCheckouts extends Command
 
     public function handle()
     {
-        // Ensure we use Asia/Bangkok as you mentioned
-        $today = Carbon::now('Asia/Ho_Chi_Minh')->toDateString();
+        $today = Carbon::today('Asia/Ho_Chi_Minh')->toDateString();
 
         $this->info("AutoBlockLateCheckouts running for date: {$today}");
 
         DB::beginTransaction();
         try {
-            // 1) Bật blocks_checkin = true cho booking có ngay_tra_phong == today và chưa hoan_thanh/không hủy
-            $toBlock = DatPhong::whereDate('ngay_tra_phong', $today)
-                ->whereNotIn('trang_thai', ['hoan_thanh', 'da_huy'])
+            // 1) Bật blocks_checkin = true cho booking có ngay_tra_phong == today và trang_thai === 'dang_su_dung'
+            DatPhong::whereDate('ngay_tra_phong', $today)
+                ->where('trang_thai', 'dang_su_dung')
                 ->where('blocks_checkin', false)
-                ->get();
+                ->chunkById(100, function ($bookings) {
+                    foreach ($bookings as $b) {
+                        $b->blocks_checkin = true;
+                        $b->save();
 
-            foreach ($toBlock as $b) {
-                // set flag (system auto)
-                $b->blocks_checkin = true;
-                $b->blocks_checkin_at = now();
-                $b->blocks_checkin_by = null; // null => system
-                $b->blocks_checkin_reason = 'auto_late_checkout';
-                $b->save();
+                        $this->info("Blocked booking #{$b->id} ({$b->ma_tham_chieu})");
+                    }
+                });
 
-                $this->info("Blocked booking #{$b->id} ({$b->ma_tham_chieu})");
-            }
-
-            // 2) Clear blocks_checkin cho booking đã được hoàn tất (hoan_thanh)
-            $toClear = DatPhong::where('blocks_checkin', true)
+            // 2) Clear blocks_checkin cho booking đã hoàn thành hoặc không còn là ngày hôm nay nữa
+            DatPhong::where('blocks_checkin', true)
                 ->where(function ($q) use ($today) {
-                    // clear if booking now hoan_thanh OR ngay_tra_phong no longer today (e.g. moved)
                     $q->where('trang_thai', 'hoan_thanh')
                       ->orWhereDate('ngay_tra_phong', '!=', $today);
                 })
-                ->get();
+                ->chunkById(100, function ($bookings) {
+                    foreach ($bookings as $b) {
+                        $b->blocks_checkin = false;
+                        $b->save();
 
-            foreach ($toClear as $b) {
-                $b->blocks_checkin = false;
-                $b->blocks_checkin_at = null;
-                $b->blocks_checkin_by = null;
-                $b->blocks_checkin_reason = null;
-                $b->save();
-
-                $this->info("Cleared block for booking #{$b->id} ({$b->ma_tham_chieu})");
-            }
+                        $this->info("Cleared block for booking #{$b->id} ({$b->ma_tham_chieu})");
+                    }
+                }); 
 
             DB::commit();
             $this->info('AutoBlockLateCheckouts completed.');
