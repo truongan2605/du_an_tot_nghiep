@@ -48,19 +48,42 @@ public function index(Request $request)
 
 
     // Chi tiết đánh giá 1 phòng
-   public function show($id)
+ public function show(Request $request, $id)
 {
     $phong = Phong::findOrFail($id);
 
-    $danhGias = DanhGiaSpace::where('phong_id', $id)
-        ->whereNull('parent_id')
-        ->orderBy('created_at', 'desc')
+    // Query gốc
+    $query = DanhGiaSpace::with(['user', 'replies'])
+        ->where('phong_id', $id)
+        ->whereNull('parent_id');  // chỉ lấy đánh giá gốc
+
+    // ⭐ Lọc theo tên người dùng
+    if ($request->filled('keyword')) {
+        $query->whereHas('user', function ($q) use ($request) {
+            $q->where('name', 'LIKE', '%' . $request->keyword . '%');
+        });
+    }
+
+    // ⭐ Lọc từ ngày
+    if ($request->filled('from_date')) {
+        $query->whereDate('created_at', '>=', $request->from_date);
+    }
+
+    // ⭐ Lọc đến ngày
+    if ($request->filled('to_date')) {
+        $query->whereDate('created_at', '<=', $request->to_date);
+    }
+
+    // ⭐ Sắp xếp mới nhất
+    $danhGias = $query->orderBy('created_at', 'desc')
         ->paginate(10);
 
+    // Bỏ highlight đánh giá mới
     DanhGiaSpace::where('phong_id', $id)->update(['is_new' => 0]);
 
     return view('admin.danhgia.show', compact('phong', 'danhGias'));
 }
+
 
 
   public function store(Request $request, $phongId)

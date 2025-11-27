@@ -21,7 +21,6 @@
         border-left: 4px solid #1e90ff;
     }
 
-    /* Ẩn form trả lời mặc định */
     .reply-form {
         display: none;
         animation: fadeIn .3s ease-in-out;
@@ -32,13 +31,20 @@
         to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Hiện nút trả lời khi hover */
     .reply-btn-hover {
         opacity: 0;
         transition: 0.3s;
     }
     .review-card:hover .reply-btn-hover {
         opacity: 1;
+    }
+
+    /* Search UI đẹp */
+    .filter-box {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 18px 22px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
 </style>
 
@@ -48,6 +54,43 @@
         <i class="fas fa-comment-dots text-primary"></i>
         Chi tiết đánh giá phòng
     </h3>
+
+    <!-- ======================== SEARCH BAR ======================== -->
+    <div class="filter-box mb-4">
+        <form action="" method="GET" class="row g-3">
+
+            <!-- Tìm theo tên -->
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Tìm theo người dùng</label>
+                <input type="text" name="keyword" class="form-control"
+                       placeholder="Nhập tên người dùng..."
+                       value="{{ request('keyword') }}">
+            </div>
+
+            <!-- Lọc theo ngày -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Từ ngày</label>
+                <input type="date" name="from_date" class="form-control"
+                       value="{{ request('from_date') }}">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Đến ngày</label>
+                <input type="date" name="to_date" class="form-control"
+                       value="{{ request('to_date') }}">
+            </div>
+
+            <!-- Nút lọc -->
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100 fw-bold">
+                    <i class="fas fa-search"></i> Lọc
+                </button>
+            </div>
+
+        </form>
+    </div>
+    <!-- ======================== END SEARCH BAR ======================== -->
+
 
     @foreach ($danhGias as $danhGia)
 
@@ -80,7 +123,7 @@
 
                 </div>
 
-                <!-- Danh sách trả lời -->
+                <!-- Danh sách phản hồi -->
                 @if($danhGia->replies->count() > 0)
                     <button class="btn btn-outline-secondary btn-sm mt-3"
                         onclick="document.getElementById('reply-list-{{ $danhGia->id }}').classList.toggle('d-none')">
@@ -122,7 +165,7 @@
     @endforeach
 
     <div class="d-flex justify-content-end mt-2">
-        {{ $danhGias->links() }}
+        {{ $danhGias->appends(request()->all())->links() }}
     </div>
 
 </div>
