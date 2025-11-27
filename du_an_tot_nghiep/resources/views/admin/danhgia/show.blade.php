@@ -4,83 +4,134 @@
 @section('content')
 
 <style>
+    .review-card {
+        transition: 0.25s;
+        border-radius: 14px;
+    }
+    .review-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+
     .reply-item {
         background: #f1f2f6;
         border-radius: 10px;
         padding: 10px 15px;
         margin-top: 10px;
+        border-left: 4px solid #1e90ff;
+    }
+
+    /* Ẩn form trả lời mặc định */
+    .reply-form {
+        display: none;
+        animation: fadeIn .3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Hiện nút trả lời khi hover */
+    .reply-btn-hover {
+        opacity: 0;
+        transition: 0.3s;
+    }
+    .review-card:hover .reply-btn-hover {
+        opacity: 1;
     }
 </style>
 
 <div class="container py-4">
 
     <h3 class="fw-bold mb-4">
-        <i class="fas fa-comment-dots text-primary"></i> Chi tiết đánh giá phòng
+        <i class="fas fa-comment-dots text-primary"></i>
+        Chi tiết đánh giá phòng
     </h3>
 
     @foreach ($danhGias as $danhGia)
-        <!-- ĐÁNH GIÁ GỐC -->
-        <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card shadow-sm border-0 mb-4 review-card">
+
             <div class="card-body">
 
-                <div class="d-flex">
-                    <img src="https://ui-avatars.com/api/?name={{ $danhGia->user->name }}"
-                         class="rounded-circle me-3" width="50">
+                <div class="d-flex justify-content-between">
 
-                    <div>
-                        <h5 class="fw-bold">{{ $danhGia->user->name }}</h5>
-                        <div class="text-warning mb-2">⭐ {{ $danhGia->rating }}/5</div>
-                        <p class="text-muted fst-italic">"{{ $danhGia->noi_dung }}"</p>
-                        <small class="text-secondary">{{ $danhGia->created_at->format('d/m/Y H:i') }}</small>
+                    <!-- Thông tin người dùng -->
+                    <div class="d-flex">
+                        <img src="https://ui-avatars.com/api/?name={{ $danhGia->user->name }}"
+                             class="rounded-circle me-3" width="55">
+
+                        <div>
+                            <h5 class="fw-bold mb-1">{{ $danhGia->user->name }}</h5>
+                            <div class="text-warning fw-bold">⭐ {{ $danhGia->rating }}/5</div>
+                            <p class="text-muted fst-italic mt-2">"{{ $danhGia->noi_dung }}"</p>
+                            <small class="text-secondary">
+                                {{ $danhGia->created_at->format('d/m/Y H:i') }}
+                            </small>
+                        </div>
                     </div>
+
+                    <!-- Nút mở form trả lời -->
+                    <button class="btn btn-sm btn-outline-primary reply-btn-hover"
+                        onclick="toggleReplyForm({{ $danhGia->id }})">
+                        <i class="fas fa-reply"></i>
+                    </button>
+
                 </div>
 
-                <!-- NÚT HIỆN TRẢ LỜI -->
+                <!-- Danh sách trả lời -->
                 @if($danhGia->replies->count() > 0)
-                    <button class="btn btn-outline-primary mt-3 btn-sm"
+                    <button class="btn btn-outline-secondary btn-sm mt-3"
                         onclick="document.getElementById('reply-list-{{ $danhGia->id }}').classList.toggle('d-none')">
-                        <i class="fas fa-reply"></i> Xem {{ $danhGia->replies->count() }} trả lời
+                        <i class="fas fa-comments"></i>
+                        Xem {{ $danhGia->replies->count() }} phản hồi
                     </button>
                 @endif
 
-                <!-- DANH SÁCH TRẢ LỜI -->
                 <div id="reply-list-{{ $danhGia->id }}" class="d-none mt-3">
                     @foreach($danhGia->replies as $rep)
                         <div class="reply-item">
-                            <strong>Admin trả lời:</strong>
+                            <strong>Admin:</strong>
                             <p class="mb-1">{{ $rep->noi_dung }}</p>
                             <small class="text-muted">{{ $rep->created_at->format('d/m/Y H:i') }}</small>
                         </div>
                     @endforeach
                 </div>
 
-            </div>
-        </div>
+                <!-- Form trả lời -->
+                <div id="reply-form-{{ $danhGia->id }}" class="reply-form mt-3 border-top pt-3">
 
-        <!-- FORM TRẢ LỜI CHO TỪNG ĐÁNH GIÁ -->
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-body">
-                <h5 class="fw-bold mb-3">Trả lời người dùng</h5>
+                    <h6 class="fw-bold mb-2">Trả lời người dùng</h6>
 
-                <form action="{{ route('admin.danhgia.reply', $danhGia->id) }}" method="POST">
-                    @csrf
+                    <form action="{{ route('admin.danhgia.reply', $danhGia->id) }}" method="POST">
+                        @csrf
 
-                    <textarea name="noi_dung" class="form-control mb-3" rows="3"
-                        placeholder="Nhập nội dung trả lời..." required></textarea>
+                        <textarea name="noi_dung" class="form-control mb-3"
+                            rows="3" placeholder="Nhập câu trả lời..." required></textarea>
 
-                    <button class="btn btn-primary">
-                        <i class="fas fa-paper-plane"></i> Gửi trả lời
-                    </button>
-                </form>
+                        <button class="btn btn-primary btn-sm">
+                            <i class="fas fa-paper-plane"></i> Gửi
+                        </button>
+                    </form>
+                </div>
 
             </div>
         </div>
+
     @endforeach
 
-    <!-- PHÂN TRANG -->
-    <div class="d-flex justify-content-end mt-3">
+    <div class="d-flex justify-content-end mt-2">
         {{ $danhGias->links() }}
     </div>
 
 </div>
+
+<script>
+    function toggleReplyForm(id) {
+        let form = document.getElementById('reply-form-' + id);
+        form.style.display = (form.style.display === 'block') ? 'none' : 'block';
+    }
+</script>
+
 @endsection

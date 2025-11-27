@@ -14,19 +14,19 @@ use Illuminate\Support\Facades\Auth;
 class DanhGiaController extends Controller
 {
     // Danh sách phòng + trung bình đánh giá
-    public function index()
-    {
-        $phongs = Phong::withCount([
-            'danhGias as tong_danh_gia',
-            'danhGias as danh_gia_moi_count' => function ($q) {
-                $q->where('is_new', 1);
-            }
-        ])
-        ->withAvg('danhGias as rating_trung_binh', 'rating')
-        ->paginate(10);
+  public function index()
+{
+    $phongs = Phong::withCount([
+        'danhGias as tong_danh_gia' => function ($q) {
+            $q->whereNull('parent_id'); // ⭐ chỉ đếm đánh giá gốc của khách
+        }
+    ])
+    ->withAvg('danhGias as rating_trung_binh', 'rating')
+    ->paginate(10);
 
-        return view('admin.danhgia.index', compact('phongs'));
-    }
+    return view('admin.danhgia.index', compact('phongs'));
+}
+
 
 
 

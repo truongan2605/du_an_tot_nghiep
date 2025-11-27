@@ -9,8 +9,8 @@
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
         @forelse ($phongs as $phong)
             @php
-                $avg = $phong->average_rating ?? 0;
-                $count = $phong->danhGias->count();
+                $avg = $phong->rating_trung_binh ?? 0; 
+                $count = $phong->tong_danh_gia ?? 0;    
             @endphp
             <div class="col">
                 <div class="card h-100 shadow-sm border-0">
@@ -19,7 +19,7 @@
                             <h5 class="card-title">{{ $phong->name ?? 'Tên phòng trống' }}</h5>
                             <p class="card-text mb-2">
                                 @if($count > 0)
-                                    <span class="fw-semibold">⭐ {{ number_format($avg,1) }}/5</span> 
+                                    <span class="fw-semibold">⭐ {{ number_format($avg, 1) }}/5</span>
                                     <span class="text-muted">({{ $count }} đánh giá)</span>
                                 @else
                                     <span class="text-muted">Chưa có đánh giá</span>
