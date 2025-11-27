@@ -41,8 +41,16 @@
                                             <a class="nav-link active" href="{{ route('account.settings') }}"><i
                                                     class="bi bi-person fa-fw me-2"></i>Hồ sơ của tôi</a>
                                         </li>
+                                        <!--  THÊM DÒNG NÀY: Ưu đãi -->
                                         <li class="nav-item">
-                                            <a class="nav-link" href="{{ route('account.booking.index')}}" ><i class="bi bi-ticket-perforated fa-fw me-2"></i>Đặt phòng của tôi</a>
+                                            <a class="nav-link" href="{{ route('account.rewards') }}">
+                                                <i class="bi bi-gift fa-fw me-2"></i>Ưu đãi
+                                            </a>
+                                        </li>
+                                        <!-- END -->
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{{ route('account.booking.index') }}"><i
+                                                    class="bi bi-ticket-perforated fa-fw me-2"></i>Đặt phòng của tôi</a>
                                         </li>
                                         <li class="nav-item">
                                             <a class="nav-link" href="{{ url('/account/wishlist') }}"><i
@@ -81,7 +89,8 @@
                             </div>
                             @if (session('status') === 'verification-link-sent')
                                 <div class="alert alert-success">
-                                    Liên kết xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư đến (hoặc Mailtrap).
+                                    Liên kết xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư đến (hoặc
+                                    Mailtrap).
                                 </div>
                             @elseif (session('status') === 'already-verified')
                                 <div class="alert alert-info">
@@ -90,7 +99,8 @@
                             @endif
 
                             @if (!auth()->user()->is_active)
-                                <form method="POST" action="{{ route('verification.send') }}" style="margin-top: 15px; margin-left: 15px">
+                                <form method="POST" action="{{ route('verification.send') }}"
+                                    style="margin-top: 15px; margin-left: 15px">
                                     @csrf
                                     <button type="submit" class="btn btn-sm btn-outline-primary mb-3">
                                         Gửi email xác thực
@@ -98,7 +108,8 @@
                                 </form>
 
                                 <p class="small text" style="margin-left: 15px">
-                                    Bạn cần xác thực email để mở khóa tất cả tính năng. Kiểm tra hộp thư đến hoặc nhấp vào trên để gửi lại.
+                                    Bạn cần xác thực email để mở khóa tất cả tính năng. Kiểm tra hộp thư đến hoặc nhấp vào
+                                    trên để gửi lại.
                                 </p>
                             @endif
 
@@ -121,10 +132,17 @@
                                                         alt="">
                                                 </span>
                                             </label>
-                                            <label class="btn btn-sm btn-primary-soft mb-0"
-                                                for="uploadfile-1">Thay đổi</label>
+                                            <label class="btn btn-sm btn-primary-soft mb-0" for="uploadfile-1">Thay
+                                                đổi</label>
                                             <input id="uploadfile-1" name="avatar" class="form-control d-none"
                                                 type="file" accept="image/*">
+                                        </div>
+                                    </div>
+
+                                    <div class="text-center mt-3">
+                                        <div class="badge bg-warning p-2 px-3 text-dark rounded-pill">
+                                            <i class="bi bi-star-fill me-1"></i>
+                                            Hạng khách hàng: <strong>Vàng</strong>
                                         </div>
                                     </div>
 
@@ -272,8 +290,7 @@
                                                 name="password" placeholder="Nhập mật khẩu mới" required>
                                             <span class="input-group-text p-0 bg-transparent">
                                                 <i class="fas fa-eye-slash cursor-pointer password-toggle"
-                                                    data-target="new_password" title="Hiện/Ẩn"
-                                                    style="padding: 10px"></i>
+                                                    data-target="new_password" title="Hiện/Ẩn" style="padding: 10px"></i>
                                             </span>
                                         </div>
                                     </div>
@@ -298,6 +315,36 @@
                             </div>
                         @endif
                     </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 fw-bold">
+                                🎁 Ưu đãi khách hàng thân thiết
+                            </h5>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <strong>Hạng hiện tại: Vàng</strong> – Bạn được giảm 10% cho mọi đơn đặt phòng.
+                            </div>
+
+                            <ul class="list-group">
+                                <li class="list-group-item">
+                                    🥉 <strong>Đồng</strong> – Giảm 3%
+                                </li>
+                                <li class="list-group-item">
+                                    🥈 <strong>Bạc</strong> – Giảm 5%
+                                </li>
+                                <li class="list-group-item">
+                                    🥇 <strong>Vàng</strong> – Giảm 10%
+                                </li>
+                                <li class="list-group-item">
+                                    👑 <strong>Kim Cương</strong> – Giảm 15% + Ưu tiên hỗ trợ khách hàng
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
                 </div>
                 <!-- Main content END -->
 
