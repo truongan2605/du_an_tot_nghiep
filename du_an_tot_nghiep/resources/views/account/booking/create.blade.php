@@ -265,7 +265,7 @@
                                                 </h5>
                                             </div>
 
-                                            <div class="card-body">
+                                        <div class="card-body">
                                                 <h6>Tiện ích</h6>
                                                 @if ($phong->tienNghis && $phong->tienNghis->count())
                                                     <ul class="list-unstyled">
@@ -375,6 +375,10 @@
                                                            value="{{ $phong->tong_gia ?? ($phong->tong_tien ?? ($phong->gia_mac_dinh ?? 0)) }}">
                                                     <input type="hidden" name="deposit_amount" id="hidden_deposit"
                                                            value="0">
+
+                                                    {{-- GIÁ GỐC (KHÔNG VOUCHER) ĐỂ RESET --}}
+                                                    <input type="hidden" id="original_total" value="0">
+                                                    <input type="hidden" id="original_deposit" value="0">
 
                                                     <div class="mt-3">
                                                         <label class="form-label fw-bold">
@@ -642,6 +646,44 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
 
+            // Hàm reset voucher: bỏ chọn, xóa code và đưa giá về giá gốc (không voucher)
+            function resetVoucherUI() {
+                const codeInput = document.getElementById('voucher_code');
+                const resultBox = document.getElementById('voucherResult');
+                const originalTotalInput = document.getElementById('original_total');
+                const originalDepositInput = document.getElementById('original_deposit');
+
+                const total = parseInt(originalTotalInput?.value || '0', 10) || 0;
+                const deposit = parseInt(originalDepositInput?.value || '0', 10) || 0;
+
+                function fmtVnd(num) {
+                    return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
+                }
+
+                // Clear input + checkbox
+                if (codeInput) codeInput.value = '';
+                document.querySelectorAll('.voucher-checkbox').forEach(cb => cb.checked = false);
+
+                // Reset hidden giá trị gửi lên server
+                const hiddenTotal = document.getElementById('hidden_tong_tien');
+                const hiddenDeposit = document.getElementById('hidden_deposit');
+                const snapshotTotalInput = document.getElementById('snapshot_total_input');
+
+                if (hiddenTotal) hiddenTotal.value = total;
+                if (snapshotTotalInput) snapshotTotalInput.value = total;
+                if (hiddenDeposit) hiddenDeposit.value = deposit;
+
+                // Reset hiển thị tổng & tiền cọc ở sidebar
+                const totalDisplayEl = document.getElementById('total_snapshot_display');
+                const payableDisplay = document.getElementById('payable_now_display');
+
+                if (totalDisplayEl) totalDisplayEl.innerText = total > 0 ? fmtVnd(total) : '-';
+                if (payableDisplay) payableDisplay.innerText = deposit > 0 ? fmtVnd(deposit) : '-';
+
+                // Xóa kết quả voucher
+                if (resultBox) resultBox.innerHTML = '';
+            }
+
             // Khi tick checkbox, chỉ cho phép 1 voucher, và đổ code vào ô input
             document.querySelectorAll('.voucher-checkbox').forEach(cb => {
                 cb.addEventListener('change', function() {
@@ -664,8 +706,10 @@
                 const resultBox = document.getElementById('voucherResult');
 
                 const code = (codeInput.value || '').trim();
+
+                // Không nhập / không chọn mã => coi như bỏ voucher, trả giá về ban đầu
                 if (!code) {
-                    alert('Vui lòng nhập hoặc chọn mã giảm giá!');
+                    resetVoucherUI();
                     return;
                 }
 
@@ -1242,6 +1286,12 @@
                 if (snapshotTotalInput) snapshotTotalInput.value = total;
                 if (hiddenTotalInput) hiddenTotalInput.value = total;
                 if (hiddenDepositInput) hiddenDepositInput.value = deposit;
+
+                // LƯU GIÁ GỐC (KHÔNG VOUCHER) ĐỂ CÒN RESET KHI BẤM "ÁP DỤNG" MÀ KHÔNG CÓ MÃ
+                const originalTotalInput = document.getElementById('original_total');
+                const originalDepositInput = document.getElementById('original_deposit');
+                if (originalTotalInput) originalTotalInput.value = total;
+                if (originalDepositInput) originalDepositInput.value = deposit;
             }
 
             document.querySelectorAll('input[name="deposit_percentage"]').forEach(radio => {

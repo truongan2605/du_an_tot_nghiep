@@ -23,6 +23,9 @@ class BookingController extends Controller
     public const CHILD_PRICE = 60000;
     public const CHILD_FREE_AGE = 6;
 
+    // Hệ số tăng giá cuối tuần (T6, T7, CN)
+    public const WEEKEND_MULTIPLIER = 1.10;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -420,6 +423,10 @@ class BookingController extends Controller
             return back()->withInput()->withErrors(['ngay_tra_phong' => 'Check-out date must be after check-in date.']);
         }
 
+        // Tính số đêm cuối tuần / ngày thường
+        $weekendNights = $this->countWeekendNights($from, $to);
+        $weekdayNights = max(0, $nights - $weekendNights);
+
         $adultsInput = (int)$request->input('adults', 1);
         $childrenInput = (int)$request->input('children', 0);
         $childrenAges = $request->input('children_ages', []);
@@ -472,6 +479,13 @@ class BookingController extends Controller
         }
 
         $basePerNight = (float) ($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
+
+        // Phần giá phòng (base) đã áp 10% cho cuối tuần
+        $roomBaseWeekdayTotal = $basePerNight * $roomsCount * $weekdayNights;
+        $roomBaseWeekendTotal = $basePerNight * self::WEEKEND_MULTIPLIER * $roomsCount * $weekendNights;
+        $roomBaseTotal = $roomBaseWeekdayTotal + $roomBaseWeekendTotal;
+        $baseTotalPerNight = $roomBaseTotal / $nights;
+
         $extraCountTotal = max(0, $countedPersons - $totalRoomCapacity);
         $adultBeyondBaseTotal = max(0, $computedAdults - $totalRoomCapacity);
         $adultExtraTotal = min($adultBeyondBaseTotal, $extraCountTotal);
@@ -481,7 +495,8 @@ class BookingController extends Controller
         $adultsChargePerNight = $adultExtraTotal * self::ADULT_PRICE;
         $childrenChargePerNight = $childrenExtraTotal * self::CHILD_PRICE;
 
-        $finalPerNightServer = ($basePerNight * $roomsCount) + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
+        // finalPerNightServer = (base trung bình đã áp weekend) + phụ thu + addon
+        $finalPerNightServer = $baseTotalPerNight + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
         $snapshotTotalServer = $finalPerNightServer * $nights;
 
         $maThamChieu = 'BK' . Str::upper(Str::random(8));
@@ -517,6 +532,11 @@ class BookingController extends Controller
                 'adult_extra_total' => $adultExtraTotal,
                 'children_extra_total' => $childrenExtraTotal,
                 'room_base_per_night' => $basePerNight,
+                'weekend_nights' => $weekendNights,
+                'weekday_nights' => $weekdayNights,
+                'weekend_multiplier' => self::WEEKEND_MULTIPLIER,
+                'room_base_total' => $roomBaseTotal,
+                'base_total_per_night' => $baseTotalPerNight,
                 'adults_charge_per_night' => $adultsChargePerNight,
                 'children_charge_per_night' => $childrenChargePerNight,
                 'addons_per_night' => $addonsPerNight,
@@ -743,7 +763,7 @@ class BookingController extends Controller
             return back()->withInput()->withErrors(['error' => 'Could not create booking: ' . $e->getMessage()]);
         }
     }
-    
+
     public function validateVoucher(Request $request)
     {
         $request->validate([
@@ -783,12 +803,24 @@ class BookingController extends Controller
 
         // Kiểm tra min_order_amount
         $phong = Phong::findOrFail($request->phong_id);
-        $nights = $this->calculateNights($request->ngay_nhan_phong, $request->ngay_tra_phong);
+
+        $fromDate = Carbon::parse($request->ngay_nhan_phong)->startOfDay();
+        $toDate = Carbon::parse($request->ngay_tra_phong)->startOfDay();
+        $nights = $fromDate->diffInDays($toDate);
+        if ($nights <= 0) {
+            return response()->json(['error' => 'Khoảng ngày không hợp lệ.'], 400);
+        }
+
+        // Tính số đêm cuối tuần / ngày thường
+        $weekendNights = $this->countWeekendNights($fromDate, $toDate);
+        $weekdayNights = max(0, $nights - $weekendNights);
+
         $basePerNight = (float) ($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
         $roomsCount = $request->rooms_count;
         $adultsInput = $request->adults;
         $childrenInput = $request->children ?? 0;
         $childrenAges = $request->children_ages ?? [];
+
         $computedAdults = $adultsInput;
         $chargeableChildren = 0;
         foreach ($childrenAges as $age) {
@@ -796,6 +828,7 @@ class BookingController extends Controller
             if ($age >= 13) $computedAdults++;
             elseif ($age >= 7) $chargeableChildren++;
         }
+
         $roomCapacity = 0;
         if ($phong->bedTypes && $phong->bedTypes->count()) {
             foreach ($phong->bedTypes as $bt) {
@@ -814,11 +847,19 @@ class BookingController extends Controller
         $childrenExtraTotal = min($childrenExtraTotal, $chargeableChildren);
         $adultsChargePerNight = $adultExtraTotal * self::ADULT_PRICE;
         $childrenChargePerNight = $childrenExtraTotal * self::CHILD_PRICE;
+
         $selectedAddonIds = $request->addons ?? [];
         $selectedAddons = \App\Models\TienNghi::whereIn('id', $selectedAddonIds)->get();
         $addonsPerNightPerRoom = (float) ($selectedAddons->sum('gia') ?? 0.0);
         $addonsPerNight = $addonsPerNightPerRoom * $roomsCount;
-        $finalPerNight = ($basePerNight * $roomsCount) + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
+
+        // Phần giá phòng base có weekend 10%
+        $roomBaseWeekdayTotal = $basePerNight * $roomsCount * $weekdayNights;
+        $roomBaseWeekendTotal = $basePerNight * self::WEEKEND_MULTIPLIER * $roomsCount * $weekendNights;
+        $roomBaseTotal = $roomBaseWeekdayTotal + $roomBaseWeekendTotal;
+        $baseTotalPerNight = $roomBaseTotal / $nights;
+
+        $finalPerNight = $baseTotalPerNight + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
         $totalBeforeDiscount = $finalPerNight * $nights;
 
         if ($voucher->min_order_amount && $totalBeforeDiscount < $voucher->min_order_amount) {
@@ -843,6 +884,27 @@ class BookingController extends Controller
     {
         return Carbon::parse($from)->diffInDays(Carbon::parse($to));
     }
+
+    /**
+     * Đếm số đêm cuối tuần trong khoảng [fromDate, toDate)
+     * Cuối tuần: Thứ 6, Thứ 7, Chủ Nhật
+     */
+    private function countWeekendNights(Carbon $fromDate, Carbon $toDate): int
+    {
+        $cursor = $fromDate->copy();
+        $count = 0;
+
+        while ($cursor < $toDate) {
+            $dow = $cursor->dayOfWeek; // 0: CN, 1: T2, ... 6: T7
+            if (in_array($dow, [Carbon::FRIDAY, Carbon::SATURDAY, Carbon::SUNDAY], true)) {
+                $count++;
+            }
+            $cursor->addDay();
+        }
+
+        return $count;
+    }
+
     public function applyVoucher(Request $request)
     {
         try {
@@ -1018,10 +1080,10 @@ class BookingController extends Controller
             // Determine deposit type from snapshot_meta
             $meta = $booking->snapshot_meta ?? [];
             $depositType = $meta['deposit_percentage'] ?? 50;
-            
+
             // Calculate refund percentage using Option B logic
             $refundPercentage = $this->calculateRefundPercentage($daysUntilCheckIn, $depositType);
-            
+
             // Calculate refund amount
             $paidAmount = $booking->deposit_amount ?? 0;
             $refundAmount = $paidAmount * ($refundPercentage / 100);
@@ -1045,7 +1107,7 @@ class BookingController extends Controller
             // NOTE: Do NOT change existing successful transactions to 'that_bai'
             // Keep audit trail of actual money received
             // If refund needed, create NEW refund transaction instead
-            
+
             // Create refund transaction if refund amount > 0
             if ($refundAmount > 0) {
                 \App\Models\GiaoDich::create([
@@ -1066,7 +1128,7 @@ class BookingController extends Controller
 
             // Delete dat_phong_items (booking items)
             $deletedItems = \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
-            
+
             Log::info('Deleted dat_phong_items (client cancel)', [
                 'booking_id' => $booking->id,
                 'user_id' => $user->id,
