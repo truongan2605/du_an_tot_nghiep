@@ -1344,7 +1344,10 @@ function showVNPAYConfirmModal() {
                     });
 
                     const data = await response.json();
-                    if (parseFloat(deposit) <= 0 || parseFloat(deposit) > parseFloat(tongTien)) {
+                    // Validate deposit: khi 100%, cho phép deposit lớn hơn tongTien một chút (tối đa 2000 do làm tròn)
+                    const depositPercentage = parseFloat(depositPercentageValue) || 50;
+                    const tolerance = depositPercentage === 100 ? 2000 : 0; // Cho phép chênh lệch khi 100%
+                    if (parseFloat(deposit) <= 0 || (parseFloat(deposit) > parseFloat(tongTien) + tolerance)) {
                         showToastInline('Deposit không hợp lệ.', true, 5000);
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = submitBtn.dataset.origHtml;
