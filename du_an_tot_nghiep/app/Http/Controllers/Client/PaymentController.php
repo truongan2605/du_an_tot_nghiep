@@ -175,6 +175,17 @@ class PaymentController extends Controller
             $finalPerNightServer = ($basePerNight * $roomsCount) + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
             $snapshotTotalServer = $finalPerNightServer * $nights;
 
+            // Áp dụng giảm giá theo hạng thành viên
+            $user = Auth::user();
+            $memberDiscountAmount = 0;
+            if ($user && $user->member_level) {
+                $memberDiscountPercent = $user->getMemberDiscountPercent();
+                if ($memberDiscountPercent > 0) {
+                    $memberDiscountAmount = ($snapshotTotalServer * $memberDiscountPercent / 100);
+                    $snapshotTotalServer = $snapshotTotalServer - $memberDiscountAmount;
+                }
+            }
+
             $snapshotMeta = [
                 'phong_id' => $validated['phong_id'],
                 'loai_phong_id' => $phong->loai_phong_id,
@@ -203,16 +214,19 @@ class PaymentController extends Controller
                 'contact_name' => $validated['name'],
                 'contact_address' => $validated['address'],
                 'contact_phone' => $validated['phone'],
+                'member_discount_amount' => $memberDiscountAmount,
+                'member_level' => $user ? ($user->member_level ?? 'dong') : 'dong',
+                'member_discount_percent' => $user ? $user->getMemberDiscountPercent() : 0,
             ];
 
             return DB::transaction(function () use (
                 $validated, $maThamChieu, $snapshotMeta, $phong, $request, $from, $to, $nights,
-                $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons, $depositPercentage
+                $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons, $depositPercentage, $memberDiscountAmount, $user
             ) {
                 // Nếu thanh toán 100% thì không cần thanh toán thêm nữa
                 $canThanhToan = $depositPercentage < 100;
                 
-                $dat_phong = DatPhong::create([
+                $datPhongData = [
                     'ma_tham_chieu' => $maThamChieu,
                     'nguoi_dung_id' => Auth::id(),
                     'phong_id' => $validated['phong_id'],
@@ -230,7 +244,14 @@ class PaymentController extends Controller
                     'contact_name' => $validated['name'],
                     'contact_address' => $validated['address'],
                     'contact_phone' => $validated['phone'],
-                ]);
+                ];
+
+                // Thêm member_discount_amount nếu cột tồn tại
+                if (Schema::hasColumn('dat_phong', 'member_discount_amount')) {
+                    $datPhongData['member_discount_amount'] = $memberDiscountAmount;
+                }
+
+                $dat_phong = DatPhong::create($datPhongData);
 
                 Log::info('Payment booking created with contact', [
                     'dat_phong_id' => $dat_phong->id,
