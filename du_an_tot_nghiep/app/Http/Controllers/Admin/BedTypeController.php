@@ -21,6 +21,10 @@ class BedTypeController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'price' => str_replace('.', '', $request->price)
+        ]);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255|unique:bed_types,slug',
@@ -43,6 +47,10 @@ class BedTypeController extends Controller
 
     public function update(Request $request, BedType $bedType)
     {
+        $request->merge([
+            'price' => str_replace('.', '', $request->price)
+        ]);
+
         $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'nullable|string|max:255|unique:bed_types,slug,'.$bedType->id,
