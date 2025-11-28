@@ -321,4 +321,48 @@ class RoomController extends Controller
 
         return $count;
     }
+
+    /**
+     * Display the compare page
+     */
+    public function compare()
+    {
+        return view('client.compare');
+    }
+
+    /**
+     * Get compare data via API
+     */
+    public function getCompareData(Request $request)
+    {
+        $ids = explode(',', $request->input('ids', ''));
+        $ids = array_filter($ids, 'is_numeric');
+        
+        if (empty($ids)) {
+            return response()->json([], 200);
+        }
+
+        $rooms = Phong::with(['loaiPhong', 'images', 'tienNghis', 'bedTypes'])
+            ->whereIn('id', $ids)
+            ->get();
+
+        // Transform bed types data
+        $rooms = $rooms->map(function ($room) {
+            if ($room->relationLoaded('bedTypes') && $room->bedTypes->count()) {
+                $room->bed_types = $room->bedTypes->map(function ($bt) {
+                    return [
+                        'id' => $bt->id,
+                        'name' => $bt->name ?? ($bt->title ?? 'Bed'),
+                        'quantity' => (int) ($bt->pivot->quantity ?? 0),
+                        'capacity' => $bt->capacity ?? null,
+                    ];
+                })->toArray();
+            } else {
+                $room->bed_types = [];
+            }
+            return $room;
+        });
+
+        return response()->json($rooms);
+    }
 }

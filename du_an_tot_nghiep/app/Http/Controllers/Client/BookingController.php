@@ -4,15 +4,15 @@ namespace App\Http\Controllers\Client;
 
 use Carbon\Carbon;
 use App\Models\Phong;
+use App\Models\Voucher;
 use App\Models\DatPhong;
 use Illuminate\Support\Str;
+use App\Models\VoucherUsage;
 use Illuminate\Http\Request;
 use App\Events\BookingCreated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
-use App\Models\Voucher;
-use App\Models\VoucherUsage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
@@ -32,19 +32,24 @@ class BookingController extends Controller
 
         $upcoming = DatPhong::where('nguoi_dung_id', $user->id)
             ->whereIn('trang_thai', ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan', 'dang_su_dung'])
-            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'giaoDichs'])
             ->orderBy('ngay_nhan_phong', 'asc')
             ->get();
 
         $cancelled = DatPhong::where('nguoi_dung_id', $user->id)
             ->where('trang_thai', 'da_huy')
-            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->with(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'refundRequests'])
             ->orderBy('updated_at', 'desc')
             ->get();
 
         $completed = DatPhong::where('nguoi_dung_id', $user->id)
             ->where('trang_thai', 'hoan_thanh')
-            ->with(['datPhongItems.phong.tang', 'datPhongItems.loaiPhong'])
+            ->with([
+                'datPhongItems.phong.tang',
+                'datPhongItems.loaiPhong',
+                'hoaDons.hoaDonItems.phong.tang',
+                'hoaDons.hoaDonItems.loaiPhong',
+            ])
             ->orderBy('ngay_nhan_phong', 'desc')
             ->get();
 
@@ -397,7 +402,7 @@ class BookingController extends Controller
             'tong_tien' => 'required|numeric|gte:deposit_amount',
 
         ]);
-        $expectedDeposit = $validated['tong_tien'] * 0.2;
+        $expectedDeposit = $validated['tong_tien'] * 0.5;
         if (abs($validated['deposit_amount'] - $expectedDeposit) > 1000) {
             return back()->withErrors(['deposit_amount' => 'Deposit không hợp lệ (phải khoảng 20% tổng)']);
         }
@@ -738,6 +743,7 @@ class BookingController extends Controller
             return back()->withInput()->withErrors(['error' => 'Could not create booking: ' . $e->getMessage()]);
         }
     }
+    
     public function validateVoucher(Request $request)
     {
         $request->validate([
@@ -949,7 +955,7 @@ class BookingController extends Controller
             }
 
             $finalTotal = $total - $discount;
-            $deposit = (int) round($finalTotal * 0.2);
+            $deposit = (int) round($finalTotal * 0.5);
 
             return response()->json([
                 'success' => true,
@@ -974,6 +980,264 @@ class BookingController extends Controller
                 'success' => false,
                 'message' => 'Có lỗi nội bộ khi áp dụng mã giảm giá.',
             ], 500);
+        }
+    }
+
+    /**
+     * Cancel a booking (client-side) with advanced refund policy
+     */
+    public function cancel(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập để hủy đặt phòng.');
+        }
+
+        // Find the booking and verify ownership
+        $booking = DatPhong::where('id', $id)
+            ->where('nguoi_dung_id', $user->id)
+            ->first();
+
+        if (!$booking) {
+            return back()->with('error', 'Không tìm thấy đặt phòng hoặc bạn không có quyền hủy đặt phòng này.');
+        }
+
+        // Check if the booking status allows cancellation
+        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+            return back()->with('error', 'Không thể hủy đặt phòng với trạng thái hiện tại: ' . $booking->trang_thai);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Calculate refund based on advanced policy (Option B)
+            $checkInDate = Carbon::parse($booking->ngay_nhan_phong);
+            $now = Carbon::now();
+            $daysUntilCheckIn = $now->diffInDays($checkInDate, false); // FIXED: now->diffInDays(checkIn) gives positive if future
+
+            // Determine deposit type from snapshot_meta
+            $meta = $booking->snapshot_meta ?? [];
+            $depositType = $meta['deposit_percentage'] ?? 50;
+            
+            // Calculate refund percentage using Option B logic
+            $refundPercentage = $this->calculateRefundPercentage($daysUntilCheckIn, $depositType);
+            
+            // Calculate refund amount
+            $paidAmount = $booking->deposit_amount ?? 0;
+            $refundAmount = $paidAmount * ($refundPercentage / 100);
+
+            // Update booking status to cancelled with refund info
+            $booking->update([
+                'trang_thai' => 'da_huy',
+                'refund_amount' => $refundAmount,
+                'refund_percentage' => $refundPercentage,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $request->input('reason', 'Khách hàng hủy đặt phòng')
+            ]);
+
+            // Delete/release giu_phong records associated with this booking
+            if (Schema::hasTable('giu_phong')) {
+                DB::table('giu_phong')
+                    ->where('dat_phong_id', $booking->id)
+                    ->delete();
+            }
+
+            // NOTE: Do NOT change existing successful transactions to 'that_bai'
+            // Keep audit trail of actual money received
+            // If refund needed, create NEW refund transaction instead
+            
+            // Create refund transaction if refund amount > 0
+            if ($refundAmount > 0) {
+                \App\Models\GiaoDich::create([
+                    'dat_phong_id' => $booking->id,
+                    'so_tien' => $refundAmount,
+                    'trang_thai' => 'da_hoan',
+                    'nha_cung_cap' => 'Hoàn tiền hủy phòng',
+                    'ghi_chu' => "Hoàn {$refundPercentage}% tiền cọc do hủy booking",
+                ]);
+            }
+
+            Log::info('Booking cancelled with refund transaction (client)', [
+                'booking_id' => $booking->id,
+                'user_id' => $user->id,
+                'refund_amount' => $refundAmount,
+                'refund_percentage' => $refundPercentage,
+            ]);
+
+            // Delete dat_phong_items (booking items)
+            $deletedItems = \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+            
+            Log::info('Deleted dat_phong_items (client cancel)', [
+                'booking_id' => $booking->id,
+                'user_id' => $user->id,
+                'deleted_count' => $deletedItems,
+            ]);
+
+            // Create refund request if refund amount > 0
+            if ($refundAmount > 0) {
+                \App\Models\RefundRequest::create([
+                    'dat_phong_id' => $booking->id,
+                    'amount' => $refundAmount,
+                    'percentage' => $refundPercentage,
+                    'status' => 'pending',
+                    'requested_at' => now(),
+                ]);
+
+                Log::info('Refund request created', [
+                    'booking_id' => $booking->id,
+                    'amount' => $refundAmount,
+                    'percentage' => $refundPercentage,
+                ]);
+            }
+
+            DB::commit();
+
+            Log::info('Booking cancelled by client with refund', [
+                'booking_id' => $booking->id,
+                'user_id' => $user->id,
+                'ma_tham_chieu' => $booking->ma_tham_chieu,
+                'days_until_checkin' => $daysUntilCheckIn,
+                'deposit_type' => $depositType,
+                'refund_percentage' => $refundPercentage,
+                'refund_amount' => $refundAmount,
+            ]);
+
+            // Build success message
+            $message = 'Đã hủy đặt phòng thành công. ';
+            if ($refundAmount > 0) {
+                $message .= sprintf(
+                    'Số tiền hoàn: %s ₫ (%d%% của %s ₫). Yêu cầu hoàn tiền đang được xử lý.',
+                    number_format($refundAmount, 0, ',', '.'),
+                    $refundPercentage,
+                    number_format($paidAmount, 0, ',', '.')
+                );
+            } else {
+                $message .= 'Không được hoàn tiền do hủy muộn (< 24 giờ trước check-in).';
+            }
+
+            return back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Client booking cancellation error', [
+                'booking_id' => $booking->id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Có lỗi xảy ra khi hủy đặt phòng. Vui lòng thử lại sau.');
+        }
+    }
+
+    /**
+     * Calculate refund percentage based on Option B policy:
+     * Different refund rates for 50% deposit vs 100% payment
+     */
+    private function calculateRefundPercentage(int $daysUntilCheckIn, int $depositType): int
+    {
+        if ($depositType == 100) {
+            // Thanh toán 100% - được ưu đãi khi hủy
+            if ($daysUntilCheckIn >= 7) {
+                return 90;  // Hoàn 90%
+            } elseif ($daysUntilCheckIn >= 3) {
+                return 60;  // Hoàn 60%
+            } elseif ($daysUntilCheckIn >= 1) {
+                return 40;  // Hoàn 40%
+            } else {
+                return 20;  // Hoàn 20%
+            }
+        } else {
+            // Đặt cọc 50% - policy thông thường
+            if ($daysUntilCheckIn >= 7) {
+                return 100; // Hoàn 100% tiền cọc
+            } elseif ($daysUntilCheckIn >= 3) {
+                return 70;  // Hoàn 70%
+            } elseif ($daysUntilCheckIn >= 1) {
+                return 30;  // Hoàn 30%
+            } else {
+                return 0;   // Không hoàn
+            }
+        }
+    }
+
+    /**
+     * Retry payment for a booking with pending transaction
+     */
+    public function retryPayment(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        $booking = DatPhong::where('id', $id)
+            ->where('nguoi_dung_id', $user->id)
+            ->with('giaoDichs')
+            ->firstOrFail();
+
+        // Check booking status
+        if ($booking->trang_thai !== 'dang_cho') {
+            return back()->with('error', 'Chỉ có thể tiếp tục thanh toán cho đơn đang chờ.');
+        }
+
+        // Find pending VNPay transaction
+        $pendingTransaction = $booking->giaoDichs()
+            ->where('trang_thai', 'dang_cho')
+            ->where('nha_cung_cap', 'vnpay')
+            ->first();
+
+        if (!$pendingTransaction) {
+            return back()->with('error', 'Không tìm thấy giao dịch đang chờ.');
+        }
+
+        try {
+            // Generate new VNPay URL using existing transaction
+            $vnp_Url = env('VNPAY_URL');
+            $vnp_TmnCode = env('VNPAY_TMN_CODE');
+            $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+            $vnp_ReturnUrl = env('VNPAY_RETURN_URL');
+
+            // Use existing transaction ID with new timestamp
+            $merchantTxnRef = $pendingTransaction->id . '-' . time();
+
+            $inputData = [
+                "vnp_Version" => "2.1.0",
+                "vnp_TmnCode" => $vnp_TmnCode,
+                "vnp_Amount" => $pendingTransaction->so_tien * 100,
+                "vnp_Command" => "pay",
+                "vnp_CreateDate" => date('YmdHis'),
+                "vnp_CurrCode" => "VND",
+                "vnp_IpAddr" => $request->ip(),
+                "vnp_Locale" => "vn",
+                "vnp_OrderInfo" => "Thanh toán đặt phòng {$booking->ma_tham_chieu}",
+                "vnp_OrderType" => "billpayment",
+                "vnp_ReturnUrl" => $vnp_ReturnUrl,
+                "vnp_TxnRef" => $merchantTxnRef,
+            ];
+
+            ksort($inputData);
+            $query = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
+            $vnp_SecureHash = hash_hmac('sha512', $query, $vnp_HashSecret);
+            $redirectUrl = $vnp_Url . '?' . $query . '&vnp_SecureHash=' . $vnp_SecureHash;
+
+            Log::info('Retry payment for booking', [
+                'booking_id' => $booking->id,
+                'transaction_id' => $pendingTransaction->id,
+                'user_id' => $user->id,
+            ]);
+
+            return redirect()->away($redirectUrl);
+
+        } catch (\Exception $e) {
+            Log::error('Error retrying payment', [
+                'booking_id' => $id,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Có lỗi xảy ra khi tạo link thanh toán. Vui lòng thử lại sau.');
         }
     }
 }

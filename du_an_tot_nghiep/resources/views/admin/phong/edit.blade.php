@@ -120,7 +120,7 @@
                 </select>
             </div>
 
-            <h6 class="mt-3">Tiện nghi</h6>
+            <h6 class="mt-3">Dịch vụ</h6>
 
             <div class="mb-2">
                 <div id="amenities_checkbox_list_edit" class="d-flex flex-wrap gap-2">

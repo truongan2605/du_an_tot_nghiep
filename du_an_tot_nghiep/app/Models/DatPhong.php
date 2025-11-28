@@ -1,19 +1,19 @@
 <?php
 
 namespace App\Models;
-
+use App\Traits\Auditable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Support\Facades\DB;
 
 class DatPhong extends Model
 {
     use HasFactory;
-
+     use Auditable;
     protected $table = 'dat_phong';
 
     protected $fillable = [
@@ -21,7 +21,10 @@ class DatPhong extends Model
         'nguoi_dung_id',
         'trang_thai',
         'ngay_nhan_phong',
+        'checkout_at',
+        'checkout_by',
         'checked_in_at',
+        'checked_in_by',
         'ngay_tra_phong',
         'so_khach',
         'tong_tien',
@@ -41,6 +44,15 @@ class DatPhong extends Model
         'contact_address',
         'contact_phone',
         'deposit_amount',
+        'refund_amount',
+        'refund_percentage',
+        'cancelled_at',
+        'cancellation_reason',
+        'is_checkout_early',
+        'early_checkout_refund_amount',
+        'is_late_checkout',
+        'late_checkout_fee_amount',
+
     ];
 
 
@@ -58,6 +70,8 @@ class DatPhong extends Model
         'can_xac_nhan' => 'boolean',
         'checked_in_at' => 'datetime',
         'deposit_amount' => 'decimal:2',
+        'is_late_checkout' => 'boolean',
+        'late_checkout_fee_amount' => 'decimal:0',
     ];
 
     // Relationships
@@ -76,9 +90,19 @@ class DatPhong extends Model
         return $this->belongsTo(Authenticatable::class, 'created_by');
     }
 
+    public function checkedInBy(): BelongsTo
+    {
+        return $this->belongsTo(Authenticatable::class, 'checked_in_by');
+    }
+
     public function datPhongItems()
     {
         return $this->hasMany(DatPhongItem::class, 'dat_phong_id');
+    }
+
+    public function refundRequests()
+    {
+        return $this->hasMany(\App\Models\RefundRequest::class, 'dat_phong_id');
     }
 
     public function datPhongAddons(): HasMany
@@ -254,6 +278,11 @@ class DatPhong extends Model
     public function voucherUsages(): HasMany
     {
         return $this->hasMany(VoucherUsage::class, 'dat_phong_id');
+    }
+
+    public function checkoutByUser()
+    {
+        return $this->belongsTo(User::class, 'checkout_by');
     }
 
     public function phongDaDats()

@@ -7,7 +7,7 @@
 			<div class="col-lg-3">
 				<!-- logo -->
 				<a href="{{ url('/') }}">
-					<img class="h-40px" src="{{ asset('template/stackbros/assets/images/logo-light.svg') }}" alt="logo">
+					<img class="h-40px" src="{{ asset('template/stackbros/assets/images/logo-royal.jpg') }}" alt="logo">
 				</a>
 				<p class="my-3 text-body-secondary">Chúng tôi cam kết mang đến cho bạn những trải nghiệm đặt phòng khách sạn tuyệt vời và dịch vụ chăm sóc khách hàng tận tâm.</p>
 				<p class="mb-2"><a href="#" class="text-body-secondary text-primary-hover"><i class="bi bi-telephone me-2"></i>038 201 3369</a> </p>

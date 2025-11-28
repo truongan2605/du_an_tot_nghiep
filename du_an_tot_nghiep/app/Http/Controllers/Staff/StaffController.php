@@ -4,24 +4,27 @@ namespace App\Http\Controllers\Staff;
 
 
 use App\Models\Phong;
+use App\Models\HoaDon;
 use App\Models\DatPhong;
 use App\Models\GiaoDich;
 use App\Models\GiuPhong;
 use App\Models\LoaiPhong;
+use App\Models\HoaDonItem;
 use App\Models\PhongDaDat;
 use App\Models\DatPhongItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use App\Models\VatDungIncident;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
-use App\Models\HoaDon;
-use App\Models\HoaDonItem;
-use App\Models\PhongVatDungConsumption;
 use App\Models\PhongVatDungInstance;
-use App\Models\VatDungIncident;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use App\Models\PhongVatDungConsumption;
 use Illuminate\Support\Carbon as SupportCarbon;
+use Illuminate\Support\Facades\Storage;
+use App\Services\PaymentNotificationService;
 
 class StaffController extends Controller
 {
@@ -34,7 +37,7 @@ class StaffController extends Controller
         $month = $today->month;
         $year = $today->year;
 
-        $activeStatus = ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'];
+        $activeStatus = ['da_xac_nhan', 'dang_su_dung'];
         $activeQuery = DatPhong::whereIn('trang_thai', $activeStatus)
             ->where('trang_thai', '!=', 'da_huy');
 
@@ -93,6 +96,54 @@ class StaffController extends Controller
             ->where('nha_cung_cap', 'like', '%coc%')
             ->sum('so_tien');
         $availableRooms = Phong::where('trang_thai', 'trong')->count();
+        
+        // === Room Analytics Overview (Current Month) ===
+        $currentMonth = $today->month;
+        $currentYear = $today->year;
+        
+        $roomTypeStats = DB::table('dat_phong_item as dpi')
+            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
+            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('dp.ngay_nhan_phong', $currentYear)
+            ->whereMonth('dp.ngay_nhan_phong', $currentMonth)
+            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT dp.id) as total_bookings'),
+                DB::raw('SUM(dpi.tong_item) as total_revenue')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->get();
+        
+        // Get room counts for occupancy
+        $roomCounts = DB::table('phong')
+            ->select('loai_phong_id', DB::raw('COUNT(*) as total_rooms'))
+            ->groupBy('loai_phong_id')
+            ->pluck('total_rooms', 'loai_phong_id');
+        
+        $daysInMonth = $today->daysInMonth;
+        
+        $roomTypeStats = $roomTypeStats->map(function($stat) use ($roomCounts, $daysInMonth) {
+            $totalRooms = $roomCounts[$stat->id] ?? 0;
+            $maxPossibleBookings = $totalRooms * $daysInMonth;
+            $occupancyRate = $maxPossibleBookings > 0 
+                ? round(($stat->total_bookings / $maxPossibleBookings) * 100, 1)
+                : 0;
+            
+            return (object)[
+                'id' => $stat->id,
+                'ten' => $stat->ten,
+                'total_rooms' => $totalRooms,
+                'total_bookings' => $stat->total_bookings,
+                'total_revenue' => $stat->total_revenue ?? 0,
+                'occupancy_rate' => $occupancyRate
+            ];
+        });
+        
+        // Chart data for mini visualization
+        $analyticsChartLabels = $roomTypeStats->pluck('ten')->toArray();
+        $analyticsChartData = $roomTypeStats->pluck('total_bookings')->toArray();
 
         // === Dữ liệu cho biểu đồ doanh thu 7 ngày ===
         $chartLabels = [];
@@ -118,7 +169,7 @@ class StaffController extends Controller
             ->with('user:id,name')
             ->get()
             ->map(fn($b) => [
-                'title' => 'BK-' . $b->ma_tham_chieu,
+                'title' => $b->ma_tham_chieu,
                 'start' => $b->ngay_nhan_phong,
                 'end' => $b->ngay_tra_phong,
                 'description' => "Khách: " . ($b->user->name ?? 'Ẩn danh') . " | " . ucfirst($b->trang_thai)
@@ -127,18 +178,51 @@ class StaffController extends Controller
         $recentActivities = DatPhong::whereIn('trang_thai', $activeStatus)
             ->orderByDesc('updated_at')->take(20)->get();
 
+        // Cancelled bookings count
+        $cancelledBookings = DatPhong::where('trang_thai', 'da_huy')->count();
+
+        // Today's check-ins (bookings with check-in date today)
+        $todayCheckins = DatPhong::whereDate('ngay_nhan_phong', $today)
+            ->whereIn('trang_thai', ['da_xac_nhan', 'da_gan_phong'])
+            ->with(['datPhongItems.phong'])
+            ->orderBy('ngay_nhan_phong')
+            ->limit(10)
+            ->get();
+
+        // Today's check-outs (bookings with check-out date today)
+        $todayCheckouts = DatPhong::whereDate('ngay_tra_phong', $today)
+            ->where('trang_thai', 'dang_su_dung')
+            ->with(['datPhongItems.phong'])
+            ->orderBy('ngay_tra_phong')
+            ->limit(10)
+            ->get();
+
         return view('staff.index', compact(
             'pendingBookings',
             'todayRevenue',
+            'todayRefund',
+            'todayNetRevenue',
             'weeklyRevenue',
+            'weeklyRefund',
+            'weeklyNetRevenue',
             'totalBookings',
             'monthlyRevenue',
+            'monthlyRefund',
+            'monthlyNetRevenue',
             'totalRevenue',
+            'totalRefund',
+            'totalNetRevenue',
             'availableRooms',
+            'cancelledBookings',
+            'todayCheckins',
+            'todayCheckouts',
             'events',
             'recentActivities',
             'chartLabels',
-            'revenueData'
+            'revenueData',
+            'roomTypeStats',
+            'analyticsChartLabels',
+            'analyticsChartData'
         ));
     }
 
@@ -229,21 +313,33 @@ class StaffController extends Controller
 
     public function checkinForm()
     {
-        $bookings = DatPhong::with(['nguoiDung', 'giaoDichs' => function ($q) {
-            $q->where('trang_thai', 'thanh_cong');
-        }])
+        $bookings = DatPhong::with([
+            'nguoiDung',
+            'checkedInBy',
+            'giaoDichs' => function ($q) {
+                $q->where('trang_thai', 'thanh_cong');
+            },
+            'datPhongItems.phong'
+        ])
             ->whereIn('trang_thai', ['da_xac_nhan', 'da_gan_phong'])
-
             ->orderBy('ngay_nhan_phong', 'asc')
             ->get()
             ->map(function ($booking) {
                 $paid      = $booking->giaoDichs->sum('so_tien');
                 $remaining = $booking->tong_tien - $paid;
 
-                $booking->paid       = $paid;
-                $booking->remaining  = $remaining;
-                $booking->can_checkin = $remaining <= 0;
+                $hasDonDep = $booking->datPhongItems
+                    ->pluck('phong')
+                    ->filter()
+                    ->pluck('don_dep')
+                    ->contains(true);
 
+                $booking->paid = $paid;
+                $booking->remaining = $remaining;
+
+                $booking->can_checkin = ($remaining <= 0) && (!$hasDonDep);
+
+                $booking->checkin_blocked_due_to = $hasDonDep ? 'room_in_cleaning' : null;
 
                 $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
                 $today       = \Carbon\Carbon::today();
@@ -271,15 +367,62 @@ class StaffController extends Controller
     {
         $request->validate([
             'booking_id' => 'required|exists:dat_phong,id',
-            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
-        ], [
-            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
-            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
-            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
-            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
         ]);
 
         $booking = DatPhong::with(['datPhongItems', 'giaoDichs'])->findOrFail($request->booking_id);
+        
+        // Kiểm tra đã có CCCD chưa HOẶC đang submit CCCD mới
+        if (is_array($booking->snapshot_meta)) {
+            $meta = $booking->snapshot_meta;
+        } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+            /** @var string $snapshotMeta */
+            $snapshotMeta = $booking->snapshot_meta;
+            $meta = json_decode($snapshotMeta, true) ?? [];
+        } else {
+            $meta = [];
+        }
+        
+        // Kiểm tra có CCCD trong database
+        $cccdList = $meta['checkin_cccd_list'] ?? [];
+        $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
+        
+        // Backward compatibility: kiểm tra CCCD cũ
+        if (!$hasCCCD) {
+            $hasCCCD = !empty($meta['checkin_cccd_front']) 
+                || !empty($meta['checkin_cccd_back']) 
+                || !empty($meta['checkin_cccd']);
+        }
+        
+        // QUAN TRỌNG: Kiểm tra xem user có ĐANG SUBMIT ảnh CCCD mới không
+        // Hỗ trợ cả format cũ (1 người) và format mới (nhiều người)
+        $isSubmittingNewCCCD = $request->hasFile('cccd_image_front') || $request->hasFile('cccd_image_back');
+        
+        // Kiểm tra format mới (nhiều người): cccd_image_front_0, cccd_image_back_0, etc.
+        if (!$isSubmittingNewCCCD) {
+            $allFiles = $request->allFiles();
+            foreach ($allFiles as $key => $file) {
+                if (preg_match('/^cccd_image_(front|back)_\d+$/', $key)) {
+                    $isSubmittingNewCCCD = true;
+                    break;
+                }
+            }
+        }
+        
+        // Chỉ báo lỗi nếu KHÔNG có CCCD cũ VÀ KHÔNG submit CCCD mới
+        if (!$hasCCCD && !$isSubmittingNewCCCD) {
+            return redirect()->back()->with('error', "Cần nhập CCCD/CMND trước khi check-in.");
+        }
+
+        $phongIds = collect($booking->datPhongItems)->pluck('phong_id')->filter()->toArray();
+
+        $hasDonDep = false;
+        if (!empty($phongIds)) {
+            $hasDonDep = \App\Models\Phong::whereIn('id', $phongIds)->where('don_dep', true)->exists();
+        }
+
+        if ($hasDonDep) {
+            return redirect()->back()->with('error', 'Không thể check-in: Một hoặc nhiều phòng đang dọn dẹp. Vui lòng kiểm tra lại sau.');
+        }
 
         if (!in_array($booking->trang_thai, ['da_xac_nhan', 'da_gan_phong'])) {
             return redirect()->back()->with('error', 'Booking không thể check-in');
@@ -293,22 +436,118 @@ class StaffController extends Controller
         }
 
         DB::transaction(function () use ($booking, $request) {
-            // Lưu CCCD vào snapshot_meta
-            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-            $meta['checkin_cccd'] = $request->cccd;
+            // Xóa ảnh cũ nếu có
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                /** @var string $snapshotMeta */
+                $snapshotMeta = $booking->snapshot_meta;
+                $meta = json_decode($snapshotMeta, true) ?? [];
+            } else {
+                $meta = [];
+            }
+
+            // Xóa ảnh cũ trong checkin_cccd_list nếu có
+            if (!empty($meta['checkin_cccd_list']) && is_array($meta['checkin_cccd_list'])) {
+                foreach ($meta['checkin_cccd_list'] as $cccdItem) {
+                    if (!empty($cccdItem['front']) && Storage::disk('public')->exists($cccdItem['front'])) {
+                        Storage::disk('public')->delete($cccdItem['front']);
+                    }
+                    if (!empty($cccdItem['back']) && Storage::disk('public')->exists($cccdItem['back'])) {
+                        Storage::disk('public')->delete($cccdItem['back']);
+                    }
+                }
+            }
+            
+            // Xóa ảnh cũ (backward compatibility)
+            if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
+                Storage::disk('public')->delete($meta['checkin_cccd']);
+            }
+            if (!empty($meta['checkin_cccd_front']) && Storage::disk('public')->exists($meta['checkin_cccd_front'])) {
+                Storage::disk('public')->delete($meta['checkin_cccd_front']);
+            }
+            if (!empty($meta['checkin_cccd_back']) && Storage::disk('public')->exists($meta['checkin_cccd_back'])) {
+                Storage::disk('public')->delete($meta['checkin_cccd_back']);
+            }
+
+            // Lưu ảnh mới - hỗ trợ cả format cũ (1 người) và format mới (nhiều người)
+            $cccdList = [];
+            
+            // Kiểm tra format mới (nhiều người): cccd_image_front_0, cccd_image_back_0, etc.
+            $allFiles = $request->allFiles();
+            $hasMultiplePeople = false;
+            $maxIndex = -1;
+            
+            foreach ($allFiles as $key => $file) {
+                if (preg_match('/^cccd_image_(front|back)_(\d+)$/', $key, $matches)) {
+                    $hasMultiplePeople = true;
+                    $index = (int) $matches[2];
+                    if ($index > $maxIndex) {
+                        $maxIndex = $index;
+                    }
+                }
+            }
+            
+            if ($hasMultiplePeople && $maxIndex >= 0) {
+                // Format mới: lưu nhiều người vào checkin_cccd_list
+                for ($i = 0; $i <= $maxIndex; $i++) {
+                    if ($request->hasFile("cccd_image_front_{$i}") && $request->hasFile("cccd_image_back_{$i}")) {
+                        $frontImagePath = $request->file("cccd_image_front_{$i}")->store('cccd', 'public');
+                        $backImagePath = $request->file("cccd_image_back_{$i}")->store('cccd', 'public');
+                        
+                        $cccdList[] = [
+                            'front' => $frontImagePath,
+                            'back' => $backImagePath,
+                        ];
+                    }
+                }
+                
+                $meta['checkin_cccd_list'] = $cccdList;
+                $meta['cccd_count'] = count($cccdList);
+                
+                // Giữ backward compatibility (lưu CCCD đầu tiên)
+                if (!empty($cccdList[0])) {
+                    $meta['checkin_cccd_front'] = $cccdList[0]['front'];
+                    $meta['checkin_cccd_back'] = $cccdList[0]['back'];
+                    $meta['checkin_cccd'] = $cccdList[0]['front'];
+                }
+            } else {
+                // Format cũ: 1 người (backward compatibility)
+                if ($request->hasFile('cccd_image_front') && $request->hasFile('cccd_image_back')) {
+                    $frontImagePath = $request->file('cccd_image_front')->store('cccd', 'public');
+                    $backImagePath = $request->file('cccd_image_back')->store('cccd', 'public');
+                    
+                    $cccdList[] = [
+                        'front' => $frontImagePath,
+                        'back' => $backImagePath,
+                    ];
+                    
+                    $meta['checkin_cccd_list'] = $cccdList;
+                    $meta['cccd_count'] = 1;
+                    $meta['checkin_cccd_front'] = $frontImagePath;
+                    $meta['checkin_cccd_back'] = $backImagePath;
+                    $meta['checkin_cccd'] = $frontImagePath;
+                }
+            }
+            
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
             $booking->update([
                 'trang_thai' => 'dang_su_dung',
                 'checked_in_at' => now(),
+                'checked_in_by' => Auth::id(),
                 'snapshot_meta' => $meta,
             ]);
 
             $phongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
             if (!empty($phongIds)) {
-                Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o']);
+                Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_o', 'don_dep' => false, 'updated_at' => now()]);
             }
+
+            // Gửi thông báo check-in
+            $notificationService = new PaymentNotificationService();
+            $notificationService->sendCheckinNotification($booking);
         });
 
         return redirect()->route('staff.checkin')
@@ -319,28 +558,103 @@ class StaffController extends Controller
     {
         $request->validate([
             'booking_id' => 'required|exists:dat_phong,id',
-            'cccd' => 'required|string|min:9|max:12|regex:/^[0-9]+$/',
+            'cccd_count' => 'required|integer|min:1|max:20',
         ], [
-            'cccd.required' => 'Vui lòng nhập số CCCD/CMND',
-            'cccd.regex' => 'Số CCCD/CMND chỉ được chứa chữ số',
-            'cccd.min' => 'Số CCCD/CMND phải có ít nhất 9 chữ số',
-            'cccd.max' => 'Số CCCD/CMND không được vượt quá 12 chữ số',
+            'cccd_count.required' => 'Vui lòng nhập số lượng CCCD cần nhập',
+            'cccd_count.integer' => 'Số lượng CCCD phải là số nguyên',
+            'cccd_count.min' => 'Số lượng CCCD phải lớn hơn 0',
+            'cccd_count.max' => 'Số lượng CCCD không được vượt quá 20',
         ]);
-
+        
         $booking = DatPhong::findOrFail($request->booking_id);
+        if (is_array($booking->snapshot_meta)) {
+            $meta = $booking->snapshot_meta;
+        } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+            /** @var string $snapshotMeta */
+            $snapshotMeta = $booking->snapshot_meta;
+            $meta = json_decode($snapshotMeta, true) ?? [];
+        } else {
+            $meta = [];
+        }
+        
+        // Lấy số lượng CCCD từ input
+        $cccdCount = (int) $request->input('cccd_count', 1);
+        
+        // Validation: yêu cầu đủ số lượng CCCD đã nhập
+        $validationRules = [];
+        $validationMessages = [];
+        
+        for ($i = 0; $i < $cccdCount; $i++) {
+            $validationRules["cccd_image_front_{$i}"] = 'required|image|mimes:jpeg,jpg,png,webp|max:5120';
+            $validationRules["cccd_image_back_{$i}"] = 'required|image|mimes:jpeg,jpg,png,webp|max:5120';
+            
+            $validationMessages["cccd_image_front_{$i}.required"] = "Vui lòng chọn ảnh mặt trước CCCD/CMND của người thứ " . ($i + 1);
+            $validationMessages["cccd_image_back_{$i}.required"] = "Vui lòng chọn ảnh mặt sau CCCD/CMND của người thứ " . ($i + 1);
+            $validationMessages["cccd_image_front_{$i}.image"] = "File mặt trước của người thứ " . ($i + 1) . " phải là ảnh";
+            $validationMessages["cccd_image_back_{$i}.image"] = "File mặt sau của người thứ " . ($i + 1) . " phải là ảnh";
+            $validationMessages["cccd_image_front_{$i}.mimes"] = "Ảnh mặt trước của người thứ " . ($i + 1) . " phải có định dạng: jpeg, jpg, png, hoặc webp";
+            $validationMessages["cccd_image_back_{$i}.mimes"] = "Ảnh mặt sau của người thứ " . ($i + 1) . " phải có định dạng: jpeg, jpg, png, hoặc webp";
+            $validationMessages["cccd_image_front_{$i}.max"] = "Kích thước ảnh mặt trước của người thứ " . ($i + 1) . " không được vượt quá 5MB";
+            $validationMessages["cccd_image_back_{$i}.max"] = "Kích thước ảnh mặt sau của người thứ " . ($i + 1) . " không được vượt quá 5MB";
+        }
+        
+        $request->validate($validationRules, $validationMessages);
 
-        // Lưu CCCD vào snapshot_meta (chưa check-in)
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
-        $meta['checkin_cccd'] = $request->cccd;
+        // Xóa ảnh cũ nếu có
+        if (!empty($meta['checkin_cccd_list']) && is_array($meta['checkin_cccd_list'])) {
+            foreach ($meta['checkin_cccd_list'] as $cccdItem) {
+                if (!empty($cccdItem['front']) && Storage::disk('public')->exists($cccdItem['front'])) {
+                    Storage::disk('public')->delete($cccdItem['front']);
+                }
+                if (!empty($cccdItem['back']) && Storage::disk('public')->exists($cccdItem['back'])) {
+                    Storage::disk('public')->delete($cccdItem['back']);
+                }
+            }
+        }
+        
+        // Xóa ảnh cũ (backward compatibility)
+        if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd']);
+        }
+        if (!empty($meta['checkin_cccd_front']) && Storage::disk('public')->exists($meta['checkin_cccd_front'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd_front']);
+        }
+        if (!empty($meta['checkin_cccd_back']) && Storage::disk('public')->exists($meta['checkin_cccd_back'])) {
+            Storage::disk('public')->delete($meta['checkin_cccd_back']);
+        }
+
+        // Lưu ảnh mới cho từng người
+        $cccdList = [];
+        for ($i = 0; $i < $cccdCount; $i++) {
+            $frontImagePath = $request->file("cccd_image_front_{$i}")->store('cccd', 'public');
+            $backImagePath = $request->file("cccd_image_back_{$i}")->store('cccd', 'public');
+            
+            $cccdList[] = [
+                'front' => $frontImagePath,
+                'back' => $backImagePath,
+            ];
+        }
+
+        // Lưu đường dẫn ảnh vào snapshot_meta
+        $meta['checkin_cccd_list'] = $cccdList;
+        $meta['cccd_count'] = $cccdCount; // Lưu số lượng CCCD đã nhập
+        
+        // Giữ backward compatibility (lưu CCCD đầu tiên)
+        if (!empty($cccdList[0])) {
+            $meta['checkin_cccd_front'] = $cccdList[0]['front'];
+            $meta['checkin_cccd_back'] = $cccdList[0]['back'];
+            $meta['checkin_cccd'] = $cccdList[0]['front'];
+        }
+        
         $meta['cccd_saved_at'] = now()->toDateTimeString();
-        $meta['cccd_saved_by'] = auth()->id();
+        $meta['cccd_saved_by'] = Auth::id();
 
         $booking->update([
             'snapshot_meta' => $meta,
         ]);
 
         return redirect()->route('staff.checkin')
-            ->with('success', 'Đã lưu số CCCD/CMND cho booking ' . $booking->ma_tham_chieu);
+            ->with('success', "Đã lưu ảnh CCCD/CMND cho {$cccdCount} người trong booking " . $booking->ma_tham_chieu);
     }
 
     public function checkoutForm()
@@ -352,28 +666,6 @@ class StaffController extends Controller
         return view('staff.checkout', compact('bookings'));
     }
 
-    // public function processCheckout(Request $request)
-    // {
-    //     $request->validate([
-    //         'booking_id' => 'required|exists:dat_phong,id'
-    //     ]);
-    //     $booking = DatPhong::findOrFail($request->booking_id);
-    //     if (!in_array($booking->trang_thai, ['da_gan_phong', 'dang_o'])) {
-    //         return redirect()->back()->with('error', 'Booking không thể check-out');
-    //     }
-    //     DB::transaction(function () use ($booking) {
-    //         $booking->update([
-    //             'trang_thai' => 'hoan_thanh',
-    //             'can_xac_nhan' => false,
-    //         ]);
-    //         $phongIds = $booking->datPhongItems->pluck('phong_id')->toArray();
-    //         Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'dang_don_dep']);
-    //         PhongDaDat::whereIn('phong_id', $phongIds)
-    //             ->whereIn('dat_phong_item_id', $booking->datPhongItems->pluck('id'))
-    //             ->update(['trang_thai' => 'hoan_thanh']);
-    //     });
-    //     return redirect()->route('staff.rooms')->with('success', 'Check-out thành công cho booking #' . $booking->ma_tham_chieu);
-    // }
 
     public function pendingPayments()
     {
@@ -395,78 +687,6 @@ class StaffController extends Controller
         return view('staff.bookings', compact('bookings'));
     }
 
-    // public function pendingBookings()
-    // {
-    //     $bookings = DatPhong::whereIn('trang_thai', ['dang_cho', 'dang_cho_xac_nhan'])
-    //         ->with(['nguoiDung', 'datPhongItems.loaiPhong', 'phongDaDats.phong'])
-    //         ->paginate(10);
-    //     $availableRooms = Phong::where('trang_thai', 'trong')
-    //         ->with(['tang', 'loaiPhong'])
-    //         ->get();
-    //     return view('staff.pending-bookings', compact('bookings', 'availableRooms'));
-    // }
-
-    // public function confirm(Request $request, $id)
-    // {
-    //     $request->validate([
-    //         'phong_id' => 'nullable|exists:phong,id',
-    //         'dat_phong_id' => 'required|exists:dat_phong,id',
-    //         'staff_id' => 'required|exists:users,id'
-    //     ]);
-    //     $dat_phong = DatPhong::findOrFail($request->dat_phong_id);
-    //     if ($dat_phong->trang_thai !== 'dang_cho_xac_nhan') {
-    //         return response()->json(['error' => 'Booking không thể xác nhận ở trạng thái hiện tại'], 400);
-    //     }
-    //     $booking = DatPhong::with('datPhongItems.loaiPhong')->findOrFail($id);
-    //     if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
-    //         return redirect()->back()->with('error', 'Booking không thể xác nhận.');
-    //     }
-    //     DB::transaction(function () use ($booking, $request) {
-
-    //         if (is_null($booking->deposit_amount) || $booking->deposit_amount == 0) {
-    //             $booking->deposit_amount = $request->deposit_amount ?? ($booking->tong_tien * 0.2);
-    //         }
-    //         $booking->trang_thai = 'da_xac_nhan';
-    //         $booking->save();
-    //         $datPhongItem = $booking->datPhongItems->first();
-    //         if (!$datPhongItem) {
-    //             $loaiPhong = LoaiPhong::first();
-    //             if (!$loaiPhong) {
-    //                 throw new \Exception('Chưa có loại phòng nào trong hệ thống.');
-    //             }
-    //             $datPhongItem = DatPhongItem::create([
-    //                 'dat_phong_id' => $booking->id,
-    //                 'loai_phong_id' => $loaiPhong->id,
-    //                 'so_luong' => 1,
-    //                 'gia_tren_dem' => $loaiPhong->gia_tren_dem ?? 0,
-    //                 'so_dem' => $loaiPhong->so_dem ?? 1,
-    //             ]);
-    //         }
-    //         if ($request->filled('phong_id')) {
-    //             $phong_id = $request->phong_id;
-    //             if ($this->checkAvailability($phong_id, $booking->ngay_nhan_phong, $booking->ngay_tra_phong)) {
-    //                 PhongDaDat::create([
-    //                     'dat_phong_item_id' => $datPhongItem->id,
-    //                     'phong_id' => $phong_id,
-    //                     'trang_thai' => 'da_dat',
-    //                     'checkin_datetime' => $booking->ngay_nhan_phong,
-    //                     'checkout_datetime' => $booking->ngay_tra_phong,
-    //                 ]);
-    //                 Phong::find($phong_id)->update(['trang_thai' => 'da_dat']);
-    //                 $booking->trang_thai = 'da_gan_phong';
-    //                 $booking->save();
-    //             } else {
-    //                 throw new \Exception('Phòng không khả dụng.');
-    //             }
-    //         }
-    //     });
-    //     if ($booking->trang_thai === 'da_gan_phong') {
-    //         return redirect()->route('staff.index')
-    //             ->with('success', 'Booking đã được xác nhận và gán phòng thành công.');
-    //     }
-    //     return redirect()->route('staff.assign-rooms', $booking->id)
-    //         ->with('success', 'Booking đã được xác nhận. Vui lòng tiến hành gán phòng.');
-    // }
 
     protected function checkAvailability($phong_id, $start, $end)
     {
@@ -527,7 +747,7 @@ class StaffController extends Controller
             }
         }
 
-        $rooms = $query->orderBy('ma_phong')->paginate(10);
+        $rooms = $query->orderBy('ma_phong')->paginate(12);
 
         return view('staff.rooms', compact('rooms'));
     }
@@ -576,7 +796,15 @@ class StaffController extends Controller
         // Thực hiện check-in
         DB::transaction(function () use ($booking, $room) {
             // Cập nhật meta với thông tin check-in (giữ nguyên CCCD nếu đã có)
-            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                /** @var string $snapshotMeta */
+                $snapshotMeta = $booking->snapshot_meta;
+                $meta = json_decode($snapshotMeta, true) ?? [];
+            } else {
+                $meta = [];
+            }
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
@@ -584,6 +812,7 @@ class StaffController extends Controller
             $booking->update([
                 'trang_thai' => 'dang_su_dung',
                 'checked_in_at' => now(),
+                'checked_in_by' => Auth::id(),
                 'snapshot_meta' => $meta,
             ]);
 
@@ -591,6 +820,10 @@ class StaffController extends Controller
             $room->update([
                 'trang_thai' => 'dang_o',
             ]);
+
+            // Gửi thông báo check-in
+            $notificationService = new PaymentNotificationService();
+            $notificationService->sendCheckinNotification($booking);
         });
 
         return redirect()->route('staff.rooms')
@@ -599,9 +832,17 @@ class StaffController extends Controller
 
     public function showBooking(DatPhong $booking)
     {
-        $booking->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'nguoiDung', 'giaoDichs']);
+        $booking->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'nguoiDung', 'checkedInBy', 'giaoDichs']);
 
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        if (is_array($booking->snapshot_meta)) {
+            $meta = $booking->snapshot_meta;
+        } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+            /** @var string $snapshotMeta */
+            $snapshotMeta = $booking->snapshot_meta;
+            $meta = json_decode($snapshotMeta, true) ?? [];
+        } else {
+            $meta = [];
+        }
 
         $roomIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
 
@@ -697,6 +938,45 @@ class StaffController extends Controller
             }
         }
 
+        $refundItems = \App\Models\HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
+            $q->where('dat_phong_id', $booking->id);
+        })->where('type', 'refund')->get();
+
+        $earlyRefundTotal = 0;
+        if ($refundItems->isNotEmpty()) {
+            $earlyRefundTotal = $refundItems->sum('amount');
+            $earlyRefundTotal = $earlyRefundTotal < 0 ? abs($earlyRefundTotal) : $earlyRefundTotal;
+        }
+
+        $finalInvoice = null;
+        $finalInvoiceTotal = null;
+        $finalInvoiceId = null;
+        if ($booking->trang_thai === 'hoan_thanh') {
+            $finalInvoice = HoaDon::where('dat_phong_id', $booking->id)
+                ->where('trang_thai', 'da_thanh_toan')
+                ->orderByDesc('id')
+                ->first()
+                ?? HoaDon::where('dat_phong_id', $booking->id)
+                ->orderByDesc('id')
+                ->first();
+
+            if ($finalInvoice) {
+                $finalInvoiceTotal = (float) $finalInvoice->tong_thuc_thu;
+                $finalInvoiceId = $finalInvoice->id;
+            }
+        }
+
+        $lateFeeTotal = 0;
+        $lateItems = \App\Models\HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
+            $q->where('dat_phong_id', $booking->id);
+        })->where('type', 'late_fee')->get();
+
+        if ($lateItems->isNotEmpty()) {
+            $lateFeeTotal = (float) $lateItems->sum('amount');
+        } else {
+            $lateFeeTotal = (float) ($booking->late_checkout_fee_amount ?? 0);
+        }
+
         return view('staff.bookings.show', compact(
             'booking',
             'meta',
@@ -705,17 +985,402 @@ class StaffController extends Controller
             'instances',
             'incidentsByInstance',
             'bookingMap',
-            'roomLinesFromInvoice'
+            'roomLinesFromInvoice',
+            'earlyRefundTotal',
+            'finalInvoice',
+            'finalInvoiceTotal',
+            'finalInvoiceId',
+            'lateFeeTotal'
         ));
     }
 
+    /**
+     * Cancel a booking (staff-side) with advanced refund policy
+     */
     public function cancel($id)
     {
         $booking = DatPhong::findOrFail($id);
-        if (!in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan'])) {
-            return redirect()->back()->with('error', 'Chỉ có thể hủy booking chờ xác nhận.');
+
+        // Check if the booking status allows cancellation
+        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+            return back()->with('error', 'Không thể hủy đặt phòng với trạng thái hiện tại: ' . $booking->trang_thai);
         }
-        $booking->update(['trang_thai' => 'da_huy']);
-        return redirect()->route('staff.pending-bookings')->with('success', 'Booking đã được hủy thành công.');
+
+        try {
+            DB::beginTransaction();
+
+            // Calculate refund using advanced policy (Option B)
+            $checkInDate = Carbon::parse($booking->ngay_nhan_phong);
+            $now = Carbon::now();
+            $daysUntilCheckIn = $now->diffInDays($checkInDate, false); // FIXED: now->diffInDays(checkIn) gives positive if future
+            
+            // Determine deposit type from snapshot_meta
+            $meta = $booking->snapshot_meta ?? [];
+            $depositType = $meta['deposit_percentage'] ?? 50;
+            
+            // Calculate refund percentage using Option B logic
+            $refundPercentage = $this->calculateRefundPercentage($daysUntilCheckIn, $depositType);
+            
+            // Calculate refund amount
+            $paidAmount = $booking->deposit_amount ?? 0;
+            $refundAmount = $paidAmount * ($refundPercentage / 100);
+
+            // Update booking status to cancelled with refund info
+            $booking->update([
+                'trang_thai' => 'da_huy',
+                'refund_amount' => $refundAmount,
+                'refund_percentage' => $refundPercentage,
+                'cancelled_at' => now(),
+                'cancellation_reason' => 'Admin/Staff hủy đặt phòng'
+            ]);
+
+            // Delete giu_phong records
+            if (Schema::hasTable('giu_phong')) {
+                DB::table('giu_phong')
+                    ->where('dat_phong_id', $booking->id)
+                    ->delete();
+            }
+
+            // NOTE: Do NOT change existing successful transactions to 'that_bai'
+            // Keep audit trail of actual money received
+            // If refund needed, create NEW refund transaction instead
+            
+            // Create refund transaction if refund amount > 0
+            if ($refundAmount > 0) {
+                \App\Models\GiaoDich::create([
+                    'dat_phong_id' => $booking->id,
+                    'so_tien' => $refundAmount,
+                    'trang_thai' => 'da_hoan',
+                    'nha_cung_cap' => 'Hoàn tiền hủy phòng',
+                    'ghi_chu' => "Hoàn {$refundPercentage}% tiền cọc do staff hủy booking",
+                ]);
+            }
+
+            // Delete dat_phong_items
+            \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+
+            // Create refund request if refund amount > 0
+            if ($refundAmount > 0) {
+                \App\Models\RefundRequest::create([
+                    'dat_phong_id' => $booking->id,
+                    'amount' => $refundAmount,
+                    'percentage' => $refundPercentage,
+                    'status' => 'pending',
+                    'requested_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+
+            Log::info('Booking cancelled by staff with refund', [
+                'booking_id' => $booking->id,
+                'ma_tham_chieu' => $booking->ma_tham_chieu,
+                'days_until_checkin' => $daysUntilCheckIn,
+                'deposit_type' => $depositType,
+                'refund_percentage' => $refundPercentage,
+                'refund_amount' => $refundAmount,
+            ]);
+
+            $message = 'Đã hủy đặt phòng thành công. ';
+            if ($refundAmount > 0) {
+                $message .= sprintf(
+                    'Số tiền hoàn: %s ₫ (%d%%).',
+                    number_format($refundAmount, 0, ',', '.'),
+                    $refundPercentage
+                );
+            } else {
+                $message .= 'Không có tiền hoàn.';
+            }
+
+            return back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Staff booking cancellation error', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Có lỗi xảy ra khi hủy đặt phòng.');
+        }
+    }
+
+    /**
+     * Calculate refund percentage based on Option B policy
+     */
+    private function calculateRefundPercentage(int $daysUntilCheckIn, int $depositType): int
+    {
+        if ($depositType == 100) {
+            // Thanh toán 100% - được ưu đãi khi hủy
+            if ($daysUntilCheckIn >= 7) {
+                return 90;
+            } elseif ($daysUntilCheckIn >= 3) {
+                return 60;
+            } elseif ($daysUntilCheckIn >= 1) {
+                return 40;
+            } else {
+                return 20;
+            }
+        } else {
+            // Đặt cọc 50% - policy thông thường
+            if ($daysUntilCheckIn >= 7) {
+                return 100;
+            } elseif ($daysUntilCheckIn >= 3) {
+                return 70;
+            } elseif ($daysUntilCheckIn >= 1) {
+                return 30;
+            } else {
+                return 0;
+            }
+        }
+    }
+
+    /**
+     * Room Analytics Dashboard
+     * Shows booking statistics by room type and individual rooms
+     */
+    public function roomAnalytics(Request $request)
+    {
+        // Get month/year from request or default to current
+        $month = $request->input('month', now()->month);
+        $year = $request->input('year', now()->year);
+        
+        // Create date for display
+        $selectedDate = Carbon::create($year, $month, 1);
+        
+        // === 1. Stats by Room Type ===
+        $roomTypeStats = DB::table('dat_phong_item as dpi')
+            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
+            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('dp.ngay_nhan_phong', $year)
+            ->whereMonth('dp.ngay_nhan_phong', $month)
+            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT dp.id) as total_bookings'),
+                DB::raw('SUM(dpi.tong_item) as total_revenue')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->get();
+        
+        // Get total rooms per type for occupancy calculation
+        $roomCounts = DB::table('phong')
+            ->select('loai_phong_id', DB::raw('COUNT(*) as total_rooms'))
+            ->groupBy('loai_phong_id')
+            ->pluck('total_rooms', 'loai_phong_id');
+        
+        // Calculate occupancy rate (days in month)
+        $daysInMonth = $selectedDate->daysInMonth;
+        
+        // Enhance room type stats with totals and occupancy
+        $roomTypeStats = $roomTypeStats->map(function($stat) use ($roomCounts, $daysInMonth) {
+            $totalRooms = $roomCounts[$stat->id] ?? 0;
+            $maxPossibleBookings = $totalRooms * $daysInMonth;
+            $occupancyRate = $maxPossibleBookings > 0 
+                ? round(($stat->total_bookings / $maxPossibleBookings) * 100, 1)
+                : 0;
+            
+            return (object)[
+                'id' => $stat->id,
+                'ten' => $stat->ten,
+                'total_rooms' => $totalRooms,
+                'total_bookings' => $stat->total_bookings,
+                'total_revenue' => $stat->total_revenue ?? 0,
+                'occupancy_rate' => $occupancyRate
+            ];
+        });
+        
+        // === 2. Stats by Individual Room ===
+        $roomStats = DB::table('phong as p')
+            ->leftJoin('dat_phong_item as dpi', 'p.id', '=', 'dpi.phong_id')
+            ->leftJoin('dat_phong as dp', function($join) use ($year, $month) {
+                $join->on('dpi.dat_phong_id', '=', 'dp.id')
+                    ->whereYear('dp.ngay_nhan_phong', '=', $year)
+                    ->whereMonth('dp.ngay_nhan_phong', '=', $month)
+                    ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh']);
+            })
+            ->join('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT CASE WHEN dp.id IS NOT NULL THEN dp.id END) as booking_count'),
+                DB::raw('SUM(CASE WHEN dp.id IS NOT NULL THEN dpi.tong_item ELSE 0 END) as revenue')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderBy('lp.ten')
+            ->orderBy('p.ma_phong')
+            ->get();
+        
+        // Calculate occupancy for each room
+        $roomStats = $roomStats->map(function($room) use ($daysInMonth) {
+            $occupancyRate = $daysInMonth > 0 
+                ? round(($room->booking_count / $daysInMonth) * 100, 1)
+                : 0;
+            
+            $room->occupancy_rate = $occupancyRate;
+            return $room;
+        });
+        
+        // === 3. Prepare Chart Data ===
+        $chartLabels = $roomTypeStats->pluck('ten')->toArray();
+        $chartData = $roomTypeStats->pluck('total_bookings')->toArray();
+        
+        // === 4. Generate month options for filter ===
+        $monthOptions = [];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthOptions[$i] = Carbon::create(null, $i, 1)->locale('vi')->translatedFormat('F');
+        }
+        
+        $yearOptions = range(date('Y'), date('Y') - 3); // Last 3 years
+        
+        return view('staff.analytics.rooms', compact(
+            'roomTypeStats',
+            'roomStats',
+            'chartLabels',
+            'chartData',
+            'selectedDate',
+            'month',
+            'year',
+            'monthOptions',
+            'yearOptions'
+        ));
+    }
+
+    /**
+     * Export Room Analytics as PDF
+     * Simple HTML export that can be printed to PDF
+     */
+    public function exportRoomAnalyticsPDF(Request $request)
+    {
+        $month = $request->input('month', now()->month);
+        $year = $request->input('year', now()->year);
+        $selectedDate = Carbon::create($year, $month, 1);
+        
+        // Reuse same queries from roomAnalytics
+        $roomTypeStats = DB::table('dat_phong_item as dpi')
+            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
+            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('dp.ngay_nhan_phong', $year)
+            ->whereMonth('dp.ngay_nhan_phong', $month)
+            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT dp.id) as total_bookings'),
+                DB::raw('SUM(dpi.tong_item) as total_revenue')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->get();
+        
+        $roomCounts = DB::table('phong')
+            ->select('loai_phong_id', DB::raw('COUNT(*) as total_rooms'))
+            ->groupBy('loai_phong_id')
+            ->pluck('total_rooms', 'loai_phong_id');
+        
+        $daysInMonth = $selectedDate->daysInMonth;
+        
+        $roomTypeStats = $roomTypeStats->map(function($stat) use ($roomCounts, $daysInMonth) {
+            $totalRooms = $roomCounts[$stat->id] ?? 0;
+            $maxPossibleBookings = $totalRooms * $daysInMonth;
+            $occupancyRate = $maxPossibleBookings > 0 
+                ? round(($stat->total_bookings / $maxPossibleBookings) * 100, 1)
+                : 0;
+            
+            return (object)[
+                'id' => $stat->id,
+                'ten' => $stat->ten,
+                'total_rooms' => $totalRooms,
+                'total_bookings' => $stat->total_bookings,
+                'total_revenue' => $stat->total_revenue ?? 0,
+                'occupancy_rate' => $occupancyRate
+            ];
+        });
+        
+        $roomStats = DB::table('phong as p')
+            ->leftJoin('dat_phong_item as dpi', 'p.id', '=', 'dpi.phong_id')
+            ->leftJoin('dat_phong as dp', function($join) use ($year, $month) {
+                $join->on('dpi.dat_phong_id', '=', 'dp.id')
+                    ->whereYear('dp.ngay_nhan_phong', '=', $year)
+                    ->whereMonth('dp.ngay_nhan_phong', '=', $month)
+                    ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh']);
+            })
+            ->join('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten',
+                DB::raw('COUNT(DISTINCT CASE WHEN dp.id IS NOT NULL THEN dp.id END) as booking_count'),
+                DB::raw('SUM(CASE WHEN dp.id IS NOT NULL THEN dpi.tong_item ELSE 0 END) as revenue')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderBy('lp.ten')
+            ->orderBy('p.ma_phong')
+            ->get();
+        
+        $roomStats = $roomStats->map(function($room) use ($daysInMonth) {
+            $occupancyRate = $daysInMonth > 0 
+                ? round(($room->booking_count / $daysInMonth) * 100, 1)
+                : 0;
+            
+            $room->occupancy_rate = $occupancyRate;
+            return $room;
+        });
+        
+        // Return printable HTML view
+        return view('staff.analytics.rooms-pdf', compact(
+            'roomTypeStats',
+            'roomStats',
+            'selectedDate'
+        ));
+    }
+
+    public function clearRoomCleaning(Request $request, DatPhong $booking, Phong $room)
+    {
+        // Kiểm tra quyền (middleware role:nhan_vien|admin đã có ở route group)
+        // Kiểm tra booking phải đang ở trạng thái da_xac_nhan (theo yêu cầu)
+        if ($booking->id !== (int)$booking->id) {
+            // chưa cần, DatPhong binding đã đảm bảo
+        }
+
+        if (!in_array($booking->trang_thai, ['da_xac_nhan'])) {
+            // trả về cho UI
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'Booking không hợp lệ để thao tác.'], 422);
+            }
+            return redirect()->back()->with('error', 'Chỉ có booking trạng thái "đã xác nhận" mới cho phép thao tác dọn dẹp.');
+        }
+
+        // kiểm tra phòng thuộc booking
+        $roomIds = $booking->datPhongItems->pluck('phong_id')->filter()->map(fn($v) => (int)$v)->toArray();
+        if (!in_array($room->id, $roomIds)) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'Phòng không thuộc booking này.'], 422);
+            }
+            return redirect()->back()->with('error', 'Phòng không thuộc booking này.');
+        }
+
+        if (! (bool) $room->don_dep) {
+            if ($request->wantsJson()) {
+                return response()->json(['message' => 'Phòng đã được đánh dấu là đã dọn.'], 200);
+            }
+            return redirect()->back()->with('info', 'Phòng đã được đánh dấu là đã dọn.');
+        }
+
+        DB::transaction(function () use ($room) {
+            $room->don_dep = false;
+            $room->updated_at = now();
+            $room->save();
+            Log::info('Room cleaned by staff', ['room_id' => $room->id, 'by_user_id' => Auth::id() ?? null]);
+        });
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Đã cập nhật: phòng đã được đánh dấu là đã dọn xong.', 'room_id' => $room->id]);
+        }
+        return redirect()->back()->with('success', 'Đã đánh dấu phòng là đã dọn xong.');
     }
 }

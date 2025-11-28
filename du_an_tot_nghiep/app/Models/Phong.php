@@ -2,17 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 class Phong extends Model
 {
     use HasFactory;
-
+    use Auditable;
     protected $table = 'phong';
 
     protected $fillable = [
@@ -27,6 +28,7 @@ class Phong extends Model
         'gia_cuoi_cung',
         'img',
         'trang_thai',
+        'don_dep',
         'last_checked_at',
         'spec_signature_hash',
     ];
@@ -37,6 +39,7 @@ class Phong extends Model
         'gia_mac_dinh' => 'decimal:2',
         'gia_cuoi_cung' => 'decimal:2',
         'last_checked_at' => 'datetime',
+        'don_dep' => 'boolean',
     ];
 
     public function loaiPhong()

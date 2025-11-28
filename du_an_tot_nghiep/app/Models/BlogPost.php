@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
+use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 class BlogPost extends Model
 {
     //
     use SoftDeletes;
+    use Auditable;
 
     protected $fillable = [
         'user_id',

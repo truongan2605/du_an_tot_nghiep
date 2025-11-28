@@ -102,7 +102,7 @@
                 <em>Chọn loại phòng để xem cấu hình giường.</em>
             </div>
 
-            <h6 class="mt-3">Tiện nghi (theo loại phòng — không thể chỉnh ở cấp phòng)</h6>
+            <h6 class="mt-3">Dịch vụ (theo loại phòng — không thể chỉnh ở cấp phòng)</h6>
             <div class="mb-2">
                 <div id="amenities_checkbox_list" class="d-flex flex-wrap gap-2">
                     @foreach ($tienNghis as $tn)

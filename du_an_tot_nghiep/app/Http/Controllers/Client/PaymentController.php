@@ -17,6 +17,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use App\Services\PaymentNotificationService;
 
 class PaymentController extends Controller
 {
@@ -30,14 +31,20 @@ class PaymentController extends Controller
     public function initiateVNPay(Request $request)
     {
         Log::info('initiateVNPay request:', $request->all());
+        Log::info('DEBUG: deposit_percentage value', [
+            'deposit_percentage' => $request->input('deposit_percentage'),
+            'has_deposit' => $request->has('deposit_percentage')
+        ]);
 
         try {
+            // Validate input data
             $validated = $request->validate([
                 'phong_id' => 'required|exists:phong,id',
                 'ngay_nhan_phong' => 'required|date|after_or_equal:today',
                 'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
                 'amount' => 'required|numeric|min:1',
-                'total_amount' => 'required|numeric|min:1|gte:amount',
+                'total_amount' => 'required|numeric|min:1',
+                'deposit_percentage' => 'nullable|in:50,100',  // Made nullable
                 'so_khach' => 'nullable|integer|min:1',
                 'adults' => 'required|integer|min:1',
                 'children' => 'nullable|integer|min:0',
@@ -48,13 +55,72 @@ class PaymentController extends Controller
                 'phuong_thuc' => 'required|in:vnpay',
                 'name' => 'required|string|max:255|min:2',
                 'address' => 'required|string|max:500|min:5',
-                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/|unique:dat_phong,contact_phone,NULL,id,nguoi_dung_id,'
+                'phone' => [
+                    'required',
+                    'string',
+                    'regex:/^0[1-9]\d{8,9}$/', // Chấp nhận số điện thoại Việt Nam: 0[1-9]xxxxxxx (9-10 chữ số)
+                    // Bỏ rule unique để cho phép user dùng lại số phone cho nhiều booking
+                ]
             ]);
 
-            // Kiểm tra tiền cọc ~ 20% tổng tiền client gửi lên
-            $expectedDepositFromClient = $validated['total_amount'] * 0.2;
-            if (abs($validated['amount'] - $expectedDepositFromClient) > 1000) {
-                return response()->json(['error' => 'Deposit không hợp lệ (phải khoảng 20% tổng)'], 400);
+            // Default to 50% if not provided (radio button not submitted)
+            $depositPercentage = isset($validated['deposit_percentage'])
+                ? (int) $validated['deposit_percentage']
+                : 50;
+
+            // Validate amount vs total_amount
+            // Frontend làm tròn amount lên hàng nghìn, nên amount có thể lớn hơn total_amount một chút
+            // Cho phép amount lớn hơn total_amount tối đa 2000 (do làm tròn)
+            if ($validated['amount'] > $validated['total_amount'] + 2000) {
+                return response()->json([
+                    'error' => "Số tiền thanh toán không hợp lệ (lớn hơn tổng tiền quá nhiều)"
+                ], 400);
+            }
+
+            // Validate amount matches deposit percentage (chỉ validate khi deposit < 100%)
+            // Khi 100%, chỉ cần kiểm tra amount gần bằng total_amount (đã kiểm tra ở trên)
+            if ($depositPercentage < 100) {
+                // Validate amount matches deposit percentage
+                // Frontend làm tròn lên đến hàng nghìn: Math.ceil(total * percentage / 1000) * 1000
+                // Nên ta cũng làm tròn tương tự để so sánh
+                $expectedDepositRaw = $validated['total_amount'] * ($depositPercentage / 100);
+                $expectedDepositRounded = ceil($expectedDepositRaw / 1000) * 1000;
+
+                // Cho phép sai số tối đa 2000 để tránh lỗi do làm tròn
+                // (frontend làm tròn lên, có thể chênh lệch tối đa ~1000, cộng thêm buffer)
+                $tolerance = 2000;
+                $difference = abs($validated['amount'] - $expectedDepositRounded);
+
+                if ($difference > $tolerance) {
+                    Log::warning('Deposit validation failed', [
+                        'amount' => $validated['amount'],
+                        'expected_raw' => $expectedDepositRaw,
+                        'expected_rounded' => $expectedDepositRounded,
+                        'total_amount' => $validated['total_amount'],
+                        'deposit_percentage' => $depositPercentage,
+                        'difference' => $difference,
+                    ]);
+                    return response()->json([
+                        'error' => "Deposit không hợp lệ (phải là {$depositPercentage}% tổng tiền). Amount: {$validated['amount']}, Expected: {$expectedDepositRounded}"
+                    ], 400);
+                }
+            } else {
+                // Khi 100%, validate amount gần bằng total_amount (đã làm tròn)
+                $expectedTotalRounded = ceil($validated['total_amount'] / 1000) * 1000;
+                $tolerance = 2000;
+                $difference = abs($validated['amount'] - $expectedTotalRounded);
+
+                if ($difference > $tolerance) {
+                    Log::warning('Full payment validation failed', [
+                        'amount' => $validated['amount'],
+                        'total_amount' => $validated['total_amount'],
+                        'expected_rounded' => $expectedTotalRounded,
+                        'difference' => $difference,
+                    ]);
+                    return response()->json([
+                        'error' => "Số tiền thanh toán không hợp lệ. Amount: {$validated['amount']}, Expected: {$expectedTotalRounded}"
+                    ], 400);
+                }
             }
 
             $phong = Phong::with(['loaiPhong', 'tienNghis', 'bedTypes', 'activeOverrides'])
@@ -167,46 +233,39 @@ class PaymentController extends Controller
                 )->toArray(),
 
                 'final_per_night' => $finalPerNightServer,
-                'nights'          => $nights,
-                'rooms_count'     => $roomsCount,
-                'tong_tien'       => $snapshotTotalServer,
-                'phuong_thuc'     => $validated['phuong_thuc'],
-                'contact_name'    => $validated['name'],
+                'nights' => $nights,
+                'rooms_count' => $roomsCount,
+                'tong_tien' => $snapshotTotalServer,
+                'deposit_percentage' => $depositPercentage,
+                'phuong_thuc' => $validated['phuong_thuc'],
+                'contact_name' => $validated['name'],
                 'contact_address' => $validated['address'],
                 'contact_phone'   => $validated['phone'],
             ];
 
             return DB::transaction(function () use (
-                $validated,
-                $maThamChieu,
-                $snapshotMeta,
-                $phong,
-                $request,
-                $from,
-                $to,
-                $nights,
-                $roomsCount,
-                $finalPerNightServer,
-                $snapshotTotalServer,
-                $selectedAddons
+                $validated, $maThamChieu, $snapshotMeta, $phong, $request, $from, $to, $nights,
+                $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons, $depositPercentage
             ) {
+                // Nếu thanh toán 100% thì không cần thanh toán thêm nữa
+                $canThanhToan = $depositPercentage < 100;
+
                 $dat_phong = DatPhong::create([
                     'ma_tham_chieu'   => $maThamChieu,
                     'nguoi_dung_id'   => Auth::id(),
                     'phong_id'        => $validated['phong_id'],
                     'ngay_nhan_phong' => $validated['ngay_nhan_phong'],
-                    'ngay_tra_phong'  => $validated['ngay_tra_phong'],
-                    'tong_tien'       => $snapshotTotalServer,
-                    'deposit_amount'  => $validated['amount'],
-                    'so_khach'        => $validated['so_khach']
-                        ?? ($validated['adults'] + ($validated['children'] ?? 0)),
-                    'trang_thai'      => 'dang_cho',
-                    'can_thanh_toan'  => true,
-                    'can_xac_nhan'    => false,
-                    'created_by'      => Auth::id(),
-                    'snapshot_meta'   => json_encode($snapshotMeta),
-                    'phuong_thuc'     => $validated['phuong_thuc'],
-                    'contact_name'    => $validated['name'],
+                    'ngay_tra_phong' => $validated['ngay_tra_phong'],
+                    'tong_tien' => $snapshotTotalServer,
+                    'deposit_amount' => $validated['amount'],
+                    'so_khach' => $validated['so_khach'] ?? ($validated['adults'] + ($validated['children'] ?? 0)),
+                    'trang_thai' => 'dang_cho',
+                    'can_thanh_toan' => $canThanhToan,
+                    'can_xac_nhan' => false,
+                    'created_by' => Auth::id(),
+                    'snapshot_meta' => $snapshotMeta, // FIXED: removed json_encode, model has 'array' cast
+                    'phuong_thuc' => $validated['phuong_thuc'],
+                    'contact_name' => $validated['name'],
                     'contact_address' => $validated['address'],
                     'contact_phone'   => $validated['phone'],
                 ]);
@@ -234,7 +293,16 @@ class PaymentController extends Controller
                     $requiredSignature
                 );
                 if ($roomsCount > $availableNow) {
-                    throw new \Exception("Only {$availableNow} room(s) available.");
+                    Log::warning('Room availability check failed', [
+                        'phong_id' => $validated['phong_id'],
+                        'loai_phong_id' => $phong->loai_phong_id,
+                        'rooms_requested' => $roomsCount,
+                        'rooms_available' => $availableNow,
+                        'from' => $from->toDateString(),
+                        'to' => $to->toDateString(),
+                        'required_signature' => $requiredSignature,
+                    ]);
+                    throw new \Exception("Không đủ phòng trống. Hiện có {$availableNow} phòng khả dụng, bạn yêu cầu {$roomsCount} phòng. Vui lòng thử lại sau hoặc chọn ngày khác.");
                 }
 
                 $holdBase = [
@@ -455,16 +523,41 @@ class PaymentController extends Controller
                     'dat_phong_id'  => $dat_phong->id,
                 ]);
             });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('VNPay initiate validation error', [
+                'errors' => $e->errors(),
+                'request' => $request->all()
+            ]);
+            return response()->json(['error' => 'Dữ liệu không hợp lệ: ' . implode(', ', array_map(function($errors) {
+                return implode(', ', $errors);
+            }, $e->errors()))], 422);
         } catch (\Throwable $e) {
             Log::error('VNPay initiate error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'request' => $request->except(['_token'])
             ]);
-            return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
+            return response()->json([
+                'error' => 'Lỗi hệ thống: ' . $e->getMessage(),
+                'debug' => config('app.debug') ? [
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ] : null
+            ], 500);
         }
     }
 
     public function handleVNPayCallback(Request $request)
     {
+        $user = $request->user();
+        if (!$user) return response()->json(['error' => 'Authentication required'], 401);
+
+        // Debug: Log deposit_percentage from request
+        Log::info('DEBUG deposit_percentage from request', [
+            'deposit_percentage' => $request->input('deposit_percentage'),
+            'all_inputs' => $request->except(['_token'])
+        ]);
         Log::info('VNPAY Callback Received', $request->all());
 
         $inputData = collect($request->all())
@@ -505,9 +598,24 @@ class PaymentController extends Controller
             return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
         }
 
-        $meta       = is_array($dat_phong->snapshot_meta)
-            ? $dat_phong->snapshot_meta
-            : json_decode($dat_phong->snapshot_meta, true);
+        // Check if booking has been cancelled by admin/staff
+        if ($dat_phong->trang_thai === 'da_huy') {
+            $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Đơn đặt phòng đã bị hủy bởi quản trị viên']);
+            return view('payment.fail', [
+                'code' => '98',
+                'message' => 'Đơn đặt phòng đã bị hủy. Vui lòng liên hệ quản trị viên để được hỗ trợ.'
+            ]);
+        }
+
+        // Check if transaction is already failed
+        if ($giao_dich->trang_thai === 'that_bai') {
+            return view('payment.fail', [
+                'code' => '99',
+                'message' => 'Giao dịch đã thất bại trước đó. ' . ($giao_dich->ghi_chu ?? '')
+            ]);
+        }
+
+        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use (
@@ -578,6 +686,17 @@ class PaymentController extends Controller
                 if ($dat_phong->nguoiDung) {
                     Mail::to($dat_phong->nguoiDung->email)
                         ->queue(new PaymentSuccess($dat_phong, $dat_phong->nguoiDung->name));
+                }
+
+                // Gửi thông báo thanh toán cọc hoặc thanh toán toàn bộ
+                $totalPaid = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                $notificationService = new PaymentNotificationService();
+                if ($totalPaid >= $dat_phong->tong_tien) {
+                    // Thanh toán toàn bộ
+                    $notificationService->sendFullPaymentNotification($dat_phong, $giao_dich);
+                } else {
+                    // Thanh toán cọc
+                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
                 }
 
                 return view('payment.success', compact('dat_phong'));
@@ -708,6 +827,17 @@ class PaymentController extends Controller
                         ->update(['trang_thai' => 'dang_o']);
                 }
 
+                // Gửi thông báo thanh toán cọc hoặc thanh toán toàn bộ
+                $totalPaid = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                $notificationService = new PaymentNotificationService();
+                if ($totalPaid >= $dat_phong->tong_tien) {
+                    // Thanh toán toàn bộ
+                    $notificationService->sendFullPaymentNotification($dat_phong, $giao_dich);
+                } else {
+                    // Thanh toán cọc
+                    $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
+                }
+
                 return response()->json(['RspCode' => '00', 'Message' => 'Confirm Success']);
             }
 
@@ -833,11 +963,17 @@ class PaymentController extends Controller
             return back()->with('error', 'Booking không hợp lệ để thanh toán phần còn lại.');
         }
 
-        $meta = is_array($booking->snapshot_meta)
-            ? $booking->snapshot_meta
-            : json_decode($booking->snapshot_meta, true) ?? [];
-        if (empty($meta['checkin_cccd'])) {
-            return back()->with('error', 'Vui lòng nhập số CCCD/CMND trước khi thanh toán.');
+        // Kiểm tra CCCD trước khi thanh toán
+        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $cccdList = $meta['checkin_cccd_list'] ?? [];
+        $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
+
+        // Backward compatibility: kiểm tra CCCD cũ nếu chưa có danh sách mới
+        if (!$hasCCCD) {
+            $hasOldCCCD = !empty($meta['checkin_cccd_front']) || !empty($meta['checkin_cccd_back']) || !empty($meta['checkin_cccd']);
+            if (!$hasOldCCCD) {
+                return back()->with('error', 'Vui lòng upload ảnh CCCD/CMND (mặt trước và mặt sau) trước khi thanh toán.');
+            }
         }
 
         $paid      = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
@@ -870,9 +1006,21 @@ class PaymentController extends Controller
 
             if ($nhaCungCap === 'tien_mat') {
                 $booking->update([
-                    'trang_thai'    => 'dang_su_dung',
+                    'trang_thai' => 'dang_su_dung',
                     'checked_in_at' => now(),
+                    'checked_in_by' => Auth::id(),
                 ]);
+
+                // Gửi thông báo thanh toán toàn bộ hoặc thanh toán phần còn lại
+                $totalPaid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                $notificationService = new PaymentNotificationService();
+                if ($totalPaid >= $booking->tong_tien) {
+                    // Thanh toán toàn bộ
+                    $notificationService->sendFullPaymentNotification($booking, $giaoDich);
+                } else {
+                    // Thanh toán phần còn lại (không phải cọc, nhưng vẫn gửi thông báo)
+                    $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
+                }
             }
 
             return $giaoDich;
@@ -1010,6 +1158,7 @@ class PaymentController extends Controller
                 $oldStatus              = $booking->trang_thai;
                 $booking->trang_thai    = 'dang_su_dung';
                 $booking->checked_in_at = now();
+                $booking->checked_in_by = Auth::id();
                 $booking->save();
 
                 Log::info('Booking status updated AFTER save', [
@@ -1031,8 +1180,11 @@ class PaymentController extends Controller
                     ]);
                 }
 
-                return redirect()->route('staff.checkin')
-                    ->with('success', 'Thanh toán thành công! Phòng đã được chuyển sang trạng thái đang sử dụng.');
+                // Gửi thông báo thanh toán toàn bộ
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendFullPaymentNotification($booking, $transaction);
+
+                return redirect()->route('staff.checkin')->with('success', 'Thanh toán thành công! Phòng đã được chuyển sang trạng thái đang sử dụng.');
             }
 
             Log::warning('Payment not complete yet', [

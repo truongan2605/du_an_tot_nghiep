@@ -143,7 +143,7 @@
                                                 <li><a class="dropdown-item small"
                                                         href="{{ route('staff.bookings.show', $booking->id) }}"><i
                                                             class="bi bi-eye me-1"></i> Xem Chi Tiết</a></li>
-                                                @if (in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan']))
+                                                @if (in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan']))
                                                     <li>
                                                         <form action="{{ route('staff.cancel', $booking->id) }}"
                                                             method="POST" class="d-inline"

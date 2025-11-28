@@ -56,7 +56,7 @@
                                 <span id="modal_total_snapshot"></span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between fw-bold text-primary">
-                                <span>Đặt cọc (20%)</span>
+                                <span id="modal_deposit_label">Đặt cọc (50%)</span>
                                 <span id="modal_payable_now"></span>
                             </li>
                         </ul>
@@ -309,9 +309,7 @@
                                                             @endforeach
                                                         </ul>
                                                     @else
-                                                        <p class="mb-0">
-                                                            <em>Không có dịch vụ bổ sung có phí nào.</em>
-                                                        </p>
+                                                        {{-- Không có dịch vụ bổ sung --}}
                                                     @endif
                                                 @else
                                                     <p class="mb-0">
@@ -379,11 +377,95 @@
                                                            value="0">
 
                                                     <div class="mt-3">
-                                                        <label for="phuong_thuc" class="form-label">
-                                                            Phương thức thanh toán
+                                                        <label class="form-label fw-bold">
+                                                            <i class="bi bi-percent me-1"></i>Chọn hình thức thanh toán
                                                         </label>
-                                                        <select name="phuong_thuc" id="phuong_thuc"
-                                                                class="form-select" required>
+                                                        <div class="card border">
+                                                            <div class="card-body p-3">
+                                                                <div class="form-check mb-2">
+                                                                    <input type="radio" name="deposit_percentage" value="50"
+                                                                           class="form-check-input" id="deposit_50" checked>
+                                                                    <label for="deposit_50" class="form-check-label">
+                                                                        <strong>Đặt cọc 50%</strong>
+                                                                        <small class="text-muted d-block">Thanh toán phần còn lại khi check-in</small>
+                                                                    </label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input type="radio" name="deposit_percentage" value="100"
+                                                                           class="form-check-input" id="deposit_100">
+                                                                    <label for="deposit_100" class="form-check-label">
+                                                                        <strong>Thanh toán toàn bộ 100%</strong>
+                                                                        <small class="text-muted d-block">Thanh toán ngay - Không cần thanh toán thêm</small>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {{-- Refund Policy Information --}}
+                                                    <div class="alert alert-info mt-3 mb-0">
+                                                        <h6 class="alert-heading">
+                                                            <i class="bi bi-info-circle me-1"></i>Chính sách hủy phòng &amp; hoàn tiền
+                                                        </h6>
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm table-bordered mb-2">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th class="small">Thời gian hủy</th>
+                                                                        <th class="small text-center">Đặt cọc 50%</th>
+                                                                        <th class="small text-center">Thanh toán 100%</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td class="small">≥ 7 ngày trước check-in</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-success">Hoàn 100%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-success">Hoàn 90%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">3-6 ngày trước</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 70%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 60%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">1-2 ngày trước</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 30%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 40%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">&lt; 24 giờ</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-danger">Không hoàn</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 20%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                                            <strong>Lưu ý:</strong> Thanh toán 100% ngay được ưu đãi thêm khi hủy phòng
+                                                        </small>
+                                                    </div>
+
+                                                    <div class="mt-3">
+                                                        <label for="phuong_thuc" class="form-label">Phương thức thanh toán</label>
+                                                        <select name="phuong_thuc" id="phuong_thuc" class="form-select"
+                                                            required>
                                                             <option value="">Chọn phương thức</option>
                                                             <option value="vnpay"
                                                                 {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>
@@ -537,12 +619,11 @@
 
                                     <div class="card-footer border-top bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span class="h6 mb-0 fw-bold">Đặt cọc (20%)</span>
-                                            <span class="h6 mb-0 fw-bold text-primary"
-                                                  id="payable_now_display">-</span>
+                                            <span class="h6 mb-0 fw-bold" id="deposit_percentage_label">Đặt cọc (50%)</span>
+                                            <span class="h6 mb-0 fw-bold text-primary" id="payable_now_display">-</span>
                                         </div>
-                                        <small class="text-muted d-block mt-1 fst-italic">
-                                            Phần còn lại (80%) thanh toán tại khách sạn khi check in
+                                        <small class="text-muted d-block mt-1 fst-italic" id="remaining_info">
+                                            Phần còn lại (50%) thanh toán tại khách sạn khi check in
                                         </small>
                                     </div>
                                 </div>
@@ -567,14 +648,11 @@
                     const codeInput = document.getElementById('voucher_code');
 
                     if (this.checked) {
-                        // Bỏ check các checkbox khác
                         document.querySelectorAll('.voucher-checkbox').forEach(other => {
                             if (other !== this) other.checked = false;
                         });
-                        // Gán mã vào input
                         codeInput.value = this.dataset.code || this.value;
                     } else {
-                        // Bỏ check → xoá mã trong input
                         codeInput.value = '';
                     }
                 });
@@ -591,14 +669,12 @@
                     return;
                 }
 
-                // ✅ LUÔN lấy tổng GỐC (chưa giảm) từ snapshot_total_input
                 let total = 0;
                 const baseTotalInput = document.getElementById('snapshot_total_input');
                 if (baseTotalInput && baseTotalInput.value) {
                     total = parseInt(baseTotalInput.value, 10) || 0;
                 }
 
-                // Fallback: lấy từ text hiển thị nếu input ẩn chưa có
                 if (!total) {
                     const totalDisplayEl = document.getElementById('total_snapshot_display');
                     if (totalDisplayEl) {
@@ -623,7 +699,7 @@
                     },
                     body: JSON.stringify({
                         code: code,
-                        total: total // <-- luôn là tổng GỐC
+                        total: total
                     })
                 })
                     .then(res => res.json())
@@ -648,7 +724,6 @@
                                     ${depositText ? `<br>Tiền cọc (20%): <strong>${depositText}</strong>` : ''}
                                 </div>`;
 
-                            // Cập nhật lại tổng sau giảm vào hidden để submit form / thanh toán
                             const hiddenTotal = document.getElementById('hidden_tong_tien');
                             if (hiddenTotal && data.final_total) {
                                 hiddenTotal.value = data.final_total;
@@ -664,7 +739,6 @@
                                 payableDisplay.innerText = depositText;
                             }
 
-                            // Nếu có hidden_deposit thì update luôn
                             const hiddenDeposit = document.getElementById('hidden_deposit');
                             if (hiddenDeposit && typeof data.deposit !== 'undefined') {
                                 hiddenDeposit.value = data.deposit;
@@ -688,7 +762,6 @@
             const initialChildrenCount = Number({{ old('children', 0) }});
             const initialSelectedAddons = {!! json_encode(old('addons', [])) !!};
 
-            // Elements
             const dateRangeInput = document.getElementById('date_range');
             const fromInput = document.getElementById('ngay_nhan_phong');
             const toInput = document.getElementById('ngay_tra_phong');
@@ -712,10 +785,9 @@
             const CHILD_PRICE = {{ \App\Http\Controllers\Client\BookingController::CHILD_PRICE }};
             const CHILD_FREE_AGE = {{ \App\Http\Controllers\Client\BookingController::CHILD_FREE_AGE }};
 
-            // Tăng giá 10% cho 3 ngày cuối tuần (T6, T7, CN)
+            // hệ số tăng giá cuối tuần
             const WEEKEND_MULTIPLIER = 1.10;
 
-            // Track latest availability result for use in validation
             let currentAvailableRooms = Number(availDisplayEl ? (availDisplayEl.innerText || 0) : 0);
 
             function fmtVnd(num) {
@@ -757,7 +829,11 @@
                 updateRoomsAvailability();
             }
 
-            if (typeof flatpickr !== 'undefined') {
+            if (typeof flatpickr !== 'undefined' && dateRangeInput) {
+                if (dateRangeInput._flatpickr) {
+                    dateRangeInput._flatpickr.destroy();
+                }
+
                 flatpickr(dateRangeInput, {
                     mode: "range",
                     minDate: "today",
@@ -774,7 +850,10 @@
                         if (selectedDates.length) setHiddenDates(selectedDates);
                     }
                 });
-                setHiddenDates([new Date(fromInput.value), new Date(toInput.value)]);
+
+                if (fromInput.value && toInput.value) {
+                    setHiddenDates([new Date(fromInput.value), new Date(toInput.value)]);
+                }
             }
 
             async function updateRoomsAvailability() {
@@ -824,23 +903,11 @@
                 }
             }
 
-            function showNoAvailabilityMessage(fromStr, toStr) {
+            function showNoAvailabilityMessage() {
                 if (!availabilityMessageEl) return;
                 availabilityMessageEl.className = 'small mt-2 text-danger';
                 availabilityMessageEl.innerText =
-                    `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Đang tìm ngày khả dụng gần nhất...`;
-                findNextAvailable(fromStr, 30).then(nextStart => {
-                    if (!nextStart) {
-                        availabilityMessageEl.innerText =
-                            `Phòng {{ $phong->ma_phong }} không khả dụng trong 30 ngày tới. Vui lòng chọn khoảng thời gian khác.`;
-                    } else {
-                        availabilityMessageEl.innerHTML =
-                            `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn ngày bắt đầu từ <strong>${nextStart}</strong>.`;
-                    }
-                }).catch(() => {
-                    availabilityMessageEl.innerText =
-                        `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
-                });
+                    `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
                 toggleSubmit(false);
             }
 
@@ -872,9 +939,7 @@
                         try {
                             const r = await fetch(url, {
                                 method: 'GET',
-                                headers: {
-                                    'Accept': 'application/json'
-                                }
+                                headers: { 'Accept': 'application/json' }
                             });
                             if (!r.ok) continue;
                             const d = await r.json();
@@ -1051,18 +1116,20 @@
                 return count;
             }
 
+            // ---- UPDATE SUMMARY (có weekend +10%) ----
             function updateSummary() {
                 const fromVal = fromInput.value;
                 const toVal = toInput.value;
+                const snapshotTotalInput = document.getElementById('snapshot_total_input');
+                const hiddenTotalInput = document.getElementById('hidden_tong_tien');
+                const hiddenDepositInput = document.getElementById('hidden_deposit');
+
                 if (!fromVal || !toVal) {
                     nightsDisplay.innerText = '-';
                     finalPerNightDisplay.innerText = '-';
                     totalDisplay.innerText = '-';
                     payableDisplay.innerText = '-';
 
-                    const snapshotTotalInput = document.getElementById('snapshot_total_input');
-                    const hiddenTotalInput = document.getElementById('hidden_tong_tien');
-                    const hiddenDepositInput = document.getElementById('hidden_deposit');
                     if (snapshotTotalInput) snapshotTotalInput.value = 0;
                     if (hiddenTotalInput) hiddenTotalInput.value = 0;
                     if (hiddenDepositInput) hiddenDepositInput.value = 0;
@@ -1080,9 +1147,6 @@
                     totalDisplay.innerText = '-';
                     payableDisplay.innerText = '-';
 
-                    const snapshotTotalInput = document.getElementById('snapshot_total_input');
-                    const hiddenTotalInput = document.getElementById('hidden_tong_tien');
-                    const hiddenDepositInput = document.getElementById('hidden_deposit');
                     if (snapshotTotalInput) snapshotTotalInput.value = 0;
                     if (hiddenTotalInput) hiddenTotalInput.value = 0;
                     if (hiddenDepositInput) hiddenDepositInput.value = 0;
@@ -1120,22 +1184,45 @@
                 const addonsPerNight = computeAddonsPerNight();
                 const basePerRoom = pricePerNight;
 
-                // Tính số đêm cuối tuần / ngày thường
+                // --- TÍNH GIÁ PHÒNG BASE CÓ WEEKEND +10% ---
                 const weekendNights = countWeekendNights(from, to);
                 const weekdayNights = Math.max(0, nights - weekendNights);
 
-                // Phần giá phòng (base) đã áp 10% cho cuối tuần
                 const baseWeekdayTotal = basePerRoom * roomsCount * weekdayNights;
                 const baseWeekendTotal = basePerRoom * WEEKEND_MULTIPLIER * roomsCount * weekendNights;
                 const roomBaseTotal = baseWeekdayTotal + baseWeekendTotal;
 
-                // Các phụ phí vẫn tính đều mỗi đêm
-                const adultsTotal = adultsChargePerNightTotal * nights;
-                const childrenTotal = childrenChargePerNightTotal * nights;
-                const addonsTotal = addonsPerNight * nights;
+                // Phụ thu (extra adults / children / addons) tính đều cho mọi đêm
+                const extrasPerNightTotal = adultsChargePerNightTotal + childrenChargePerNightTotal + addonsPerNight;
+                const extrasTotal = extrasPerNightTotal * nights;
 
-                const total = roomBaseTotal + adultsTotal + childrenTotal + addonsTotal;
-                const deposit = Math.ceil(total * 0.2 / 1000) * 1000;
+                const total = roomBaseTotal + extrasTotal;
+                const finalPerNight = total / nights; // giá trung bình / đêm (đã gồm weekend + extra)
+
+                // Lấy phần trăm đặt cọc
+                const selectedDepositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
+                const depositPercentage = selectedDepositRadio ? parseInt(selectedDepositRadio.value) / 100 : 0.5;
+                const deposit = Math.ceil(total * depositPercentage / 1000) * 1000;
+
+                const percentageText = (depositPercentage * 100) + '%';
+                const depositLabel = document.getElementById('deposit_percentage_label');
+                const modalDepositLabel = document.getElementById('modal_deposit_label');
+                const remainingInfo = document.getElementById('remaining_info');
+
+                if (depositLabel) {
+                    depositLabel.innerText = depositPercentage === 1 ? 'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
+                }
+                if (modalDepositLabel) {
+                    modalDepositLabel.innerText = depositPercentage === 1 ? 'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
+                }
+                if (remainingInfo) {
+                    if (depositPercentage === 1) {
+                        remainingInfo.innerText = 'Đã thanh toán đủ - Không cần thanh toán thêm khi check-in';
+                    } else {
+                        const remaining = 100 - (depositPercentage * 100);
+                        remainingInfo.innerText = `Phần còn lại (${remaining}%) thanh toán tại khách sạn khi check in`;
+                    }
+                }
 
                 // Giá hiển thị
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom); // giá ngày thường / phòng / đêm
@@ -1144,7 +1231,6 @@
                 const existingAddonsEl = document.getElementById('price_addons_display');
                 if (existingAddonsEl) existingAddonsEl.innerText = addonsPerNight > 0 ? fmtVnd(addonsPerNight) : '0 đ';
 
-                const finalPerNight = total / nights; // trung bình / đêm, đã gồm weekend markup
                 finalPerNightDisplay.innerText = fmtVnd(finalPerNight);
                 totalDisplay.innerText = fmtVnd(total);
                 payableDisplay.innerText = fmtVnd(deposit);
@@ -1152,15 +1238,17 @@
                 validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed);
 
                 const finalPerNightInput = document.getElementById('final_per_night_input');
-                const snapshotTotalInput = document.getElementById('snapshot_total_input');
                 if (finalPerNightInput) finalPerNightInput.value = finalPerNight;
                 if (snapshotTotalInput) snapshotTotalInput.value = total;
-
-                const hiddenTotalInput = document.getElementById('hidden_tong_tien');
                 if (hiddenTotalInput) hiddenTotalInput.value = total;
-                const hiddenDepositInput = document.getElementById('hidden_deposit');
                 if (hiddenDepositInput) hiddenDepositInput.value = deposit;
             }
+
+            document.querySelectorAll('input[name="deposit_percentage"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    updateSummary();
+                });
+            });
 
             function showToastInline(msg, isError = false, timeout = 2800) {
                 try {
@@ -1191,8 +1279,8 @@
                         alert.className = 'alert alert-success';
                         let html = `<strong>Thành công:</strong> ${msg}`;
                         if (datPhongId) {
-                            const url = "{{ route('account.booking.show', ['dat_phong' => '__ID__']) }}"
-                                .replace('__ID__', datPhongId);
+                            const url = "{{ route('account.booking.show', ['dat_phong' => '__ID__']) }}".replace(
+                                '__ID__', datPhongId);
                             html +=
                                 ` <a href="${url}" class="btn btn-sm btn-outline-primary ms-2">Xem chi tiết đặt phòng</a>`;
                         }
@@ -1214,15 +1302,12 @@
                 }
             })();
 
-            // Hàm hiển thị modal xác nhận VNPAY
             function showVNPAYConfirmModal() {
-                // Cập nhật thông tin vào modal
                 const nights = Number(nightsDisplay.innerText || 0);
                 const basePrice = pricePerNight * (roomsInput ? Number(roomsInput.value || 1) : 1);
                 const adultsCharge = priceAdultsDisplay.innerText || '0 đ';
                 const childrenCharge = priceChildrenDisplay.innerText || '0 đ';
 
-                // ✅ kiểm tra phần tử tồn tại trước khi đọc innerText
                 const addonsEl = document.getElementById('price_addons_display');
                 const addonsCharge = addonsEl ? (addonsEl.innerText || '0 đ') : '0 đ';
 
@@ -1239,12 +1324,10 @@
                 document.getElementById('modal_total_snapshot').innerText = total;
                 document.getElementById('modal_payable_now').innerText = deposit;
 
-                // Hiển thị modal
                 const modal = new bootstrap.Modal(document.getElementById('vnpayConfirmModal'));
                 modal.show();
             }
 
-            // Xử lý khi người dùng xác nhận trong modal
             document.getElementById('vnpayProceedBtn').addEventListener('click', async function() {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('vnpayConfirmModal'));
                 modal.hide();
@@ -1255,7 +1338,6 @@
                 submitBtn.innerHTML =
                     '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
 
-                // Thực hiện thanh toán VNPAY
                 const phongId = document.querySelector('input[name="phong_id"]').value;
                 const ngayNhan = fromInput.value;
                 const ngayTra = toInput.value;
@@ -1273,6 +1355,9 @@
                 const address = document.querySelector('input[name="address"]').value.trim();
                 const phone = document.querySelector('input[name="phone"]').value.trim();
                 const phuongThuc = 'vnpay';
+
+                const depositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
+                const depositPercentageValue = depositRadio ? depositRadio.value : '50';
 
                 try {
                     const response = await fetch("{{ route('payment.initiate') }}", {
@@ -1294,6 +1379,7 @@
                             addons: addons,
                             rooms_count: roomsCount,
                             total_amount: tongTien,
+                            deposit_percentage: depositPercentageValue,
                             phuong_thuc: phuongThuc,
                             name: name,
                             address: address,
@@ -1303,7 +1389,9 @@
                     });
 
                     const data = await response.json();
-                    if (parseFloat(deposit) <= 0 || parseFloat(deposit) > parseFloat(tongTien)) {
+                    const depositPercentage = parseFloat(depositPercentageValue) || 50;
+                    const tolerance = depositPercentage === 100 ? 2000 : 0;
+                    if (parseFloat(deposit) <= 0 || (parseFloat(deposit) > parseFloat(tongTien) + tolerance)) {
                         showToastInline('Deposit không hợp lệ.', true, 5000);
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = submitBtn.dataset.origHtml;
@@ -1346,7 +1434,6 @@
 
                     const paymentMethod = paymentMethodSelect.value;
                     if (paymentMethod === 'vnpay') {
-                        // Hiển thị modal xác nhận trước khi thanh toán VNPAY
                         showVNPAYConfirmModal();
                         return;
                     } else {
