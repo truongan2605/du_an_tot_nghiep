@@ -604,7 +604,10 @@ class StaffController extends Controller
             'nguoiDung',
             'datPhongItems.loaiPhong',
             'phongDaDats.phong',
-            'hoaDons.hoaDonItems.phong'
+            'hoaDons.hoaDonItems.phong',
+            'roomChanges.oldRoom',
+            'roomChanges.newRoom',
+            'roomChanges.changedByUser'
         ])
             ->orderBy('created_at', 'desc')
             ->paginate(10);

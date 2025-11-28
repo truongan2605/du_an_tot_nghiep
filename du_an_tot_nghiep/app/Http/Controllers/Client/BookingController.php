@@ -310,7 +310,7 @@ class BookingController extends Controller
             'new_room_id' => $newRoom->id,
             'old_price' => $currentPrice,
             'new_price' => $newPrice,
-            'price_difference' => $priceDiff,
+            'price_difference' => $newPrice - $currentPrice,  // Per-night difference (not total)
             'nights' => $nights,
             'changed_by_type' => 'customer',
             'changed_by_user_id' => $user->id,
