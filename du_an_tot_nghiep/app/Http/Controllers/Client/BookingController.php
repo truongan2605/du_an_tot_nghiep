@@ -1000,9 +1000,16 @@ class BookingController extends Controller
             'tong_tien' => 'required|numeric|gte:deposit_amount',
 
         ]);
-        $expectedDeposit = $validated['tong_tien'] * 0.5;
+        
+        // Support both 50% and 100% deposit
+        $depositPercentage = $request->input('deposit_percentage', 50);
+        if (!in_array($depositPercentage, [50, 100])) {
+            return back()->withErrors(['deposit_percentage' => 'Deposit phải là 50% hoặc 100%']);
+        }
+        
+        $expectedDeposit = $validated['tong_tien'] * ($depositPercentage / 100);
         if (abs($validated['deposit_amount'] - $expectedDeposit) > 1000) {
-            return back()->withErrors(['deposit_amount' => 'Deposit không hợp lệ (phải khoảng 20% tổng)']);
+            return back()->withErrors(['deposit_amount' => "Deposit không hợp lệ (phải là {$depositPercentage}% tổng tiền)"]);
         }
 
         Log::debug('Booking: validation passed');

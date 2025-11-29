@@ -490,15 +490,28 @@ public function handleMoMoCallback(Request $request)
     $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
     $roomsCount = $meta['rooms_count'] ?? 1;
 
-    return DB::transaction(function () use ($resultCode, $amount, $transId, $giao_dich, $dat_phong, $roomsCount) {
+    return DB::transaction(function () use ($resultCode, $amount, $transId, $giao_dich, $dat_phong, $roomsCount, $meta) {
         if ($resultCode == 0 && $giao_dich->so_tien == $amount) {
             $giao_dich->update([
                 'trang_thai' => 'thanh_cong',
                 'provider_txn_ref' => $transId,
             ]);
+            
+            // Check if this is full payment (100%) or deposit (50%)
+            $depositPercentage = $meta['deposit_percentage'] ?? 50;
+            $isFullPayment = ($depositPercentage == 100);
+            
             $dat_phong->update([
                 'trang_thai' => 'da_xac_nhan',
                 'can_xac_nhan' => true,
+                'can_thanh_toan' => !$isFullPayment, // false if 100%, true if 50%
+            ]);
+            
+            Log::info('MoMo deposit payment successful', [
+                'dat_phong_id' => $dat_phong->id,
+                'deposit_percentage' => $depositPercentage,
+                'is_full_payment' => $isFullPayment,
+                'can_thanh_toan' => !$isFullPayment,
             ]);
 
             $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
