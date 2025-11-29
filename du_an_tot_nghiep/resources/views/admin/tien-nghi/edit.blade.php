@@ -29,9 +29,10 @@
 
                         <div class="mb-3">
                             <label for="gia" class="form-label">Giá <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control @error('gia') is-invalid @enderror" id="gia"
-                                name="gia" value="{{ old('gia', number_format($tienNghi->gia, 0, ',', '.')) }}"
-                                required>
+                            <input type="text" class="form-control"
+                            id="gia" name="gia"
+                            value="{{ number_format($tienNghi->gia, 0, ',', '.') }}"
+                            oninput="formatMoney(this)" required>
                             @error('gia')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -118,5 +119,36 @@
                 document.getElementById('preview-container').style.display = 'none';
             }
         });
+
+        function formatMoney(input) {
+        let v = input.value.toLowerCase().replace(/\s+/g, '');
+
+        // Hỗ trợ nhập: 100k, 1m, 2b
+        if (v.endsWith('k')) {
+            v = v.replace('k', '');
+            v = parseInt(v || 0) * 1000;
+        } else if (v.endsWith('m')) {
+            v = v.replace('m', '');
+            v = parseInt(v || 0) * 1000000;
+        } else if (v.endsWith('b')) {
+            v = v.replace('b', '');
+            v = parseInt(v || 0) * 1000000000;
+        } else {
+            // Loại bỏ toàn bộ ký tự không phải số
+            v = v.replace(/\D/g, '');
+        }
+
+        // Giới hạn tối đa 12 số
+        if (v.length > 12) v = v.substring(0, 12);
+
+        // Nếu không có gì -> trả về rỗng
+        if (v === "") {
+            input.value = "";
+            return;
+        }
+
+        // Format theo chuẩn Việt Nam
+        input.value = Number(v).toLocaleString("vi-VN");
+    }
     </script>
 @endsection

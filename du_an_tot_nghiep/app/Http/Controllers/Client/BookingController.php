@@ -1089,6 +1089,16 @@ class BookingController extends Controller
         $finalPerNightServer = ($basePerNight * $roomsCount) + $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
         $snapshotTotalServer = $finalPerNightServer * $nights;
 
+        // Áp dụng giảm giá theo hạng thành viên
+        $memberDiscountAmount = 0;
+        if ($user && $user->member_level) {
+            $memberDiscountPercent = $user->getMemberDiscountPercent();
+            if ($memberDiscountPercent > 0) {
+                $memberDiscountAmount = ($snapshotTotalServer * $memberDiscountPercent / 100);
+                $snapshotTotalServer = $snapshotTotalServer - $memberDiscountAmount;
+            }
+        }
+
         $maThamChieu = 'BK' . Str::upper(Str::random(8));
 
         $payload = [
@@ -1130,12 +1140,15 @@ class BookingController extends Controller
                 })->toArray(),
                 'final_per_night' => $finalPerNightServer,
                 'nights' => $nights,
+                'member_discount_amount' => $memberDiscountAmount,
+                'member_level' => $user ? ($user->member_level ?? 'dong') : 'dong',
+                'member_discount_percent' => $user ? $user->getMemberDiscountPercent() : 0,
             ]),
         ];
 
         try {
             $datPhongId = null;
-            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $nights, $request) {
+            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $nights, $request, $user, $memberDiscountAmount) {
 
                 if (Schema::hasTable('loai_phong')) {
                     DB::table('loai_phong')->where('id', $phong->loai_phong_id)->lockForUpdate()->first();
@@ -1155,6 +1168,9 @@ class BookingController extends Controller
                 $allowedPayload['deposit_amount'] = $request->deposit_amount;
                 $allowedPayload['trang_thai'] = 'dang_cho'; // Fixed: 'deposited' is not valid, use 'dang_cho'
                 $allowedPayload['tong_tien'] = $snapshotTotalServer;
+                if (Schema::hasColumn('dat_phong', 'member_discount_amount')) {
+                    $allowedPayload['member_discount_amount'] = $memberDiscountAmount;
+                }
 
                 $datPhongId = DB::table('dat_phong')->insertGetId($allowedPayload);
 

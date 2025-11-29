@@ -293,6 +293,11 @@ Route::middleware('auth')
         
         // Room change
         Route::post('bookings/{booking}/change-room', [BookingController::class, 'changeRoom'])->name('booking.change-room');
+
+        // Rewards (Ưu đãi & hạng thành viên)
+        Route::get('rewards', [App\Http\Controllers\Account\RewardController::class, 'index'])
+        ->name('rewards');
+
     });
     
     // Room change callback (outside auth middleware to accept VNPay callback)

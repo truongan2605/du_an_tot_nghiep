@@ -258,7 +258,7 @@
                             </div>
                             <div class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
                                 @forelse($todayCheckouts as $booking)
-                                    <a href="{{ route('staff.checkout.form', $booking->id) }}"
+                                    {{-- <a href="{{ route('staff.checkout.form', $booking->id) }}"
                                        class="list-group-item list-group-item-action px-2 py-2 border-0 bg-light mb-1 rounded">
                                         <div class="d-flex justify-content-between align-items-start">
                                             <div class="flex-grow-1">
@@ -278,7 +278,7 @@
                                                 @endif
                                             </div>
                                         </div>
-                                    </a>
+                                    </a> --}}
                                 @empty
                                     <div class="text-center text-muted py-4 small">
                                         <i class="bi bi-inbox"></i> Không có check-out hôm nay

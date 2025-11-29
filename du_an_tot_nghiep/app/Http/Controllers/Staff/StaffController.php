@@ -394,7 +394,19 @@ class StaffController extends Controller
         }
         
         // QUAN TRỌNG: Kiểm tra xem user có ĐANG SUBMIT ảnh CCCD mới không
+        // Hỗ trợ cả format cũ (1 người) và format mới (nhiều người)
         $isSubmittingNewCCCD = $request->hasFile('cccd_image_front') || $request->hasFile('cccd_image_back');
+        
+        // Kiểm tra format mới (nhiều người): cccd_image_front_0, cccd_image_back_0, etc.
+        if (!$isSubmittingNewCCCD) {
+            $allFiles = $request->allFiles();
+            foreach ($allFiles as $key => $file) {
+                if (preg_match('/^cccd_image_(front|back)_\d+$/', $key)) {
+                    $isSubmittingNewCCCD = true;
+                    break;
+                }
+            }
+        }
         
         // Chỉ báo lỗi nếu KHÔNG có CCCD cũ VÀ KHÔNG submit CCCD mới
         if (!$hasCCCD && !$isSubmittingNewCCCD) {
@@ -435,6 +447,18 @@ class StaffController extends Controller
                 $meta = [];
             }
 
+            // Xóa ảnh cũ trong checkin_cccd_list nếu có
+            if (!empty($meta['checkin_cccd_list']) && is_array($meta['checkin_cccd_list'])) {
+                foreach ($meta['checkin_cccd_list'] as $cccdItem) {
+                    if (!empty($cccdItem['front']) && Storage::disk('public')->exists($cccdItem['front'])) {
+                        Storage::disk('public')->delete($cccdItem['front']);
+                    }
+                    if (!empty($cccdItem['back']) && Storage::disk('public')->exists($cccdItem['back'])) {
+                        Storage::disk('public')->delete($cccdItem['back']);
+                    }
+                }
+            }
+            
             // Xóa ảnh cũ (backward compatibility)
             if (!empty($meta['checkin_cccd']) && Storage::disk('public')->exists($meta['checkin_cccd'])) {
                 Storage::disk('public')->delete($meta['checkin_cccd']);
@@ -446,15 +470,66 @@ class StaffController extends Controller
                 Storage::disk('public')->delete($meta['checkin_cccd_back']);
             }
 
-            // Lưu ảnh mới
-            $frontImagePath = $request->file('cccd_image_front')->store('cccd', 'public');
-            $backImagePath = $request->file('cccd_image_back')->store('cccd', 'public');
-
-            // Lưu đường dẫn ảnh vào snapshot_meta
-            $meta['checkin_cccd_front'] = $frontImagePath;
-            $meta['checkin_cccd_back'] = $backImagePath;
-            // Giữ backward compatibility với checkin_cccd (dùng ảnh mặt trước)
-            $meta['checkin_cccd'] = $frontImagePath;
+            // Lưu ảnh mới - hỗ trợ cả format cũ (1 người) và format mới (nhiều người)
+            $cccdList = [];
+            
+            // Kiểm tra format mới (nhiều người): cccd_image_front_0, cccd_image_back_0, etc.
+            $allFiles = $request->allFiles();
+            $hasMultiplePeople = false;
+            $maxIndex = -1;
+            
+            foreach ($allFiles as $key => $file) {
+                if (preg_match('/^cccd_image_(front|back)_(\d+)$/', $key, $matches)) {
+                    $hasMultiplePeople = true;
+                    $index = (int) $matches[2];
+                    if ($index > $maxIndex) {
+                        $maxIndex = $index;
+                    }
+                }
+            }
+            
+            if ($hasMultiplePeople && $maxIndex >= 0) {
+                // Format mới: lưu nhiều người vào checkin_cccd_list
+                for ($i = 0; $i <= $maxIndex; $i++) {
+                    if ($request->hasFile("cccd_image_front_{$i}") && $request->hasFile("cccd_image_back_{$i}")) {
+                        $frontImagePath = $request->file("cccd_image_front_{$i}")->store('cccd', 'public');
+                        $backImagePath = $request->file("cccd_image_back_{$i}")->store('cccd', 'public');
+                        
+                        $cccdList[] = [
+                            'front' => $frontImagePath,
+                            'back' => $backImagePath,
+                        ];
+                    }
+                }
+                
+                $meta['checkin_cccd_list'] = $cccdList;
+                $meta['cccd_count'] = count($cccdList);
+                
+                // Giữ backward compatibility (lưu CCCD đầu tiên)
+                if (!empty($cccdList[0])) {
+                    $meta['checkin_cccd_front'] = $cccdList[0]['front'];
+                    $meta['checkin_cccd_back'] = $cccdList[0]['back'];
+                    $meta['checkin_cccd'] = $cccdList[0]['front'];
+                }
+            } else {
+                // Format cũ: 1 người (backward compatibility)
+                if ($request->hasFile('cccd_image_front') && $request->hasFile('cccd_image_back')) {
+                    $frontImagePath = $request->file('cccd_image_front')->store('cccd', 'public');
+                    $backImagePath = $request->file('cccd_image_back')->store('cccd', 'public');
+                    
+                    $cccdList[] = [
+                        'front' => $frontImagePath,
+                        'back' => $backImagePath,
+                    ];
+                    
+                    $meta['checkin_cccd_list'] = $cccdList;
+                    $meta['cccd_count'] = 1;
+                    $meta['checkin_cccd_front'] = $frontImagePath;
+                    $meta['checkin_cccd_back'] = $backImagePath;
+                    $meta['checkin_cccd'] = $frontImagePath;
+                }
+            }
+            
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
