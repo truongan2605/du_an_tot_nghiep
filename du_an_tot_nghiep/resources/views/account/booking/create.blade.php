@@ -55,7 +55,7 @@
                                 <span id="modal_total_snapshot"></span>
                             </li>
                             <li class="list-group-item d-flex justify-content-between fw-bold text-primary">
-                                <span>Đặt cọc (20%)</span>
+                                <span id="modal_deposit_label">Đặt cọc (50%)</span>
                                 <span id="modal_payable_now"></span>
                             </li>
                         </ul>
@@ -351,6 +351,92 @@
                                                         value="0">
 
                                                     <div class="mt-3">
+                                                        <label class="form-label fw-bold">
+                                                            <i class="bi bi-percent me-1"></i>Chọn hình thức thanh toán
+                                                        </label>
+                                                        <div class="card border">
+                                                            <div class="card-body p-3">
+                                                                <div class="form-check mb-2">
+                                                                    <input type="radio" name="deposit_percentage" value="50" 
+                                                                           class="form-check-input" id="deposit_50" checked>
+                                                                    <label for="deposit_50" class="form-check-label">
+                                                                        <strong>Đặt cọc 50%</strong>
+                                                                        <small class="text-muted d-block">Thanh toán phần còn lại khi check-in</small>
+                                                                    </label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input type="radio" name="deposit_percentage" value="100" 
+                                                                           class="form-check-input" id="deposit_100">
+                                                                    <label for="deposit_100" class="form-check-label">
+                                                                        <strong>Thanh toán toàn bộ 100%</strong>
+                                                                        <small class="text-muted d-block">Thanh toán ngay - Không cần thanh toán thêm</small>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {{-- Refund Policy Information --}}
+                                                    <div class="alert alert-info mt-3 mb-0">
+                                                        <h6 class="alert-heading">
+                                                            <i class="bi bi-info-circle me-1"></i>Chính sách hủy phòng & hoàn tiền
+                                                        </h6>
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm table-bordered mb-2">
+                                                                <thead class="table-light">
+                                                                    <tr>
+                                                                        <th class="small">Thời gian hủy</th>
+                                                                        <th class="small text-center">Đặt cọc 50%</th>
+                                                                        <th class="small text-center">Thanh toán 100%</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td class="small">≥ 7 ngày trước check-in</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-success">Hoàn 100%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-success">Hoàn 90%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">3-6 ngày trước</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 70%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 60%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">1-2 ngày trước</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 30%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 40%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">< 24 giờ</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-danger">Không hoàn</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn 20%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-exclamation-triangle me-1"></i>
+                                                            <strong>Lưu ý:</strong> Thanh toán 100% ngay được ưu đãi thêm khi hủy phòng
+                                                        </small>
+                                                    </div>
+
+                                                    <div class="mt-3">
                                                         <label for="phuong_thuc" class="form-label">Phương thức thanh toán</label>
                                                         <select name="phuong_thuc" id="phuong_thuc" class="form-select"
                                                             required>
@@ -504,11 +590,11 @@
 
                                     <div class="card-footer border-top bg-light">
                                         <div class="d-flex justify-content-between align-items-center">
-                                            <span class="h6 mb-0 fw-bold">Đặt cọc (20%)</span>
+                                            <span class="h6 mb-0 fw-bold" id="deposit_percentage_label">Đặt cọc (50%)</span>
                                             <span class="h6 mb-0 fw-bold text-primary" id="payable_now_display">-</span>
                                         </div>
-                                        <small class="text-muted d-block mt-1 fst-italic">
-                                            Phần còn lại (80%) thanh toán tại khách sạn khi check in
+                                        <small class="text-muted d-block mt-1 fst-italic" id="remaining_info">
+                                            Phần còn lại (50%) thanh toán tại khách sạn khi check in
                                         </small>
                                     </div>
                                 </div>
@@ -1053,7 +1139,32 @@
                 const finalPerNight = baseTotalPerNight + adultsChargePerNightTotal + childrenChargePerNightTotal +
                     addonsPerNight;
                 const total = finalPerNight * nights;
-                const deposit = Math.ceil(total * 0.2 / 1000) * 1000;
+                
+                // Get selected deposit percentage  
+                const selectedDepositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
+                const depositPercentage = selectedDepositRadio ? parseInt(selectedDepositRadio.value) / 100 : 0.5;
+                const deposit = Math.ceil(total * depositPercentage / 1000) * 1000;
+
+                // Update deposit labels
+                const percentageText = (depositPercentage * 100) + '%';
+                const depositLabel = document.getElementById('deposit_percentage_label');
+                const modalDepositLabel = document.getElementById('modal_deposit_label');
+                const remainingInfo = document.getElementById('remaining_info');
+                
+                if (depositLabel) {
+                    depositLabel.innerText = depositPercentage === 1 ? 'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
+                }
+                if (modalDepositLabel) {
+                    modalDepositLabel.innerText = depositPercentage === 1 ? 'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
+                }
+                if (remainingInfo) {
+                    if (depositPercentage === 1) {
+                        remainingInfo.innerText = 'Đã thanh toán đủ - Không cần thanh toán thêm khi check-in';
+                    } else {
+                        const remaining = 100 - (depositPercentage * 100);
+                        remainingInfo.innerText = `Phần còn lại (${remaining}%) thanh toán tại khách sạn khi check in`;
+                    }
+                }
 
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
                 priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :
@@ -1079,6 +1190,13 @@
                 const hiddenDepositInput = document.getElementById('hidden_deposit');
                 if (hiddenDepositInput) hiddenDepositInput.value = deposit;
             }
+
+            // Add event listeners for deposit percentage radio buttons
+            document.querySelectorAll('input[name="deposit_percentage"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    updateSummary();
+                });
+            });
 
             function showToastInline(msg, isError = false, timeout = 2800) {
                 try {
@@ -1194,6 +1312,10 @@ function showVNPAYConfirmModal() {
                 const phone = document.querySelector('input[name="phone"]').value.trim();
                 const phuongThuc = 'vnpay';
 
+                // Get selected deposit percentage for the payment initiation
+                const depositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
+                const depositPercentageValue = depositRadio ? depositRadio.value : '50'; // Default to 50 if not found
+
                 try {
                     const response = await fetch("{{ route('payment.initiate') }}", {
                         method: "POST",
@@ -1214,6 +1336,7 @@ function showVNPAYConfirmModal() {
                             addons: addons,
                             rooms_count: roomsCount,
                             total_amount: tongTien,
+                            deposit_percentage: depositPercentageValue, // ADD THIS LINE
                             phuong_thuc: phuongThuc,
                             name: name,
                             address: address,
@@ -1224,7 +1347,10 @@ function showVNPAYConfirmModal() {
                     });
 
                     const data = await response.json();
-                    if (parseFloat(deposit) <= 0 || parseFloat(deposit) > parseFloat(tongTien)) {
+                    // Validate deposit: khi 100%, cho phép deposit lớn hơn tongTien một chút (tối đa 2000 do làm tròn)
+                    const depositPercentage = parseFloat(depositPercentageValue) || 50;
+                    const tolerance = depositPercentage === 100 ? 2000 : 0; // Cho phép chênh lệch khi 100%
+                    if (parseFloat(deposit) <= 0 || (parseFloat(deposit) > parseFloat(tongTien) + tolerance)) {
                         showToastInline('Deposit không hợp lệ.', true, 5000);
                         submitBtn.disabled = false;
                         submitBtn.innerHTML = submitBtn.dataset.origHtml;

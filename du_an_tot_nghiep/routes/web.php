@@ -2,14 +2,15 @@
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\HomeController;
 
 // ===== Controllers =====
-use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Admin\TangController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
 use App\Http\Controllers\Client\RoomController;
 use App\Http\Controllers\Staff\StaffController;
+use App\Http\Controllers\Staff\RefundController;
 use App\Http\Controllers\Admin\BedTypeController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
@@ -17,6 +18,8 @@ use App\Http\Controllers\Admin\ThongBaoController;
 use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\Client\PaymentController;
 use App\Http\Controllers\Client\ProfileController;
+use App\Http\Controllers\Staff\AuditLogController;
+
 use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
@@ -26,15 +29,14 @@ use App\Http\Controllers\CustomerNotificationController;
 use App\Http\Controllers\InternalNotificationController;
 use App\Http\Controllers\Admin\VatDungIncidentController;
 use App\Http\Controllers\Client\BlogController as ClientBlog;
-use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
 use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
 use App\Http\Controllers\Admin\PhongConsumptionController;
-use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
+use App\Http\Controllers\Payment\ConfirmPaymentController;
 
 // Equipment/Room (extended)
-use App\Http\Controllers\Payment\ConfirmPaymentController;
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
+
 
 // BLOG (Admin + Client)
 use App\Http\Controllers\Admin\PhongVatDungInstanceController;
@@ -47,6 +49,8 @@ use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 use App\Http\Controllers\Staff\CheckoutController;
 use App\Http\Controllers\Client\DanhGiaController as ClientDanhGiaController;
 
+use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
+use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 
 Route::post('/booking/validate-voucher', [BookingController::class, 'validateVoucher'])->name('booking.validate_voucher')->middleware('auth');
 // ==================== CLIENT ====================
@@ -66,6 +70,10 @@ Route::get('auth/google/callback', [SocialAuthController::class, 'handleGoogleCa
 // ==================== BOOKING ====================
 Route::get('/booking/availability', [BookingController::class, 'availability'])->name('booking.availability');
 Route::post('/booking/apply-voucher', [BookingController::class, 'applyVoucher'])->name('booking.apply-voucher');
+
+// ==================== ROOM COMPARISON ====================
+Route::get('/compare', [RoomController::class, 'compare'])->name('rooms.compare');
+Route::get('/api/rooms/compare-data', [RoomController::class, 'getCompareData'])->name('rooms.compare-data');
 
 // ==================== ADMIN ====================
 Route::prefix('admin')
@@ -129,6 +137,8 @@ Route::prefix('admin')
             ->name('internal-notifications.resend');
 
         Route::resource('admin-notifications', AdminNotificationController::class);
+        Route::post('admin-notifications/{id}/mark-read', [AdminNotificationController::class, 'markAsRead'])->name('admin.admin-notifications.mark-read');
+        Route::get('admin-notifications/{id}/detail', [AdminNotificationController::class, 'getDetail'])->name('admin.admin-notifications.detail');
         Route::get('batch-notifications', [BatchNotificationController::class, 'index'])->name('batch-notifications.index');
 
         // ===== Room Equipment / Consumptions / Instances / Incidents =====
@@ -163,15 +173,16 @@ Route::prefix('admin')
         Route::patch('phong/vat-dung-instances/{instance}/status', [PhongVatDungInstanceController::class, 'updateStatus'])->name('phong.vatdung.instances.update-status');
         Route::delete('phong/vat-dung-instances/{instance}', [PhongVatDungInstanceController::class, 'destroy'])->name('phong.vatdung.instances.destroy');
         Route::post('phong/vat-dung-instances/{instance}/mark-lost', [PhongVatDungInstanceController::class, 'markLost'])->name('phong.vatdung.instances.mark-lost');
-  
-  //đáng giá phòng 
+
+        //đáng giá phòng 
         Route::get('/danh-gia', [DanhGiaController::class, 'index'])->name('danhgia.index');
-    Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
-    Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
-// trả lời
-    Route::post('/danh-gia/{id}/reply', 
-        [DanhGiaController::class, 'reply']
-    )->name('danhgia.reply');
+        Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
+        Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
+        // trả lời
+        Route::post(
+            '/danh-gia/{id}/reply',
+            [DanhGiaController::class, 'reply']
+        )->name('danhgia.reply');
 
 
 
@@ -185,7 +196,7 @@ Route::prefix('admin')
             Route::resource('posts', AdminPost::class)->parameters(['posts' => 'post']);
             Route::resource('categories', AdminCategory::class)->parameters(['categories' => 'category']);
             Route::resource('tags', AdminTag::class)->parameters(['tags' => 'tag']);
-        }); 
+        });
     });
 
 // ==================== STAFF ====================
@@ -214,11 +225,25 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::post('/save-cccd', [StaffController::class, 'saveCCCD'])->name('saveCCCD');
 
         // Reports / Overview
+        // Reports & Analytics
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
+        Route::get('/analytics/rooms', [StaffController::class, 'roomAnalytics'])->name('analytics.rooms');
+        Route::get('/analytics/rooms/pdf', [StaffController::class, 'exportRoomAnalyticsPDF'])->name('analytics.rooms.pdf');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
 
+        Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+        Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
+
+        // Refund Management Routes
+        Route::prefix('refunds')->name('refunds.')->group(function () {
+            Route::get('/', [RefundController::class, 'index'])->name('index');
+            Route::post('/{id}/approve', [RefundController::class, 'approve'])->name('approve');
+            Route::post('/{id}/reject', [RefundController::class, 'reject'])->name('reject');
+            Route::post('/{id}/complete', [RefundController::class, 'complete'])->name('complete');
+        });
         Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
             ->name('bookings.rooms.clear_cleaning');
+        Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
 
 
@@ -281,19 +306,21 @@ Route::middleware('auth')
         Route::post('booking', [BookingController::class, 'store'])->name('booking.store');
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
+        Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel'])->name('booking.cancel');
+        Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
 
-       // Danh sách đặt phòng
-    Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
 
-    // Hiển thị form đánh giá
- // Hiển thị form đánh giá
+        // Danh sách đặt phòng
+        Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
+
+        // Hiển thị form đánh giá
+        // Hiển thị form đánh giá
         Route::get('/danh-gia/{booking}', [ClientDanhGiaController::class, 'create'])
             ->name('danhgia.create');
 
         // Lưu đánh giá
         Route::post('/danh-gia/{booking}', [ClientDanhGiaController::class, 'store'])
             ->name('danhgia.store');
-
     });
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
 Route::middleware('auth')->group(function () {

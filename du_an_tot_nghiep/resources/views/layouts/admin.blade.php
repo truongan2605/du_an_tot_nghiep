@@ -319,38 +319,86 @@
             </div>
 
             {{-- Menu Staff (hiển thị cho cả admin và nhan_vien, bỏ Thanh toán và Tổng quan) --}}
-            @if (auth()->check() && in_array(auth()->user()->vai_tro, ['nhan_vien', 'admin']))
-                <div class="sidebar-divider"></div>
-                <div class="sidebar-section">
-                    <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
-                        data-bs-target="#section-staff" aria-expanded="false">
-                        <span>Quản lý đơn hàng</span>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="sidebar-section-content collapse" id="section-staff">
-                        <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}"
-                            data-url="{{ route('staff.index') }}" data-section="section-staff">
-                            <i class="fas fa-tachometer-alt"></i>Dashboard
-                        </a>
-                        <a class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}"
-                            data-url="{{ route('staff.bookings') }}" data-section="section-staff">
-                            <i class="fas fa-calendar-check"></i>Bookings
-                        </a>
-                        <a class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"
-                            data-url="{{ route('staff.rooms') }}" data-section="section-staff">
-                            <i class="fas fa-door-open"></i>Phòng
-                        </a>
-                        <a class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}"
-                            data-url="{{ route('staff.checkin') }}" data-section="section-staff">
-                            <i class="fas fa-sign-in-alt"></i>Check-in
-                        </a>
-                        {{-- <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
-                            data-url="{{ route('staff.reports') }}" data-section="section-staff">
-                            <i class="fas fa-chart-line"></i>Báo cáo
-                        </a> --}}
-                    </div>
-                </div>
+           @if (auth()->check() && in_array(auth()->user()->vai_tro, ['nhan_vien', 'admin']))
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+        <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
+            data-bs-target="#section-staff" aria-expanded="false">
+            <span>Quản lý đơn hàng</span>
+            <i class="fas fa-chevron-down"></i>
+        </div>
+
+        <div class="sidebar-section-content collapse" id="section-staff">
+            <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}"
+               href="{{ route('staff.index') }}" data-section="section-staff">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a>
+
+            <a class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}"
+               href="{{ route('staff.bookings') }}" data-section="section-staff">
+                <i class="fas fa-calendar-check"></i> Bookings
+            </a>
+
+            <a class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"
+               href="{{ route('staff.rooms') }}" data-section="section-staff">
+                <i class="fas fa-door-open"></i> Phòng
+            </a>
+
+            <a class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}"
+               href="{{ route('staff.checkin') }}" data-section="section-staff">
+                <i class="fas fa-sign-in-alt"></i> Check-in
+            </a>
+
+            {{-- Nhật ký thao tác - chỉ hiển thị cho admin (nếu muốn staff cũng xem, bỏ điều kiện) --}}
+            @if(auth()->user()->vai_tro === 'admin')
+                @php
+                    // Quick count của audit logs trong 24 giờ; tốt hơn là truyền biến từ controller/view composer
+                    try {
+                        $recentAuditCount = \App\Models\AuditLog::where('created_at', '>=', now()->subDay())->count();
+                    } catch (\Throwable $e) {
+                        $recentAuditCount = 0;
+                    }
+                @endphp
+
+                <a class="nav-link {{ request()->routeIs('staff.audit-logs.*') ? 'active' : '' }}"
+                   href="{{ route('staff.audit-logs.index') }}" data-section="section-staff">
+                    <i class="fas fa-history"></i> Nhật ký thao tác
+                    @if($recentAuditCount)
+                        <span class="badge bg-danger ms-2">{{ $recentAuditCount }}</span>
+                    @endif
+                </a>
+
+                {{-- Quản lý hoàn tiền --}}
+                @php
+                    try {
+                        $pendingRefundsCount = \App\Models\RefundRequest::where('status', 'pending')->count();
+                    } catch (\Throwable $e) {
+                        $pendingRefundsCount = 0;
+                    }
+                @endphp
+
+                <a class="nav-link {{ request()->routeIs('staff.refunds.*') ? 'active' : '' }}"
+                   href="{{ route('staff.refunds.index') }}" data-section="section-staff">
+                    <i class="fas fa-money-bill-wave"></i> Hoàn tiền
+                    @if($pendingRefundsCount > 0)
+                        <span class="badge bg-warning text-dark ms-2">{{ $pendingRefundsCount }}</span>
+                    @endif
+                </a>
             @endif
+
+            {{-- Ví dụ: nếu muốn staff cũng thấy nhật ký, thay điều kiện ở trên bằng in_array(...) --}}
+            {{-- <a class="nav-link {{ request()->routeIs('staff.audit-logs.*') ? 'active' : '' }}"
+                   href="{{ route('staff.audit-logs.index') }}" data-section="section-staff">
+                    <i class="fas fa-history"></i> Nhật ký thao tác
+               </a> --}}
+
+            {{-- <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
+               href="{{ route('staff.reports') }}" data-section="section-staff">
+                <i class="fas fa-chart-line"></i> Báo cáo
+            </a> --}}
+        </div>
+    </div>
+@endif
         </div>
     </nav>
 
@@ -430,6 +478,9 @@
                                         data-url="{{ route('home') }}">
                                         <i class="fas fa-home me-2"></i>Về trang chủ
                                     </a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.reports') }}"><i class="bi bi-file-text me-2"></i>Báo cáo thống kê</a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.analytics.rooms') }}"><i class="bi bi-graph-up me-2"></i>Thống kê phòng</a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.audit-logs.index') }}"><i class="bi bi-journal-text me-2"></i>Nhật ký thao tác</a></li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
@@ -702,7 +753,8 @@
                 const timeAgo = getTimeAgo(notification.created_at);
 
                 html += `
-                    <div class="dropdown-item ${isUnread ? 'bg-light' : ''}" style="white-space: normal;">
+                    <div class="dropdown-item ${isUnread ? 'bg-light' : ''}" style="white-space: normal; cursor: pointer;" 
+                         onclick="showAdminNotificationDetail(${notification.id})">
                         <div class="d-flex align-items-start">
                             <div class="flex-shrink-0 me-2">
                                 <i class="fas fa-bell text-primary"></i>
@@ -774,6 +826,256 @@
                 .catch(error => {
                     console.error('Error marking all as read:', error);
                 });
+        }
+
+        // Show notification detail
+        function showAdminNotificationDetail(notificationId) {
+            // Đóng dropdown
+            const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('adminNotificationDropdown'));
+            if (dropdown) {
+                dropdown.hide();
+            }
+
+            // Load chi tiết thông báo
+            fetch(`/admin/admin-notifications/${notificationId}/detail`, {
+                credentials: 'include',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Tạo modal nếu chưa có
+                let modal = document.getElementById('adminNotificationDetailModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'adminNotificationDetailModal';
+                    modal.className = 'modal fade';
+                    modal.setAttribute('tabindex', '-1');
+                    modal.setAttribute('aria-labelledby', 'adminNotificationDetailModalLabel');
+                    modal.setAttribute('aria-hidden', 'true');
+                    document.body.appendChild(modal);
+                }
+
+                // Format JSON payload
+                const jsonPayload = JSON.stringify(data.payload, null, 2);
+
+                // Format date và time
+                const createdDate = data.created_at.split(' ')[0];
+                const createdTime = data.created_at.split(' ')[1];
+                
+                // Get status icon
+                const statusIcon = data.trang_thai === 'read' ? 'fa-eye' : 
+                                 data.trang_thai === 'sent' ? 'fa-check-circle' : 
+                                 data.trang_thai === 'pending' ? 'fa-clock' : 'fa-exclamation-circle';
+
+                modal.innerHTML = `
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header border-0 pb-0">
+                                <div class="d-flex align-items-center w-100">
+                                    <i class="fas fa-bell fa-2x text-primary me-3"></i>
+                                    <div class="flex-grow-1">
+                                        <h4 class="modal-title mb-1" id="adminNotificationDetailModalLabel">Chi tiết thông báo</h4>
+                                        <p class="text-muted mb-0 small">Thông tin chi tiết về thông báo của bạn</p>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                                        <i class="fas fa-arrow-left me-1"></i>Quay lại
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <!-- Main Content -->
+                                    <div class="col-lg-8">
+                                        <!-- Status Card -->
+                                        <div class="card border-0 shadow-sm mb-4">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center justify-content-between">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                                                            <i class="fas ${statusIcon} fa-2x text-primary"></i>
+                                                        </div>
+                                                        <div>
+                                                            <h5 class="mb-1">${data.status_text}</h5>
+                                                            <p class="text-muted mb-0 small">
+                                                                <span class="badge bg-success">${data.kenh}</span> • ${data.ten_template}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="text-muted small">
+                                                            <i class="far fa-calendar me-1"></i>${createdDate}
+                                                        </div>
+                                                        <div class="text-muted small">
+                                                            <i class="far fa-clock me-1"></i>${createdTime}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Content Card -->
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-header bg-white border-0 pb-2">
+                                                <h6 class="mb-0 fw-bold">
+                                                    <i class="fas fa-file-alt text-primary me-2"></i>Nội dung thông báo
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-4">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="fas fa-heading text-primary me-1"></i>Tiêu đề
+                                                    </h6>
+                                                    <div class="bg-primary bg-opacity-10 p-3 rounded">
+                                                        <h5 class="mb-0 text-primary fw-bold">${data.title}</h5>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-4">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="fas fa-comment text-primary me-1"></i>Nội dung
+                                                    </h6>
+                                                    <div class="bg-light p-3 rounded border">
+                                                        <p class="mb-0">${data.message}</p>
+                                                    </div>
+                                                </div>
+
+                                                ${data.link ? `
+                                                <div class="mb-3">
+                                                    <h6 class="text-muted mb-2">
+                                                        <i class="fas fa-link text-primary me-1"></i>Liên kết
+                                                    </h6>
+                                                    <a href="${data.link}" class="btn btn-outline-primary btn-sm mb-2" target="_blank">
+                                                        <i class="fas fa-external-link-alt me-1"></i>Xem chi tiết
+                                                    </a>
+                                                    <div class="text-muted small">${data.link}</div>
+                                                </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Sidebar -->
+                                    <div class="col-lg-4">
+                                        <!-- Info Card -->
+                                        <div class="card border-0 shadow-sm mb-4">
+                                            <div class="card-header bg-white border-0 pb-2">
+                                                <h6 class="mb-0 fw-bold">
+                                                    <i class="fas fa-info-circle text-primary me-2"></i>Thông tin thông báo
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="text-muted small">
+                                                            <i class="far fa-tag me-1"></i>Loại thông báo
+                                                        </span>
+                                                        <span class="badge bg-primary">${data.ten_template}</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="text-muted small">
+                                                            <i class="fas fa-broadcast-tower me-1"></i>Kênh
+                                                        </span>
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-bell me-1"></i>${data.kenh}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="text-muted small">
+                                                            <i class="far fa-plus-circle me-1"></i>Ngày tạo
+                                                        </span>
+                                                        <span class="small fw-bold">${data.created_at}</span>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-0">
+                                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                                        <span class="text-muted small">
+                                                            <i class="far fa-edit me-1"></i>Cập nhật cuối
+                                                        </span>
+                                                        <span class="small fw-bold">${data.updated_at}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Actions Card -->
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-header bg-white border-0 pb-2">
+                                                <h6 class="mb-0 fw-bold">
+                                                    <i class="fas fa-tools text-primary me-2"></i>Thao tác
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="d-grid gap-2">
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">
+                                                        <i class="fas fa-arrow-left me-1"></i>Quay lại
+                                                    </button>
+                                                    <a href="/admin/admin-notifications/${notificationId}" class="btn btn-outline-primary btn-sm" target="_blank">
+                                                        <i class="fas fa-external-link-alt me-1"></i>Xem chi tiết
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Hiển thị modal
+                const bsModal = new bootstrap.Modal(modal);
+                bsModal.show();
+
+                // Đánh dấu đã đọc nếu chưa đọc
+                if (data.trang_thai !== 'read') {
+                    markAdminNotificationAsRead(notificationId);
+                }
+
+                // Reload notifications sau khi đánh dấu đã đọc
+                setTimeout(() => {
+                    loadAdminNotifications();
+                    loadAdminUnreadCount();
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error loading notification detail:', error);
+                // Nếu lỗi, chuyển đến trang chi tiết
+                window.location.href = `/admin/admin-notifications/${notificationId}`;
+            });
+        }
+
+        // Mark notification as read
+        function markAdminNotificationAsRead(notificationId) {
+            fetch(`/admin/admin-notifications/${notificationId}/mark-read`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Cập nhật UI
+                    loadAdminNotifications();
+                    loadAdminUnreadCount();
+                }
+            })
+            .catch(error => {
+                console.error('Error marking notification as read:', error);
+            });
         }
 
         // Get time ago

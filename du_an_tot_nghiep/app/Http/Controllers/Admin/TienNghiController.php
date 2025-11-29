@@ -46,7 +46,7 @@ class TienNghiController extends Controller
         TienNghi::create($data);
 
         return redirect()->route('admin.tien-nghi.index')
-            ->with('success', 'Tiện nghi đã được tạo thành công!');
+            ->with('success', 'Dịch vụ đã được tạo thành công!');
     }
 
     public function show(TienNghi $tienNghi)
@@ -93,7 +93,7 @@ class TienNghiController extends Controller
         $tienNghi->update($data);
 
         return redirect()->route('admin.tien-nghi.index')
-            ->with('success', 'Tiện nghi đã được cập nhật thành công!');
+            ->with('success', 'Dịch vụ đã được cập nhật thành công!');
     }
 
 
@@ -107,7 +107,7 @@ class TienNghiController extends Controller
         $tienNghi->delete();
 
         return redirect()->route('admin.tien-nghi.index')
-            ->with('success', 'Tiện nghi đã được xóa thành công!');
+            ->with('success', 'Dịch vụ đã được xóa thành công!');
     }
 
     public function toggleActive(TienNghi $tienNghi)
@@ -116,6 +116,6 @@ class TienNghiController extends Controller
 
         $status = $tienNghi->active ? 'kích hoạt' : 'vô hiệu hóa';
         return redirect()->back()
-            ->with('success', "Tiện nghi đã được {$status} thành công!");
+            ->with('success', "Dịch vụ đã được {$status} thành công!");
     }
 }

@@ -153,7 +153,7 @@
 
                         <div class="card bg-transparent">
                             <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                                <h3 class="card-title mb-0">Tiện nghi</h3>
+                                <h3 class="card-title mb-0">Dịch vụ</h3>
                             </div>
                             <div class="card-body pt-4 p-0">
                                 <div class="row g-4">
@@ -172,7 +172,7 @@
                                         @endforeach
                                     @else
                                         <div class="col-12">
-                                            <p class="mb-0">Không có tiện nghi nào được liệt kê cho phòng này.</p>
+                                            <p class="mb-0">Không có dịch vụ nào được liệt kê cho phòng này.</p>
                                         </div>
                                     @endif
                                 </div>
