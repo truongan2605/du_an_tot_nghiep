@@ -438,9 +438,10 @@
                                                             </div>
                                                         @endif
 
+
                                                         @if($b->trang_thai === 'dang_cho')
                                                             @php
-                                                                $pendingTransaction = $b->giaoDichs->where('trang_thai', 'dang_cho')->where('nha_cung_cap', 'vnpay')->first();
+                                                                $pendingTransaction = $b->giaoDichs->where('trang_thai', 'dang_cho')->whereIn('nha_cung_cap', ['vnpay', 'momo'])->first();
                                                             @endphp
                                                             @if($pendingTransaction)
                                                                 <a href="{{ route('account.booking.retry-payment', $b->id) }}" 

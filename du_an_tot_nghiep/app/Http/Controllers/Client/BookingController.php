@@ -1843,10 +1843,10 @@ class BookingController extends Controller
             return back()->with('error', 'Chỉ có thể tiếp tục thanh toán cho đơn đang chờ.');
         }
 
-        // Find pending VNPay transaction
+        // Find pending transaction (VNPay or MoMo)
         $pendingTransaction = $booking->giaoDichs()
             ->where('trang_thai', 'dang_cho')
-            ->where('nha_cung_cap', 'vnpay')
+            ->whereIn('nha_cung_cap', ['vnpay', 'momo'])
             ->first();
 
         if (!$pendingTransaction) {
@@ -1854,47 +1854,91 @@ class BookingController extends Controller
         }
 
         try {
-            // Generate new VNPay URL using existing transaction
-            $vnp_Url = env('VNPAY_URL');
-            $vnp_TmnCode = env('VNPAY_TMN_CODE');
-            $vnp_HashSecret = env('VNPAY_HASH_SECRET');
-            $vnp_ReturnUrl = env('VNPAY_RETURN_URL');
-
-            // Use existing transaction ID with new timestamp
-            $merchantTxnRef = $pendingTransaction->id . '-' . time();
-
-            $inputData = [
-                "vnp_Version" => "2.1.0",
-                "vnp_TmnCode" => $vnp_TmnCode,
-                "vnp_Amount" => $pendingTransaction->so_tien * 100,
-                "vnp_Command" => "pay",
-                "vnp_CreateDate" => date('YmdHis'),
-                "vnp_CurrCode" => "VND",
-                "vnp_IpAddr" => $request->ip(),
-                "vnp_Locale" => "vn",
-                "vnp_OrderInfo" => "Thanh toán đặt phòng {$booking->ma_tham_chieu}",
-                "vnp_OrderType" => "billpayment",
-                "vnp_ReturnUrl" => $vnp_ReturnUrl,
-                "vnp_TxnRef" => $merchantTxnRef,
-            ];
-
-            ksort($inputData);
-            $query = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
-            $vnp_SecureHash = hash_hmac('sha512', $query, $vnp_HashSecret);
-            $redirectUrl = $vnp_Url . '?' . $query . '&vnp_SecureHash=' . $vnp_SecureHash;
-
-            Log::info('Retry payment for booking', [
-                'booking_id' => $booking->id,
-                'transaction_id' => $pendingTransaction->id,
-                'user_id' => $user->id,
+            $provider = $pendingTransaction->nha_cung_cap;
+            
+            // Mark old transaction as failed
+            $pendingTransaction->update([
+                'trang_thai' => 'that_bai',
+                'ghi_chu' => 'Replaced by retry payment',
             ]);
+            
+            // Create new transaction for retry
+            $newTransaction = \App\Models\GiaoDich::create([
+                'dat_phong_id' => $booking->id,
+                'nha_cung_cap' => $provider,
+                'so_tien' => $pendingTransaction->so_tien,
+                'don_vi' => 'VND',
+                'trang_thai' => 'dang_cho',
+                'ghi_chu' => 'Retry payment',
+            ]);
+            
+            if ($provider === 'momo') {
+                // Redirect to MoMo with NEW transaction ID
+                $momoService = new \App\Services\MoMoPaymentService();
+                
+                $paymentData = $momoService->createPaymentUrl([
+                    'orderId' => $newTransaction->id,
+                    'amount' => (int)$newTransaction->so_tien,
+                    'orderInfo' => "Thanh toán đặt phòng {$booking->ma_tham_chieu}",
+                    'returnUrl' => config('services.momo.return_url'),
+                    'notifyUrl' => config('services.momo.notify_url'),
+                    'extraData' => '',
+                ]);
 
-            return redirect()->away($redirectUrl);
+                Log::info('Retry MoMo payment for booking', [
+                    'booking_id' => $booking->id,
+                    'old_transaction_id' => $pendingTransaction->id,
+                    'new_transaction_id' => $newTransaction->id,
+                    'user_id' => $user->id,
+                ]);
+
+                return redirect()->away($paymentData['payUrl']);
+                
+            } else {
+                // Redirect to VNPay with NEW transaction ID
+                $vnp_Url = env('VNPAY_URL');
+                $vnp_TmnCode = env('VNPAY_TMN_CODE');
+                $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+                $vnp_ReturnUrl = env('VNPAY_RETURN_URL');
+
+                // Use new transaction ID with timestamp
+                $merchantTxnRef = $newTransaction->id . '-' . time();
+
+                $inputData = [
+                    "vnp_Version" => "2.1.0",
+                    "vnp_TmnCode" => $vnp_TmnCode,
+                    "vnp_Amount" => $newTransaction->so_tien * 100,
+                    "vnp_Command" => "pay",
+                    "vnp_CreateDate" => date('YmdHis'),
+                    "vnp_CurrCode" => "VND",
+                    "vnp_IpAddr" => $request->ip(),
+                    "vnp_Locale" => "vn",
+                    "vnp_OrderInfo" => "Thanh toán đặt phòng {$booking->ma_tham_chieu}",
+                    "vnp_OrderType" => "billpayment",
+                    "vnp_ReturnUrl" => $vnp_ReturnUrl,
+                    "vnp_TxnRef" => $merchantTxnRef,
+                ];
+
+                ksort($inputData);
+                $query = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
+                $vnp_SecureHash = hash_hmac('sha512', $query, $vnp_HashSecret);
+                $redirectUrl = $vnp_Url . '?' . $query . '&vnp_SecureHash=' . $vnp_SecureHash;
+
+                Log::info('Retry VNPay payment for booking', [
+                    'booking_id' => $booking->id,
+                    'old_transaction_id' => $pendingTransaction->id,
+                    'new_transaction_id' => $newTransaction->id,
+                    'user_id' => $user->id,
+                ]);
+
+                return redirect()->away($redirectUrl);
+            }
 
         } catch (\Exception $e) {
             Log::error('Error retrying payment', [
                 'booking_id' => $id,
                 'user_id' => $user->id,
+                'provider' => $pendingTransaction->nha_cung_cap ?? 'unknown',
                 'error' => $e->getMessage(),
             ]);
 
