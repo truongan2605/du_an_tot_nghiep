@@ -447,6 +447,9 @@
                                                             <option value="vnpay"
                                                                 {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Thanh toán
                                                                 bằng VNPAY</option>
+                                                            <option value="momo"
+                                                                {{ old('phuong_thuc') == 'momo' ? 'selected' : '' }}>Thanh toán
+                                                                bằng MoMo</option>
                                                             {{-- <option value="chuyen_khoan"
                                                                 {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
                                                                 Chuyển khoản ngân hàng</option> --}}

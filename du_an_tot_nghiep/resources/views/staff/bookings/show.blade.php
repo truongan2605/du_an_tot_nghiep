@@ -1346,6 +1346,14 @@
                                                     </label>
                                                 </div>
                                             </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="payment_method" id="paymentMomo" value="momo">
+                                                    <label class="form-check-label" for="paymentMomo">
+                                                        <i class="bi bi-wallet me-1"></i>MoMo online
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

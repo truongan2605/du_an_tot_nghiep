@@ -315,9 +315,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/confirm-payment/{dat_phong_id}', [ConfirmPaymentController::class, 'confirm'])->name('api.confirm-payment');
     Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
 
+    // MoMo Payment
+    Route::post('/payment/momo/initiate', [PaymentController::class, 'initiateMoMo'])->name('payment.momo.initiate');
+    Route::get('/payment/momo/callback', [PaymentController::class, 'handleMoMoCallback'])->name('payment.momo.callback');
+    Route::post('/payment/momo/ipn', [PaymentController::class, 'handleMoMoIPN'])->name('payment.momo.ipn');
+
     // Remaining payment
     Route::post('/payment/remaining/{dat_phong_id}', [PaymentController::class, 'initiateRemainingPayment'])->name('payment.remaining');
     Route::get('/payment/remaining/callback', [PaymentController::class, 'handleRemainingCallback'])->name('payment.remaining.callback');
+    Route::get('/payment/momo/remaining-callback', [PaymentController::class, 'handleMoMoRemainingCallback'])->name('payment.momo.remaining.callback');
 });
 Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
 

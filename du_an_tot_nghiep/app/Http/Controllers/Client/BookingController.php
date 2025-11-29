@@ -1146,7 +1146,7 @@ class BookingController extends Controller
                     if (Schema::hasColumn('dat_phong', $k)) $allowedPayload[$k] = $v;
                 }
                 $allowedPayload['deposit_amount'] = $request->deposit_amount;
-                $allowedPayload['trang_thai'] = 'deposited';
+                $allowedPayload['trang_thai'] = 'dang_cho'; // Fixed: 'deposited' is not valid, use 'dang_cho'
                 $allowedPayload['tong_tien'] = $snapshotTotalServer;
 
                 $datPhongId = DB::table('dat_phong')->insertGetId($allowedPayload);
@@ -1330,9 +1330,48 @@ class BookingController extends Controller
                 }
             });
 
-            return redirect()->route('account.booking.create', $phong->id)
-                ->with('success', 'Room(s) held for 15 minutes. Please proceed to payment to confirm the booking.')
-                ->with('dat_phong_id', $datPhongId);
+            // Handle payment gateway redirect
+            $phuongThuc = $request->input('phuong_thuc');
+            
+            if (in_array($phuongThuc, ['momo', 'vnpay'])) {
+                // Prepare data for payment gateway
+                $paymentData = [
+                    'phong_id' => $phong->id,
+                    'ngay_nhan_phong' => $request->input('ngay_nhan_phong'),
+                    'ngay_tra_phong' => $request->input('ngay_tra_phong'),
+                    'adults' => $request->input('adults'),
+                    'children' => $request->input('children', 0),
+                    'children_ages' => $request->input('children_ages', []),
+                    'addons' => $request->input('addons', []),
+                    'rooms_count' => $request->input('rooms_count'),
+                    'so_khach' => $request->input('so_khach'),
+                    'name' => $request->input('name'),
+                    'address' => $request->input('address'),
+                    'phone' => $request->input('phone'),
+                    'ghi_chu' => $request->input('ghi_chu'),
+                    'amount' => $request->input('deposit_amount'),
+                    'total_amount' => $request->input('tong_tien'),
+                    'deposit_percentage' => $request->input('deposit_percentage', 50),
+                    'phuong_thuc' => $phuongThuc,
+                    'final_per_night' => $request->input('final_per_night'),
+                    'snapshot_total' => $request->input('snapshot_total'),
+                    'dat_phong_id' => $datPhongId,
+                ];
+                
+                $routeName = $phuongThuc === 'momo' ? 'payment.momo.initiate' : 'payment.vnpay.initiate';
+                
+                // Return view with auto-submit form
+                return view('payment.auto-submit', [
+                    'route' => route($routeName),
+                    'data' => $paymentData,
+                    'gateway' => $phuongThuc === 'momo' ? 'MoMo' : 'VNPay'
+                ]);
+            } else {
+                // For cash/bank transfer, keep existing flow
+                return redirect()->route('account.booking.create', $phong->id)
+                    ->with('success', 'Room(s) held for 15 minutes. Please proceed to payment to confirm the booking.')
+                    ->with('dat_phong_id', $datPhongId);
+            }
         } catch (\Throwable $e) {
             Log::error('Booking.store exception: ' . $e->getMessage(), [
                 'code' => $e->getCode(),
