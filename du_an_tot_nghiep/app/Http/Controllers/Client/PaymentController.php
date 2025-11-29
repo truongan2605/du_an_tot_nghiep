@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use App\Services\PaymentNotificationService;
+use App\Models\VoucherUsage;
 
 class PaymentController extends Controller
 {
@@ -58,9 +59,12 @@ class PaymentController extends Controller
                 'phone' => [
                     'required',
                     'string',
-                    'regex:/^0[1-9]\d{8,9}$/', // Chấp nhận số điện thoại Việt Nam: 0[1-9]xxxxxxx (9-10 chữ số)
-                    // Bỏ rule unique để cho phép user dùng lại số phone cho nhiều booking
-                ]
+                    'regex:/^0[1-9]\d{8,9}$/', // SĐT VN 9–10 số, bắt đầu 0[1-9]
+                ],
+                // voucher
+                'voucher_id'        => 'nullable|integer',
+                'voucher_discount'  => 'nullable|numeric|min:0',
+                'ma_voucher'        => 'nullable|string|max:50',
             ]);
 
             // Default to 50% if not provided (radio button not submitted)
@@ -68,26 +72,18 @@ class PaymentController extends Controller
                 ? (int) $validated['deposit_percentage']
                 : 50;
 
-            // Validate amount vs total_amount
-            // Frontend làm tròn amount lên hàng nghìn, nên amount có thể lớn hơn total_amount một chút
-            // Cho phép amount lớn hơn total_amount tối đa 2000 (do làm tròn)
+            // Validate amount vs total_amount (client gửi total_amount sau voucher)
+            // Cho phép amount > total_amount tối đa 2000 do làm tròn lên 1000
             if ($validated['amount'] > $validated['total_amount'] + 2000) {
                 return response()->json([
                     'error' => "Số tiền thanh toán không hợp lệ (lớn hơn tổng tiền quá nhiều)"
                 ], 400);
             }
 
-            // Validate amount matches deposit percentage (chỉ validate khi deposit < 100%)
-            // Khi 100%, chỉ cần kiểm tra amount gần bằng total_amount (đã kiểm tra ở trên)
+            // Validate amount khớp tỷ lệ cọc (khi < 100%)
             if ($depositPercentage < 100) {
-                // Validate amount matches deposit percentage
-                // Frontend làm tròn lên đến hàng nghìn: Math.ceil(total * percentage / 1000) * 1000
-                // Nên ta cũng làm tròn tương tự để so sánh
                 $expectedDepositRaw = $validated['total_amount'] * ($depositPercentage / 100);
                 $expectedDepositRounded = ceil($expectedDepositRaw / 1000) * 1000;
-
-                // Cho phép sai số tối đa 2000 để tránh lỗi do làm tròn
-                // (frontend làm tròn lên, có thể chênh lệch tối đa ~1000, cộng thêm buffer)
                 $tolerance = 2000;
                 $difference = abs($validated['amount'] - $expectedDepositRounded);
 
@@ -105,7 +101,7 @@ class PaymentController extends Controller
                     ], 400);
                 }
             } else {
-                // Khi 100%, validate amount gần bằng total_amount (đã làm tròn)
+                // Khi 100%, amount phải gần bằng total_amount (đã làm tròn)
                 $expectedTotalRounded = ceil($validated['total_amount'] / 1000) * 1000;
                 $tolerance = 2000;
                 $difference = abs($validated['amount'] - $expectedTotalRounded);
@@ -132,8 +128,8 @@ class PaymentController extends Controller
             $to   = Carbon::parse($validated['ngay_tra_phong']);
 
             $nights        = $this->calculateNights($validated['ngay_nhan_phong'], $validated['ngay_tra_phong']);
-            $weekendNights = $this->countWeekendNights($from, $to);          // số đêm cuối tuần
-            $weekdayNights = max(0, $nights - $weekendNights);               // số đêm ngày thường
+            $weekendNights = $this->countWeekendNights($from, $to);  // số đêm cuối tuần
+            $weekdayNights = max(0, $nights - $weekendNights);       // số đêm ngày thường
 
             $adultsInput    = $validated['adults'];
             $childrenInput  = $validated['children'] ?? 0;
@@ -193,15 +189,32 @@ class PaymentController extends Controller
             $baseWeekdayTotal = $basePerNight * $roomsCount * $weekdayNights;
             $baseWeekendTotal = $basePerNight * self::WEEKEND_MULTIPLIER * $roomsCount * $weekendNights;
 
-            // Phụ thu người lớn / trẻ em / addons áp dụng như cũ cho mỗi đêm
+            // Phụ thu người lớn / trẻ em / addons áp dụng cho mỗi đêm
             $extrasPerNight = $adultsChargePerNight + $childrenChargePerNight + $addonsPerNight;
             $extrasTotal    = $extrasPerNight * $nights;
 
-            // Tổng tiền thật sự server tính
+            // Tổng tiền trước khi áp voucher (server tính)
             $snapshotTotalServer = $baseWeekdayTotal + $baseWeekendTotal + $extrasTotal;
 
-            // Để lưu xuống snapshot_meta: dùng giá trung bình mỗi đêm sau khi áp dụng cuối tuần
-            $finalPerNightServer = $snapshotTotalServer / max(1, $nights);
+            // --- ÁP DỤNG VOUCHER (NẾU CÓ) ---
+            $voucherId = $validated['voucher_id'] ?? null;
+            $voucherDiscount = isset($validated['voucher_discount'])
+                ? (float) $validated['voucher_discount']
+                : 0.0;
+
+            // Chuẩn hoá discount
+            if ($voucherDiscount < 0) {
+                $voucherDiscount = 0;
+            }
+            if ($voucherDiscount > $snapshotTotalServer) {
+                $voucherDiscount = $snapshotTotalServer;
+            }
+
+            // Tổng tiền sau voucher (net)
+            $netTotalServer = $snapshotTotalServer - $voucherDiscount;
+
+            // Giá trung bình mỗi đêm sau voucher (cho toàn bộ booking)
+            $finalPerNightServer = $netTotalServer / max(1, $nights);
 
             $snapshotMeta = [
                 'phong_id'            => $validated['phong_id'],
@@ -218,34 +231,52 @@ class PaymentController extends Controller
                 'adult_extra_total'    => $adultExtraTotal,
                 'children_extra_total' => $childrenExtraTotal,
 
-                'room_base_per_night'     => $basePerNight,
-                'weekday_nights'          => $weekdayNights,
-                'weekend_nights'          => $weekendNights,
-                'weekend_multiplier'      => self::WEEKEND_MULTIPLIER,
-                'base_weekday_total'      => $baseWeekdayTotal,
-                'base_weekend_total'      => $baseWeekendTotal,
-                'adults_charge_per_night' => $adultsChargePerNight,
+                'room_base_per_night'       => $basePerNight,
+                'weekday_nights'            => $weekdayNights,
+                'weekend_nights'            => $weekendNights,
+                'weekend_multiplier'        => self::WEEKEND_MULTIPLIER,
+                'base_weekday_total'        => $baseWeekdayTotal,
+                'base_weekend_total'        => $baseWeekendTotal,
+                'adults_charge_per_night'   => $adultsChargePerNight,
                 'children_charge_per_night' => $childrenChargePerNight,
-                'addons_per_night'        => $addonsPerNight,
+                'addons_per_night'          => $addonsPerNight,
 
                 'addons' => $selectedAddons->map(
                     fn($a) => ['id' => $a->id, 'ten' => $a->ten, 'gia' => $a->gia]
                 )->toArray(),
-
                 'final_per_night' => $finalPerNightServer,
-                'nights' => $nights,
-                'rooms_count' => $roomsCount,
-                'tong_tien' => $snapshotTotalServer,
+                'nights'          => $nights,
+                'rooms_count'     => $roomsCount,
+
+                'tong_tien_truoc_voucher' => $snapshotTotalServer,
+                'voucher_id'              => $voucherId,
+                'voucher_discount'        => $voucherDiscount,
+                'tong_tien'               => $netTotalServer,
+
                 'deposit_percentage' => $depositPercentage,
-                'phuong_thuc' => $validated['phuong_thuc'],
-                'contact_name' => $validated['name'],
-                'contact_address' => $validated['address'],
-                'contact_phone'   => $validated['phone'],
+                'phuong_thuc'        => $validated['phuong_thuc'],
+                'contact_name'       => $validated['name'],
+                'contact_address'    => $validated['address'],
+                'contact_phone'      => $validated['phone'],
             ];
 
             return DB::transaction(function () use (
-                $validated, $maThamChieu, $snapshotMeta, $phong, $request, $from, $to, $nights,
-                $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons, $depositPercentage
+                $validated,
+                $maThamChieu,
+                $snapshotMeta,
+                $phong,
+                $request,
+                $from,
+                $to,
+                $nights,
+                $roomsCount,
+                $finalPerNightServer,
+                $snapshotTotalServer,
+                $selectedAddons,
+                $depositPercentage,
+                $netTotalServer,
+                $voucherId,
+                $voucherDiscount,
             ) {
                 // Nếu thanh toán 100% thì không cần thanh toán thêm nữa
                 $canThanhToan = $depositPercentage < 100;
@@ -255,20 +286,29 @@ class PaymentController extends Controller
                     'nguoi_dung_id'   => Auth::id(),
                     'phong_id'        => $validated['phong_id'],
                     'ngay_nhan_phong' => $validated['ngay_nhan_phong'],
-                    'ngay_tra_phong' => $validated['ngay_tra_phong'],
-                    'tong_tien' => $snapshotTotalServer,
-                    'deposit_amount' => $validated['amount'],
-                    'so_khach' => $validated['so_khach'] ?? ($validated['adults'] + ($validated['children'] ?? 0)),
-                    'trang_thai' => 'dang_cho',
-                    'can_thanh_toan' => $canThanhToan,
-                    'can_xac_nhan' => false,
-                    'created_by' => Auth::id(),
-                    'snapshot_meta' => $snapshotMeta, // FIXED: removed json_encode, model has 'array' cast
-                    'phuong_thuc' => $validated['phuong_thuc'],
-                    'contact_name' => $validated['name'],
+                    'ngay_tra_phong'  => $validated['ngay_tra_phong'],
+
+                    // Tổng sau voucher
+                    'tong_tien'       => $netTotalServer,
+                    'deposit_amount'  => $validated['amount'],
+
+                    'so_khach'        => $validated['so_khach'] ?? ($validated['adults'] + ($validated['children'] ?? 0)),
+                    'trang_thai'      => 'dang_cho',
+                    'can_thanh_toan'  => $canThanhToan,
+                    'can_xac_nhan'    => false,
+                    'created_by'      => Auth::id(),
+                    'snapshot_meta'   => $snapshotMeta,
+                    'phuong_thuc'     => $validated['phuong_thuc'],
+                    'contact_name'    => $validated['name'],
                     'contact_address' => $validated['address'],
                     'contact_phone'   => $validated['phone'],
+
+                    // Lưu voucher vào dat_phong
+                    'voucher_id'       => $voucherId,
+                    'voucher_discount' => $voucherDiscount,
+                    'ma_voucher'       => $validated['ma_voucher'] ?? null,
                 ]);
+
 
                 Log::info('Payment booking created with contact', [
                     'dat_phong_id'   => $dat_phong->id,
@@ -278,6 +318,7 @@ class PaymentController extends Controller
                     'validated_data' => $validated,
                 ]);
 
+                // Khoá loại phòng để tránh race-condition
                 if (Schema::hasTable('loai_phong')) {
                     DB::table('loai_phong')
                         ->where('id', $phong->loai_phong_id)
@@ -477,7 +518,7 @@ class PaymentController extends Controller
                         'dat_phong_id' => $dat_phong->id,
                     ]);
                 } elseif (!Schema::hasColumn('giu_phong', 'phong_id')) {
-                    $holdBase['so_luong']           = $roomsCount;
+                    $holdBase['so_luong']            = $roomsCount;
                     $holdBase['spec_signature_hash'] = $requestedSpecSignature;
                     DB::table('giu_phong')->insert($holdBase);
                 }
@@ -514,7 +555,7 @@ class PaymentController extends Controller
                 ];
 
                 ksort($inputData);
-                $query         = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
+                $query          = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
                 $vnp_SecureHash = hash_hmac('sha512', $query, $vnp_HashSecret);
                 $redirectUrl    = $vnp_Url . '?' . $query . '&vnp_SecureHash=' . $vnp_SecureHash;
 
@@ -528,7 +569,7 @@ class PaymentController extends Controller
                 'errors' => $e->errors(),
                 'request' => $request->all()
             ]);
-            return response()->json(['error' => 'Dữ liệu không hợp lệ: ' . implode(', ', array_map(function($errors) {
+            return response()->json(['error' => 'Dữ liệu không hợp lệ: ' . implode(', ', array_map(function ($errors) {
                 return implode(', ', $errors);
             }, $e->errors()))], 422);
         } catch (\Throwable $e) {
@@ -553,7 +594,6 @@ class PaymentController extends Controller
         $user = $request->user();
         if (!$user) return response()->json(['error' => 'Authentication required'], 401);
 
-        // Debug: Log deposit_percentage from request
         Log::info('DEBUG deposit_percentage from request', [
             'deposit_percentage' => $request->input('deposit_percentage'),
             'all_inputs' => $request->except(['_token'])
@@ -636,6 +676,21 @@ class PaymentController extends Controller
                     'can_xac_nhan'  => true,
                 ]);
 
+                // Ghi nhận sử dụng voucher nếu có
+                if (!empty($dat_phong->voucher_id)) {
+                    VoucherUsage::firstOrCreate(
+                        [
+                            'dat_phong_id' => $dat_phong->id,
+                            'voucher_id'   => $dat_phong->voucher_id,
+                        ],
+                        [
+                            'user_id'  => $dat_phong->nguoi_dung_id,
+                            'discount' => $dat_phong->voucher_discount ?? 0,
+                            'used_at'  => now(),
+                        ]
+                    );
+                }
+
                 $giu_phongs       = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
                 $phongIdsToOccupy = [];
 
@@ -662,7 +717,7 @@ class PaymentController extends Controller
                         'so_luong'           => $giu_phong->so_luong ?? 1,
                         'gia_tren_dem'       => $price_per_night,
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
-                        'spec_signature_hash'=> $specSignatureHash,
+                        'spec_signature_hash' => $specSignatureHash,
                     ];
 
                     Log::debug('Inserting dat_phong_item', [
@@ -722,7 +777,7 @@ class PaymentController extends Controller
     {
         Log::info('VNPAY IPN Received', $request->all());
 
-        $inputData         = collect($request->all())->toArray();
+        $inputData          = collect($request->all())->toArray();
         $receivedSecureHash = $inputData['vnp_SecureHash'] ?? '';
         unset($inputData['vnp_SecureHash'], $inputData['vnp_SecureHashType']);
 
@@ -780,6 +835,21 @@ class PaymentController extends Controller
                     'can_xac_nhan' => true,
                 ]);
 
+                // Ghi nhận sử dụng voucher nếu có
+                if (!empty($dat_phong->voucher_id)) {
+                    VoucherUsage::firstOrCreate(
+                        [
+                            'dat_phong_id' => $dat_phong->id,
+                            'voucher_id'   => $dat_phong->voucher_id,
+                        ],
+                        [
+                            'user_id'  => $dat_phong->nguoi_dung_id,
+                            'discount' => $dat_phong->voucher_discount ?? 0,
+                            'used_at'  => now(),
+                        ]
+                    );
+                }
+
                 $giu_phongs       = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
                 $phongIdsToOccupy = [];
 
@@ -806,7 +876,7 @@ class PaymentController extends Controller
                         'so_luong'           => $giu_phong->so_luong ?? 1,
                         'gia_tren_dem'       => $price_per_night,
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
-                        'spec_signature_hash'=> $specSignatureHash,
+                        'spec_signature_hash' => $specSignatureHash,
                     ];
 
                     Log::debug('Inserting dat_phong_item', [
@@ -856,7 +926,7 @@ class PaymentController extends Controller
             ->whereIn('trang_thai', ['dang_cho_xac_nhan', 'dang_cho'])
             ->where(function ($q) {
                 $q->where('can_xac_nhan', true)
-                  ->orWhere('can_thanh_toan', true);
+                    ->orWhere('can_thanh_toan', true);
             })
             ->whereHas('giaoDichs', fn($q) => $q->whereIn('trang_thai', ['thanh_cong', 'dang_cho']))
             ->orderByDesc('updated_at')
@@ -880,12 +950,12 @@ class PaymentController extends Controller
             "vnp_TmnCode"      => env('VNPAY_TMN_CODE'),
             "vnp_TxnRef"       => "TESTSIMULATE001",
             "vnp_ResponseCode" => "00",
-            "vnp_TransactionNo"=> "999999",
+            "vnp_TransactionNo" => "999999",
             "vnp_PayDate"      => now()->format('YmdHis'),
         ];
 
         ksort($testData);
-        $hashData                = http_build_query($testData, '', '&', PHP_QUERY_RFC1738);
+        $hashData                  = http_build_query($testData, '', '&', PHP_QUERY_RFC1738);
         $testData["vnp_SecureHash"] = strtoupper(hash_hmac('sha512', $hashData, env('VNPAY_HASH_SECRET')));
 
         return redirect()->route('payment.callback', $testData);
@@ -918,19 +988,19 @@ class PaymentController extends Controller
             $vnp_Url        = env('VNPAY_URL');
             $vnp_ReturnUrl  = env('VNPAY_RETURN_URL');
 
-            $vnp_TxnRef   = $giao_dich->id . '-' . time();
-            $vnp_OrderInfo= 'Thanh toán đơn đặt phòng #' . $dat_phong->id;
-            $vnp_OrderType= 'billpayment';
-            $vnp_Amount   = $dat_phong->tong_tien * 100;
-            $vnp_Locale   = 'vn';
-            $vnp_IpAddr   = $request->ip();
+            $vnp_TxnRef    = $giao_dich->id . '-' . time();
+            $vnp_OrderInfo = 'Thanh toán đơn đặt phòng #' . $dat_phong->id;
+            $vnp_OrderType = 'billpayment';
+            $vnp_Amount    = $dat_phong->tong_tien * 100;
+            $vnp_Locale    = 'vn';
+            $vnp_IpAddr    = $request->ip();
 
             $inputData = [
                 "vnp_Version"   => "2.1.0",
                 "vnp_TmnCode"   => $vnp_TmnCode,
                 "vnp_Amount"    => $vnp_Amount,
                 "vnp_Command"   => "pay",
-                "vnp_CreateDate"=> date('YmdHis'),
+                "vnp_CreateDate" => date('YmdHis'),
                 "vnp_CurrCode"  => "VND",
                 "vnp_IpAddr"    => $vnp_IpAddr,
                 "vnp_Locale"    => $vnp_Locale,
@@ -943,7 +1013,7 @@ class PaymentController extends Controller
 
             ksort($inputData);
             $hashData      = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
-            $vnp_SecureHash= hash_hmac('sha512', $hashData, $vnp_HashSecret);
+            $vnp_SecureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
 
             $vnp_Url .= '?' . $hashData . '&vnp_SecureHash=' . $vnp_SecureHash;
 
@@ -968,7 +1038,7 @@ class PaymentController extends Controller
         $cccdList = $meta['checkin_cccd_list'] ?? [];
         $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
 
-        // Backward compatibility: kiểm tra CCCD cũ nếu chưa có danh sách mới
+        // Backward compatibility
         if (!$hasCCCD) {
             $hasOldCCCD = !empty($meta['checkin_cccd_front']) || !empty($meta['checkin_cccd_back']) || !empty($meta['checkin_cccd']);
             if (!$hasOldCCCD) {
@@ -1011,14 +1081,12 @@ class PaymentController extends Controller
                     'checked_in_by' => Auth::id(),
                 ]);
 
-                // Gửi thông báo thanh toán toàn bộ hoặc thanh toán phần còn lại
+                // Gửi thông báo thanh toán toàn bộ hoặc phần còn lại
                 $totalPaid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
                 $notificationService = new PaymentNotificationService();
                 if ($totalPaid >= $booking->tong_tien) {
-                    // Thanh toán toàn bộ
                     $notificationService->sendFullPaymentNotification($booking, $giaoDich);
                 } else {
-                    // Thanh toán phần còn lại (không phải cọc, nhưng vẫn gửi thông báo)
                     $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
                 }
             }
@@ -1138,7 +1206,7 @@ class PaymentController extends Controller
 
             Log::info('Current booking status BEFORE update', [
                 'booking_id'    => $booking->id,
-                'current_status'=> $booking->trang_thai,
+                'current_status' => $booking->trang_thai,
                 'ma_tham_chieu' => $booking->ma_tham_chieu,
             ]);
 
@@ -1214,7 +1282,7 @@ class PaymentController extends Controller
             "vnp_TmnCode"   => $vnp_TmnCode,
             "vnp_Amount"    => $vnp_Amount,
             "vnp_Command"   => "pay",
-            "vnp_CreateDate"=> date('YmdHis'),
+            "vnp_CreateDate" => date('YmdHis'),
             "vnp_CurrCode"  => "VND",
             "vnp_IpAddr"    => request()->ip(),
             "vnp_Locale"    => "vn",
@@ -1226,7 +1294,7 @@ class PaymentController extends Controller
 
         ksort($inputData);
         $hashData      = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
-        $vnp_SecureHash= hash_hmac('sha512', $hashData, $vnp_HashSecret);
+        $vnp_SecureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
 
         $paymentUrl = $vnp_Url . '?' . $hashData . '&vnp_SecureHash=' . $vnp_SecureHash;
         return redirect()->away($paymentUrl);
@@ -1361,9 +1429,9 @@ class PaymentController extends Controller
             }
         }
 
-        $occupiedSpecificIds   = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
-        $matchingAvailableIds  = array_values(array_diff($matchingRoomIds, $occupiedSpecificIds));
-        $matchingAvailableCount= count($matchingAvailableIds);
+        $occupiedSpecificIds    = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
+        $matchingAvailableIds   = array_values(array_diff($matchingRoomIds, $occupiedSpecificIds));
+        $matchingAvailableCount = count($matchingAvailableIds);
 
         $aggregateBooked = 0;
         if (Schema::hasTable('dat_phong_item')) {
@@ -1412,8 +1480,10 @@ class PaymentController extends Controller
                     if (!is_array($decoded)) {
                         continue;
                     }
-                    if (isset($decoded['spec_signature_hash'])
-                        && $decoded['spec_signature_hash'] === $requiredSignature) {
+                    if (
+                        isset($decoded['spec_signature_hash'])
+                        && $decoded['spec_signature_hash'] === $requiredSignature
+                    ) {
                         $aggregateHoldsForSignature += $decoded['rooms_count'] ?? 1;
                     }
                 }
