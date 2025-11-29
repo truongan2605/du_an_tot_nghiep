@@ -1561,7 +1561,7 @@ public function handleMoMoIPN(Request $request)
                     'transaction_id' => $giao_dich->id,
                 ]);
 
-                return view('payment.success', compact('dat_phong'));
+                return redirect()->route('staff.checkin')->with('success', 'Thanh toán thành công! Khách hàng đã thanh toán đủ.');
             } else {
                 // Payment failed
                 $giao_dich->update([
