@@ -97,11 +97,6 @@
                     <div class="card mb-4">
                         <div class="card-body">
                             <h5 class="fw-bold mb-2">Hạng hiện tại: {{ $currentLevel }}</h5>
-                            <p>
-                                Bạn được giảm
-                                <strong>{{ number_format($currentDiscount, 1) }}%</strong>
-                                cho mọi đơn đặt phòng.
-                            </p>
                             <p class="text-muted mb-0">
                                 Tổng chi tiêu:
                                 <strong>{{ number_format($totalSpent, 0, ',', '.') }}đ</strong>

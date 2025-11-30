@@ -309,46 +309,6 @@
                         @endif
                     </div>
 
-                    <div class="card mt-4">
-                        <div class="card-header bg-light">
-                            <h5 class="mb-0 fw-bold">
-                                🎁 Ưu đãi khách hàng thân thiết
-                            </h5>
-                        </div>
-
-                        <div class="card-body">
-                            @php
-                                $user = auth()->user();
-                                $currentLevel = $user ? $user->getMemberLevelName() : 'Đồng';
-                                $currentDiscount = $user ? $user->getMemberDiscountPercent() : 3.0;
-                            @endphp
-                            <div class="alert alert-warning">
-                                <strong>Hạng hiện tại: {{ $currentLevel }}</strong> – Bạn được giảm {{ number_format($currentDiscount, 1) }}% cho mọi đơn đặt phòng.
-                            </div>
-
-                            <ul class="list-group">
-                                <li class="list-group-item {{ $currentLevel == 'Đồng' ? 'active' : '' }}">
-                                    🥉 <strong>Đồng</strong> – Giảm 3%
-                                </li>
-                                <li class="list-group-item {{ $currentLevel == 'Bạc' ? 'active' : '' }}">
-                                    🥈 <strong>Bạc</strong> – Giảm 5%
-                                </li>
-                                <li class="list-group-item {{ $currentLevel == 'Vàng' ? 'active' : '' }}">
-                                    🥇 <strong>Vàng</strong> – Giảm 10%
-                                </li>
-                                <li class="list-group-item {{ $currentLevel == 'Kim Cương' ? 'active' : '' }}">
-                                    👑 <strong>Kim Cương</strong> – Giảm 15% + Ưu tiên hỗ trợ khách hàng
-                                </li>
-                            </ul>
-                            
-                            <div class="mt-3">
-                                <a href="{{ route('account.rewards') }}" class="btn btn-sm btn-outline-primary">
-                                    Xem chi tiết ưu đãi
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
                 </div>
                 <!-- Main content END -->
 
