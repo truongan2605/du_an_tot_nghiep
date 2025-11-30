@@ -123,7 +123,7 @@ class BookingController extends Controller
             $oldRoomId = (int) $oldRoomId;
         }
         
-        \Log::info('🔍 Available rooms API called', [
+        Log::info('🔍 Available rooms API called', [
             'booking_id' => $booking->id,
             'old_room_id_param' => $oldRoomId,
             'old_room_id_type' => gettype($oldRoomId),
@@ -136,7 +136,7 @@ class BookingController extends Controller
                 ->where('phong_id', $oldRoomId)
                 ->first();
                 
-            \Log::info('🎯 Found specific room', [
+            Log::info('🎯 Found specific room', [
                 'current_item_id' => $currentItem ? $currentItem->id : null,
                 'current_room_id' => $currentItem ? $currentItem->phong_id : null,
                 'query_phong_id' => $oldRoomId
@@ -145,7 +145,7 @@ class BookingController extends Controller
             // Fallback to first room for backward compatibility
             $currentItem = $booking->datPhongItems->first();
             
-            \Log::info('⚠️ No old_room_id, using first room', [
+            Log::info('⚠️ No old_room_id, using first room', [
                 'current_item_id' => $currentItem ? $currentItem->id : null,
                 'current_room_id' => $currentItem ? $currentItem->phong_id : null
             ]);
@@ -295,7 +295,7 @@ class BookingController extends Controller
         $currentBookingTotal = $booking->tong_tien;  // Current total of ALL rooms
         $newBookingTotal = $currentBookingTotal - $oldRoomTotal + $newRoomTotal;  // Remove old, add new
         
-        \Log::info('💰 Room change payment calculation', [
+        Log::info('💰 Room change payment calculation', [
             'old_room_total' => $oldRoomTotal,
             'new_room_total' => $newRoomTotal,
             'price_diff' => $priceDiff,
@@ -326,7 +326,7 @@ class BookingController extends Controller
             $newDepositRequired = $newBookingTotal * ($depositPct / 100);
             $paymentNeeded = $newDepositRequired - $booking->deposit_amount;
             
-            \Log::info('💳 Upgrade payment calculation', [
+            Log::info(' Upgrade payment calculation', [
                 'deposit_pct' => $depositPct,
                 'new_booking_total' => $newBookingTotal,
                 'new_deposit_required' => $newDepositRequired,
@@ -401,10 +401,10 @@ class BookingController extends Controller
         $vnp_Url = env('VNPAY_URL');
         $vnp_ReturnUrl = route('booking.change-room.callback');
         
-        $vnp_TxnRef = 'RC' . $roomChange->id . '_' . time(); // Room Change prefix
+        $vnp_TxnRef = 'RC' . $roomChange->id . '_' . time();
         $vnp_OrderInfo = 'Thanh toán đổi phòng #' . $booking->ma_tham_chieu;
         $vnp_OrderType = 'billpayment';
-        $vnp_Amount = $amount * 100; // VNPay uses smallest unit
+        $vnp_Amount = $amount * 100;
         $vnp_Locale = 'vn';
         $vnp_IpAddr = request()->ip();
         
@@ -584,7 +584,7 @@ class BookingController extends Controller
             $booking->deposit_amount = $booking->deposit_amount + $paymentMade;  // Add payment to existing deposit
             $booking->save();
             
-            \Log::info('✅ Booking totals updated after room change', [
+            Log::info(' Booking totals updated after room change', [
                 'old_room_total' => $oldRoomTotal,
                 'new_room_total' => $newRoomTotal,
                 'current_booking_total' => $currentBookingTotal,
@@ -633,7 +633,7 @@ class BookingController extends Controller
             
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Room change completion failed: ' . $e->getMessage());
+            Log::error('Room change completion failed: ' . $e->getMessage());
             return false;
         }
     }
@@ -643,7 +643,7 @@ class BookingController extends Controller
      */
     private function createRefundVoucher($booking, $refundAmount, $roomChange)
     {
-        $code = 'DOWNGRADE' . strtoupper(\Str::random(8));
+        $code = 'DOWNGRADE' . strtoupper(Str::random(8));
         $expiryDate = \Carbon\Carbon::now()->addDays(30); // 30 days validity
         
         $voucher = \App\Models\Voucher::create([
@@ -666,7 +666,7 @@ class BookingController extends Controller
             'claimed_at' => \Carbon\Carbon::now()
         ]);
         
-        \Log::info('🎫 Refund voucher created for downgrade', [
+        Log::info('🎫 Refund voucher created for downgrade', [
             'voucher_code' => $code,
             'amount' => $refundAmount,
             'booking_id' => $booking->id,
