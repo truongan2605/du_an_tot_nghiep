@@ -123,7 +123,7 @@ class BookingController extends Controller
             $oldRoomId = (int) $oldRoomId;
         }
         
-        \Log::info('🔍 Available rooms API called', [
+        Log::info('🔍 Available rooms API called', [
             'booking_id' => $booking->id,
             'old_room_id_param' => $oldRoomId,
             'old_room_id_type' => gettype($oldRoomId),
@@ -136,7 +136,7 @@ class BookingController extends Controller
                 ->where('phong_id', $oldRoomId)
                 ->first();
                 
-            \Log::info('🎯 Found specific room', [
+            Log::info('🎯 Found specific room', [
                 'current_item_id' => $currentItem ? $currentItem->id : null,
                 'current_room_id' => $currentItem ? $currentItem->phong_id : null,
                 'query_phong_id' => $oldRoomId
@@ -145,7 +145,7 @@ class BookingController extends Controller
             // Fallback to first room for backward compatibility
             $currentItem = $booking->datPhongItems->first();
             
-            \Log::info('⚠️ No old_room_id, using first room', [
+            Log::info('⚠️ No old_room_id, using first room', [
                 'current_item_id' => $currentItem ? $currentItem->id : null,
                 'current_room_id' => $currentItem ? $currentItem->phong_id : null
             ]);
@@ -295,7 +295,7 @@ class BookingController extends Controller
         $currentBookingTotal = $booking->tong_tien;  // Current total of ALL rooms
         $newBookingTotal = $currentBookingTotal - $oldRoomTotal + $newRoomTotal;  // Remove old, add new
         
-        \Log::info('💰 Room change payment calculation', [
+        Log::info('💰 Room change payment calculation', [
             'old_room_total' => $oldRoomTotal,
             'new_room_total' => $newRoomTotal,
             'price_diff' => $priceDiff,
@@ -326,7 +326,7 @@ class BookingController extends Controller
             $newDepositRequired = $newBookingTotal * ($depositPct / 100);
             $paymentNeeded = $newDepositRequired - $booking->deposit_amount;
             
-            \Log::info('💳 Upgrade payment calculation', [
+            Log::info(' Upgrade payment calculation', [
                 'deposit_pct' => $depositPct,
                 'new_booking_total' => $newBookingTotal,
                 'new_deposit_required' => $newDepositRequired,
@@ -401,10 +401,10 @@ class BookingController extends Controller
         $vnp_Url = env('VNPAY_URL');
         $vnp_ReturnUrl = route('booking.change-room.callback');
         
-        $vnp_TxnRef = 'RC' . $roomChange->id . '_' . time(); // Room Change prefix
+        $vnp_TxnRef = 'RC' . $roomChange->id . '_' . time();
         $vnp_OrderInfo = 'Thanh toán đổi phòng #' . $booking->ma_tham_chieu;
         $vnp_OrderType = 'billpayment';
-        $vnp_Amount = $amount * 100; // VNPay uses smallest unit
+        $vnp_Amount = $amount * 100;
         $vnp_Locale = 'vn';
         $vnp_IpAddr = request()->ip();
         
@@ -584,7 +584,7 @@ class BookingController extends Controller
             $booking->deposit_amount = $booking->deposit_amount + $paymentMade;  // Add payment to existing deposit
             $booking->save();
             
-            \Log::info('✅ Booking totals updated after room change', [
+            Log::info(' Booking totals updated after room change', [
                 'old_room_total' => $oldRoomTotal,
                 'new_room_total' => $newRoomTotal,
                 'current_booking_total' => $currentBookingTotal,
@@ -633,7 +633,7 @@ class BookingController extends Controller
             
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Room change completion failed: ' . $e->getMessage());
+            Log::error('Room change completion failed: ' . $e->getMessage());
             return false;
         }
     }
@@ -643,7 +643,7 @@ class BookingController extends Controller
      */
     private function createRefundVoucher($booking, $refundAmount, $roomChange)
     {
-        $code = 'DOWNGRADE' . strtoupper(\Str::random(8));
+        $code = 'DOWNGRADE' . strtoupper(Str::random(8));
         $expiryDate = \Carbon\Carbon::now()->addDays(30); // 30 days validity
         
         $voucher = \App\Models\Voucher::create([
@@ -666,7 +666,7 @@ class BookingController extends Controller
             'claimed_at' => \Carbon\Carbon::now()
         ]);
         
-        \Log::info('🎫 Refund voucher created for downgrade', [
+        Log::info('🎫 Refund voucher created for downgrade', [
             'voucher_code' => $code,
             'amount' => $refundAmount,
             'booking_id' => $booking->id,
@@ -1707,6 +1707,14 @@ class BookingController extends Controller
             // Keep audit trail of actual money received
             // If refund needed, create NEW refund transaction instead
             
+            // However, DO mark any PENDING transactions as failed to prevent payment after cancellation
+            \App\Models\GiaoDich::where('dat_phong_id', $booking->id)
+                ->where('trang_thai', 'dang_cho')
+                ->update([
+                    'trang_thai' => 'that_bai',
+                    'ghi_chu' => 'Booking đã bị hủy bởi khách hàng',
+                ]);
+            
             // Create refund transaction if refund amount > 0
             if ($refundAmount > 0) {
                 \App\Models\GiaoDich::create([
@@ -1843,10 +1851,10 @@ class BookingController extends Controller
             return back()->with('error', 'Chỉ có thể tiếp tục thanh toán cho đơn đang chờ.');
         }
 
-        // Find pending VNPay transaction
+        // Find pending transaction (VNPay or MoMo)
         $pendingTransaction = $booking->giaoDichs()
             ->where('trang_thai', 'dang_cho')
-            ->where('nha_cung_cap', 'vnpay')
+            ->whereIn('nha_cung_cap', ['vnpay', 'momo'])
             ->first();
 
         if (!$pendingTransaction) {
@@ -1854,47 +1862,91 @@ class BookingController extends Controller
         }
 
         try {
-            // Generate new VNPay URL using existing transaction
-            $vnp_Url = env('VNPAY_URL');
-            $vnp_TmnCode = env('VNPAY_TMN_CODE');
-            $vnp_HashSecret = env('VNPAY_HASH_SECRET');
-            $vnp_ReturnUrl = env('VNPAY_RETURN_URL');
-
-            // Use existing transaction ID with new timestamp
-            $merchantTxnRef = $pendingTransaction->id . '-' . time();
-
-            $inputData = [
-                "vnp_Version" => "2.1.0",
-                "vnp_TmnCode" => $vnp_TmnCode,
-                "vnp_Amount" => $pendingTransaction->so_tien * 100,
-                "vnp_Command" => "pay",
-                "vnp_CreateDate" => date('YmdHis'),
-                "vnp_CurrCode" => "VND",
-                "vnp_IpAddr" => $request->ip(),
-                "vnp_Locale" => "vn",
-                "vnp_OrderInfo" => "Thanh toán đặt phòng {$booking->ma_tham_chieu}",
-                "vnp_OrderType" => "billpayment",
-                "vnp_ReturnUrl" => $vnp_ReturnUrl,
-                "vnp_TxnRef" => $merchantTxnRef,
-            ];
-
-            ksort($inputData);
-            $query = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
-            $vnp_SecureHash = hash_hmac('sha512', $query, $vnp_HashSecret);
-            $redirectUrl = $vnp_Url . '?' . $query . '&vnp_SecureHash=' . $vnp_SecureHash;
-
-            Log::info('Retry payment for booking', [
-                'booking_id' => $booking->id,
-                'transaction_id' => $pendingTransaction->id,
-                'user_id' => $user->id,
+            $provider = $pendingTransaction->nha_cung_cap;
+            
+            // Mark old transaction as failed
+            $pendingTransaction->update([
+                'trang_thai' => 'that_bai',
+                'ghi_chu' => 'Replaced by retry payment',
             ]);
+            
+            // Create new transaction for retry
+            $newTransaction = \App\Models\GiaoDich::create([
+                'dat_phong_id' => $booking->id,
+                'nha_cung_cap' => $provider,
+                'so_tien' => $pendingTransaction->so_tien,
+                'don_vi' => 'VND',
+                'trang_thai' => 'dang_cho',
+                'ghi_chu' => 'Retry payment',
+            ]);
+            
+            if ($provider === 'momo') {
+                // Redirect to MoMo with NEW transaction ID
+                $momoService = new \App\Services\MoMoPaymentService();
+                
+                $paymentData = $momoService->createPaymentUrl([
+                    'orderId' => $newTransaction->id,
+                    'amount' => (int)$newTransaction->so_tien,
+                    'orderInfo' => "Thanh toán đặt phòng {$booking->ma_tham_chieu}",
+                    'returnUrl' => config('services.momo.return_url'),
+                    'notifyUrl' => config('services.momo.notify_url'),
+                    'extraData' => '',
+                ]);
 
-            return redirect()->away($redirectUrl);
+                Log::info('Retry MoMo payment for booking', [
+                    'booking_id' => $booking->id,
+                    'old_transaction_id' => $pendingTransaction->id,
+                    'new_transaction_id' => $newTransaction->id,
+                    'user_id' => $user->id,
+                ]);
+
+                return redirect()->away($paymentData['payUrl']);
+                
+            } else {
+                // Redirect to VNPay with NEW transaction ID
+                $vnp_Url = env('VNPAY_URL');
+                $vnp_TmnCode = env('VNPAY_TMN_CODE');
+                $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+                $vnp_ReturnUrl = env('VNPAY_RETURN_URL');
+
+                // Use new transaction ID with timestamp
+                $merchantTxnRef = $newTransaction->id . '-' . time();
+
+                $inputData = [
+                    "vnp_Version" => "2.1.0",
+                    "vnp_TmnCode" => $vnp_TmnCode,
+                    "vnp_Amount" => $newTransaction->so_tien * 100,
+                    "vnp_Command" => "pay",
+                    "vnp_CreateDate" => date('YmdHis'),
+                    "vnp_CurrCode" => "VND",
+                    "vnp_IpAddr" => $request->ip(),
+                    "vnp_Locale" => "vn",
+                    "vnp_OrderInfo" => "Thanh toán đặt phòng {$booking->ma_tham_chieu}",
+                    "vnp_OrderType" => "billpayment",
+                    "vnp_ReturnUrl" => $vnp_ReturnUrl,
+                    "vnp_TxnRef" => $merchantTxnRef,
+                ];
+
+                ksort($inputData);
+                $query = http_build_query($inputData, '', '&', PHP_QUERY_RFC1738);
+                $vnp_SecureHash = hash_hmac('sha512', $query, $vnp_HashSecret);
+                $redirectUrl = $vnp_Url . '?' . $query . '&vnp_SecureHash=' . $vnp_SecureHash;
+
+                Log::info('Retry VNPay payment for booking', [
+                    'booking_id' => $booking->id,
+                    'old_transaction_id' => $pendingTransaction->id,
+                    'new_transaction_id' => $newTransaction->id,
+                    'user_id' => $user->id,
+                ]);
+
+                return redirect()->away($redirectUrl);
+            }
 
         } catch (\Exception $e) {
             Log::error('Error retrying payment', [
                 'booking_id' => $id,
                 'user_id' => $user->id,
+                'provider' => $pendingTransaction->nha_cung_cap ?? 'unknown',
                 'error' => $e->getMessage(),
             ]);
 

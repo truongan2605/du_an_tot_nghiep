@@ -57,7 +57,6 @@ class PaymentController extends Controller
                     'required',
                     'string',
                     'regex:/^0[1-9]\d{8,9}$/', // Chấp nhận số điện thoại Việt Nam: 0[1-9]xxxxxxx (9-10 chữ số)
-                    // Bỏ rule unique để cho phép user dùng lại số phone cho nhiều booking
                 ]
             ]);
 
@@ -494,24 +493,21 @@ class PaymentController extends Controller
                 }
                 
                 Log::info('Using existing booking for MoMo', ['dat_phong_id' => $dat_phong->id]);
+            
+            // Check for existing pending transaction to prevent duplicates
+            $existingTransaction = GiaoDich::where('dat_phong_id', $dat_phong->id)
+                ->where('nha_cung_cap', 'momo')
+                ->where('trang_thai', 'dang_cho')
+                ->first();
+            
+            if ($existingTransaction) {
+                Log::info('Reusing existing MoMo transaction', ['transaction_id' => $existingTransaction->id]);
                 
-                // Create transaction
-                $giao_dich = GiaoDich::create([
-                    'dat_phong_id' => $dat_phong->id,
-                    'nha_cung_cap' => 'momo',
-                    'so_tien' => $request->input('amount'),
-                    'trang_thai' => 'dang_cho',
-                    'metadata' => json_encode([
-                        'ip_address' => $request->ip(),
-                        'user_agent' => $request->userAgent(),
-                    ]),
-                ]);
-                
-                // Generate MoMo payment URL
+                // Reuse existing transaction - regenerate payment URL
                 $momoService = new MoMoPaymentService();
                 $paymentData = $momoService->createPaymentUrl([
-                    'orderId' => (string)$giao_dich->id,
-                    'amount' => (int)$request->input('amount'),
+                    'orderId' => (string)$existingTransaction->id,
+                    'amount' => (int)$existingTransaction->so_tien,
                     'orderInfo' => "Thanh toán đặt phòng {$dat_phong->ma_tham_chieu}",
                     'returnUrl' => config('services.momo.return_url'),
                     'notifyUrl' => config('services.momo.notify_url'),
@@ -524,7 +520,36 @@ class PaymentController extends Controller
                 ]);
             }
             
-            // Original flow - create new booking (not used in current flow)
+            // Create new transaction
+            $giao_dich = GiaoDich::create([
+                'dat_phong_id' => $dat_phong->id,
+                'nha_cung_cap' => 'momo',
+                'so_tien' => $request->input('amount'),
+                'trang_thai' => 'dang_cho',
+                'metadata' => json_encode([
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]),
+            ]);
+            
+            // Generate MoMo payment URL
+            $momoService = new MoMoPaymentService();
+            $paymentData = $momoService->createPaymentUrl([
+                'orderId' => (string)$giao_dich->id,
+                'amount' => (int)$request->input('amount'),
+                'orderInfo' => "Thanh toán đặt phòng {$dat_phong->ma_tham_chieu}",
+                'returnUrl' => config('services.momo.return_url'),
+                'notifyUrl' => config('services.momo.notify_url'),
+                'extraData' => '',
+            ]);
+            
+            return response()->json([
+                'redirect_url' => $paymentData['payUrl'],
+                'dat_phong_id' => $dat_phong->id
+            ]);
+        }
+        
+        // Original flow - create new booking (not used in current flow)
             $validated = $request->validate([
                 'phong_id' => 'required|exists:phong,id',
                 'ngay_nhan_phong' => 'required|date|after_or_equal:today',
