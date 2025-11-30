@@ -112,8 +112,8 @@
                             <th style="width: 40px;"></th>
                             <th>Mã đặt phòng</th>
                             <th>Khách hàng</th>
-                            <th>Booking Info</th>
-                            <th class="text-end">Refund</th>
+                            <th>Thông tin đặt phòng</th>
+                            <th class="text-end">Hoàn tiền</th>
                             <th class="text-center">Trạng thái</th>
                             <th class="text-center">Thao tác</th>
                         </tr>
@@ -167,15 +167,15 @@
                                 <td>
                                     <div class="small">
                                         <span class="badge {{ $depositType == 100 ? 'bg-success' : 'bg-info' }} mb-1">
-                                            {{ $depositType }}% payment
+                                            Thanh toán {{ $depositType }}%
                                         </span>
                                     </div>
                                     <div class="small text-muted">
-                                        Cancelled: {{ $cancelledAt->diffForHumans() }}
+                                        Đã hủy: {{ $cancelledAt->format('d/m/Y H:i') }}
                                     </div>
                                     <div class="small">
                                         <span class="badge {{ $daysBeforeCheckIn >= 7 ? 'bg-success' : ($daysBeforeCheckIn >= 3 ? 'bg-warning' : 'bg-danger') }}">
-                                            {{ abs($daysBeforeCheckIn) }} days {{ $daysBeforeCheckIn >= 0 ? 'before' : 'after' }}
+                                            {{ abs(round($daysBeforeCheckIn)) }} ngày {{ $daysBeforeCheckIn >= 0 ? 'trước' : 'sau' }}
                                         </span>
                                     </div>
                                 </td>
@@ -229,27 +229,27 @@
                                             {{-- Booking Details --}}
                                             <div class="col-md-4">
                                                 <h6 class="text-primary mb-2">
-                                                    <i class="fas fa-calendar-alt"></i> Booking Details
+                                                    <i class="fas fa-calendar-alt"></i> Thông Tin Đặt Phòng
                                                 </h6>
                                                 <table class="table table-sm table-borderless mb-0">
                                                     <tr>
-                                                        <td class="text-muted">Check-in:</td>
+                                                        <td class="text-muted">Nhận phòng:</td>
                                                         <td><strong>{{ $booking->ngay_nhan_phong->format('d/m/Y') }}</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Check-out:</td>
+                                                        <td class="text-muted">Trả phòng:</td>
                                                         <td><strong>{{ $booking->ngay_tra_phong->format('d/m/Y') }}</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Nights:</td>
+                                                        <td class="text-muted">Số đêm:</td>
                                                         <td>{{ $booking->ngay_nhan_phong->diffInDays($booking->ngay_tra_phong) }}</td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Total:</td>
+                                                        <td class="text-muted">Tổng tiền:</td>
                                                         <td><strong>{{ number_format($booking->tong_tien, 0, ',', '.') }} ₫</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Deposit:</td>
+                                                        <td class="text-muted">Đặt cọc:</td>
                                                         <td>
                                                             <span class="badge {{ $depositType == 100 ? 'bg-success' : 'bg-info' }}">
                                                                 {{ $depositType }}%
@@ -263,27 +263,27 @@
                                             {{-- Cancellation Details --}}
                                             <div class="col-md-4">
                                                 <h6 class="text-danger mb-2">
-                                                    <i class="fas fa-ban"></i> Cancellation Details
+                                                    <i class="fas fa-ban"></i> Thông Tin Hủy Phòng
                                                 </h6>
                                                 <table class="table table-sm table-borderless mb-0">
                                                     <tr>
-                                                        <td class="text-muted">Cancelled at:</td>
+                                                        <td class="text-muted">Thời gian hủy:</td>
                                                         <td><strong>{{ $cancelledAt->format('d/m/Y H:i') }}</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Days before:</td>
+                                                        <td class="text-muted">Số ngày trước:</td>
                                                         <td>
                                                             <span class="badge {{ $daysBeforeCheckIn >= 7 ? 'bg-success' : ($daysBeforeCheckIn >= 3 ? 'bg-warning text-dark' : 'bg-danger') }}">
-                                                                {{ abs(round($daysBeforeCheckIn, 1)) }} days
+                                                                {{ abs(round($daysBeforeCheckIn)) }} ngày
                                                             </span>
                                                         </td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Reason:</td>
+                                                        <td class="text-muted">Lý do:</td>
                                                         <td>{{ $booking->cancellation_reason ?? 'N/A' }}</td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Requested:</td>
+                                                        <td class="text-muted">Yêu cầu lúc:</td>
                                                         <td>{{ $refund->requested_at->format('d/m/Y H:i') }}</td>
                                                     </tr>
                                                 </table>
@@ -292,28 +292,28 @@
                                             {{-- Refund Calculation --}}
                                             <div class="col-md-4">
                                                 <h6 class="text-success mb-2">
-                                                    <i class="fas fa-calculator"></i> Refund Calculation
+                                                    <i class="fas fa-calculator"></i> Tính Toán Hoàn Tiền
                                                 </h6>
                                                 <table class="table table-sm table-borderless mb-0">
                                                     <tr>
-                                                        <td class="text-muted">Paid amount:</td>
+                                                        <td class="text-muted">Số tiền đã trả:</td>
                                                         <td><strong>{{ number_format($booking->deposit_amount, 0, ',', '.') }} ₫</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Refund %:</td>
+                                                        <td class="text-muted">Tỷ lệ hoàn:</td>
                                                         <td>
                                                             <span class="badge bg-primary">{{ $refund->percentage }}%</span>
                                                         </td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Refund amount:</td>
+                                                        <td class="text-muted">Số tiền hoàn:</td>
                                                         <td><strong class="text-success">{{ number_format($refund->amount, 0, ',', '.') }} ₫</strong></td>
                                                     </tr>
                                                     @if($refund->admin_note)
                                                         <tr>
                                                             <td class="text-muted" colspan="2">
                                                                 <div class="alert alert-info alert-sm mb-0 mt-2 p-2">
-                                                                    <small><strong>Admin note:</strong><br>{{ $refund->admin_note }}</small>
+                                                                    <small><strong>Ghi chú quản trị:</strong><br>{{ $refund->admin_note }}</small>
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -379,10 +379,10 @@
                                                 </div>
                                                 <div class="alert alert-info alert-sm mb-0 p-2">
                                                     <small>
-                                                        <strong><i class="fas fa-check-circle"></i> Case hiện tại:</strong>
-                                                        Deposit <strong>{{ $depositType }}%</strong>, 
-                                                        hủy <strong>{{ abs(round($daysBeforeCheckIn, 1)) }} ngày</strong> {{ $daysBeforeCheckIn >= 0 ? 'trước' : 'sau' }} check-in
-                                                        → Policy: <strong class="text-primary">{{ $refund->percentage }}%</strong>
+                                                        <strong><i class="fas fa-check-circle"></i> Trường hợp hiện tại:</strong>
+                                                        Đặt cọc <strong>{{ $depositType }}%</strong>, 
+                                                        hủy <strong>{{ abs(round($daysBeforeCheckIn)) }} ngày</strong> {{ $daysBeforeCheckIn >= 0 ? 'trước' : 'sau' }} nhận phòng
+                                                        → Chính sách: <strong class="text-primary">{{ $refund->percentage }}%</strong>
                                                     </small>
                                                 </div>
                                             </div>
