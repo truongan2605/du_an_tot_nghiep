@@ -494,24 +494,56 @@ class PaymentController extends Controller
                 
                 Log::info('Using existing booking for MoMo', ['dat_phong_id' => $dat_phong->id]);
             
-            // Check for existing pending transaction to prevent duplicates
-            $existingTransaction = GiaoDich::where('dat_phong_id', $dat_phong->id)
-                ->where('nha_cung_cap', 'momo')
-                ->where('trang_thai', 'dang_cho')
-                ->first();
-            
-            if ($existingTransaction) {
-                Log::info('Reusing existing MoMo transaction', ['transaction_id' => $existingTransaction->id]);
+                // Check for existing pending transaction to prevent duplicates
+                $existingTransaction = GiaoDich::where('dat_phong_id', $dat_phong->id)
+                    ->where('nha_cung_cap', 'momo')
+                    ->where('trang_thai', 'dang_cho')
+                    ->first();
                 
-                // Reuse existing transaction - regenerate payment URL
+                if ($existingTransaction) {
+                    Log::info('Found existing pending MoMo transaction - marking as failed and creating new', [
+                        'old_transaction_id' => $existingTransaction->id
+                    ]);
+                    
+                    // Mark old transaction as failed to avoid duplicate orderId error
+                    $existingTransaction->update([
+                        'trang_thai' => 'that_bai',
+                        'ghi_chu' => 'Replaced by new payment attempt',
+                    ]);
+                }
+                
+                // Always create new transaction (MoMo doesn't allow reusing orderId)
+                $giao_dich = GiaoDich::create([
+                    'dat_phong_id' => $dat_phong->id,
+                    'nha_cung_cap' => 'momo',
+                    'so_tien' => $request->input('amount'),
+                    'trang_thai' => 'dang_cho',
+                    'metadata' => json_encode([
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                    ]),
+                ]);
+                
+                // Generate MoMo payment URL
                 $momoService = new MoMoPaymentService();
                 $paymentData = $momoService->createPaymentUrl([
-                    'orderId' => (string)$existingTransaction->id,
-                    'amount' => (int)$existingTransaction->so_tien,
+                    'orderId' => (string)$giao_dich->id,
+                    'amount' => (int)$request->input('amount'),
                     'orderInfo' => "Thanh toán đặt phòng {$dat_phong->ma_tham_chieu}",
                     'returnUrl' => config('services.momo.return_url'),
                     'notifyUrl' => config('services.momo.notify_url'),
                     'extraData' => '',
+                ]);
+                
+                // Store the unique MoMo orderId in transaction metadata
+                $metadata = json_decode($giao_dich->metadata, true) ?? [];
+                $metadata['momo_order_id'] = $paymentData['orderId'];
+                $giao_dich->update(['metadata' => json_encode($metadata)]);
+                
+                Log::info('MoMo payment initiated', [
+                    'transaction_id' => $giao_dich->id,
+                    'momo_order_id' => $paymentData['orderId'],
+                    'booking_id' => $dat_phong->id,
                 ]);
                 
                 return response()->json([
@@ -520,36 +552,7 @@ class PaymentController extends Controller
                 ]);
             }
             
-            // Create new transaction
-            $giao_dich = GiaoDich::create([
-                'dat_phong_id' => $dat_phong->id,
-                'nha_cung_cap' => 'momo',
-                'so_tien' => $request->input('amount'),
-                'trang_thai' => 'dang_cho',
-                'metadata' => json_encode([
-                    'ip_address' => $request->ip(),
-                    'user_agent' => $request->userAgent(),
-                ]),
-            ]);
-            
-            // Generate MoMo payment URL
-            $momoService = new MoMoPaymentService();
-            $paymentData = $momoService->createPaymentUrl([
-                'orderId' => (string)$giao_dich->id,
-                'amount' => (int)$request->input('amount'),
-                'orderInfo' => "Thanh toán đặt phòng {$dat_phong->ma_tham_chieu}",
-                'returnUrl' => config('services.momo.return_url'),
-                'notifyUrl' => config('services.momo.notify_url'),
-                'extraData' => '',
-            ]);
-            
-            return response()->json([
-                'redirect_url' => $paymentData['payUrl'],
-                'dat_phong_id' => $dat_phong->id
-            ]);
-        }
-        
-        // Original flow - create new booking (not used in current flow)
+            // Original flow - create new booking (not used in current flow)
             $validated = $request->validate([
                 'phong_id' => 'required|exists:phong,id',
                 'ngay_nhan_phong' => 'required|date|after_or_equal:today',
@@ -593,8 +596,22 @@ public function handleMoMoCallback(Request $request)
     $amount = $request->input('amount');
     $transId = $request->input('transId');
 
-    $giao_dich = GiaoDich::find($orderId);
-    if (!$giao_dich) return view('payment.fail', ['code' => '01', 'message' => 'Không tìm thấy giao dịch']);
+    // Extract transaction ID from orderId format: {transaction_id}-{timestamp}-{random}
+    $transactionId = explode('-', $orderId)[0];
+    
+    Log::info('MoMo Callback - Parsing orderId', [
+        'full_orderId' => $orderId,
+        'extracted_transaction_id' => $transactionId,
+    ]);
+
+    $giao_dich = GiaoDich::find($transactionId);
+    if (!$giao_dich) {
+        Log::error('MoMo Callback - Transaction not found', [
+            'orderId' => $orderId,
+            'extracted_transaction_id' => $transactionId,
+        ]);
+        return view('payment.fail', ['code' => '01', 'message' => 'Không tìm thấy giao dịch']);
+    }
 
     $dat_phong = $giao_dich->dat_phong;
     if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
@@ -724,8 +741,22 @@ public function handleMoMoIPN(Request $request)
     $amount = $request->input('amount');
     $transId = $request->input('transId');
 
-    $giao_dich = GiaoDich::find($orderId);
-    if (!$giao_dich) return response()->json(['resultCode' => 1, 'message' => 'Transaction not found']);
+    // Extract transaction ID from orderId format: {transaction_id}-{timestamp}-{random}
+    $transactionId = explode('-', $orderId)[0];
+    
+    Log::info('MoMo IPN - Parsing orderId', [
+        'full_orderId' => $orderId,
+        'extracted_transaction_id' => $transactionId,
+    ]);
+
+    $giao_dich = GiaoDich::find($transactionId);
+    if (!$giao_dich) {
+        Log::error('MoMo IPN - Transaction not found', [
+            'orderId' => $orderId,
+            'extracted_transaction_id' => $transactionId,
+        ]);
+        return response()->json(['resultCode' => 1, 'message' => 'Transaction not found']);
+    }
 
     $dat_phong = $giao_dich->dat_phong;
     if (!$dat_phong) return response()->json(['resultCode' => 2, 'message' => 'Booking not found']);
