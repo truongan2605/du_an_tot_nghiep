@@ -214,10 +214,10 @@
                                                         
                                                         @if(in_array($b->trang_thai, ['dang_cho', 'da_xac_nhan']))
                                                             @php
-                                                                // Calculate days until check-in
-                                                                $checkInDate = \Carbon\Carbon::parse($b->ngay_nhan_phong);
+                                                                // Calculate days until check-in using actual check-in time (14:00)
+                                                                $checkInDateTime = \Carbon\Carbon::parse($b->ngay_nhan_phong)->setTime(14, 0, 0);
                                                                 $now = \Carbon\Carbon::now();
-                                                                $daysUntilCheckIn = (int) $now->diffInDays($checkInDate, false);
+                                                                $daysUntilCheckIn = (int) $now->diffInDays($checkInDateTime, false);
                                                                 
                                                                 // Determine deposit type based on deposit_amount
                                                                 $totalAmount = $b->snapshot_total ?? ($b->tong_tien ?? 0);
@@ -275,7 +275,7 @@
                                                                                         <strong>Mã đặt phòng:</strong> {{ $b->ma_tham_chieu }}
                                                                                     </div>
                                                                                     <div class="col-md-6 mb-2">
-                                                                                        <strong>Ngày nhận phòng:</strong> {{ $checkInDate->format('d/m/Y') }}
+                                                                                        <strong>Ngày nhận phòng:</strong> {{ $checkInDateTime->format('d/m/Y') }}
                                                                                     </div>
                                                                                     <div class="col-md-6">
                                                                                         <strong>Số tiền đã thanh toán:</strong> 
@@ -438,9 +438,10 @@
                                                             </div>
                                                         @endif
 
+
                                                         @if($b->trang_thai === 'dang_cho')
                                                             @php
-                                                                $pendingTransaction = $b->giaoDichs->where('trang_thai', 'dang_cho')->where('nha_cung_cap', 'vnpay')->first();
+                                                                $pendingTransaction = $b->giaoDichs->where('trang_thai', 'dang_cho')->whereIn('nha_cung_cap', ['vnpay', 'momo'])->first();
                                                             @endphp
                                                             @if($pendingTransaction)
                                                                 <a href="{{ route('account.booking.retry-payment', $b->id) }}" 

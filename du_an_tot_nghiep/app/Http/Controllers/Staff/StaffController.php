@@ -679,7 +679,10 @@ class StaffController extends Controller
             'nguoiDung',
             'datPhongItems.loaiPhong',
             'phongDaDats.phong',
-            'hoaDons.hoaDonItems.phong'
+            'hoaDons.hoaDonItems.phong',
+            'roomChanges.oldRoom',
+            'roomChanges.newRoom',
+            'roomChanges.changedByUser'
         ])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
@@ -832,7 +835,16 @@ class StaffController extends Controller
 
     public function showBooking(DatPhong $booking)
     {
-        $booking->load(['datPhongItems.phong', 'datPhongItems.loaiPhong', 'nguoiDung', 'checkedInBy', 'giaoDichs']);
+        $booking->load([
+            'datPhongItems.phong', 
+            'datPhongItems.loaiPhong', 
+            'nguoiDung', 
+            'checkedInBy', 
+            'giaoDichs',
+            'roomChanges.oldRoom',
+            'roomChanges.newRoom',
+            'roomChanges.changedByUser'
+        ]);
 
         if (is_array($booking->snapshot_meta)) {
             $meta = $booking->snapshot_meta;
@@ -1010,9 +1022,10 @@ class StaffController extends Controller
             DB::beginTransaction();
 
             // Calculate refund using advanced policy (Option B)
-            $checkInDate = Carbon::parse($booking->ngay_nhan_phong);
+            // Use actual check-in time (14:00) for accurate calculation
+            $checkInDateTime = Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0, 0);
             $now = Carbon::now();
-            $daysUntilCheckIn = $now->diffInDays($checkInDate, false); // FIXED: now->diffInDays(checkIn) gives positive if future
+            $daysUntilCheckIn = $now->diffInDays($checkInDateTime, false); // Calculates full days until 14:00 check-in time
             
             // Determine deposit type from snapshot_meta
             $meta = $booking->snapshot_meta ?? [];

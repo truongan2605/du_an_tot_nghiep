@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Client;
 
+use App\Models\VoucherUsage;
 use Carbon\Carbon;
 use App\Models\Phong;
 use App\Models\DatPhong;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use App\Services\PaymentNotificationService;
-use App\Models\VoucherUsage;
+use App\Services\MoMoPaymentService;
 
 class PaymentController extends Controller
 {
@@ -216,6 +217,17 @@ class PaymentController extends Controller
             // Giá trung bình mỗi đêm sau voucher (cho toàn bộ booking)
             $finalPerNightServer = $netTotalServer / max(1, $nights);
 
+            // Áp dụng giảm giá theo hạng thành viên
+            // $user = Auth::user();
+            // $memberDiscountAmount = 0;
+            // if ($user && $user->member_level) {
+            //     $memberDiscountPercent = $user->getMemberDiscountPercent();
+            //     if ($memberDiscountPercent > 0) {
+            //         $memberDiscountAmount = ($snapshotTotalServer * $memberDiscountPercent / 100);
+            //         $snapshotTotalServer = $snapshotTotalServer - $memberDiscountAmount;
+            //     }
+            // }
+
             $snapshotMeta = [
                 'phong_id'            => $validated['phong_id'],
                 'loai_phong_id'       => $phong->loai_phong_id,
@@ -254,26 +266,18 @@ class PaymentController extends Controller
                 'tong_tien'               => $netTotalServer,
 
                 'deposit_percentage' => $depositPercentage,
-                'phuong_thuc'        => $validated['phuong_thuc'],
-                'contact_name'       => $validated['name'],
-                'contact_address'    => $validated['address'],
-                'contact_phone'      => $validated['phone'],
+                'phuong_thuc' => $validated['phuong_thuc'],
+                'contact_name' => $validated['name'],
+                'contact_address' => $validated['address'],
+                'contact_phone' => $validated['phone'],
+                // 'member_discount_amount' => $memberDiscountAmount,
+                // 'member_level' => $user ? ($user->member_level ?? 'dong') : 'dong',
+                // 'member_discount_percent' => $user ? $user->getMemberDiscountPercent() : 0,
             ];
 
             return DB::transaction(function () use (
-                $validated,
-                $maThamChieu,
-                $snapshotMeta,
-                $phong,
-                $request,
-                $from,
-                $to,
-                $nights,
-                $roomsCount,
-                $finalPerNightServer,
-                $snapshotTotalServer,
-                $selectedAddons,
-                $depositPercentage,
+                $validated, $maThamChieu, $snapshotMeta, $phong, $request, $from, $to, $nights,
+                $roomsCount, $finalPerNightServer, $snapshotTotalServer, $selectedAddons, $depositPercentage,
                 $netTotalServer,
                 $voucherId,
                 $voucherDiscount,
@@ -281,10 +285,10 @@ class PaymentController extends Controller
                 // Nếu thanh toán 100% thì không cần thanh toán thêm nữa
                 $canThanhToan = $depositPercentage < 100;
 
-                $dat_phong = DatPhong::create([
-                    'ma_tham_chieu'   => $maThamChieu,
-                    'nguoi_dung_id'   => Auth::id(),
-                    'phong_id'        => $validated['phong_id'],
+                $datPhongData = [
+                    'ma_tham_chieu' => $maThamChieu,
+                    'nguoi_dung_id' => Auth::id(),
+                    'phong_id' => $validated['phong_id'],
                     'ngay_nhan_phong' => $validated['ngay_nhan_phong'],
                     'ngay_tra_phong'  => $validated['ngay_tra_phong'],
 
@@ -301,13 +305,19 @@ class PaymentController extends Controller
                     'phuong_thuc'     => $validated['phuong_thuc'],
                     'contact_name'    => $validated['name'],
                     'contact_address' => $validated['address'],
-                    'contact_phone'   => $validated['phone'],
-
+                    'contact_phone' => $validated['phone'],
                     // Lưu voucher vào dat_phong
                     'voucher_id'       => $voucherId,
                     'voucher_discount' => $voucherDiscount,
                     'ma_voucher'       => $validated['ma_voucher'] ?? null,
-                ]);
+                ];
+
+                // Thêm member_discount_amount nếu cột tồn tại
+                // if (Schema::hasColumn('dat_phong', 'member_discount_amount')) {
+                //     $datPhongData['member_discount_amount'] = $memberDiscountAmount;
+                // }
+
+                $dat_phong = DatPhong::create($datPhongData);
 
 
                 Log::info('Payment booking created with contact', [
@@ -589,6 +599,363 @@ class PaymentController extends Controller
         }
     }
 
+    public function initiateMoMo(Request $request)
+    {
+        Log::info('initiateMoMo request:', $request->all());
+
+        try {
+            // Check if booking already exists (from BookingController)
+            $existingBookingId = $request->input('dat_phong_id');
+
+            if ($existingBookingId) {
+                // Use existing booking
+                $dat_phong = DatPhong::findOrFail($existingBookingId);
+
+                if ($dat_phong->nguoi_dung_id !== Auth::id()) {
+                    return response()->json(['error' => 'Unauthorized'], 403);
+                }
+
+                Log::info('Using existing booking for MoMo', ['dat_phong_id' => $dat_phong->id]);
+
+                // Check for existing pending transaction to prevent duplicates
+                $existingTransaction = GiaoDich::where('dat_phong_id', $dat_phong->id)
+                    ->where('nha_cung_cap', 'momo')
+                    ->where('trang_thai', 'dang_cho')
+                    ->first();
+
+                if ($existingTransaction) {
+                    Log::info('Found existing pending MoMo transaction - marking as failed and creating new', [
+                        'old_transaction_id' => $existingTransaction->id
+                    ]);
+
+                    // Mark old transaction as failed to avoid duplicate orderId error
+                    $existingTransaction->update([
+                        'trang_thai' => 'that_bai',
+                        'ghi_chu' => 'Replaced by new payment attempt',
+                    ]);
+                }
+
+                // Always create new transaction (MoMo doesn't allow reusing orderId)
+                $giao_dich = GiaoDich::create([
+                    'dat_phong_id' => $dat_phong->id,
+                    'nha_cung_cap' => 'momo',
+                    'so_tien' => $request->input('amount'),
+                    'trang_thai' => 'dang_cho',
+                    'metadata' => json_encode([
+                        'ip_address' => $request->ip(),
+                        'user_agent' => $request->userAgent(),
+                    ]),
+                ]);
+
+                // Generate MoMo payment URL
+                $momoService = new MoMoPaymentService();
+                $paymentData = $momoService->createPaymentUrl([
+                    'orderId' => (string)$giao_dich->id,
+                    'amount' => (int)$request->input('amount'),
+                    'orderInfo' => "Thanh toán đặt phòng {$dat_phong->ma_tham_chieu}",
+                    'returnUrl' => config('services.momo.return_url'),
+                    'notifyUrl' => config('services.momo.notify_url'),
+                    'extraData' => '',
+                ]);
+
+                // Store the unique MoMo orderId in transaction metadata
+                $metadata = json_decode($giao_dich->metadata, true) ?? [];
+                $metadata['momo_order_id'] = $paymentData['orderId'];
+                $giao_dich->update(['metadata' => json_encode($metadata)]);
+
+                Log::info('MoMo payment initiated', [
+                    'transaction_id' => $giao_dich->id,
+                    'momo_order_id' => $paymentData['orderId'],
+                    'booking_id' => $dat_phong->id,
+                ]);
+
+                return response()->json([
+                    'redirect_url' => $paymentData['payUrl'],
+                    'dat_phong_id' => $dat_phong->id
+                ]);
+            }
+
+            // Original flow - create new booking (not used in current flow)
+            $validated = $request->validate([
+                'phong_id' => 'required|exists:phong,id',
+                'ngay_nhan_phong' => 'required|date|after_or_equal:today',
+                'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
+                'amount' => 'required|numeric|min:1',
+                'total_amount' => 'required|numeric|min:1|gte:amount',
+                'adults' => 'required|integer|min:1',
+                'children' => 'nullable|integer|min:0',
+                'rooms_count' => 'required|integer|min:1',
+                'phuong_thuc' => 'required|in:momo',
+                'name' => 'required|string|max:255|min:2',
+                'address' => 'required|string|max:500|min:5',
+                'phone' => 'required|string|regex:/^0[3-9]\d{8}$/',
+            ]);
+
+            return response()->json(['error' => 'Direct booking creation not supported in this flow'], 400);
+
+        } catch (\Throwable $e) {
+            Log::error('MoMo initiate error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['error' => 'Lỗi: ' . $e->getMessage()], 500);
+        }
+    }
+    // Add these methods to PaymentController.php after the handleIpn method
+
+public function handleMoMoCallback(Request $request)
+{
+    $user = $request->user();
+    if (!$user) return response()->json(['error' => 'Authentication required'], 401);
+
+    Log::info('MoMo Callback Received', $request->all());
+
+    $momoService = new MoMoPaymentService();
+
+    // Verify signature
+    if (!$momoService->verifySignature($request->all())) {
+        return view('payment.fail', ['code' => '97', 'message' => 'Chữ ký không hợp lệ']);
+    }
+
+    $orderId = $request->input('orderId');
+    $resultCode = $request->input('resultCode');
+    $amount = $request->input('amount');
+    $transId = $request->input('transId');
+
+    // Extract transaction ID from orderId format: {transaction_id}-{timestamp}-{random}
+    $transactionId = explode('-', $orderId)[0];
+
+    Log::info('MoMo Callback - Parsing orderId', [
+        'full_orderId' => $orderId,
+        'extracted_transaction_id' => $transactionId,
+    ]);
+
+    $giao_dich = GiaoDich::find($transactionId);
+    if (!$giao_dich) {
+        Log::error('MoMo Callback - Transaction not found', [
+            'orderId' => $orderId,
+            'extracted_transaction_id' => $transactionId,
+        ]);
+        return view('payment.fail', ['code' => '01', 'message' => 'Không tìm thấy giao dịch']);
+    }
+
+    $dat_phong = $giao_dich->dat_phong;
+    if (!$dat_phong) return view('payment.fail', ['code' => '02', 'message' => 'Không tìm thấy đơn đặt phòng']);
+
+    // Check if booking has been cancelled
+    if ($dat_phong->trang_thai === 'da_huy') {
+        $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Đơn đặt phòng đã bị hủy bởi quản trị viên']);
+        return view('payment.fail', [
+            'code' => '98',
+            'message' => 'Đơn đặt phòng đã bị hủy. Vui lòng liên hệ quản trị viên để được hỗ trợ.'
+        ]);
+    }
+
+    // Check if transaction is already failed
+    if ($giao_dich->trang_thai === 'that_bai') {
+        return view('payment.fail', [
+            'code' => '99',
+            'message' => 'Giao dịch đã thất bại trước đó. ' . ($giao_dich->ghi_chu ?? '')
+        ]);
+    }
+
+    $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+    $roomsCount = $meta['rooms_count'] ?? 1;
+
+    return DB::transaction(function () use ($resultCode, $amount, $transId, $giao_dich, $dat_phong, $roomsCount, $meta) {
+        if ($resultCode == 0 && $giao_dich->so_tien == $amount) {
+            $giao_dich->update([
+                'trang_thai' => 'thanh_cong',
+                'provider_txn_ref' => $transId,
+            ]);
+
+            // Check if this is full payment (100%) or deposit (50%)
+            $depositPercentage = $meta['deposit_percentage'] ?? 50;
+            $isFullPayment = ($depositPercentage == 100);
+
+            $dat_phong->update([
+                'trang_thai' => 'da_xac_nhan',
+                'can_xac_nhan' => true,
+                'can_thanh_toan' => !$isFullPayment, // false if 100%, true if 50%
+            ]);
+
+            Log::info('MoMo deposit payment successful', [
+                'dat_phong_id' => $dat_phong->id,
+                'deposit_percentage' => $depositPercentage,
+                'is_full_payment' => $isFullPayment,
+                'can_thanh_toan' => !$isFullPayment,
+            ]);
+
+            $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
+            $phongIdsToOccupy = [];
+
+            foreach ($giu_phongs as $giu_phong) {
+                $meta = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
+                if (!is_array($meta)) $meta = [];
+
+                $nights = $meta['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
+                $price_per_night = $meta['final_per_night'] ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+
+                $specSignatureHash = $meta['spec_signature_hash'] ?? $meta['requested_spec_signature'] ?? null;
+
+                $itemPayload = [
+                    'dat_phong_id' => $dat_phong->id,
+                    'phong_id' => $giu_phong->phong_id ?? null,
+                    'loai_phong_id' => $giu_phong->loai_phong_id,
+                    'so_dem' => $nights,
+                    'so_luong' => $giu_phong->so_luong ?? 1,
+                    'gia_tren_dem' => $price_per_night,
+                    'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                    'spec_signature_hash' => $specSignatureHash,
+                ];
+
+                Log::debug('Inserting dat_phong_item', ['dat_phong_id' => $dat_phong->id, 'payload' => $itemPayload]);
+                \App\Models\DatPhongItem::create($itemPayload);
+
+                if ($giu_phong->phong_id) {
+                    $phongIdsToOccupy[] = $giu_phong->phong_id;
+                }
+
+                $giu_phong->delete();
+            }
+
+            if (!empty($phongIdsToOccupy)) {
+                Phong::whereIn('id', array_unique($phongIdsToOccupy))->update(['trang_thai' => 'dang_o']);
+            }
+
+            if ($dat_phong->nguoiDung) {
+                Mail::to($dat_phong->nguoiDung->email)->queue(new PaymentSuccess($dat_phong, $dat_phong->nguoiDung->name));
+            }
+
+            // Send notification
+            $totalPaid = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+            $notificationService = new PaymentNotificationService();
+            if ($totalPaid >= $dat_phong->tong_tien) {
+                $notificationService->sendFullPaymentNotification($dat_phong, $giao_dich);
+            } else {
+                $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
+            }
+
+            return view('payment.success', compact('dat_phong'));
+        } else {
+            $giao_dich->update(['trang_thai' => 'that_bai', 'ghi_chu' => 'Mã lỗi MoMo: ' . $resultCode]);
+            if ($dat_phong->trang_thai === 'dang_cho') {
+                $dat_phong->update(['trang_thai' => 'da_huy']);
+                GiuPhong::where('dat_phong_id', $dat_phong->id)->delete();
+            }
+            if ($dat_phong->nguoiDung) {
+                Mail::to($dat_phong->nguoiDung->email)->queue(new PaymentFail($dat_phong, $resultCode));
+            }
+            return view('payment.fail', ['code' => $resultCode]);
+        }
+    });
+}
+
+public function handleMoMoIPN(Request $request)
+{
+    Log::info('MoMo IPN Received', $request->all());
+
+    $momoService = new MoMoPaymentService();
+
+    // Verify signature
+    if (!$momoService->verifySignature($request->all())) {
+        return response()->json(['resultCode' => 97, 'message' => 'Invalid signature']);
+    }
+
+    $orderId = $request->input('orderId');
+    $resultCode = $request->input('resultCode');
+    $amount = $request->input('amount');
+    $transId = $request->input('transId');
+
+    // Extract transaction ID from orderId format: {transaction_id}-{timestamp}-{random}
+    $transactionId = explode('-', $orderId)[0];
+
+    Log::info('MoMo IPN - Parsing orderId', [
+        'full_orderId' => $orderId,
+        'extracted_transaction_id' => $transactionId,
+    ]);
+
+    $giao_dich = GiaoDich::find($transactionId);
+    if (!$giao_dich) {
+        Log::error('MoMo IPN - Transaction not found', [
+            'orderId' => $orderId,
+            'extracted_transaction_id' => $transactionId,
+        ]);
+        return response()->json(['resultCode' => 1, 'message' => 'Transaction not found']);
+    }
+
+    $dat_phong = $giao_dich->dat_phong;
+    if (!$dat_phong) return response()->json(['resultCode' => 2, 'message' => 'Booking not found']);
+
+    $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+    $roomsCount = $meta['rooms_count'] ?? 1;
+
+    return DB::transaction(function () use ($giao_dich, $dat_phong, $resultCode, $amount, $transId, $roomsCount) {
+        if ($resultCode == 0 && $giao_dich->so_tien == $amount) {
+            $giao_dich->update([
+                'trang_thai' => 'thanh_cong',
+                'provider_txn_ref' => $transId,
+            ]);
+            $dat_phong->update([
+                'trang_thai' => 'da_xac_nhan',
+                'can_xac_nhan' => true,
+            ]);
+
+            $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
+            $phongIdsToOccupy = [];
+
+            foreach ($giu_phongs as $giu_phong) {
+                $meta = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
+                if (!is_array($meta)) $meta = [];
+
+                $nights = $meta['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
+                $price_per_night = $meta['final_per_night'] ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+
+                $specSignatureHash = $meta['spec_signature_hash'] ?? $meta['requested_spec_signature'] ?? null;
+
+                $itemPayload = [
+                    'dat_phong_id' => $dat_phong->id,
+                    'phong_id' => $giu_phong->phong_id ?? null,
+                    'loai_phong_id' => $giu_phong->loai_phong_id,
+                    'so_dem' => $nights,
+                    'so_luong' => $giu_phong->so_luong ?? 1,
+                    'gia_tren_dem' => $price_per_night,
+                    'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                    'spec_signature_hash' => $specSignatureHash,
+                ];
+
+                Log::debug('Inserting dat_phong_item', ['dat_phong_id' => $dat_phong->id, 'payload' => $itemPayload]);
+                \App\Models\DatPhongItem::create($itemPayload);
+
+                if ($giu_phong->phong_id) {
+                    $phongIdsToOccupy[] = $giu_phong->phong_id;
+                }
+
+                $giu_phong->delete();
+            }
+
+            if (!empty($phongIdsToOccupy)) {
+                Phong::whereIn('id', array_unique($phongIdsToOccupy))->update(['trang_thai' => 'dang_o']);
+            }
+
+            // Send notification
+            $totalPaid = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+            $notificationService = new PaymentNotificationService();
+            if ($totalPaid >= $dat_phong->tong_tien) {
+                $notificationService->sendFullPaymentNotification($dat_phong, $giao_dich);
+            } else {
+                $notificationService->sendDepositPaymentNotification($dat_phong, $giao_dich);
+            }
+
+            return response()->json(['resultCode' => 0, 'message' => 'Confirm Success']);
+        }
+
+        $giao_dich->update(['trang_thai' => 'that_bai']);
+        if ($dat_phong->trang_thai === 'dang_cho') {
+            $dat_phong->update(['trang_thai' => 'da_huy']);
+            GiuPhong::where('dat_phong_id', $dat_phong->id)->delete();
+        }
+        return response()->json(['resultCode' => 99, 'message' => 'Payment failed']);
+    });
+}
+
     public function handleVNPayCallback(Request $request)
     {
         $user = $request->user();
@@ -684,8 +1051,8 @@ class PaymentController extends Controller
                             'voucher_id'   => $dat_phong->voucher_id,
                         ],
                         [
-                            'user_id'  => $dat_phong->nguoi_dung_id,
-                            'discount' => $dat_phong->voucher_discount ?? 0,
+                            'nguoi_dung_id'  => $dat_phong->nguoi_dung_id,
+                            'amount' => $dat_phong->voucher_discount ?? 0,
                             'used_at'  => now(),
                         ]
                     );
@@ -1023,7 +1390,7 @@ class PaymentController extends Controller
 
     public function initiateRemainingPayment(Request $request, $dat_phong_id)
     {
-        $request->validate(['nha_cung_cap' => 'required|in:tien_mat,vnpay']);
+        $request->validate(['nha_cung_cap' => 'required|in:tien_mat,vnpay,momo']);
 
         $booking = DatPhong::with(['giaoDichs', 'nguoiDung'])
             ->lockForUpdate()
@@ -1098,8 +1465,11 @@ class PaymentController extends Controller
             return $this->redirectToVNPay($transaction, $remaining);
         }
 
-        return redirect()->route('staff.checkin')
-            ->with('success', 'Thanh toán tiền mặt thành công. Phòng đã được đưa vào sử dụng.');
+        if ($request->nha_cung_cap === 'momo') {
+            return $this->redirectToMoMo($transaction, $remaining);
+        }
+
+        return redirect()->route('staff.checkin')->with('success', 'Thanh toán tiền mặt thành công. Phòng đã được đưa vào sử dụng.');
     }
 
     public function handleRemainingCallback(Request $request)
@@ -1298,6 +1668,27 @@ class PaymentController extends Controller
 
         $paymentUrl = $vnp_Url . '?' . $hashData . '&vnp_SecureHash=' . $vnp_SecureHash;
         return redirect()->away($paymentUrl);
+    }
+
+    private function redirectToMoMo(GiaoDich $transaction, float $amount)
+    {
+        $momoService = new MoMoPaymentService();
+
+        try {
+            $paymentData = $momoService->createPaymentUrl([
+                'orderId' => $transaction->id,
+                'amount' => $amount,
+                'orderInfo' => 'Thanh toán phần còn lại booking #' . $transaction->dat_phong_id,
+                'returnUrl' => route('payment.momo.remaining.callback'),
+                'notifyUrl' => config('services.momo.notify_url'),
+                'extraData' => '',
+            ]);
+
+            return redirect()->away($paymentData['payUrl']);
+        } catch (\Exception $e) {
+            Log::error('MoMo redirect error: ' . $e->getMessage());
+            return redirect()->route('staff.checkin')->with('error', 'Lỗi kết nối MoMo: ' . $e->getMessage());
+        }
     }
 
     private function calculateNights($ngayNhanPhong, $ngayTraPhong)
@@ -1597,5 +1988,79 @@ class PaymentController extends Controller
 
         $rows = $query->get(['id']);
         return $rows->pluck('id')->toArray();
+    }
+
+    /**
+     * Handle MoMo callback for remaining payment
+     */
+    public function handleMoMoRemainingCallback(Request $request)
+    {
+        Log::info('MoMo Remaining Payment Callback Received', $request->all());
+
+        $momoService = new MoMoPaymentService();
+
+        // Verify signature
+        if (!$momoService->verifySignature($request->all())) {
+            return view('payment.fail', ['code' => '97', 'message' => 'Chữ ký không hợp lệ']);
+        }
+
+        $orderId = $request->input('orderId');
+        $resultCode = $request->input('resultCode');
+        $amount = $request->input('amount');
+
+        // Find transaction
+        $giao_dich = GiaoDich::find($orderId);
+        if (!$giao_dich) {
+            return view('payment.fail', ['code' => '98', 'message' => 'Không tìm thấy giao dịch']);
+        }
+
+        $dat_phong = $giao_dich->dat_phong;
+        if (!$dat_phong) {
+            return view('payment.fail', ['code' => '99', 'message' => 'Không tìm thấy đặt phòng']);
+        }
+
+
+        return DB::transaction(function () use ($resultCode, $amount, $request, $giao_dich, $dat_phong) {
+            // Debug log
+            Log::info('MoMo remaining payment processing', [
+                'resultCode' => $resultCode,
+                'amount_from_momo' => $amount,
+                'amount_in_db' => $giao_dich->so_tien,
+                'amounts_match' => ((float)$giao_dich->so_tien == (float)$amount),
+            ]);
+
+            if ($resultCode == 0 && (float)$giao_dich->so_tien == (float)$amount) {
+                // Payment successful
+                $giao_dich->update([
+                    'trang_thai' => 'thanh_cong',
+                    'provider_txn_ref' => $request->input('transId', ''),
+                ]);
+
+                // Update booking - mark as fully paid
+                $dat_phong->update([
+                    'can_thanh_toan' => false,
+                ]);
+
+                Log::info('MoMo remaining payment successful', [
+                    'dat_phong_id' => $dat_phong->id,
+                    'transaction_id' => $giao_dich->id,
+                ]);
+
+                return redirect()->route('staff.checkin')->with('success', 'Thanh toán thành công! Khách hàng đã thanh toán đủ.');
+            } else {
+                // Payment failed
+                $giao_dich->update([
+                    'trang_thai' => 'that_bai',
+                    'ghi_chu' => 'Mã lỗi: ' . $resultCode,
+                ]);
+
+                Log::warning('MoMo remaining payment failed', [
+                    'dat_phong_id' => $dat_phong->id,
+                    'error_code' => $resultCode,
+                ]);
+
+                return view('payment.fail', ['code' => $resultCode, 'message' => $request->input('message', 'Thanh toán thất bại')]);
+            }
+        });
     }
 }

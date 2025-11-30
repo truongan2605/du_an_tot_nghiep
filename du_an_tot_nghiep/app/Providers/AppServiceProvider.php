@@ -5,7 +5,9 @@ namespace App\Providers;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 use App\Models\Phong;
+use App\Models\DatPhong;
 use App\Observers\PhongObserver;
+use App\Observers\DatPhongObserver;
 
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Phong::observe(PhongObserver::class);
+        DatPhong::observe(DatPhongObserver::class);
         Paginator::useBootstrapFive();
     }
 }
