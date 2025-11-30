@@ -57,7 +57,6 @@ class PaymentController extends Controller
                     'required',
                     'string',
                     'regex:/^0[1-9]\d{8,9}$/', // Chấp nhận số điện thoại Việt Nam: 0[1-9]xxxxxxx (9-10 chữ số)
-                    // Bỏ rule unique để cho phép user dùng lại số phone cho nhiều booking
                 ]
             ]);
 
