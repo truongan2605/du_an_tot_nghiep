@@ -35,14 +35,17 @@ class MoMoPaymentService
      */
     public function createPaymentUrl(array $data): array
     {
-        $orderId = $data['orderId'];
+        $baseOrderId = $data['orderId'];
         $amount = $data['amount'];
         $orderInfo = $data['orderInfo'];
         $returnUrl = $data['returnUrl'];
         $notifyUrl = $data['notifyUrl'];
         $extraData = $data['extraData'] ?? '';
 
-        $requestId = $orderId . '-' . time();
+        // Make orderId truly unique by appending timestamp and random string
+        // This prevents MoMo duplicate orderId error
+        $orderId = $baseOrderId . '-' . time() . '-' . mt_rand(1000, 9999);
+        $requestId = $orderId . '-req';
         $requestType = 'captureWallet';
 
         // Tạo raw signature
@@ -75,6 +78,8 @@ class MoMoPaymentService
         ];
 
         Log::info('MoMo Payment Request', [
+            'baseOrderId' => $baseOrderId,
+            'uniqueOrderId' => $orderId,
             'requestData' => $requestData,
             'rawSignature' => $rawSignature,
         ]);
@@ -88,6 +93,7 @@ class MoMoPaymentService
                 'payUrl' => $response['payUrl'] ?? '',
                 'deeplink' => $response['deeplink'] ?? '',
                 'qrCodeUrl' => $response['qrCodeUrl'] ?? '',
+                'orderId' => $orderId, // Return the unique orderId for tracking
             ];
         }
 
