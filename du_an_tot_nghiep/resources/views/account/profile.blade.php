@@ -139,13 +139,6 @@
                                         </div>
                                     </div>
 
-                                    <div class="text-center mt-3">
-                                        <div class="badge bg-warning p-2 px-3 text-dark rounded-pill">
-                                            <i class="bi bi-star-fill me-1"></i>
-                                            Hạng khách hàng: <strong>Vàng</strong>
-                                        </div>
-                                    </div>
-
                                     {{-- name --}}
                                     <div class="col-md-6">
                                         <label class="form-label">Họ và tên<span class="text-danger">*</span></label>
