@@ -43,6 +43,12 @@
                                                     class="bi bi-person fa-fw me-2"></i>My Profile</a>
                                         </li>
                                         <li class="nav-item">
+                                        {{-- Trang hiện tại: Ưu đãi --}}
+                                            <a class="nav-link" href="{{ route('account.rewards') }}">
+                                                <i class="bi bi-gift fa-fw me-2"></i>Ưu đãi
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
                                             <a class="nav-link active" href="{{ route('account.booking.index') }}"><i
                                                     class="bi bi-ticket-perforated fa-fw me-2"></i>Đặt phòng của tôi</a>
                                         </li>
