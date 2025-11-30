@@ -178,7 +178,8 @@ class PaymentController extends Controller
             // Áp dụng giảm giá theo hạng thành viên
             $user = Auth::user();
             $memberDiscountAmount = 0;
-            if ($user && $user->member_level) {
+            $memberDiscountPercent = 0;
+            if ($user && $user->member_level && method_exists($user, 'getMemberDiscountPercent')) {
                 $memberDiscountPercent = $user->getMemberDiscountPercent();
                 if ($memberDiscountPercent > 0) {
                     $memberDiscountAmount = ($snapshotTotalServer * $memberDiscountPercent / 100);
@@ -216,7 +217,7 @@ class PaymentController extends Controller
                 'contact_phone' => $validated['phone'],
                 'member_discount_amount' => $memberDiscountAmount,
                 'member_level' => $user ? ($user->member_level ?? 'dong') : 'dong',
-                'member_discount_percent' => $user ? $user->getMemberDiscountPercent() : 0,
+                'member_discount_percent' => $memberDiscountPercent,
             ];
 
             return DB::transaction(function () use (
@@ -539,7 +540,15 @@ class PaymentController extends Controller
             ]);
         }
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $snapshotMeta = $dat_phong->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use ($vnp_ResponseCode, $vnp_Amount, $inputData, $giao_dich, $dat_phong, $roomsCount) {
@@ -655,7 +664,15 @@ class PaymentController extends Controller
         $dat_phong = $giao_dich->dat_phong;
         if (!$dat_phong) return response()->json(['RspCode' => '02', 'Message' => 'Booking not found']);
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $snapshotMeta = $dat_phong->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use ($giao_dich, $dat_phong, $vnp_ResponseCode, $vnp_Amount, $inputData, $roomsCount) {
@@ -841,7 +858,15 @@ class PaymentController extends Controller
         }
 
         // Kiểm tra CCCD trước khi thanh toán
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $snapshotMeta = $booking->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $cccdList = $meta['checkin_cccd_list'] ?? [];
         $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
         

@@ -13,6 +13,9 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Services\PaymentNotificationService;
+use App\Mail\InvoiceMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class CheckoutController extends Controller
 {
@@ -220,7 +223,15 @@ class CheckoutController extends Controller
      */
     private function deleteCCCDImages(DatPhong $booking)
     {
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $snapshotMeta = $booking->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
 
         // Xóa tất cả CCCD trong danh sách
         if (!empty($meta['checkin_cccd_list']) && is_array($meta['checkin_cccd_list'])) {
@@ -388,6 +399,9 @@ class CheckoutController extends Controller
                 $notificationService = new PaymentNotificationService();
                 $notificationService->sendEarlyCheckoutNotification($booking, $targetHoaDon->id, $earlyDays, $earlyRefund);
 
+                // Gửi email hóa đơn tự động
+                $this->sendInvoiceEmail($booking, $targetHoaDon);
+
                 $msg = 'Checkout sớm hoàn tất.';
                 if ($earlyRefund > 0) {
                     $msg .= ' Khoản hoàn tiền ước tính: ' . number_format($earlyRefund, 0) . ' ₫ đã được ghi nhận trong hoá đơn.';
@@ -462,7 +476,8 @@ class CheckoutController extends Controller
                 }
 
                 // finalize invoice
-                $targetHoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
+                $tongThucThu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
+                $targetHoaDon->tong_thuc_thu = $tongThucThu > 0 ? number_format($tongThucThu, 2, '.', '') : '0.00';
                 $targetHoaDon->trang_thai = $markPaid ? 'da_thanh_toan' : 'da_xuat';
                 $targetHoaDon->save();
 
@@ -478,10 +493,13 @@ class CheckoutController extends Controller
                 $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
                 $booking->is_late_checkout = true;
-                $booking->late_checkout_fee_amount = $lateFee > 0 ? $lateFee : 0;
+                $booking->setAttribute('late_checkout_fee_amount', $lateFee > 0 ? $lateFee : 0);
                 $booking->save();
 
                 DB::commit();
+
+                // Gửi email hóa đơn tự động
+                $this->sendInvoiceEmail($booking, $targetHoaDon);
 
                 $msg = 'Checkout muộn hoàn tất.';
                 if ($lateFee > 0) {
@@ -513,7 +531,8 @@ class CheckoutController extends Controller
                     }
                 }
 
-                $hoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
+                $tongThucThu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
+                $hoaDon->tong_thuc_thu = $tongThucThu > 0 ? number_format($tongThucThu, 2, '.', '') : '0.00';
                 $hoaDon->save();
 
                 if ($markPaid) {
@@ -537,6 +556,9 @@ class CheckoutController extends Controller
                     // Gửi thông báo checkout
                     $notificationService = new PaymentNotificationService();
                     $notificationService->sendCheckoutNotification($booking, $hoaDon->id);
+
+                    // Gửi email hóa đơn tự động
+                    $this->sendInvoiceEmail($booking, $hoaDon);
 
                     return redirect()->route('staff.bookings.show', $booking->id)
                         ->with('success', 'Checkout hoàn tất — hoá đơn #' . $hoaDon->id . ' đã được lập và đánh dấu là đã thanh toán.');
@@ -575,7 +597,8 @@ class CheckoutController extends Controller
             }
 
             if ($markPaid) {
-                $targetHoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
+                $tongThucThu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
+                $targetHoaDon->tong_thuc_thu = $tongThucThu > 0 ? number_format($tongThucThu, 2, '.', '') : '0.00';
                 $targetHoaDon->trang_thai = 'da_thanh_toan';
                 $targetHoaDon->save();
 
@@ -600,11 +623,15 @@ class CheckoutController extends Controller
                 $notificationService = new PaymentNotificationService();
                 $notificationService->sendCheckoutNotification($booking, $targetHoaDon->id);
 
+                // Gửi email hóa đơn tự động
+                $this->sendInvoiceEmail($booking, $targetHoaDon);
+
                 return redirect()->route('staff.bookings.show', $booking->id)
                     ->with('success', 'Checkout hoàn tất — hoá đơn #' . $targetHoaDon->id . ' đã được đánh dấu là đã thanh toán.');
             }
 
-            $targetHoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
+            $tongThucThu = (float) HoaDonItem::where('hoa_don_id', $targetHoaDon->id)->sum('amount');
+            $targetHoaDon->tong_thuc_thu = $tongThucThu > 0 ? number_format($tongThucThu, 2, '.', '') : '0.00';
             $targetHoaDon->trang_thai = 'da_xuat';
             $targetHoaDon->save();
 
@@ -654,7 +681,8 @@ class CheckoutController extends Controller
                 }
             }
 
-            $hoaDon->tong_thuc_thu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
+            $tongThucThu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
+            $hoaDon->setAttribute('tong_thuc_thu', $tongThucThu > 0 ? $tongThucThu : 0.0);
             $hoaDon->trang_thai = 'da_thanh_toan';
             $hoaDon->save();
 
@@ -679,11 +707,55 @@ class CheckoutController extends Controller
             $notificationService = new PaymentNotificationService();
             $notificationService->sendCheckoutNotification($booking, $hoaDon->id);
 
+            // Gửi email hóa đơn tự động
+            $this->sendInvoiceEmail($booking, $hoaDon);
+
             return redirect()->route('staff.bookings.show', $booking->id)
                 ->with('success', 'Hoá đơn #' . $hoaDon->id . ' đã được đánh dấu là đã thanh toán và checkout hoàn tất.');
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Không thể xác nhận thanh toán: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Gửi email hóa đơn tự động cho khách hàng sau khi checkout
+     */
+    private function sendInvoiceEmail(DatPhong $booking, HoaDon $hoaDon): void
+    {
+        try {
+            // Reload booking với user relationship
+            $booking->load(['user']);
+            
+            // Kiểm tra booking có user và email không
+            if (!$booking->user || !$booking->user->email) {
+                Log::warning('Cannot send invoice email: missing user or email', [
+                    'booking_id' => $booking->id,
+                    'hoa_don_id' => $hoaDon->id,
+                ]);
+                return;
+            }
+
+            // Reload hóa đơn với relationships để đảm bảo có đầy đủ dữ liệu
+            $hoaDon->load(['hoaDonItems.phong', 'hoaDonItems.loaiPhong', 'hoaDonItems.vatDung']);
+
+            // Gửi email hóa đơn
+            Mail::to($booking->user->email)->send(new InvoiceMail($hoaDon, $booking));
+
+            Log::info('Invoice email sent successfully after checkout', [
+                'booking_id' => $booking->id,
+                'hoa_don_id' => $hoaDon->id,
+                'user_id' => $booking->nguoi_dung_id,
+                'email' => $booking->user->email,
+            ]);
+        } catch (\Throwable $e) {
+            // Log lỗi nhưng không làm gián đoạn quá trình checkout
+            Log::error('Failed to send invoice email after checkout', [
+                'booking_id' => $booking->id,
+                'hoa_don_id' => $hoaDon->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
         }
     }
 }
