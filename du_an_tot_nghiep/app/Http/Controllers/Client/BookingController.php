@@ -1707,6 +1707,14 @@ class BookingController extends Controller
             // Keep audit trail of actual money received
             // If refund needed, create NEW refund transaction instead
             
+            // However, DO mark any PENDING transactions as failed to prevent payment after cancellation
+            \App\Models\GiaoDich::where('dat_phong_id', $booking->id)
+                ->where('trang_thai', 'dang_cho')
+                ->update([
+                    'trang_thai' => 'that_bai',
+                    'ghi_chu' => 'Booking đã bị hủy bởi khách hàng',
+                ]);
+            
             // Create refund transaction if refund amount > 0
             if ($refundAmount > 0) {
                 \App\Models\GiaoDich::create([
