@@ -12,6 +12,7 @@ use App\Models\LoaiPhong;
 use App\Models\HoaDonItem;
 use App\Models\PhongDaDat;
 use App\Models\DatPhongItem;
+use App\Models\RefundRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use App\Models\VatDungIncident;
@@ -43,37 +44,62 @@ class StaffController extends Controller
 
         $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
         $totalBookings = DatPhong::count();
-        $giaoDichThanhCong = GiaoDich::where('trang_thai', 'thanh_cong');
-        $giaoDichHoanTien = GiaoDich::where('trang_thai', 'da_hoan');
 
-        $todayRevenue = $giaoDichThanhCong->clone()
+        // === HYBRID REVENUE MODEL ===
+        // Revenue = GiaoDich (paid) + HoaDon (unpaid charges)
+        
+        // Today
+        $todayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
             ->whereDate('created_at', $today)
             ->sum('so_tien');
-        $todayRefund = $giaoDichHoanTien->clone()
-            ->whereDate('created_at', $today)
-            ->sum('so_tien');
+        $todayInvoiced = HoaDon::whereDate('created_at', $today)
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $todayRevenue = $todayPaid + $todayInvoiced;
+        
+        $todayRefund = RefundRequest::where('status', 'completed')
+            ->whereDate('processed_at', $today)
+            ->sum('amount');
         $todayNetRevenue = $todayRevenue - $todayRefund;
-        $weeklyRevenue = $giaoDichThanhCong->clone()
+
+        // Weekly
+        $weeklyPaid = GiaoDich::where('trang_thai', 'thanh_cong')
             ->whereBetween(DB::raw('DATE(created_at)'), $weekRange)
             ->sum('so_tien');
-        $weeklyRefund = $giaoDichHoanTien->clone()
-            ->whereBetween(DB::raw('DATE(created_at)'), $weekRange)
-            ->sum('so_tien');
+        $weeklyInvoiced = HoaDon::whereBetween(DB::raw('DATE(created_at)'), $weekRange)
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $weeklyRevenue = $weeklyPaid + $weeklyInvoiced;
+        
+        $weeklyRefund = RefundRequest::where('status', 'completed')
+            ->whereBetween(DB::raw('DATE(processed_at)'), $weekRange)
+            ->sum('amount');
         $weeklyNetRevenue = $weeklyRevenue - $weeklyRefund;
 
-        $monthlyRevenue = $giaoDichThanhCong->clone()
+        // Monthly
+        $monthlyPaid = GiaoDich::where('trang_thai', 'thanh_cong')
             ->whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
             ->sum('so_tien');
-        $monthlyRefund = $giaoDichHoanTien->clone()
-            ->whereYear('created_at', $year)
+        $monthlyInvoiced = HoaDon::whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
-            ->sum('so_tien');
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $monthlyRevenue = $monthlyPaid + $monthlyInvoiced;
+        
+        $monthlyRefund = RefundRequest::where('status', 'completed')
+            ->whereYear('processed_at', $year)
+            ->whereMonth('processed_at', $month)
+            ->sum('amount');
         $monthlyNetRevenue = $monthlyRevenue - $monthlyRefund;
 
-
-        $totalRevenue = $giaoDichThanhCong->clone()->sum('so_tien');
-        $totalRefund = $giaoDichHoanTien->clone()->sum('so_tien');
+        // Total
+        $totalPaid = GiaoDich::where('trang_thai', 'thanh_cong')->sum('so_tien');
+        $totalInvoiced = HoaDon::whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $totalRevenue = $totalPaid + $totalInvoiced;
+        
+        $totalRefund = RefundRequest::where('status', 'completed')->sum('amount');
         $totalNetRevenue = $totalRevenue - $totalRefund;
 
         $todayDeposit = GiaoDich::where('trang_thai', 'thanh_cong')
@@ -98,20 +124,26 @@ class StaffController extends Controller
         $availableRooms = Phong::where('trang_thai', 'trong')->count();
         
         // === Room Analytics Overview (Current Month) ===
+        // IMPORTANT: Use HoaDonItems instead of dat_phong_item because dat_phong_item gets deleted after checkout!
         $currentMonth = $today->month;
         $currentYear = $today->year;
         
-        $roomTypeStats = DB::table('dat_phong_item as dpi')
-            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
-            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
-            ->whereYear('dp.ngay_nhan_phong', $currentYear)
-            ->whereMonth('dp.ngay_nhan_phong', $currentMonth)
-            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+        // Get all room-related revenue from HoaDonItems (includes both checked-out and active bookings)
+        $roomTypeStats = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->join('dat_phong as dp', 'hd.dat_phong_id', '=', 'dp.id')
+            ->leftJoin('loai_phong as lp', 'hdi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('hd.created_at', $currentYear)
+            ->whereMonth('hd.created_at', $currentMonth)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.loai_phong_id')
             ->select(
                 'lp.id',
                 'lp.ten',
-                DB::raw('COUNT(DISTINCT dp.id) as total_bookings'),
-                DB::raw('SUM(dpi.tong_item) as total_revenue')
+                DB::raw('COUNT(DISTINCT CASE WHEN hdi.type = "room_booking" THEN hd.dat_phong_id END) as total_bookings'),
+                DB::raw('SUM(CASE WHEN hdi.type = "room_booking" THEN hdi.amount ELSE 0 END) as booking_revenue'),
+                DB::raw('SUM(CASE WHEN hdi.type != "room_booking" THEN hdi.amount ELSE 0 END) as additional_revenue'),
+                DB::raw('SUM(hdi.amount) as total_revenue')
             )
             ->groupBy('lp.id', 'lp.ten')
             ->get();
@@ -136,6 +168,8 @@ class StaffController extends Controller
                 'ten' => $stat->ten,
                 'total_rooms' => $totalRooms,
                 'total_bookings' => $stat->total_bookings,
+                'booking_revenue' => $stat->booking_revenue ?? 0,
+                'additional_revenue' => $stat->additional_revenue ?? 0,
                 'total_revenue' => $stat->total_revenue ?? 0,
                 'occupancy_rate' => $occupancyRate
             ];
@@ -208,13 +242,21 @@ class StaffController extends Controller
                 $startDate = Carbon::parse($request->start_date)->startOfDay();
                 $endDate = Carbon::parse($request->end_date)->endOfDay();
                 
-                $customRevenue = GiaoDich::where('trang_thai', 'thanh_cong')
+                // Hybrid model: GiaoDich (paid) + HoaDon (all invoices)
+                $customPaid = GiaoDich::where('trang_thai', 'thanh_cong')
                     ->whereBetween('created_at', [$startDate, $endDate])
                     ->sum('so_tien');
                 
-                $customRefund = GiaoDich::where('trang_thai', 'da_hoan')
-                    ->whereBetween('created_at', [$startDate, $endDate])
-                    ->sum('so_tien');
+                $customInvoiced = HoaDon::whereBetween('created_at', [$startDate, $endDate])
+                    ->whereNotIn('trang_thai', ['da_huy'])
+                    ->sum('tong_thuc_thu');
+                
+                $customRevenue = $customPaid + $customInvoiced;
+                
+                // Use RefundRequest instead of GiaoDich
+                $customRefund = RefundRequest::where('status', 'completed')
+                    ->whereBetween('processed_at', [$startDate, $endDate])
+                    ->sum('amount');
                 
                 $customNetRevenue = $customRevenue - $customRefund;
                 $customRangeLabel = $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y');
