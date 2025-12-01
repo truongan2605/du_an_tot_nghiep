@@ -133,8 +133,20 @@
                                         </span>
                                     </td>
                                     <td class="small">{{ Str::limit($booking->ma_tham_chieu ?? 'Chưa có', 15) }}</td>
-                                    <td class="small">{{ $booking->ngay_nhan_phong?->format('d/m H:i') ?? '-' }}</td>
-                                    <td class="small">{{ $booking->ngay_tra_phong?->format('d/m H:i') ?? '-' }}</td>
+                                    <td class="small">
+                                        @if($booking->ngay_nhan_phong)
+                                            {{ \Carbon\Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0)->format('d/m H:i') }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td class="small">
+                                        @if($booking->ngay_tra_phong)
+                                            {{ \Carbon\Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0)->format('d/m H:i') }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
                                     <td class="text-end fw-semibold small">
                                         {{ number_format($booking->tong_tien, 0, ',', '.') }}đ</td>
                                     <td class="text-end fw-semibold small">
