@@ -44,6 +44,41 @@
         @endforeach
     </div>
 
+    {{-- Date Range Filter --}}
+    <div class="card shadow-sm rounded-4 border-0 mb-3">
+        <div class="card-body p-3">
+            <form method="GET" action="{{ route('staff.index') }}" id="dateFilterForm">
+                <div class="row align-items-end g-3">
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold mb-2">
+                            <i class="bi bi-calendar-range me-1 text-primary"></i>Lọc theo khoảng ngày
+                        </label>
+                        <input type="text" 
+                               id="dateRangePicker" 
+                               class="form-control form-control-lg" 
+                               placeholder="Chọn từ ngày - đến ngày..."
+                               value="{{ request('start_date') && request('end_date') ? \Carbon\Carbon::parse(request('start_date'))->format('d/m/Y') . ' đến ' . \Carbon\Carbon::parse(request('end_date'))->format('d/m/Y') : '' }}"
+                               readonly>
+                        <input type="hidden" name="start_date" id="startDate" value="{{ request('start_date') }}">
+                        <input type="hidden" name="end_date" id="endDate" value="{{ request('end_date') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100 btn-lg">
+                            <i class="bi bi-search me-1"></i>Lọc
+                        </button>
+                    </div>
+                    @if(request('start_date'))
+                    <div class="col-md-2">
+                        <a href="{{ route('staff.index') }}" class="btn btn-outline-secondary w-100 btn-lg">
+                            <i class="bi bi-x-lg me-1"></i>Xóa bộ lọc
+                        </a>
+                    </div>
+                    @endif
+                </div>
+            </form>
+        </div>
+    </div>
+
     {{-- Revenue Breakdown Table --}}
     <div class="card shadow-sm rounded-4 border-0 mb-4">
         <div class="card-header bg-light border-0 py-3 d-flex justify-content-between align-items-center">
@@ -85,6 +120,16 @@
                                 <td class="text-end text-warning">{{ number_format($monthlyRefund ?? 0, 0) }}đ</td>
                                 <td class="text-end fw-bold pe-3">{{ number_format($monthlyNetRevenue ?? 0, 0) }}đ</td>
                             </tr>
+                            @if($customRevenue !== null)
+                            <tr class="table-info">
+                                <td class="ps-3 fw-medium">
+                                    <i class="bi bi-calendar-range me-1"></i>{{ $customRangeLabel }}
+                                </td>
+                                <td class="text-end text-success">{{ number_format($customRevenue ?? 0, 0) }}đ</td>
+                                <td class="text-end text-warning">{{ number_format($customRefund ?? 0, 0) }}đ</td>
+                                <td class="text-end fw-bold pe-3">{{ number_format($customNetRevenue ?? 0, 0) }}đ</td>
+                            </tr>
+                            @endif
                             <tr class="table-active">
                                 <td class="ps-3 fw-bold">Tổng Cộng</td>
                                 <td class="text-end text-success fw-bold">{{ number_format($totalRevenue ?? 0, 0) }}đ</td>
@@ -353,6 +398,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
+
+{{-- Flatpickr for Date Range Picker --}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 
 <script>
 window.initDashboardChartsAndCalendar = function() {
@@ -623,6 +673,21 @@ window.initDashboardChartsAndCalendar = function() {
 
 document.addEventListener('DOMContentLoaded', function() {
     window.initDashboardChartsAndCalendar();
+    
+    // Initialize Flatpickr Date Range Picker
+    flatpickr("#dateRangePicker", {
+        mode: "range",
+        dateFormat: "d/m/Y",
+        locale: "vn",
+        maxDate: "today",
+        onChange: function(selectedDates, dateStr, instance) {
+            if (selectedDates.length === 2) {
+                // Format: YYYY-MM-DD for backend
+                document.getElementById('startDate').value = selectedDates[0].toISOString().split('T')[0];
+                document.getElementById('endDate').value = selectedDates[1].toISOString().split('T')[0];
+            }
+        }
+    });
 });
 </script>
 @endpush

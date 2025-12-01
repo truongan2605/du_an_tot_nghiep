@@ -488,13 +488,46 @@
                                                     <li><strong>Số tiền:</strong> {{ number_format($refund->amount, 0, ',', '.') }} ₫</li>
                                                 </ul>
                                                 
-                                                {{-- Image Upload --}}
+                                                {{-- Proof Option Selection --}}
                                                 <div class="mb-3">
+                                                    <label class="form-label">Chọn phương thức chứng minh <span class="text-danger">*</span></label>
+                                                    <div class="d-flex gap-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="radio" name="proof_option" id="uploadOption{{ $refund->id }}" value="upload" checked onchange="toggleProofMethod({{ $refund->id }}, 'upload')">
+                                                            <label class="form-check-label" for="uploadOption{{ $refund->id }}">
+                                                                <i class="bi bi-upload me-1"></i> Tải lên ảnh
+                                                            </label>
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="radio" name="proof_option" id="generateOption{{ $refund->id }}" value="generate" onchange="toggleProofMethod({{ $refund->id }}, 'generate')">
+                                                            <label class="form-check-label" for="generateOption{{ $refund->id }}">
+                                                                <i class="bi bi-magic me-1"></i> Tạo biên nhận tự động
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Upload Section --}}
+                                                <div id="uploadSection{{ $refund->id }}" class="mb-3">
                                                     <label class="form-label">Ảnh chứng minh hoàn tiền <span class="text-danger">*</span></label>
-                                                    <input type="file" name="proof_image" class="form-control" accept="image/jpeg,image/jpg,image/png" required onchange="previewImage(this, 'preview{{ $refund->id }}')">
+                                                    <input type="file" name="proof_image" id="proofImageInput{{ $refund->id }}" class="form-control" accept="image/jpeg,image/jpg,image/png" onchange="previewImage(this, 'preview{{ $refund->id }}')">
                                                     <small class="text-muted">Định dạng: JPG, PNG. Tối đa 5MB</small>
                                                     <div class="mt-2">
                                                         <img id="preview{{ $refund->id }}" src="" alt="Preview" style="max-width: 100%; max-height: 200px; display: none;" class="img-thumbnail">
+                                                    </div>
+                                                </div>
+                                                
+                                                {{-- Generate Info Section --}}
+                                                <div id="generateSection{{ $refund->id }}" class="mb-3" style="display: none;">
+                                                    <div class="alert alert-info">
+                                                        <i class="bi bi-info-circle me-2"></i>
+                                                        <strong>Biên nhận sẽ được tạo tự động</strong> với thông tin:
+                                                        <ul class="mb-0 mt-2 small">
+                                                            <li>Mã giao dịch: REF-{{ str_pad($refund->id, 6, '0', STR_PAD_LEFT) }}</li>
+                                                            <li>Người nhận: {{ $refund->datPhong->contact_name ?? 'N/A' }}</li>
+                                                            <li>Số tiền: {{ number_format($refund->amount, 0, ',', '.') }} ₫</li>
+                                                            <li>Ngày: {{ now()->format('d/m/Y H:i') }}</li>
+                                                        </ul>
                                                     </div>
                                                 </div>
                                                 
@@ -555,6 +588,30 @@
 </style>
 
 <script>
+// Toggle between upload and generate proof methods
+function toggleProofMethod(refundId, method) {
+    const uploadSection = document.getElementById('uploadSection' + refundId);
+    const generateSection = document.getElementById('generateSection' + refundId);
+    const fileInput = document.getElementById('proofImageInput' + refundId);
+    
+    if (method === 'upload') {
+        uploadSection.style.display = 'block';
+        generateSection.style.display = 'none';
+        fileInput.required = true;
+    } else {
+        uploadSection.style.display = 'none';
+        generateSection.style.display = 'block';
+        fileInput.required = false;
+        fileInput.value = ''; // Clear file input
+        
+        // Hide preview if any
+        const preview = document.getElementById('preview' + refundId);
+        if (preview) {
+            preview.style.display = 'none';
+        }
+    }
+}
+
 function previewImage(input, previewId) {
     const preview = document.getElementById(previewId);
     

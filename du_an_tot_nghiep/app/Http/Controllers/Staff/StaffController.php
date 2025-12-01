@@ -30,7 +30,7 @@ class StaffController extends Controller
 {
 
 
-    public function index()
+    public function index(Request $request)
     {
         $today = now();
         $weekRange = [$today->copy()->startOfWeek()->toDateString(), $today->copy()->endOfWeek()->toDateString()];
@@ -197,6 +197,32 @@ class StaffController extends Controller
             ->limit(10)
             ->get();
 
+        // Custom Date Range Filter
+        $customRevenue = null;
+        $customRefund = null;
+        $customNetRevenue = null;
+        $customRangeLabel = null;
+
+        if ($request->has('start_date') && $request->has('end_date')) {
+            try {
+                $startDate = Carbon::parse($request->start_date)->startOfDay();
+                $endDate = Carbon::parse($request->end_date)->endOfDay();
+                
+                $customRevenue = GiaoDich::where('trang_thai', 'thanh_cong')
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->sum('so_tien');
+                
+                $customRefund = GiaoDich::where('trang_thai', 'da_hoan')
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->sum('so_tien');
+                
+                $customNetRevenue = $customRevenue - $customRefund;
+                $customRangeLabel = $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y');
+            } catch (\Exception $e) {
+                Log::error('Error parsing date range', ['error' => $e->getMessage()]);
+            }
+        }
+
         return view('staff.index', compact(
             'pendingBookings',
             'todayRevenue',
@@ -222,7 +248,11 @@ class StaffController extends Controller
             'revenueData',
             'roomTypeStats',
             'analyticsChartLabels',
-            'analyticsChartData'
+            'analyticsChartData',
+            'customRevenue',
+            'customRefund',
+            'customNetRevenue',
+            'customRangeLabel'
         ));
     }
 

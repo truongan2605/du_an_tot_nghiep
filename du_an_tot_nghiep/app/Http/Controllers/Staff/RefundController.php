@@ -141,16 +141,23 @@ class RefundController extends Controller
      */
     public function complete(Request $request, $id)
     {
-        // Validate image upload
+        // Validate proof option
         $request->validate([
+            'proof_option' => 'required|in:upload,generate',
             'note' => 'nullable|string|max:500',
-            'proof_image' => 'required|image|mimes:jpeg,jpg,png|max:5120', // 5MB max
-        ], [
-            'proof_image.required' => 'Vui lòng tải lên ảnh chứng minh hoàn tiền.',
-            'proof_image.image' => 'File phải là ảnh.',
-            'proof_image.mimes' => 'Ảnh phải có định dạng: JPG, JPEG, PNG.',
-            'proof_image.max' => 'Ảnh không được vượt quá 5MB.',
         ]);
+
+        // Conditional validation for upload
+        if ($request->input('proof_option') === 'upload') {
+            $request->validate([
+                'proof_image' => 'required|image|mimes:jpeg,jpg,png|max:5120',
+            ], [
+                'proof_image.required' => 'Vui lòng tải lên ảnh chứng minh hoàn tiền.',
+                'proof_image.image' => 'File phải là ảnh.',
+                'proof_image.mimes' => 'Ảnh phải có định dạng: JPG, JPEG, PNG.',
+                'proof_image.max' => 'Ảnh không được vượt quá 5MB.',
+            ]);
+        }
 
         $refund = RefundRequest::findOrFail($id);
 
@@ -159,12 +166,23 @@ class RefundController extends Controller
         }
 
         try {
-            // Handle image upload
             $imagePath = null;
-            if ($request->hasFile('proof_image')) {
-                $image = $request->file('proof_image');
-                $filename = 'refund_' . $refund->id . '_' . time() . '.' . $image->getClientOriginalExtension();
-                $imagePath = $image->storeAs('refund_proofs', $filename, 'public');
+
+            if ($request->input('proof_option') === 'upload') {
+                // Handle manual upload
+                if ($request->hasFile('proof_image')) {
+                    $image = $request->file('proof_image');
+                    $filename = 'refund_' . $refund->id . '_' . time() . '.' . $image->getClientOriginalExtension();
+                    $imagePath = $image->storeAs('refund_proofs', $filename, 'public');
+                }
+            } else {
+                // Auto-generate receipt
+                $generator = new \App\Services\RefundReceiptGenerator();
+                $imagePath = $generator->generate($refund);
+                
+                if (!$imagePath) {
+                    return back()->with('error', 'Không thể tạo ảnh chứng minh. Vui lòng thử lại.');
+                }
             }
 
             $refund->update([
@@ -178,9 +196,14 @@ class RefundController extends Controller
                 'amount' => $refund->amount,
                 'completed_by' => Auth::id(),
                 'proof_image' => $imagePath,
+                'proof_method' => $request->input('proof_option'),
             ]);
 
-            return back()->with('success', 'Đã đánh dấu hoàn tiền thành công và lưu ảnh chứng minh.');
+            $message = $request->input('proof_option') === 'upload' 
+                ? 'Đã đánh dấu hoàn tiền thành công và lưu ảnh chứng minh.'
+                : 'Đã đánh dấu hoàn tiền thành công và tạo biên nhận tự động.';
+
+            return back()->with('success', $message);
 
         } catch (\Exception $e) {
             Log::error('Error completing refund', [
