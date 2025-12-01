@@ -159,6 +159,21 @@
                                                 <i class="bi bi-three-dots-vertical"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                <li>
+                                                    <button class="dropdown-item small quick-view-btn" 
+                                                        data-booking-id="{{ $booking->id }}"
+                                                        type="button">
+                                                        <i class="bi bi-lightning me-1"></i> Xem Nhanh
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button class="dropdown-item small quick-note-btn" 
+                                                        data-booking-id="{{ $booking->id }}"
+                                                        type="button">
+                                                        <i class="bi bi-pencil-square me-1"></i> Ghi Chú Nhanh
+                                                    </button>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
                                                 <li><a class="dropdown-item small"
                                                         href="{{ route('staff.bookings.show', $booking->id) }}"><i
                                                             class="bi bi-eye me-1"></i> Xem Chi Tiết</a></li>
@@ -303,6 +318,75 @@
         </div>
     </div>
 
+    {{-- Quick View Modal --}}
+    <div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary bg-opacity-10">
+                    <h5 class="modal-title" id="quickViewModalLabel">
+                        <i class="bi bi-lightning-fill me-2 text-primary"></i>
+                        Xem Nhanh Booking
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="quickViewContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Đang tải thông tin booking...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Đóng
+                    </button>
+                    <a href="#" class="btn btn-primary btn-sm" id="viewFullDetailsBtn">
+                        <i class="bi bi-eye me-1"></i>Xem Chi Tiết Đầy Đủ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Quick Note Modal --}}
+    <div class="modal fade" id="quickNoteModal" tabindex="-1" aria-labelledby="quickNoteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-10">
+                    <h5 class="modal-title" id="quickNoteModalLabel">
+                        <i class="bi bi-pencil-square me-2 text-warning"></i>
+                        Ghi Chú Nhanh
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickNoteForm">
+                        <input type="hidden" id="noteBookingId" name="booking_id">
+                        <div class="mb-3">
+                            <label for="bookingReference" class="form-label fw-bold">Booking:</label>
+                            <input type="text" class="form-control" id="bookingReference" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="noteContent" class="form-label fw-bold">Ghi chú: <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="noteContent" name="note" rows="4" 
+                                placeholder="Nhập ghi chú cho booking này..." required></textarea>
+                            <div class="form-text">Ghi chú sẽ được lưu vào lịch sử của booking</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Hủy
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" id="saveNoteBtn">
+                        <i class="bi bi-check-lg me-1"></i>Lưu Ghi Chú
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -353,6 +437,243 @@
                     }
                 }
             };
+
+            // Quick View functionality
+            document.querySelectorAll('.quick-view-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const bookingId = this.dataset.bookingId;
+                    const modal = new bootstrap.Modal(document.getElementById('quickViewModal'));
+                    const contentDiv = document.getElementById('quickViewContent');
+                    const viewFullBtn = document.getElementById('viewFullDetailsBtn');
+                    
+                    // Update link to full details page
+                    viewFullBtn.href = `/staff/bookings/${bookingId}`;
+                    
+                    // Show loading state
+                    contentDiv.innerHTML = `
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Đang tải thông tin booking...</p>
+                        </div>
+                    `;
+                    
+                    modal.show();
+                    
+                    // Fetch booking details via AJAX
+                    fetch(`/staff/bookings/${bookingId}/quick-view`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                contentDiv.innerHTML = formatQuickViewContent(data.booking);
+                            } else {
+                                contentDiv.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        ${data.message || 'Không thể tải thông tin booking'}
+                                    </div>
+                                `;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            contentDiv.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    Có lỗi xảy ra khi tải thông tin. Vui lòng thử lại.
+                                </div>
+                            `;
+                        });
+                    
+                    // Close dropdown
+                    const dropdown = this.closest('.dropdown');
+                    if (dropdown) {
+                        const toggle = dropdown.querySelector('.dropdown-toggle');
+                        if (toggle) {
+                            bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+                        }
+                    }
+                });
+            });
+
+            // Quick Note functionality
+            document.querySelectorAll('.quick-note-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const bookingId = this.dataset.bookingId;
+                    const row = this.closest('tr');
+                    const bookingRef = row.querySelector('td:nth-child(5)').textContent.trim();
+                    
+                    document.getElementById('noteBookingId').value = bookingId;
+                    document.getElementById('bookingReference').value = bookingRef;
+                    document.getElementById('noteContent').value = '';
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('quickNoteModal'));
+                    modal.show();
+                    
+                    // Close dropdown
+                    const dropdown = this.closest('.dropdown');
+                    if (dropdown) {
+                        const toggle = dropdown.querySelector('.dropdown-toggle');
+                        if (toggle) {
+                            bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+                        }
+                    }
+                });
+            });
+
+            // Save Note functionality
+            document.getElementById('saveNoteBtn').addEventListener('click', function() {
+                const bookingId = document.getElementById('noteBookingId').value;
+                const noteContent = document.getElementById('noteContent').value.trim();
+                const saveBtn = this;
+                
+                if (!noteContent) {
+                    alert('Vui lòng nhập nội dung ghi chú');
+                    return;
+                }
+                
+                // Disable button and show loading
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
+                
+                // Send AJAX request
+                fetch(`/staff/bookings/${bookingId}/add-note`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ note: noteContent })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        alert('✅ Ghi chú đã được lưu thành công!');
+                        
+                        // Close modal
+                        bootstrap.Modal.getInstance(document.getElementById('quickNoteModal')).hide();
+                        
+                        // Reset form
+                        document.getElementById('quickNoteForm').reset();
+                    } else {
+                        alert('❌ ' + (data.message || 'Không thể lưu ghi chú'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('❌ Có lỗi xảy ra khi lưu ghi chú. Vui lòng thử lại.');
+                })
+                .finally(() => {
+                    // Re-enable button
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Lưu Ghi Chú';
+                });
+            });
+
+            // Helper function to format quick view content
+            function formatQuickViewContent(booking) {
+                const statusColors = {
+                    'dang_cho': 'warning',
+                    'da_xac_nhan': 'primary',
+                    'dang_su_dung': 'info',
+                    'da_huy': 'secondary',
+                    'hoan_thanh': 'success'
+                };
+                
+                const statusLabels = {
+                    'dang_cho': 'Chờ Xác Nhận',
+                    'da_xac_nhan': 'Đã Xác Nhận',
+                    'dang_su_dung': 'Đang Sử Dụng',
+                    'da_huy': 'Đã Hủy',
+                    'hoan_thanh': 'Hoàn Thành'
+                };
+                
+                return `
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">${booking.ma_tham_chieu}</h6>
+                                    <small class="text-muted">ID: ${booking.id}</small>
+                                </div>
+                                <span class="badge bg-${statusColors[booking.trang_thai] || 'secondary'}">
+                                    ${statusLabels[booking.trang_thai] || booking.trang_thai}
+                                </span>
+                            </div>
+                            <hr>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="text-muted small">Khách hàng</label>
+                            <div class="fw-bold">${booking.customer_name || 'N/A'}</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="text-muted small">Email / SĐT</label>
+                            <div class="fw-bold small">${booking.customer_email || 'N/A'}</div>
+                            <div class="fw-bold small">${booking.customer_phone || 'N/A'}</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="text-muted small">Ngày nhận phòng</label>
+                            <div class="fw-bold">
+                                <i class="bi bi-calendar-check text-success me-1"></i>
+                                ${booking.ngay_nhan_phong}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="text-muted small">Ngày trả phòng</label>
+                            <div class="fw-bold">
+                                <i class="bi bi-calendar-x text-danger me-1"></i>
+                                ${booking.ngay_tra_phong}
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="text-muted small">Phòng</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                ${booking.rooms.map(room => `
+                                    <span class="badge bg-success bg-opacity-75">${room}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="text-muted small">Tổng tiền</label>
+                            <div class="fw-bold text-primary fs-5">${formatMoney(booking.tong_tien)}</div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="text-muted small">Đã cọc</label>
+                            <div class="fw-bold text-success">${formatMoney(booking.deposit_amount)}</div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="text-muted small">Còn lại</label>
+                            <div class="fw-bold text-danger">${formatMoney(booking.tong_tien - booking.deposit_amount)}</div>
+                        </div>
+                        
+                        ${booking.notes && booking.notes.length > 0 ? `
+                            <div class="col-12">
+                                <label class="text-muted small">Ghi chú gần nhất</label>
+                                <div class="alert alert-info mb-0">
+                                    <small>${booking.notes[0].content}</small>
+                                    <div class="text-muted mt-1" style="font-size: 0.75rem;">
+                                        ${booking.notes[0].created_at} - ${booking.notes[0].created_by}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            function formatMoney(amount) {
+                return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+            }
 
             // Toggle room changes history
             document.querySelectorAll('.toggle-room-changes').forEach(button => {

@@ -762,6 +762,144 @@ class StaffController extends Controller
         return view('staff.bookings', compact('bookings'));
     }
 
+    /**
+     * Quick view booking details for modal (AJAX)
+     */
+    public function quickView($id)
+    {
+        try {
+            $booking = DatPhong::with([
+                'nguoiDung',
+                'datPhongItems.phong',
+                'datPhongItems.loaiPhong',
+                'hoaDons.hoaDonItems.phong'
+            ])->findOrFail($id);
+
+            // Get room codes
+            $roomCodes = [];
+            if ($booking->datPhongItems && $booking->datPhongItems->isNotEmpty()) {
+                foreach ($booking->datPhongItems as $item) {
+                    if (!empty($item->phong) && !empty($item->phong->ma_phong)) {
+                        $roomCodes[] = $item->phong->ma_phong;
+                    } elseif (!empty($item->phong_id)) {
+                        $roomCodes[] = 'Phòng #' . $item->phong_id;
+                    }
+                }
+            } else {
+                // Fallback to hoa_don_items if dat_phong_item deleted
+                if (!empty($booking->hoaDons)) {
+                    foreach ($booking->hoaDons as $hd) {
+                        if (empty($hd->hoaDonItems)) continue;
+                        foreach ($hd->hoaDonItems as $it) {
+                            if (in_array($it->type, ['room', 'room_booking'])) {
+                                if (!empty($it->phong) && !empty($it->phong->ma_phong)) {
+                                    $roomCodes[] = $it->phong->ma_phong;
+                                } elseif (!empty($it->phong_id)) {
+                                    $roomCodes[] = 'Phòng #' . $it->phong_id;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            $roomCodes = array_values(array_unique(array_filter($roomCodes)));
+
+            // Get notes from snapshot_meta
+            $notes = [];
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                $meta = json_decode($booking->snapshot_meta, true) ?? [];
+            } else {
+                $meta = [];
+            }
+            
+            if (!empty($meta['staff_notes']) && is_array($meta['staff_notes'])) {
+                $notes = array_slice($meta['staff_notes'], -1); // Get last note
+            }
+
+            $data = [
+                'id' => $booking->id,
+                'ma_tham_chieu' => $booking->ma_tham_chieu,
+                'trang_thai' => $booking->trang_thai,
+                'customer_name' => $booking->nguoiDung->name ?? $booking->contact_name ?? 'N/A',
+                'customer_email' => $booking->nguoiDung->email ?? $booking->contact_email ?? 'N/A',
+                'customer_phone' => $booking->nguoiDung->phone ?? $booking->contact_phone ?? 'N/A',
+                'ngay_nhan_phong' => Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0)->format('d/m/Y H:i'),
+                'ngay_tra_phong' => Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0)->format('d/m/Y H:i'),
+                'rooms' => $roomCodes,
+                'tong_tien' => $booking->tong_tien ?? 0,
+                'deposit_amount' => $booking->deposit_amount ?? 0,
+                'notes' => $notes
+            ];
+
+            return response()->json([
+                'success' => true,
+                'booking' => $data
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Quick view error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể tải thông tin booking'
+            ], 500);
+        }
+    }
+
+    /**
+     * Add quick note to booking
+     */
+    public function addNote(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'note' => 'required|string|max:1000'
+            ]);
+
+            $booking = DatPhong::findOrFail($id);
+            
+            // Get current meta
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                $meta = json_decode($booking->snapshot_meta, true) ?? [];
+            } else {
+                $meta = [];
+            }
+
+            // Initialize staff_notes array if not exists
+            if (!isset($meta['staff_notes']) || !is_array($meta['staff_notes'])) {
+                $meta['staff_notes'] = [];
+            }
+
+            // Add new note
+            $meta['staff_notes'][] = [
+                'content' => $request->note,
+                'created_at' => now()->format('d/m/Y H:i'),
+                'created_by' => Auth::user()->name ?? 'Staff',
+                'created_by_id' => Auth::id()
+            ];
+
+            // Save meta
+            $booking->update([
+                'snapshot_meta' => $meta
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ghi chú đã được lưu thành công'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Add note error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể lưu ghi chú'
+            ], 500);
+        }
+    }
+
 
     protected function checkAvailability($phong_id, $start, $end)
     {
