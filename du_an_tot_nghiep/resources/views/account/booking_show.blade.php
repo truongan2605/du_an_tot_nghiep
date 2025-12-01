@@ -278,12 +278,72 @@
                                 </div>
                             </div>
 
+                        {{-- Refund Information (for cancelled bookings) --}}
+                        @if($booking->trang_thai === 'da_huy')
+                            @php
+                                $refundRequest = $booking->refundRequest;
+                            @endphp
+                            @if($refundRequest)
+                                <div class="card border-info mb-4">
+                                    <div class="card-header bg-info bg-opacity-10">
+                                        <h6 class="mb-0"><i class="bi bi-coin me-2 text-info"></i> Thông Tin Hoàn Tiền</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span class="text-muted">Số tiền hoàn:</span>
+                                                    <strong class="text-success">{{ number_format($refundRequest->amount, 0, ',', '.') }} ₫</strong>
+                                                </div>
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span class="text-muted">Tỷ lệ hoàn:</span>
+                                                    <strong>{{ $refundRequest->percentage }}%</strong>
+                                                </div>
+                                                <div class="d-flex justify-content-between">
+                                                    <span class="text-muted">Trạng thái:</span>
+                                                    <span class="badge {{ $refundRequest->status_badge_class }}">
+                                                        {{ $refundRequest->status_label }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            
+                                            @if($refundRequest->status === 'completed' && $refundRequest->proof_image_path)
+                                                <div class="col-md-6">
+                                                    <strong class="d-block mb-2">Chứng minh hoàn tiền:</strong>
+                                                    <div class="text-center">
+                                                        <a href="{{ $refundRequest->proof_image_url }}" target="_blank">
+                                                            <img src="{{ $refundRequest->proof_image_url }}" 
+                                                                 alt="Proof of refund" 
+                                                                 class="img-thumbnail" 
+                                                                 style="max-width: 100%; max-height: 200px; cursor: pointer;">
+                                                        </a>
+                                                    </div>
+                                                    <div class="text-center mt-2">
+                                                        <a href="{{ $refundRequest->proof_image_url }}" download class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-download me-1"></i> Tải xuống ảnh
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        
+                                        @if($refundRequest->admin_note)
+                                            <hr class="my-3">
+                                            <div class="alert alert-light mb-0">
+                                                <strong><i class="bi bi-chat-left-text me-1"></i> Ghi chú:</strong><br>
+                                                <small>{{ $refundRequest->admin_note }}</small>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+                        @endif
+
                             {{-- Rooms Table --}}
                             <div class="mb-4">
                                 <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-door-open-fill me-2 text-primary"></i> Phòng</h6>
                                 @if ($booking->datPhongItems && $booking->datPhongItems->count())
                                     <div class="table-responsive">
-                                        <table class="table table-hover table-sm mb-0">
                                             <thead class="table-light">
                                                 <tr>
                                                     <th>Phòng</th>

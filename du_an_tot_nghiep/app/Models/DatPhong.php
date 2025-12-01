@@ -105,6 +105,11 @@ class DatPhong extends Model
         return $this->hasMany(\App\Models\RefundRequest::class, 'dat_phong_id');
     }
 
+    public function refundRequest()
+    {
+        return $this->hasOne(\App\Models\RefundRequest::class, 'dat_phong_id')->latestOfMany();
+    }
+
     public function datPhongAddons(): HasMany
     {
         return $this->hasMany(DatPhongAddon::class, 'dat_phong_id');

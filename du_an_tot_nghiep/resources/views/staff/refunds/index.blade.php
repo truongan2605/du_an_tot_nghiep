@@ -318,6 +318,28 @@
                                                             </td>
                                                         </tr>
                                                     @endif
+                                                    
+                                                    {{-- Display Proof Image --}}
+                                                    @if($refund->proof_image_path)
+                                                        <tr>
+                                                            <td class="text-muted" colspan="2">
+                                                                <div class="mt-3">
+                                                                    <strong>Ảnh chứng minh:</strong>
+                                                                    <div class="mt-2">
+                                                                        <a href="{{ $refund->proof_image_url }}" target="_blank">
+                                                                            <img src="{{ $refund->proof_image_url }}" 
+                                                                                 alt="Proof of refund" 
+                                                                                 class="img-thumbnail" 
+                                                                                 style="max-width: 100%; max-height: 250px; cursor: pointer;">
+                                                                        </a>
+                                                                    </div>
+                                                                    <a href="{{ $refund->proof_image_url }}" download class="btn btn-sm btn-outline-primary mt-2">
+                                                                        <i class="fas fa-download"></i> Tải xuống
+                                                                    </a>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endif
                                                 </table>
                                             </div>
                                         </div>
@@ -454,7 +476,7 @@
                             <div class="modal fade" id="completeModal{{ $refund->id }}" tabindex="-1">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
-                                        <form method="POST" action="{{ route('staff.refunds.complete', $refund->id) }}">
+                                        <form method="POST" action="{{ route('staff.refunds.complete', $refund->id) }}" enctype="multipart/form-data">
                                             @csrf
                                             <div class="modal-header">
                                                 <h5 class="modal-title">Đánh Dấu Đã Hoàn Tiền</h5>
@@ -465,6 +487,17 @@
                                                 <ul>
                                                     <li><strong>Số tiền:</strong> {{ number_format($refund->amount, 0, ',', '.') }} ₫</li>
                                                 </ul>
+                                                
+                                                {{-- Image Upload --}}
+                                                <div class="mb-3">
+                                                    <label class="form-label">Ảnh chứng minh hoàn tiền <span class="text-danger">*</span></label>
+                                                    <input type="file" name="proof_image" class="form-control" accept="image/jpeg,image/jpg,image/png" required onchange="previewImage(this, 'preview{{ $refund->id }}')">
+                                                    <small class="text-muted">Định dạng: JPG, PNG. Tối đa 5MB</small>
+                                                    <div class="mt-2">
+                                                        <img id="preview{{ $refund->id }}" src="" alt="Preview" style="max-width: 100%; max-height: 200px; display: none;" class="img-thumbnail">
+                                                    </div>
+                                                </div>
+                                                
                                                 <div class="mb-3">
                                                     <label class="form-label">Ghi chú xác nhận (tùy chọn)</label>
                                                     <textarea name="note" class="form-control" rows="2" placeholder="VD: Đã chuyển qua VNPay..."></textarea>
@@ -520,4 +553,24 @@
         }
     }
 </style>
+
+<script>
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        preview.src = '';
+        preview.style.display = 'none';
+    }
+}
+</script>
 @endsection

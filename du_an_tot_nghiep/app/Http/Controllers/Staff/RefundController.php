@@ -141,6 +141,17 @@ class RefundController extends Controller
      */
     public function complete(Request $request, $id)
     {
+        // Validate image upload
+        $request->validate([
+            'note' => 'nullable|string|max:500',
+            'proof_image' => 'required|image|mimes:jpeg,jpg,png|max:5120', // 5MB max
+        ], [
+            'proof_image.required' => 'Vui lòng tải lên ảnh chứng minh hoàn tiền.',
+            'proof_image.image' => 'File phải là ảnh.',
+            'proof_image.mimes' => 'Ảnh phải có định dạng: JPG, JPEG, PNG.',
+            'proof_image.max' => 'Ảnh không được vượt quá 5MB.',
+        ]);
+
         $refund = RefundRequest::findOrFail($id);
 
         if ($refund->status !== 'approved') {
@@ -148,25 +159,35 @@ class RefundController extends Controller
         }
 
         try {
+            // Handle image upload
+            $imagePath = null;
+            if ($request->hasFile('proof_image')) {
+                $image = $request->file('proof_image');
+                $filename = 'refund_' . $refund->id . '_' . time() . '.' . $image->getClientOriginalExtension();
+                $imagePath = $image->storeAs('refund_proofs', $filename, 'public');
+            }
+
             $refund->update([
                 'status' => 'completed',
                 'admin_note' => ($refund->admin_note ?? '') . "\n" . $request->input('note', 'Đã chuyển tiền hoàn cho khách.'),
+                'proof_image_path' => $imagePath,
             ]);
 
-            Log::info('Refund marked as completed', [
+            Log::info('Refund marked as completed with proof image', [
                 'refund_id' => $refund->id,
                 'amount' => $refund->amount,
                 'completed_by' => Auth::id(),
+                'proof_image' => $imagePath,
             ]);
 
-            return back()->with('success', 'Đã đánh dấu hoàn tiền thành công.');
+            return back()->with('success', 'Đã đánh dấu hoàn tiền thành công và lưu ảnh chứng minh.');
 
         } catch (\Exception $e) {
             Log::error('Error completing refund', [
                 'refund_id' => $id,
                 'error' => $e->getMessage(),
             ]);
-            return back()->with('error', 'Có lỗi xảy ra.');
+            return back()->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
         }
     }
 }
