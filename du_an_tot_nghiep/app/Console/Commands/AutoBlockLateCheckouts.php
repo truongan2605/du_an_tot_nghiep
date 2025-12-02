@@ -33,20 +33,6 @@ class AutoBlockLateCheckouts extends Command
                     }
                 });
 
-            // 2) Clear blocks_checkin cho booking đã hoàn thành hoặc không còn là ngày hôm nay nữa
-            DatPhong::where('blocks_checkin', true)
-                ->where(function ($q) use ($today) {
-                    $q->where('trang_thai', 'hoan_thanh')
-                      ->orWhereDate('ngay_tra_phong', '!=', $today);
-                })
-                ->chunkById(100, function ($bookings) {
-                    foreach ($bookings as $b) {
-                        $b->blocks_checkin = false;
-                        $b->save();
-
-                        $this->info("Cleared block for booking #{$b->id} ({$b->ma_tham_chieu})");
-                    }
-                }); 
 
             DB::commit();
             $this->info('AutoBlockLateCheckouts completed.');
