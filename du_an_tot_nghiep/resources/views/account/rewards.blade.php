@@ -91,7 +91,7 @@
                 </div>
 
                 <div class="container py-0 px-0">
-                    <h3 class="mb-4">🎁 Ưu đãi khách hàng thân thiết</h3>
+                    <h3 class="mb-4">Ưu đãi khách hàng thân thiết</h3>
 
                     {{-- Hạng hiện tại --}}
                     <div class="card mb-4">
@@ -139,7 +139,7 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <div class="alert alert-success mb-0">
-                                    <h6 class="fw-bold mb-2">🎉 Bạn đã đạt hạng cao nhất!</h6>
+                                    <h6 class="fw-bold mb-2">Bạn đã đạt hạng cao nhất!</h6>
                                     <p class="mb-0">
                                         Bạn đang ở hạng Kim Cương và được nhận những ưu đãi đặc biệt như vouchers miễn phí
                                     </p>
@@ -155,17 +155,17 @@
 
                             <ul class="list-group">
                                 <li class="list-group-item {{ $currentLevel == 'Đồng' ? 'active' : '' }}">
-                                    🥉 <strong>Đồng</strong> 
+                                    <strong>Đồng</strong> 
                                 </li>
                                 <li class="list-group-item {{ $currentLevel == 'Bạc' ? 'active' : '' }}">
-                                    🥈 <strong>Bạc</strong> 
+                                    <strong>Bạc</strong> 
                                     (tiêu ≥ 1.000.000đ trong 1 đơn hoàn thành hoặc tổng chi tiêu ≥ 1.000.000đ)
                                 </li>
                                 <li class="list-group-item {{ $currentLevel == 'Vàng' ? 'active' : '' }}">
-                                    🥇 <strong>Vàng</strong>(tổng chi tiêu ≥ 15.000.000đ)
+                                    <strong>Vàng</strong>(tổng chi tiêu ≥ 15.000.000đ)
                                 </li>
                                 <li class="list-group-item {{ $currentLevel == 'Kim Cương' ? 'active' : '' }}">
-                                    👑 <strong>Kim Cương</strong> 
+                                    <strong>Kim Cương</strong> 
                                     (tổng chi tiêu ≥ 50.000.000đ)
                                 </li>
                             </ul>
