@@ -204,7 +204,7 @@
                                         @if ($booking->remaining < 0)
                                             <span class="badge bg-success rounded-pill px-2 py-1 small fw-semibold shadow-sm" 
                                                   data-bs-toggle="tooltip" data-bs-placement="top"
-                                                  title="Đã thanh toán đủ (Booking đã downgrade, khách nhận voucher )">
+                                                  title="Đã thanh toán đủ ">
                                                 <i class="bi bi-check-circle me-1"></i>Đã TT đủ
                                             </span>
                                         @elseif ($booking->remaining > 0)

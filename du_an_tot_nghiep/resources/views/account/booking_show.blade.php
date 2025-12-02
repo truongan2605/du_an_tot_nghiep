@@ -881,7 +881,7 @@
                                                     <div class="text-muted small" id="oldRoomCode">#{{ $currentRoom->ma_phong ?? 'N/A' }}</div>
                                                     <div class="mt-2">
                                                         <span class="badge bg-secondary" id="oldRoomPricePerNight">
-                                                            {{ number_format($currentRoom->gia_tren_dem ?? 0, 0, ',', '.') }}đ/đêm
+                                                            {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }}đ/đêm
                                                         </span>
                                                     </div>
                                                 </div>
