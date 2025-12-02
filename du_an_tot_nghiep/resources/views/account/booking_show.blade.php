@@ -35,10 +35,34 @@
         // Calculate refund if cancelled now
         $totalAmount = $booking->snapshot_total ?? ($booking->tong_tien ?? 0);
         $paidAmount = $booking->deposit_amount ?? 0;
+        
+        // CRITICAL: Subtract unused voucher values (same logic as backend)
+        $unusedVoucherValue = 0;
+        $unusedVouchers = \App\Models\Voucher::where('code', 'LIKE', 'DOWNGRADE%')
+            ->whereHas('users', function($q) use ($booking) {
+                $q->where('user_id', $booking->nguoi_dung_id);
+            })
+            ->where('active', true)
+            ->where('end_date', '>=', now())
+            ->get();
+            
+        foreach ($unusedVouchers as $voucher) {
+            $isUsed = \App\Models\VoucherUsage::where('voucher_id', $voucher->id)
+                ->where('nguoi_dung_id', $booking->nguoi_dung_id)
+                ->exists();
+                
+            if (!$isUsed) {
+                $unusedVoucherValue += $voucher->value;
+            }
+        }
+        
+        // Calculate EFFECTIVE payment (same as backend)
+        $effectivePaidAmount = $paidAmount - $unusedVoucherValue;
+        
         $depositType = 50;
-        if ($paidAmount > 0 && $totalAmount > 0) {
-            $percentage = ($paidAmount / $totalAmount) * 100;
-            $depositType = ($percentage >= 90) ? 100 : 50;
+        if ($effectivePaidAmount > 0 && $totalAmount > 0) {
+            $percentage = ($effectivePaidAmount / $totalAmount) * 100;
+            $depositType = ($percentage >= 95) ? 100 : 50;
         }
         
         $refundPercentage = 0;
