@@ -1360,7 +1360,7 @@ class BookingController extends Controller
                     ]);
 
                     $meta = [
-                        'final_per_night' => (float)$finalPerNightServer,
+                        'final_per_night' => (float)($finalPerNightServer / max(1, $roomsCount)), // Per-room price
                         'snapshot_total' => (float)$snapshotTotalServer,
                         'nights' => $nights,
                         'rooms_count' => $roomsCount,
