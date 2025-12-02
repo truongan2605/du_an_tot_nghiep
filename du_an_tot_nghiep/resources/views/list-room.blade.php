@@ -3,8 +3,13 @@
 @section('title', 'Danh sách phòng')
 
 @section('content')
+    @php
+        // Flag do RoomController truyền sang (xem code đã chỉnh trước đó)
+        $weekendSearch = isset($hasWeekend) && $hasWeekend;
+    @endphp
+
     <!-- =======================
-                    Banner START -->
+            Banner START -->
     <section class="position-relative overflow-hidden rounded-4 mt-4 mx-auto"
         style="height: 360px; width: 90%; max-width: 1200px;">
         <!-- Background Image -->
@@ -25,7 +30,7 @@
         </div>
     </section>
     <!-- =======================
-                    Banner END -->
+            Banner END -->
 
     <section class="pt-4 pb-5">
         <div class="container">
@@ -59,6 +64,16 @@
                                 placeholder="Chọn ngày" name="date_range" value="{{ request('date_range') }}">
 
                             <h6>Giá (VNĐ)</h6>
+                            @if ($weekendSearch)
+                                <small class="text-muted d-block mb-2">
+                                    Khoảng giá đã bao gồm phụ thu cuối tuần <strong>+10%</strong>.
+                                </small>
+                            @else
+                                <small class="text-muted d-block mb-2">
+                                    Khoảng giá cho ngày thường (không phụ thu cuối tuần).
+                                </small>
+                            @endif
+
                             <div class="mb-3">
                                 <div id="price-slider"></div>
                                 <div class="d-flex justify-content-between mt-2">
@@ -68,9 +83,9 @@
                                         class="small fw-semibold">{{ number_format($giaMax, 0, ',', '.') }}đ</span>
                                 </div>
                                 <input type="hidden" id="gia_min" name="gia_min"
-                                    value="{{ request('gia_min', $giaMin) }}">
+                                    value="{{ (int) request('gia_min', $giaMin) }}">
                                 <input type="hidden" id="gia_max" name="gia_max"
-                                    value="{{ request('gia_max', $giaMax) }}">
+                                    value="{{ (int) request('gia_max', $giaMax) }}">
                             </div>
 
                             <div class="filter-divider"></div>
@@ -130,6 +145,12 @@
                         @forelse($phongs as $phong)
                             @php
                                 $loaiPhong = $phong->loaiPhong;
+
+                                // Giá hiển thị: nếu đang tìm trong khoảng có cuối tuần → cộng 10%
+                                $displayPrice = (float) $phong->gia_cuoi_cung;
+                                if ($weekendSearch) {
+                                    $displayPrice = ceil($displayPrice * 1.1); // làm tròn lên cho chắc
+                                }
                             @endphp
 
                             <div class="col-12">
@@ -201,6 +222,7 @@
                                                     <i class="bi bi-geo-alt me-1"></i>
                                                     {{ $phong->mo_ta ?? 'Mô tả đang cập nhật' }}
                                                 </p>
+
                                                 {{-- Số phòng trống / tổng số phòng --}}
                                                 <p class="text-muted mb-2">
                                                     @if (request('date_range') && !is_null($phong->so_phong_trong))
@@ -211,6 +233,7 @@
                                                         Có {{ $phong->so_luong_phong_cung_loai ?? 0 }} phòng trong hệ thống
                                                     @endif
                                                 </p>
+
                                                 {{-- Tiện nghi --}}
                                                 <div class="small text-muted mb-2">
                                                     @if ($phong->tienNghis && $phong->tienNghis->count())
@@ -237,6 +260,12 @@
                                                             {{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }} VNĐ
                                                             <span class="small fw-normal text-muted">/Đêm</span>
                                                         </h4>
+
+                                                        @if ($weekendSearch)
+                                                            <div class="small text-muted">
+                                                                Đã bao gồm phụ thu cuối tuần +10%.
+                                                            </div>
+                                                        @endif
                                                     </div>
 
                                                     <div class="d-flex gap-2">
@@ -276,7 +305,7 @@
 
                     </div>
 
-                    {{-- Vẫn dùng phân trang của $phongs (dù hiển thị đã nhóm theo loại phòng) --}}
+                    {{-- Phân trang --}}
                     <div class="mt-4 d-flex justify-content-center">{{ $phongs->links() }}</div>
                 </div>
             </div>
@@ -318,15 +347,15 @@
                 var minLabel = document.getElementById('min-price');
                 var maxLabel = document.getElementById('max-price');
 
-                var minVal = parseInt(minInput.value);
-                var maxVal = parseInt(maxInput.value);
+                var minVal = parseInt(minInput.value || '{{ $giaMin }}', 10);
+                var maxVal = parseInt(maxInput.value || '{{ $giaMax }}', 10);
 
                 noUiSlider.create(priceSlider, {
                     start: [minVal, maxVal],
                     connect: true,
                     range: {
-                        'min': {{ $giaMin }},
-                        'max': {{ $giaMax }}
+                        'min': {{ (int) $giaMin }},
+                        'max': {{ (int) $giaMax }}
                     },
                     step: 50000,
                     format: {
@@ -336,10 +365,14 @@
                 });
 
                 priceSlider.noUiSlider.on('update', function(values) {
-                    minInput.value = values[0];
-                    maxInput.value = values[1];
-                    minLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[0]) + 'đ';
-                    maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[1]) + 'đ';
+                    var vMin = values[0];
+                    var vMax = values[1];
+
+                    minInput.value = vMin;
+                    maxInput.value = vMax;
+
+                    minLabel.textContent = new Intl.NumberFormat('vi-VN').format(vMin) + 'đ';
+                    maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(vMax) + 'đ';
                 });
             });
         </script>

@@ -64,14 +64,17 @@
             }
         })
     </script>
-<script data-name-bot="bot-demo"
-	src="https://app.preny.ai/embed-global.js"
-	data-button-style="width:300px;height:300px;"
-	data-language="vi"
-	async
-	defer
-	data-preny-bot-id="691c2794731640a12967585d"
-></script>
+
+    <script data-name-bot="huy"
+        src="https://app.preny.ai/embed-global.js"
+        data-button-style="width:300px;height:300px;"
+        data-language="vi"
+        async
+        defer
+        data-preny-bot-id="692bcf49a98b11e2f6c759c8"
+    >
+    </script>
+
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{ asset('template/stackbros/assets/images/favicon.ico') }}">
 
