@@ -41,8 +41,16 @@
                                             <a class="nav-link active" href="{{ route('account.settings') }}"><i
                                                     class="bi bi-person fa-fw me-2"></i>Hồ sơ của tôi</a>
                                         </li>
+                                        <!--  THÊM DÒNG NÀY: Ưu đãi -->
                                         <li class="nav-item">
-                                            <a class="nav-link" href="{{ route('account.booking.index')}}" ><i class="bi bi-ticket-perforated fa-fw me-2"></i>Đặt phòng của tôi</a>
+                                            <a class="nav-link" href="{{ route('account.rewards') }}">
+                                                <i class="bi bi-gift fa-fw me-2"></i>Ưu đãi
+                                            </a>
+                                        </li>
+                                        <!-- END -->
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{{ route('account.booking.index') }}"><i
+                                                    class="bi bi-ticket-perforated fa-fw me-2"></i>Đặt phòng của tôi</a>
                                         </li>
                                         <li class="nav-item">
                                             <a class="nav-link" href="{{ url('/account/wishlist') }}"><i
@@ -81,7 +89,8 @@
                             </div>
                             @if (session('status') === 'verification-link-sent')
                                 <div class="alert alert-success">
-                                    Liên kết xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư đến (hoặc Mailtrap).
+                                    Liên kết xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư đến (hoặc
+                                    Mailtrap).
                                 </div>
                             @elseif (session('status') === 'already-verified')
                                 <div class="alert alert-info">
@@ -90,7 +99,8 @@
                             @endif
 
                             @if (!auth()->user()->is_active)
-                                <form method="POST" action="{{ route('verification.send') }}" style="margin-top: 15px; margin-left: 15px">
+                                <form method="POST" action="{{ route('verification.send') }}"
+                                    style="margin-top: 15px; margin-left: 15px">
                                     @csrf
                                     <button type="submit" class="btn btn-sm btn-outline-primary mb-3">
                                         Gửi email xác thực
@@ -98,7 +108,8 @@
                                 </form>
 
                                 <p class="small text" style="margin-left: 15px">
-                                    Bạn cần xác thực email để mở khóa tất cả tính năng. Kiểm tra hộp thư đến hoặc nhấp vào trên để gửi lại.
+                                    Bạn cần xác thực email để mở khóa tất cả tính năng. Kiểm tra hộp thư đến hoặc nhấp vào
+                                    trên để gửi lại.
                                 </p>
                             @endif
 
@@ -121,8 +132,8 @@
                                                         alt="">
                                                 </span>
                                             </label>
-                                            <label class="btn btn-sm btn-primary-soft mb-0"
-                                                for="uploadfile-1">Thay đổi</label>
+                                            <label class="btn btn-sm btn-primary-soft mb-0" for="uploadfile-1">Thay
+                                                đổi</label>
                                             <input id="uploadfile-1" name="avatar" class="form-control d-none"
                                                 type="file" accept="image/*">
                                         </div>
@@ -272,8 +283,7 @@
                                                 name="password" placeholder="Nhập mật khẩu mới" required>
                                             <span class="input-group-text p-0 bg-transparent">
                                                 <i class="fas fa-eye-slash cursor-pointer password-toggle"
-                                                    data-target="new_password" title="Hiện/Ẩn"
-                                                    style="padding: 10px"></i>
+                                                    data-target="new_password" title="Hiện/Ẩn" style="padding: 10px"></i>
                                             </span>
                                         </div>
                                     </div>
@@ -298,6 +308,7 @@
                             </div>
                         @endif
                     </div>
+
                 </div>
                 <!-- Main content END -->
 

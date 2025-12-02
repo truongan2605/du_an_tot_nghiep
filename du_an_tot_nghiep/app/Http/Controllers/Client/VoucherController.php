@@ -15,8 +15,6 @@ class VoucherController extends Controller
     /** Hiển thị danh sách voucher */
     public function index(Request $request)
     {
-        // withCount('users') sẽ tạo thêm thuộc tính users_count
-        $vouchers = Voucher::withCount('users')->get();
         $query = Voucher::query();
 
         if ($request->filled('search')) {
@@ -31,7 +29,28 @@ class VoucherController extends Controller
             }
         }
 
-        $query->where('active', 1)->orderByDesc('start_date');
+        // SECURITY FIX: Only show vouchers that are:
+        // 1. Public (active=1) AND has NO user assignments (general vouchers), OR
+        // 2. Assigned to current logged-in user (private vouchers)
+        if (Auth::check()) {
+            $userId = Auth::id();
+            $query->where(function($q) use ($userId) {
+                // Vouchers assigned to this user
+                $q->whereHas('users', function($q2) use ($userId) {
+                    $q2->where('users.id', $userId);
+                })
+                // OR public vouchers with NO assignments (general public)
+                ->orWhere(function($q3) {
+                    $q3->where('active', 1)
+                       ->doesntHave('users');  // Not assigned to anyone
+                });
+            });
+        } else {
+            // Guests: only see public vouchers with no assignments
+            $query->where('active', 1)->doesntHave('users');
+        }
+        
+        $query->orderByDesc('start_date');
         $vouchers = $query->get();
 
         // Lấy id voucher đã nhận

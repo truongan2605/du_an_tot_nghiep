@@ -33,6 +33,8 @@ class DatPhong extends Model
         'created_by',
         'phuong_thuc',
         'ma_voucher',
+        'voucher_id',
+        'voucher_discount',
         'voucher_code',
         'discount_amount',
         'snapshot_total',
@@ -129,6 +131,11 @@ class DatPhong extends Model
     public function vatDungIncidents()
     {
         return $this->hasMany(\App\Models\VatDungIncident::class, 'dat_phong_id');
+    }
+
+    public function roomChanges(): HasMany
+    {
+        return $this->hasMany(\App\Models\RoomChange::class, 'dat_phong_id');
     }
 
     public function computeVatDungTotal(): float
