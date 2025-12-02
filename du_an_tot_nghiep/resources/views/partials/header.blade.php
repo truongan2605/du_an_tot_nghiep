@@ -6,7 +6,7 @@
             <!-- Logo START -->
             <a class="navbar-brand" href="{{ url('/') }}">
                 <img class="light-mode-item navbar-brand-item"
-                    src="{{ asset('template/stackbros/assets/images/logo_royal.png') }}" alt="logo" >
+                    src="{{ asset('template/stackbros/assets/images/logo_royal.png') }}" alt="logo">
             </a>
             <!-- Logo END -->
 
@@ -22,17 +22,20 @@
                 <span class="d-none d-sm-inline-block small">Menu</span>
             </button>
 
-			<!-- Responsive category toggler -->
-			<button class="navbar-toggler ms-sm-auto mx-3 me-md-0 p-0 p-sm-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCategoryCollapse" aria-controls="navbarCategoryCollapse" aria-expanded="false" aria-label="Toggle navigation">
-				<i class="bi bi-grid-3x3-gap-fill fa-fw"></i><span class="d-none d-sm-inline-block small">Danh mục</span>
-			</button>
+            <!-- Responsive category toggler -->
+            <button class="navbar-toggler ms-sm-auto mx-3 me-md-0 p-0 p-sm-2" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarCategoryCollapse" aria-controls="navbarCategoryCollapse" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <i class="bi bi-grid-3x3-gap-fill fa-fw"></i><span class="d-none d-sm-inline-block small">Danh
+                    mục</span>
+            </button>
 
-			<!-- Main navbar START -->
-			<div class="navbar-collapse collapse" id="navbarCollapse">
-				<ul class="navbar-nav navbar-nav-scroll me-auto">
-                    <a class="nav-link " href="{{ route('client.vouchers.index') }}" >Vouchers</a>
-					<!-- Nav item Listing -->
-					{{-- <li class="nav-item dropdown">
+            <!-- Main navbar START -->
+            <div class="navbar-collapse collapse" id="navbarCollapse">
+                <ul class="navbar-nav navbar-nav-scroll me-auto">
+                    <a class="nav-link " href="{{ route('client.vouchers.index') }}">Vouchers</a>
+                    <!-- Nav item Listing -->
+                    {{-- <li class="nav-item dropdown">
 						<a class="nav-link dropdown-toggle" href="#" id="listingMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Danh sách</a>
 						<ul class="dropdown-menu" aria-labelledby="listingMenu">
 							<!-- Dropdown submenu -->
@@ -61,8 +64,8 @@
                         </ul>
                     </li> --}}
 
-					<!-- Nav item Pages -->
-					{{-- <li class="nav-item dropdown">
+                    <!-- Nav item Pages -->
+                    {{-- <li class="nav-item dropdown">
 						<a class="nav-link dropdown-toggle" href="#" id="pagesMenu" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Trang</a>
 						<ul class="dropdown-menu" aria-labelledby="pagesMenu">
 
@@ -292,48 +295,68 @@
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item" href="{{ url('/account/bookings') }}"><i
-                                        class="bi bi-bookmark-check fa-fw me-2"></i>Đặt phòng của tôi</a></li>
-                            <li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i
-                                        class="bi bi-heart fa-fw me-2"></i>Danh sách yêu thích của tôi</a></li>
-                            <li><a class="dropdown-item" href="{{ route('client.vouchers.my') }}"><i
-                                        class="bi bi-heart fa-fw me-2"></i>Mã giảm giá</a></li>
-                            <li><a class="dropdown-item" href="{{ route('account.settings') }}"><i
-                                        class="bi bi-gear fa-fw me-2"></i>Cài đặt</a></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/account/bookings') }}">
+                                    <i class="bi bi-bookmark-check fa-fw me-2"></i>
+                                    Đặt phòng của tôi
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url('/account/wishlist') }}">
+                                    <i class="bi bi-heart fa-fw me-2"></i>
+                                    Danh sách yêu thích của tôi
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('client.vouchers.my') }}">
+                                    <i class="fa-solid fa-ticket fa-lg"></i>
+                                    Mã giảm giá
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ route('account.settings') }}">
+                                    <i class="bi bi-gear fa-fw me-2"></i>
+                                    Cài đặt
+                                </a>
+                            </li>
                             {{-- <li><a class="dropdown-item" href="{{ url('/help') }}"><i
                                         class="bi bi-info-circle fa-fw me-2"></i>Hỗ trợ</a></li>
                             <li> --}}
-                                <hr class="dropdown-divider">
-                            </li>
+                            <hr class="dropdown-divider">
+                    </li>
 
-						<!-- Logout (POST) -->
-						<li class="px-3">
-							<form method="POST" action="{{ route('logout') }}">
-								@csrf
-								<button type="submit" class="dropdown-item bg-danger-soft-hover">
-									<i class="bi bi-power fa-fw me-2"></i>Đăng xuất</button>
-							</form>
-						</li>
-						@endauth
+                    <!-- Logout (POST) -->
+                    <li class="px-3">
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit" class="dropdown-item bg-danger-soft-hover">
+                                <i class="bi bi-power fa-fw me-2"></i>Đăng xuất</button>
+                        </form>
+                    </li>
+                @endauth
 
-						@guest
-						<li class="px-3 mb-2">
-							<div class="d-flex align-items-center">
-								<div>
-									<a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Khách</a>
-									<p class="small m-0">Đăng nhập để sử dụng tất cả tính năng</p>
-								</div>
-							</div>
-						</li>
-						<li> <hr class="dropdown-divider"></li>
-						<li><a class="dropdown-item" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i>Đăng nhập</a></li>
-						<li><a class="dropdown-item" href="{{ route('register') }}"><i class="bi bi-person-plus me-2"></i>Đăng ký</a></li>
-						@endguest
-					</ul>
-				</li>
-			</ul>
-		</div>
-	</nav>
+                @guest
+                    <li class="px-3 mb-2">
+                        <div class="d-flex align-items-center">
+                            <div>
+                                <a class="h6 mt-2 mt-sm-0" href="{{ route('login') }}">Khách</a>
+                                <p class="small m-0">Đăng nhập để sử dụng tất cả tính năng</p>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li><a class="dropdown-item" href="{{ route('login') }}"><i
+                                class="bi bi-box-arrow-in-right me-2"></i>Đăng nhập</a></li>
+                    <li><a class="dropdown-item" href="{{ route('register') }}"><i
+                                class="bi bi-person-plus me-2"></i>Đăng ký</a></li>
+                @endguest
+            </ul>
+            </li>
+            </ul>
+        </div>
+    </nav>
 </header>
 
 <style>
@@ -502,32 +525,33 @@
                     </button>
                 </div>
             `;
-        }, 5000);
+            }, 5000);
 
-        fetch(`/thong-bao/${currentNotificationId}/modal`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        })
-        .then(response => {
-            clearTimeout(timeoutId);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                modalBody.innerHTML = data.html;
+            fetch(`/thong-bao/${currentNotificationId}/modal`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                            .getAttribute('content')
+                    }
+                })
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        modalBody.innerHTML = data.html;
 
-                if (data.isUnread) {
-                    markAsReadBtn.style.display = 'inline-block';
-                }
-            } else {
-                modalBody.innerHTML = `
+                        if (data.isUnread) {
+                            markAsReadBtn.style.display = 'inline-block';
+                        }
+                    } else {
+                        modalBody.innerHTML = `
                     <div class="alert alert-danger">
                         <i class="fas fa-exclamation-triangle me-1"></i>
                         Không thể tải thông tin thông báo: ${data.message || 'Lỗi không xác định'}
@@ -549,33 +573,35 @@
                     </button>
                 </div>
             `;
+                });
         });
-    });
-    markAsReadBtn.addEventListener('click', function() {
-        if (currentNotificationId) {
-            fetch(`/thong-bao/${currentNotificationId}/read`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                markAsReadBtn.style.display = 'none';
+        markAsReadBtn.addEventListener('click', function() {
+            if (currentNotificationId) {
+                fetch(`/thong-bao/${currentNotificationId}/read`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                .getAttribute('content')
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        markAsReadBtn.style.display = 'none';
 
-                const notificationItem = document.querySelector(`[data-notification-id="${currentNotificationId}"]`);
-                if (notificationItem) {
-                    notificationItem.classList.remove('notif-unread');
-                }
+                        const notificationItem = document.querySelector(
+                            `[data-notification-id="${currentNotificationId}"]`);
+                        if (notificationItem) {
+                            notificationItem.classList.remove('notif-unread');
+                        }
 
-                // Update badge count
-                updateNotificationBadge();
+                        // Update badge count
+                        updateNotificationBadge();
 
-                // Show success message
-                const alert = document.createElement('div');
-                alert.className = 'alert alert-success alert-dismissible fade show';
-                alert.innerHTML = `
+                        // Show success message
+                        const alert = document.createElement('div');
+                        alert.className = 'alert alert-success alert-dismissible fade show';
+                        alert.innerHTML = `
                     <i class="fas fa-check me-1"></i>Đã đánh dấu thông báo là đã đọc
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
@@ -589,8 +615,28 @@
                     <i class="fas fa-exclamation-triangle me-1"></i>Lỗi khi đánh dấu đã đọc
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
-                modalBody.insertBefore(alert, modalBody.firstChild);
-            });
+                        modalBody.insertBefore(alert, modalBody.firstChild);
+                    });
+            }
+        });
+
+        function updateNotificationBadge() {
+            fetch('/api/notifications/unread-count')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.querySelector('.notif-badge');
+                    if (badge) {
+                        if (data.count > 0) {
+                            badge.style.display = 'block';
+                            badge.textContent = data.count;
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating badge:', error);
+                });
         }
     });
 

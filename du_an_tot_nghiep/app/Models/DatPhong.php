@@ -54,7 +54,7 @@ class DatPhong extends Model
         'early_checkout_refund_amount',
         'is_late_checkout',
         'late_checkout_fee_amount',
-
+        'blocks_checkin',
     ];
 
 
@@ -74,6 +74,7 @@ class DatPhong extends Model
         'deposit_amount' => 'decimal:2',
         'is_late_checkout' => 'boolean',
         'late_checkout_fee_amount' => 'decimal:0',
+        'blocks_checkin' => 'boolean',
     ];
 
     // Relationships

@@ -386,6 +386,7 @@ class CheckoutController extends Controller
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
+                $booking->blocks_checkin = false;
                 $booking->is_checkout_early = true;
                 $booking->early_checkout_refund_amount = $earlyRefund > 0 ? $earlyRefund : 0;
                 $booking->save();
@@ -492,6 +493,7 @@ class CheckoutController extends Controller
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
+                $booking->blocks_checkin = false;
                 $booking->is_late_checkout = true;
                 $booking->setAttribute('late_checkout_fee_amount', $lateFee > 0 ? $lateFee : 0);
                 $booking->save();
@@ -546,6 +548,7 @@ class CheckoutController extends Controller
                     $booking->checkout_at = now();
                     $booking->checkout_by = Auth::id();
                     $booking->trang_thai = 'hoan_thanh';
+                    $booking->blocks_checkin = false;
                     $booking->save();
 
                     // Xóa ảnh CCCD sau khi checkout thành công
@@ -612,6 +615,7 @@ class CheckoutController extends Controller
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
+                $booking->blocks_checkin = false;
                 $booking->save();
 
                 // Xóa ảnh CCCD sau khi checkout thành công
@@ -696,6 +700,7 @@ class CheckoutController extends Controller
             $booking->checkout_at = now();
             $booking->checkout_by = Auth::id();
             $booking->trang_thai = 'hoan_thanh';
+            $booking->blocks_checkin = false;
             $booking->save();
 
             // Xóa ảnh CCCD sau khi checkout thành công

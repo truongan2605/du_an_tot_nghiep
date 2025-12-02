@@ -652,7 +652,7 @@ class BookingController extends Controller
         $voucher = Voucher::create([
             'code' => $code,
             'name' => "Hoàn tiền đổi phòng - {$code}",
-            'type' => 'fixed',  // Fixed amount type (not 'tien')
+            'type' => 'fixed', 
             'value' => $refundAmount,
             'qty' => 1,
             'start_date' => Carbon::now(),
@@ -1650,15 +1650,13 @@ class BookingController extends Controller
             ]);
         }
 
-        // ===== Giới hạn lượt dùng / user =====
         $userId = Auth::id();
         if (!empty($voucher->usage_limit_per_user) && $userId) {
             if (class_exists(VoucherUsage::class)) {
                 $usageModel = new VoucherUsage();
-                $table = $usageModel->getTable(); // -> voucher_usage
+                $table = $usageModel->getTable();
 
                 if (Schema::hasTable($table)) {
-                    // cột user là nguoi_dung_id (theo hình bạn gửi)
                     $userCol = Schema::hasColumn($table, 'nguoi_dung_id')
                         ? 'nguoi_dung_id'
                         : (Schema::hasColumn($table, 'user_id') ? 'user_id' : null);
