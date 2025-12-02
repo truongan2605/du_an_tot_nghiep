@@ -1814,80 +1814,180 @@
                     paymentNeeded
                 });
                 
-                // Build payment section HTML based on whether payment is needed
-                let paymentHtml = '';
+                // Build payment section HTML
+                let paymentSectionHtml = '';
+                let voucherBonusHtml = '';
+                let iconType = 'question';
                 let confirmButtonText = '';
-                let alertClass = '';
+                let confirmButtonColor = '#0d6efd';
                 
                 if (paymentNeeded > 0) {
                     // Need to pay more
-                    alertClass = 'alert-primary';
-                    paymentHtml = `
-                        <div class="alert ${alertClass} mb-0">
-                            <strong class="fs-5">CẦN THANH TOÁN:</strong><br>
-                            <span class="fs-4 text-primary">${formatMoney(paymentNeeded)}</span>
+                    iconType = 'info';
+                    confirmButtonColor = '#0d6efd';
+                    confirmButtonText = '<i class="bi bi-credit-card me-1"></i> Thanh toán VNPay';
+                    
+                    paymentSectionHtml = `
+                        <div class="alert alert-warning border-warning mb-0">
+                            <h6 class="fw-semibold mb-2">
+                                <i class="bi bi-wallet2 me-1"></i>Thanh toán bổ sung
+                            </h6>
+                            <p class="mb-2 small">Bạn cần thanh toán thêm để hoàn tất nâng cấp:</p>
+                            <div class="bg-white p-3 rounded shadow-sm text-center">
+                                <div class="text-muted small mb-1">Số tiền cần thanh toán</div>
+                                <div class="display-6 fw-bold text-danger">${formatMoney(paymentNeeded)}</div>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Bạn sẽ được chuyển đến cổng thanh toán VNPay
+                            </small>
                         </div>
                     `;
-                    confirmButtonText = '<i class="bi bi-credit-card me-1"></i> Thanh toán VNPay';
                 } else {
-                    // Already paid enough or overpaid
-                    alertClass = 'alert-success';
-                    paymentHtml = `
-                        <div class="alert ${alertClass} mb-2">
-                            <i class="bi bi-check-circle me-1"></i>
-                            <strong class="fs-6">KHÔNG CẦN THANH TOÁN THÊM</strong><br>
-                            <small class="text-muted">Bạn đã cọc đủ tiền cho phòng mới</small>
+                    // Already paid enough
+                    iconType = 'success';
+                    confirmButtonColor = '#28a745';
+                    confirmButtonText = '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng';
+                    
+                    paymentSectionHtml = `
+                        <div class="alert alert-success border-success mb-0">
+                            <div class="text-center">
+                                <div class="fs-2 mb-2">✓</div>
+                                <h6 class="fw-bold text-success mb-2">KHÔNG CẦN THANH TOÁN THÊM</h6>
+                                <p class="mb-0">Bạn đã cọc đủ tiền cho phòng mới!</p>
+                            </div>
                         </div>
                     `;
                     
-                    // INFO about voucher auto-apply (positive message, not warning!)
-                    paymentHtml += `
-                        <div class="alert alert-success mb-0">
-                            <i class="bi bi-gift me-1"></i>
-                            <strong>🎁 Bonus:</strong> Nếu bạn có voucher hoàn tiền từ lần downgrade trước, 
-                            voucher đó sẽ được <strong class="text-success">tự động áp dụng</strong> vào đơn này!
-                            <br>
-                            <small class="text-muted d-block mt-2">
+                    // Voucher bonus info
+                    voucherBonusHtml = `
+                        <div class="alert alert-info border-info mb-0 mt-3">
+                            <h6 class="fw-semibold mb-2">
+                                <i class="bi bi-gift me-1"></i>🎁 Bonus: Tự động áp dụng voucher
+                            </h6>
+                            <p class="mb-2 small">Nếu bạn có voucher hoàn tiền từ lần downgrade trước, voucher đó sẽ được <strong class="text-success">tự động áp dụng</strong> vào đơn này!</p>
+                            <small class="text-muted">
                                 <i class="bi bi-info-circle me-1"></i>
                                 Bạn vẫn sẽ giữ được lợi ích từ voucher khi nâng cấp lại phòng.
                             </small>
                         </div>
                     `;
-                    confirmButtonText = '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng';
                 }
                 
                 Swal.fire({
+                    icon: iconType,
                     title: 'Xác nhận đổi phòng',
+                    width: '600px',
                     html: `
                         <div class="text-start">
-                            <div class="mb-3">
-                                <strong>Phòng cũ:</strong> {{ $currentRoom->ma_phong ?? 'N/A' }}<br>
-                                <strong>Giá phòng cũ:</strong> ${formatMoney(oldRoomTotal)}
+                            <div class="alert alert-primary border-0 mb-3">
+                                <h6 class="mb-2">
+                                    <i class="bi bi-arrow-up-circle me-1"></i>
+                                    Bạn đang nâng cấp lên phòng tốt hơn! 🌟
+                                </h6>
+                                <p class="mb-0 small">Trải nghiệm hạng phòng cao cấp hơn với mức giá hợp lý</p>
                             </div>
-                            <div class="mb-3">
-                                <strong>Phòng mới:</strong> ${roomCode}<br>
-                                <strong>Giá phòng mới:</strong> ${formatMoney(newRoomTotal)}
+                            
+                            {{-- Room Comparison --}}
+                            <div class="card border mb-3">
+                                <div class="card-body p-3">
+                                    <h6 class="fw-semibold mb-3">So sánh phòng</h6>
+                                    <div class="row g-3">
+                                        <div class="col-6">
+                                            <div class="border-end pe-2">
+                                                <div class="text-muted small mb-1">Phòng hiện tại</div>
+                                                <div class="fw-bold">{{ $currentRoom->loaiPhong->ten ?? 'N/A' }}</div>
+                                                <div class="text-muted small">#{{ $currentRoom->ma_phong ?? 'N/A' }}</div>
+                                                <div class="mt-2">
+                                                    <span class="badge bg-secondary">${formatMoney(oldRoomTotal)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="ps-2">
+                                                <div class="text-muted small mb-1">Phòng mới</div>
+                                                <div class="fw-bold text-primary">${roomCode}</div>
+                                                <div class="text-muted small">-</div>
+                                                <div class="mt-2">
+                                                    <span class="badge bg-primary">${formatMoney(newRoomTotal)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <hr>
-                            <div class="mb-3 text-danger">
-                                <strong>Chênh lệch phòng:</strong> +${formatMoney(priceDiff)}<br>
-                                <small>(${formatMoney(priceDiff/nights)}/đêm × ${nights} đêm)</small>
+
+                            {{-- Price Breakdown --}}
+                            <div class="card border mb-3">
+                                <div class="card-body p-3">
+                                    <h6 class="fw-semibold mb-3">
+                                        <i class="bi bi-receipt me-1"></i>Chi tiết thanh toán
+                                    </h6>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Booking hiện tại:</span>
+                                        <strong>${formatMoney(currentBookingTotal)}</strong>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Booking mới:</span>
+                                        <strong class="text-primary">${formatMoney(newBookingTotal)}</strong>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Số đêm:</span>
+                                        <strong>${nights} đêm</strong>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Chênh lệch/đêm:</span>
+                                        <strong class="text-danger">+${formatMoney(priceDiff/nights)}</strong>
+                                    </div>
+                                    
+                                    <hr class="my-2">
+                                    
+                                    <div class="d-flex justify-content-between p-2 bg-light rounded">
+                                        <span class="fw-semibold text-danger">Tổng chênh lệch:</span>
+                                        <h5 class="mb-0 text-danger">+${formatMoney(priceDiff)}</h5>
+                                    </div>
+                                </div>
                             </div>
-                            <hr>
-                            <div class="mb-3 bg-light p-2 rounded">
-                                <strong>Tổng booking hiện tại:</strong> ${formatMoney(currentBookingTotal)}<br>
-                                <strong>Tổng booking mới:</strong> ${formatMoney(newBookingTotal)}<br>
-                                <strong>Deposit cần (${depositPct}%):</strong> ${formatMoney(newDepositRequired)}<br>
-                                <strong>Đã cọc:</strong> ${formatMoney(currentDeposit)}
+                            
+                            {{-- Deposit Info --}}
+                            <div class="card border mb-3">
+                                <div class="card-body p-3">
+                                    <h6 class="fw-semibold mb-3">
+                                        <i class="bi bi-wallet2 me-1"></i>Thông tin cọc
+                                    </h6>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Đã cọc:</span>
+                                        <strong>${formatMoney(currentDeposit)}</strong>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Cọc cần cho phòng mới (${depositPct}%):</span>
+                                        <strong class="text-primary">${formatMoney(newDepositRequired)}</strong>
+                                    </div>
+                                    
+                                    <hr class="my-2">
+                                    
+                                    <div class="d-flex justify-content-between p-2 ${paymentNeeded > 0 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'} rounded">
+                                        <span class="fw-semibold">${paymentNeeded > 0 ? 'Cần thanh toán thêm:' : 'Đã đủ:'}</span>
+                                        <h5 class="mb-0 ${paymentNeeded > 0 ? 'text-danger' : 'text-success'}">${paymentNeeded > 0 ? formatMoney(paymentNeeded) : '✓ 0đ'}</h5>
+                                    </div>
+                                </div>
                             </div>
-                            ${paymentHtml}
+                            
+                            ${paymentSectionHtml}
+                            ${voucherBonusHtml}
                         </div>
                     `,
-                    icon: paymentNeeded > 0 ? 'question' : 'success',
                     showCancelButton: true,
                     confirmButtonText: confirmButtonText,
                     cancelButtonText: 'Hủy',
-                    confirmButtonColor: paymentNeeded > 0 ? '#0d6efd' : '#28a745'
+                    confirmButtonColor: confirmButtonColor,
+                    cancelButtonColor: '#6c757d'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         submitRoomChange();
