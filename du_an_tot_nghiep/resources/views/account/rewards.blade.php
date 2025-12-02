@@ -141,8 +141,7 @@
                                 <div class="alert alert-success mb-0">
                                     <h6 class="fw-bold mb-2">🎉 Bạn đã đạt hạng cao nhất!</h6>
                                     <p class="mb-0">
-                                        Bạn đang ở hạng Kim Cương và được hưởng mức giảm giá tối đa
-                                        15% cho mọi đơn đặt phòng.
+                                        Bạn đang ở hạng Kim Cương và được nhận những ưu đãi đặc biệt như vouchers miễn phí
                                     </p>
                                 </div>
                             </div>
