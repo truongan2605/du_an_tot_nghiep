@@ -55,6 +55,9 @@ class DatPhong extends Model
         'is_late_checkout',
         'late_checkout_fee_amount',
         'blocks_checkin',
+        'is_early_checkin',
+        'early_checkin_fee_amount',
+        'is_late_checkin',
     ];
 
 
@@ -75,6 +78,9 @@ class DatPhong extends Model
         'is_late_checkout' => 'boolean',
         'late_checkout_fee_amount' => 'decimal:0',
         'blocks_checkin' => 'boolean',
+        'is_early_checkin' => 'boolean',
+        'early_checkin_fee_amount' => 'decimal:0',
+        'is_late_checkin' => 'boolean',
     ];
 
     // Relationships

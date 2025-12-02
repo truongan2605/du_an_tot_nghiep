@@ -313,6 +313,20 @@ class StaffController extends Controller
 
     public function checkinForm()
     {
+        // Lấy danh sách phòng bị chặn bởi đơn checkout muộn
+        $blockedBookings = DatPhong::where('blocks_checkin', true)
+            ->where('trang_thai', 'dang_su_dung')
+            ->with('datPhongItems')
+            ->get();
+        
+        $blockedPhongIds = collect();
+        foreach ($blockedBookings as $blockedBooking) {
+            $blockedPhongIds = $blockedPhongIds->merge(
+                $blockedBooking->datPhongItems->pluck('phong_id')->filter()
+            );
+        }
+        $blockedPhongIds = $blockedPhongIds->unique()->toArray();
+
         $bookings = DatPhong::with([
             'nguoiDung',
             'checkedInBy',
@@ -324,7 +338,7 @@ class StaffController extends Controller
             ->whereIn('trang_thai', ['da_xac_nhan', 'da_gan_phong'])
             ->orderBy('ngay_nhan_phong', 'asc')
             ->get()
-            ->map(function ($booking) {
+            ->map(function ($booking) use ($blockedPhongIds) {
                 $paid      = $booking->giaoDichs->sum('so_tien');
                 $remaining = $booking->tong_tien - $paid;
 
@@ -334,15 +348,59 @@ class StaffController extends Controller
                     ->pluck('don_dep')
                     ->contains(true);
 
+                // Kiểm tra phòng bị chặn bởi đơn checkout muộn
+                $bookingPhongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
+                $hasBlockedRoom = !empty($bookingPhongIds) && !empty(array_intersect($bookingPhongIds, $blockedPhongIds));
+
                 $booking->paid = $paid;
                 $booking->remaining = $remaining;
 
-                $booking->can_checkin = ($remaining <= 0) && (!$hasDonDep);
+                $booking->can_checkin = ($remaining <= 0) && (!$hasDonDep) && (!$hasBlockedRoom);
 
-                $booking->checkin_blocked_due_to = $hasDonDep ? 'room_in_cleaning' : null;
+                if ($hasDonDep) {
+                    $booking->checkin_blocked_due_to = 'room_in_cleaning';
+                } elseif ($hasBlockedRoom) {
+                    $booking->checkin_blocked_due_to = 'late_checkout';
+                } else {
+                    $booking->checkin_blocked_due_to = null;
+                }
 
                 $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
                 $today       = \Carbon\Carbon::today();
+                $now = \Carbon\Carbon::now();
+                $standardCheckinTime = $checkinDate->copy()->setTime(14, 0, 0);
+
+                // Tính toán thông tin checkin sớm/muộn
+                $booking->is_early_checkin_possible = false;
+                $booking->is_late_checkin_warning = false;
+                $booking->early_checkin_fee_estimate = 0;
+                
+                if ($checkinDate->isToday()) {
+                    // Nếu là ngày checkin
+                    if ($now->isBefore($standardCheckinTime)) {
+                        // Có thể checkin sớm
+                        $booking->is_early_checkin_possible = true;
+                        $hoursEarly = $now->diffInHours($standardCheckinTime, false);
+                        if ($hoursEarly > 0) {
+                            $datPhongItems = $booking->datPhongItems;
+                            $dailyTotal = $datPhongItems->reduce(function ($carry, $item) {
+                                $qty = $item->so_luong ?? 1;
+                                $unit = $item->gia_tren_dem ?? 0;
+                                return $carry + ($unit * $qty);
+                            }, 0.0);
+                            $perHourRate = $dailyTotal * 0.3 / 24;
+                            $booking->early_checkin_fee_estimate = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                            $booking->early_checkin_fee_estimate = (int) round($booking->early_checkin_fee_estimate, 0);
+                        }
+                    } elseif ($now->isAfter($standardCheckinTime)) {
+                        // Checkin muộn trong ngày
+                        $booking->is_late_checkin_warning = true;
+                    }
+                } elseif ($checkinDate->isPast()) {
+                    // Quá ngày checkin - sẽ bị hủy nếu checkin
+                    $booking->is_late_checkin_warning = true;
+                    $booking->will_be_cancelled = true;
+                }
 
                 $booking->checkin_status = $checkinDate->isToday()
                     ? 'Hôm nay'
@@ -415,6 +473,31 @@ class StaffController extends Controller
 
         $phongIds = collect($booking->datPhongItems)->pluck('phong_id')->filter()->toArray();
 
+        // Kiểm tra phòng bị chặn bởi đơn checkout muộn
+        if (!empty($phongIds)) {
+            // Tìm các đơn có blocks_checkin = true và trang_thai = 'dang_su_dung'
+            $blockedBookings = DatPhong::where('blocks_checkin', true)
+                ->where('trang_thai', 'dang_su_dung')
+                ->with('datPhongItems')
+                ->get();
+            
+            // Lấy danh sách phòng_id từ các đơn bị chặn
+            $blockedPhongIds = collect();
+            foreach ($blockedBookings as $blockedBooking) {
+                $blockedPhongIds = $blockedPhongIds->merge(
+                    $blockedBooking->datPhongItems->pluck('phong_id')->filter()
+                );
+            }
+            $blockedPhongIds = $blockedPhongIds->unique()->toArray();
+            
+            // Kiểm tra xem có phòng nào trùng không
+            $conflictingPhongIds = array_intersect($phongIds, $blockedPhongIds);
+            
+            if (!empty($conflictingPhongIds)) {
+                return redirect()->back()->with('error', 'Không thể check-in: Đang có đơn checkout muộn trong các phòng này. Vui lòng chờ đơn checkout hoàn tất.');
+            }
+        }
+
         $hasDonDep = false;
         if (!empty($phongIds)) {
             $hasDonDep = \App\Models\Phong::whereIn('id', $phongIds)->where('don_dep', true)->exists();
@@ -435,7 +518,67 @@ class StaffController extends Controller
             return redirect()->back()->with('error', "Cần thanh toán còn lại " . number_format($remaining) . " VND trước khi check-in.");
         }
 
-        DB::transaction(function () use ($booking, $request) {
+        // Kiểm tra checkin sớm/muộn
+        $now = \Carbon\Carbon::now();
+        $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+        $standardCheckinTime = $checkinDate->copy()->setTime(14, 0, 0); // Giờ checkin chuẩn: 14:00
+        
+        $isEarlyCheckin = false;
+        $isLateCheckin = false;
+        $earlyCheckinFee = 0;
+        
+        // Kiểm tra checkin muộn (sang ngày khác) - HỦY ĐẶT PHÒNG
+        if ($now->isAfter($checkinDate->endOfDay())) {
+            // Checkin muộn sang ngày khác -> Hủy đặt phòng
+            DB::transaction(function () use ($booking) {
+                $booking->update([
+                    'trang_thai' => 'da_huy',
+                    'cancelled_at' => now(),
+                    'cancellation_reason' => 'Hủy đặt phòng do checkin muộn (sang ngày khác)',
+                ]);
+                
+                // Xóa dat_phong_items
+                \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+                
+                // Xóa giu_phong records
+                if (Schema::hasTable('giu_phong')) {
+                    DB::table('giu_phong')
+                        ->where('dat_phong_id', $booking->id)
+                        ->delete();
+                }
+            });
+            
+            return redirect()->back()->with('error', 'Đặt phòng đã bị hủy do checkin muộn (sang ngày khác). Ngày checkin dự kiến: ' . $checkinDate->format('d/m/Y'));
+        }
+        
+        // Kiểm tra checkin sớm (trước 14:00 của ngày checkin)
+        if ($now->isBefore($standardCheckinTime) && $now->isSameDay($checkinDate)) {
+            $isEarlyCheckin = true;
+            // Tính phí checkin sớm: tính theo giờ trước 14:00
+            $hoursEarly = $now->diffInHours($standardCheckinTime, false);
+            if ($hoursEarly > 0) {
+                // Tính tổng giá phòng theo ngày
+                $datPhongItems = $booking->datPhongItems;
+                $dailyTotal = $datPhongItems->reduce(function ($carry, $item) {
+                    $qty = $item->so_luong ?? 1;
+                    $unit = $item->gia_tren_dem ?? 0;
+                    return $carry + ($unit * $qty);
+                }, 0.0);
+                
+                // Phí checkin sớm: 30% giá phòng/ngày cho mỗi giờ sớm (tối đa 50% giá phòng/ngày)
+                $perHourRate = $dailyTotal * 0.3 / 24; // 30% giá ngày chia cho 24 giờ
+                $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5); // Tối đa 50% giá ngày
+                $earlyCheckinFee = (int) round($earlyCheckinFee, 0);
+            }
+        }
+        
+        // Kiểm tra checkin muộn (sau 14:00 nhưng trong cùng ngày)
+        if ($now->isAfter($standardCheckinTime) && $now->isSameDay($checkinDate)) {
+            $isLateCheckin = true;
+            // Cho phép checkin muộn trong ngày, không tính phí
+        }
+
+        DB::transaction(function () use ($booking, $request, $isEarlyCheckin, $isLateCheckin, $earlyCheckinFee) {
             // Xóa ảnh cũ nếu có
             if (is_array($booking->snapshot_meta)) {
                 $meta = $booking->snapshot_meta;
@@ -533,11 +676,49 @@ class StaffController extends Controller
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
+            // Tạo hóa đơn phụ thu nếu checkin sớm
+            $hoaDon = null;
+            if ($isEarlyCheckin && $earlyCheckinFee > 0) {
+                $hoaDon = \App\Models\HoaDon::where('dat_phong_id', $booking->id)
+                    ->where('trang_thai', '!=', 'da_thanh_toan')
+                    ->orderByDesc('id')
+                    ->first();
+                
+                if (!$hoaDon) {
+                    $hoaDon = \App\Models\HoaDon::create([
+                        'dat_phong_id' => $booking->id,
+                        'so_hoa_don' => 'HD' . time() . rand(100, 999),
+                        'tong_thuc_thu' => 0,
+                        'don_vi' => $booking->don_vi_tien ?? 'VND',
+                        'trang_thai' => 'da_xuat',
+                        'created_by' => Auth::id(),
+                    ]);
+                }
+                
+                // Thêm item phụ thu checkin sớm
+                \App\Models\HoaDonItem::create([
+                    'hoa_don_id' => $hoaDon->id,
+                    'type' => 'early_checkin_fee',
+                    'name' => 'Phụ thu checkin sớm',
+                    'quantity' => 1,
+                    'unit_price' => $earlyCheckinFee,
+                    'amount' => $earlyCheckinFee,
+                    'note' => 'Phụ thu checkin sớm',
+                ]);
+                
+                // Cập nhật tổng hóa đơn
+                $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $earlyCheckinFee;
+                $hoaDon->save();
+            }
+
             $booking->update([
                 'trang_thai' => 'dang_su_dung',
                 'checked_in_at' => now(),
                 'checked_in_by' => Auth::id(),
                 'snapshot_meta' => $meta,
+                'is_early_checkin' => $isEarlyCheckin,
+                'early_checkin_fee_amount' => $isEarlyCheckin ? $earlyCheckinFee : 0,
+                'is_late_checkin' => $isLateCheckin,
             ]);
 
             $phongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
@@ -549,9 +730,16 @@ class StaffController extends Controller
             $notificationService = new PaymentNotificationService();
             $notificationService->sendCheckinNotification($booking);
         });
+        
+        $successMessage = 'Check-in thành công cho booking ' . $booking->ma_tham_chieu . ' lúc ' . now()->format('H:i d/m/Y');
+        if ($isEarlyCheckin && $earlyCheckinFee > 0) {
+            $successMessage .= '. Phụ thu checkin sớm: ' . number_format($earlyCheckinFee) . ' VND đã được ghi nhận trong hóa đơn.';
+        } elseif ($isLateCheckin) {
+            $successMessage .= ' (Checkin muộn trong ngày).';
+        }
 
         return redirect()->route('staff.checkin')
-            ->with('success', 'Check-in thành công cho booking ' . $booking->ma_tham_chieu . ' lúc ' . now()->format('H:i d/m/Y'));
+            ->with('success', $successMessage);
     }
 
     public function saveCCCD(Request $request)
@@ -796,8 +984,84 @@ class StaffController extends Controller
             return redirect()->route('staff.rooms')->with('error', "Cần thanh toán còn lại " . number_format($remaining) . " VND trước khi check-in.");
         }
 
+        // Kiểm tra checkin sớm/muộn
+        $now = \Carbon\Carbon::now();
+        $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+        $standardCheckinTime = $checkinDate->copy()->setTime(14, 0, 0);
+        
+        $isEarlyCheckin = false;
+        $isLateCheckin = false;
+        $earlyCheckinFee = 0;
+        
+        // Kiểm tra checkin muộn (sang ngày khác) - HỦY ĐẶT PHÒNG
+        if ($now->isAfter($checkinDate->endOfDay())) {
+            DB::transaction(function () use ($booking) {
+                $booking->update([
+                    'trang_thai' => 'da_huy',
+                    'cancelled_at' => now(),
+                    'cancellation_reason' => 'Hủy đặt phòng do checkin muộn (sang ngày khác)',
+                ]);
+                
+                \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+                
+                if (Schema::hasTable('giu_phong')) {
+                    DB::table('giu_phong')
+                        ->where('dat_phong_id', $booking->id)
+                        ->delete();
+                }
+            });
+            
+            return redirect()->route('staff.rooms')->with('error', 'Đặt phòng đã bị hủy do checkin muộn (sang ngày khác). Ngày checkin dự kiến: ' . $checkinDate->format('d/m/Y'));
+        }
+        
+        // Kiểm tra checkin sớm
+        if ($now->isBefore($standardCheckinTime) && $now->isSameDay($checkinDate)) {
+            $isEarlyCheckin = true;
+            $hoursEarly = $now->diffInHours($standardCheckinTime, false);
+            if ($hoursEarly > 0) {
+                $datPhongItems = $booking->datPhongItems;
+                $dailyTotal = $datPhongItems->reduce(function ($carry, $item) {
+                    $qty = $item->so_luong ?? 1;
+                    $unit = $item->gia_tren_dem ?? 0;
+                    return $carry + ($unit * $qty);
+                }, 0.0);
+                $perHourRate = $dailyTotal * 0.3 / 24;
+                $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                $earlyCheckinFee = (int) round($earlyCheckinFee, 0);
+            }
+        }
+        
+        // Kiểm tra checkin muộn (sau 14:00 nhưng trong cùng ngày)
+        if ($now->isAfter($standardCheckinTime) && $now->isSameDay($checkinDate)) {
+            $isLateCheckin = true;
+        }
+
+        // Kiểm tra phòng bị chặn bởi đơn checkout muộn
+        $bookingPhongIds = $booking->datPhongItems->pluck('phong_id')->filter()->toArray();
+        if (!empty($bookingPhongIds) && in_array($room->id, $bookingPhongIds)) {
+            // Tìm các đơn có blocks_checkin = true và trang_thai = 'dang_su_dung'
+            $blockedBookings = DatPhong::where('blocks_checkin', true)
+                ->where('trang_thai', 'dang_su_dung')
+                ->with('datPhongItems')
+                ->get();
+            
+            // Lấy danh sách phòng_id từ các đơn bị chặn
+            $blockedPhongIds = collect();
+            foreach ($blockedBookings as $blockedBooking) {
+                $blockedPhongIds = $blockedPhongIds->merge(
+                    $blockedBooking->datPhongItems->pluck('phong_id')->filter()
+                );
+            }
+            $blockedPhongIds = $blockedPhongIds->unique()->toArray();
+            
+            // Kiểm tra xem phòng này có bị chặn không
+            if (in_array($room->id, $blockedPhongIds)) {
+                return redirect()->route('staff.rooms')->with('error', 'Không thể check-in: Đang có đơn checkout muộn trong phòng này. Vui lòng chờ đơn checkout hoàn tất.');
+            }
+        }
+
         // Thực hiện check-in
-        DB::transaction(function () use ($booking, $room) {
+        DB::transaction(function () use ($booking, $room, $isEarlyCheckin, $isLateCheckin, $earlyCheckinFee) {
             // Cập nhật meta với thông tin check-in (giữ nguyên CCCD nếu đã có)
             if (is_array($booking->snapshot_meta)) {
                 $meta = $booking->snapshot_meta;
@@ -811,12 +1075,48 @@ class StaffController extends Controller
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
+            // Tạo hóa đơn phụ thu nếu checkin sớm
+            $hoaDon = null;
+            if ($isEarlyCheckin && $earlyCheckinFee > 0) {
+                $hoaDon = \App\Models\HoaDon::where('dat_phong_id', $booking->id)
+                    ->where('trang_thai', '!=', 'da_thanh_toan')
+                    ->orderByDesc('id')
+                    ->first();
+                
+                if (!$hoaDon) {
+                    $hoaDon = \App\Models\HoaDon::create([
+                        'dat_phong_id' => $booking->id,
+                        'so_hoa_don' => 'HD' . time() . rand(100, 999),
+                        'tong_thuc_thu' => 0,
+                        'don_vi' => $booking->don_vi_tien ?? 'VND',
+                        'trang_thai' => 'da_xuat',
+                        'created_by' => Auth::id(),
+                    ]);
+                }
+                
+                \App\Models\HoaDonItem::create([
+                    'hoa_don_id' => $hoaDon->id,
+                    'type' => 'early_checkin_fee',
+                    'name' => 'Phụ thu checkin sớm',
+                    'quantity' => 1,
+                    'unit_price' => $earlyCheckinFee,
+                    'amount' => $earlyCheckinFee,
+                    'note' => 'Phụ thu checkin sớm',
+                ]);
+                
+                $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $earlyCheckinFee;
+                $hoaDon->save();
+            }
+
             // Cập nhật booking
             $booking->update([
                 'trang_thai' => 'dang_su_dung',
                 'checked_in_at' => now(),
                 'checked_in_by' => Auth::id(),
                 'snapshot_meta' => $meta,
+                'is_early_checkin' => $isEarlyCheckin,
+                'early_checkin_fee_amount' => $isEarlyCheckin ? $earlyCheckinFee : 0,
+                'is_late_checkin' => $isLateCheckin,
             ]);
 
             // Cập nhật trạng thái phòng
@@ -828,9 +1128,16 @@ class StaffController extends Controller
             $notificationService = new PaymentNotificationService();
             $notificationService->sendCheckinNotification($booking);
         });
+        
+        $successMessage = 'Check-in thành công cho phòng ' . $room->ma_phong . ' - Booking ' . $booking->ma_tham_chieu;
+        if ($isEarlyCheckin && $earlyCheckinFee > 0) {
+            $successMessage .= '. Phụ thu checkin sớm: ' . number_format($earlyCheckinFee) . ' VND đã được ghi nhận trong hóa đơn.';
+        } elseif ($isLateCheckin) {
+            $successMessage .= ' (Checkin muộn trong ngày).';
+        }
 
         return redirect()->route('staff.rooms')
-            ->with('success', 'Check-in thành công cho phòng ' . $room->ma_phong . ' - Booking ' . $booking->ma_tham_chieu);
+            ->with('success', $successMessage);
     }
 
     public function showBooking(DatPhong $booking)

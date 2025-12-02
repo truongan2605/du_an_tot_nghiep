@@ -166,7 +166,9 @@
                                         ->pluck('don_dep')
                                         ->contains(true);
 
-                                    $canCheckin = $booking->remaining <= 0 && !$hasDonDep;
+                                    $hasBlockedRoom = $booking->checkin_blocked_due_to === 'late_checkout';
+
+                                    $canCheckin = $booking->remaining <= 0 && !$hasDonDep && !$hasBlockedRoom;
                                 @endphp
 
                                 <tr class="border-bottom">
@@ -225,6 +227,11 @@
                                                             <i class="bi bi-exclamation-triangle-fill me-1"></i>
                                                             Có phòng đang dọn dẹp ở đơn này
                                                         </div>
+                                                    @elseif ($hasBlockedRoom)
+                                                        <div class="alert alert-danger mb-0 small">
+                                                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                            Đang có đơn checkout muộn trong phòng này
+                                                        </div>
                                                     @else
                                                         @if (!$hasCCCD)
                                                             <button type="button"
@@ -281,24 +288,46 @@
                                         @else
                                             @if ($isTodayOrPast)
                                                 @if ($canCheckin)
-                                                    <button type="button"
-                                                        class="btn btn-success px-3 py-1 rounded-pill fw-semibold shadow-sm"
-                                                        data-bs-toggle="modal"
-                                                        data-bs-target="#checkinModal{{ $booking->id }}"
-                                                        data-booking-id="{{ $booking->id }}">
-                                                        <i class="bi bi-check-circle me-1"></i>Check-in
-                                                    </button>
+                                                    <div class="d-flex flex-column gap-1 align-items-center">
+                                                        @if (isset($booking->will_be_cancelled) && $booking->will_be_cancelled)
+                                                            <div class="alert alert-danger mb-0 small">
+                                                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                                <strong>Cảnh báo:</strong> Checkin muộn sang ngày khác sẽ bị hủy đặt phòng!
+                                                            </div>
+                                                        @elseif (isset($booking->is_early_checkin_possible) && $booking->is_early_checkin_possible && $booking->early_checkin_fee_estimate > 0)
+                                                            <div class="alert alert-warning mb-0 small">
+                                                                <i class="bi bi-info-circle-fill me-1"></i>
+                                                                Checkin sớm: Phụ thu dự kiến {{ number_format($booking->early_checkin_fee_estimate) }} VND
+                                                            </div>
+                                                        @elseif (isset($booking->is_late_checkin_warning) && $booking->is_late_checkin_warning)
+                                                            <div class="alert alert-info mb-0 small">
+                                                                <i class="bi bi-clock-history me-1"></i>
+                                                                Checkin muộn trong ngày
+                                                            </div>
+                                                        @endif
+                                                        <button type="button"
+                                                            class="btn btn-success px-3 py-1 rounded-pill fw-semibold shadow-sm"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#checkinModal{{ $booking->id }}"
+                                                            data-booking-id="{{ $booking->id }}">
+                                                            <i class="bi bi-check-circle me-1"></i>Check-in
+                                                        </button>
+                                                    </div>
                                                 @else
                                                     <button
                                                         class="btn btn-outline-secondary px-3 py-1 rounded-pill fw-semibold shadow-sm"
                                                         disabled data-bs-toggle="tooltip" data-bs-placement="top"
-                                                        title="{{ $hasDonDep ? 'Không thể check-in — một hoặc nhiều phòng đang dọn dẹp' : 'Không thể check-in' }}">
+                                                        title="{{ $hasDonDep ? 'Không thể check-in — một hoặc nhiều phòng đang dọn dẹp' : ($hasBlockedRoom ? 'Không thể check-in — đang có đơn checkout muộn trong phòng này' : 'Không thể check-in') }}">
                                                         <i class="bi bi-slash-circle me-1"></i>Không thể check-in
                                                     </button>
                                                     @if ($hasDonDep)
                                                         <div class="mt-1"><span
                                                                 class="badge bg-warning text-dark small">Phòng đang dọn
                                                                 dẹp</span></div>
+                                                    @endif
+                                                    @if ($hasBlockedRoom)
+                                                        <div class="mt-1"><span
+                                                                class="badge bg-danger small">Có đơn checkout muộn</span></div>
                                                     @endif
                                                 @endif
                                             @else
@@ -560,6 +589,8 @@
                 ->pluck('don_dep')
                 ->contains(true);
 
+            $hasBlockedRoom = $booking->checkin_blocked_due_to === 'late_checkout';
+
             $checkinMeta = is_array($booking->snapshot_meta)
                 ? $booking->snapshot_meta
                 : json_decode($booking->snapshot_meta, true) ?? [];
@@ -577,7 +608,7 @@
             $checkinHasCCCDList = $checkinExistingCCCDCount > 0;
         @endphp
 
-        @if ($booking->remaining <= 0 && $isTodayOrPast && !$hasDonDep)
+        @if ($booking->remaining <= 0 && $isTodayOrPast && !$hasDonDep && !$hasBlockedRoom)
             <div class="modal fade" id="checkinModal{{ $booking->id }}" tabindex="-1"
                 aria-labelledby="checkinModalLabel{{ $booking->id }}" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
@@ -595,6 +626,23 @@
                             @csrf
                             <input type="hidden" name="booking_id" value="{{ $booking->id }}">
                             <div class="modal-body">
+                                @if (isset($booking->will_be_cancelled) && $booking->will_be_cancelled)
+                                    <div class="alert alert-danger mb-3">
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                        <strong>Cảnh báo:</strong> Đặt phòng sẽ bị hủy nếu checkin muộn sang ngày khác. Ngày checkin dự kiến: {{ $checkinDate->format('d/m/Y') }}
+                                    </div>
+                                @elseif (isset($booking->is_early_checkin_possible) && $booking->is_early_checkin_possible && $booking->early_checkin_fee_estimate > 0)
+                                    <div class="alert alert-warning mb-3">
+                                        <i class="bi bi-info-circle-fill me-2"></i>
+                                        <strong>Checkin sớm:</strong> Phụ thu dự kiến <strong>{{ number_format($booking->early_checkin_fee_estimate) }} VND</strong> sẽ được thêm vào hóa đơn.
+                                    </div>
+                                @elseif (isset($booking->is_late_checkin_warning) && $booking->is_late_checkin_warning)
+                                    <div class="alert alert-info mb-3">
+                                        <i class="bi bi-clock-history me-2"></i>
+                                        <strong>Checkin muộn trong ngày:</strong> Đang checkin sau giờ chuẩn (14:00) nhưng vẫn trong ngày.
+                                    </div>
+                                @endif
+                                
                                 <div class="mb-3">
                                     <label class="form-label fw-semibold">Thông tin Booking</label>
                                     <div class="card bg-light p-3">
