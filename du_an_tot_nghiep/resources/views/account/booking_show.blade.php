@@ -1923,41 +1923,133 @@
                 Swal.fire({
                     icon: 'success',
                     title: 'Xác nhận đổi phòng',
+                    width: '600px',
                     html: `
                         <div class="text-start">
-                            <p class="mb-3">Bạn đang đổi sang phòng rẻ hơn:</p>
-                            <div class="mb-3">
-                                <strong>Phòng cũ:</strong> {{ $currentRoom->ma_phong ?? 'N/A' }}<br>
-                                <strong>Giá phòng cũ:</strong> ${formatMoney(oldRoomTotal)}
+                            <div class="alert alert-info border-0 mb-3">
+                                <h6 class="mb-2">
+                                    <i class="bi bi-arrow-down-circle me-1"></i>
+                                    Bạn đang chọn phòng rẻ hơn - Tiết kiệm tiền! 🎉
+                                </h6>
+                                <p class="mb-0 small">Số tiền chênh lệch sẽ được hoàn lại qua voucher</p>
                             </div>
-                            <div class="mb-3">
-                                <strong>Phòng mới:</strong> ${roomCode}<br>
-                                <strong>Giá phòng mới:</strong> ${formatMoney(newRoomTotal)}
-                            </div>
-                            <hr>
-                            <div class="mb-3 text-success">
-                                <strong>Chênh lệch phòng:</strong> ${formatMoney(priceDiff)}<br>
-                                <small>(${formatMoney(Math.abs(priceDiff/nights))}/đêm × ${nights} đêm)</small>
-                            </div>
-                            <hr>
-                            <div class="alert alert-success mb-0">
-                                <i class="bi bi-gift me-2"></i>
-                                <strong class="fs-6">BẠN SẼ NHẬN:</strong><br>
-                                <div class="my-2 p-2 bg-white rounded">
-                                    <div class="fs-4 text-success fw-bold">Voucher ${formatMoney(refundAmount)}</div>
-                                    <small class="text-muted">Hạn sử dụng: 30 ngày</small>
+                            
+                            {{-- Room Comparison --}}
+                            <div class="card border mb-3">
+                                <div class="card-body p-3">
+                                    <h6 class="fw-semibold mb-3">So sánh phòng</h6>
+                                    <div class="row g-3">
+                                        <div class="col-6">
+                                            <div class="border-end pe-2">
+                                                <div class="text-muted small mb-1">Phòng hiện tại</div>
+                                                <div class="fw-bold">{{ $currentRoom->loaiPhong->ten ?? 'N/A' }}</div>
+                                                <div class="text-muted small">#{{ $currentRoom->ma_phong ?? 'N/A' }}</div>
+                                                <div class="mt-2">
+                                                    <span class="badge bg-secondary">${formatMoney(oldRoomTotal)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="ps-2">
+                                                <div class="text-muted small mb-1">Phòng mới</div>
+                                                <div class="fw-bold text-success">${roomCode}</div>
+                                                <div class="text-muted small">-</div>
+                                                <div class="mt-2">
+                                                    <span class="badge bg-success">${formatMoney(newRoomTotal)}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <small class="text-muted">
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Voucher sẽ tự động được thêm vào tài khoản của bạn
-                                </small>
+                            </div>
+                            
+                            {{-- Price Breakdown --}}
+                            <div class="card border mb-3">
+                                <div class="card-body p-3">
+                                    <h6 class="fw-semibold mb-3">
+                                        <i class="bi bi-receipt me-1"></i>Chi tiết thanh toán
+                                    </h6>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Booking hiện tại:</span>
+                                        <strong>${formatMoney(currentBookingTotal)}</strong>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Booking mới:</span>
+                                        <strong class="text-success">${formatMoney(newBookingTotal)}</strong>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Số đêm:</span>
+                                        <strong>${nights} đêm</strong>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Chênh lệch/đêm:</span>
+                                        <strong class="text-success">${formatMoney(Math.abs(priceDiff/nights))}</strong>
+                                    </div>
+                                    
+                                    <hr class="my-2">
+                                    
+                                    <div class="d-flex justify-content-between p-2 bg-light rounded">
+                                        <span class="fw-semibold text-success">Tổng tiết kiệm:</span>
+                                        <h5 class="mb-0 text-success">${formatMoney(Math.abs(priceDiff))}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {{-- Deposit Info --}}
+                            <div class="card border mb-3">
+                                <div class="card-body p-3">
+                                    <h6 class="fw-semibold mb-3">
+                                        <i class="bi bi-wallet2 me-1"></i>Thông tin cọc
+                                    </h6>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Đã cọc:</span>
+                                        <strong>${formatMoney(currentDeposit)}</strong>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Cọc cần cho phòng mới (${depositPct}%):</span>
+                                        <strong class="text-success">${formatMoney(newDepositRequired)}</strong>
+                                    </div>
+                                    
+                                    <hr class="my-2">
+                                    
+                                    <div class="d-flex justify-content-between p-2 bg-success bg-opacity-10 rounded">
+                                        <span class="fw-semibold">Chênh lệch cọc:</span>
+                                        <h5 class="mb-0 text-success">${formatMoney(refundAmount)}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {{-- Voucher Gift Box --}}
+                            <div class="alert alert-success border-success mb-0" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                                <div class="text-center">
+                                    <div class="fs-1 mb-2">🎁</div>
+                                    <h5 class="fw-bold text-success mb-2">BẠN SẼ NHẬN</h5>
+                                    <div class="bg-white p-3 rounded shadow-sm mb-3">
+                                        <div class="text-muted small mb-1">Voucher hoàn tiền</div>
+                                        <div class="display-6 fw-bold text-success">${formatMoney(refundAmount)}</div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-clock me-1"></i>Hạn sử dụng: 30 ngày
+                                        </small>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Voucher sẽ tự động được thêm vào tài khoản của bạn và có thể sử dụng cho booking tiếp theo
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     `,
                     showCancelButton: true,
                     confirmButtonText: '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng',
                     cancelButtonText: 'Hủy',
-                    confirmButtonColor: '#28a745'
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         submitRoomChange();
