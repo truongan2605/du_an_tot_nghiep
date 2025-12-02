@@ -1143,7 +1143,11 @@
                 // Get selected deposit percentage  
                 const selectedDepositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
                 const depositPercentage = selectedDepositRadio ? parseInt(selectedDepositRadio.value) / 100 : 0.5;
-                const deposit = Math.ceil(total * depositPercentage / 1000) * 1000;
+                
+                // ✅ FIX: Khi 100%, deposit = total (không làm tròn). Khi 50%, làm tròn lên đến hàng nghìn
+                const deposit = depositPercentage === 1 
+                    ? total 
+                    : Math.ceil(total * depositPercentage / 1000) * 1000;
 
                 // Update deposit labels
                 const percentageText = (depositPercentage * 100) + '%';
