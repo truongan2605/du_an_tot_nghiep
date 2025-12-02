@@ -204,7 +204,7 @@
                                         @if ($booking->remaining < 0)
                                             <span class="badge bg-success rounded-pill px-2 py-1 small fw-semibold shadow-sm" 
                                                   data-bs-toggle="tooltip" data-bs-placement="top"
-                                                  title="Đã thanh toán đủ (Booking đã downgrade, khách nhận voucher {{ number_format(abs($booking->remaining)) }}đ)">
+                                                  title="Đã thanh toán đủ (Booking đã downgrade, khách nhận voucher )">
                                                 <i class="bi bi-check-circle me-1"></i>Đã TT đủ
                                             </span>
                                         @elseif ($booking->remaining > 0)
@@ -216,17 +216,28 @@
 
                                     <td class="text-center d-none d-sm-table-cell">
                                         @php
-                                            $hasDowngrade = \App\Models\RoomChange::where('dat_phong_id', $booking->id)
+                                            // Get LATEST completed room change (not just any downgrade!)
+                                            $latestRoomChange = \App\Models\RoomChange::where('dat_phong_id', $booking->id)
                                                 ->where('status', 'completed')
-                                                ->whereRaw('price_difference < 0')
-                                                ->exists();
+                                                ->orderBy('created_at', 'desc')
+                                                ->first();
+                                            
+                                            $hasRoomChange = $latestRoomChange !== null;
+                                            $isLatestDowngrade = $hasRoomChange && $latestRoomChange->price_difference < 0;
+                                            $isLatestUpgrade = $hasRoomChange && $latestRoomChange->price_difference > 0;
                                         @endphp
                                         
-                                        @if ($hasDowngrade)
+                                        @if ($isLatestDowngrade)
                                             <span class="badge bg-info rounded-pill px-2 py-1 small fw-semibold shadow-sm"
                                                   data-bs-toggle="tooltip" data-bs-placement="top"
                                                   title="Khách hàng đã đổi xuống phòng rẻ hơn và nhận voucher hoàn tiền">
                                                 <i class="bi bi-arrow-down-circle me-1"></i>Đã downgrade
+                                            </span>
+                                        @elseif ($isLatestUpgrade)
+                                            <span class="badge bg-success rounded-pill px-2 py-1 small fw-semibold shadow-sm"
+                                                  data-bs-toggle="tooltip" data-bs-placement="top"
+                                                  title="Khách hàng đã nâng cấp lên phòng đắt hơn">
+                                                <i class="bi bi-arrow-up-circle me-1"></i>Đã upgrade
                                             </span>
                                         @elseif ($booking->trang_thai === 'da_xac_nhan')
                                             <span

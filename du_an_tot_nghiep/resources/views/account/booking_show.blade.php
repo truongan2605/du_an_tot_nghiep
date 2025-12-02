@@ -254,8 +254,44 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="d-flex justify-content-between">
-                                                <span class="text-muted">Còn lại:</span>
-                                                <strong class="text-danger">{{ number_format($totalAmount - $paidAmount, 0, ',', '.') }} ₫</strong>
+                                                @php
+                                                    $remaining = $totalAmount - $paidAmount;
+                                                    
+                                                    // Query actual downgrade voucher if user overpaid
+                                                    $downgradeVoucher = null;
+                                                    if ($remaining < 0) {
+                                                        // Get latest ACTIVE downgrade voucher for this user
+                                                        // We already know remaining < 0, so user has downgraded
+                                                        $downgradeVoucher = \App\Models\Voucher::where('code', 'LIKE', 'DOWNGRADE%')
+                                                            ->whereHas('users', function($q) use ($booking) {
+                                                                $q->where('user_id', $booking->nguoi_dung_id);
+                                                            })
+                                                            ->where('active', true)
+                                                            ->where('end_date', '>=', now())
+                                                            ->orderBy('created_at', 'desc')
+                                                            ->first();
+                                                    }
+                                                @endphp
+                                                
+                                                @if($remaining < 0 && $downgradeVoucher)
+                                                    {{-- User đã downgrade và nhận voucher --}}
+                                                    <span class="text-muted">
+                                                        <i class="bi bi-gift me-1"></i>Voucher hoàn tiền:
+                                                    </span>
+                                                    <strong class="text-success">
+                                                        {{ number_format($downgradeVoucher->value, 0, ',', '.') }} ₫
+                                                    </strong>
+                                                @elseif($remaining > 0)
+                                                    {{-- Còn nợ --}}
+                                                    <span class="text-muted">Còn lại:</span>
+                                                    <strong class="text-danger">{{ number_format($remaining, 0, ',', '.') }} ₫</strong>
+                                                @else
+                                                    {{-- Đã trả đủ --}}
+                                                    <span class="text-muted">Còn lại:</span>
+                                                    <strong class="text-success">
+                                                        <i class="bi bi-check-circle me-1"></i>0 ₫
+                                                    </strong>
+                                                @endif
                                             </div>
                                         </div>
                                     </div>
@@ -827,41 +863,118 @@
                         {{-- Price Summary Section (Hidden by default, shown when room selected) --}}
                         <div id="priceSummarySection" class="d-none">
                             <hr class="my-4">
-                            <div class="alert alert-info border-0">
-                                <h6 class="mb-3">
-                                    <i class="bi bi-calculator me-2"></i>Tổng quan giá
+                            <div class="alert alert-light border">
+                                <h6 class="mb-3 fw-bold text-dark">
+                                    <i class="bi bi-calculator me-2"></i>Chi tiết giá cả
                                 </h6>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">Tổng tiền cũ:</span>
-                                            <strong id="oldTotal">{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }} ₫</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span class="text-muted">Số đêm còn lại:</span>
-                                            <strong id="nightsRemaining">{{ $meta['nights'] ?? 1 }} đêm</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between">
-                                            <span class="text-muted">Chênh lệch/đêm:</span>
-                                            <strong id="priceDiffPerNight" class="text-primary">0 ₫</strong>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="card bg-white border">
-                                            <div class="card-body p-3">
-                                                <div class="text-muted small mb-1">Tổng chênh lệch</div>
-                                                <div class="h4 mb-2" id="totalDifference">0 ₫</div>
-                                                <hr class="my-2">
-                                                <div class="text-muted small mb-1">Tổng tiền mới</div>
-                                                <div class="h3 mb-0 text-success fw-bold" id="newTotal">{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }} ₫</div>
+                                
+                                {{-- Room Comparison --}}
+                                <div class="card bg-white border mb-3">
+                                    <div class="card-body p-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="border-end pe-3">
+                                                    <div class="text-muted small mb-1">
+                                                        <i class="bi bi-door-closed me-1"></i>Phòng hiện tại
+                                                    </div>
+                                                    <div class="fw-bold text-dark" id="oldRoomName">{{ $currentRoom->loaiPhong->ten ?? 'N/A' }}</div>
+                                                    <div class="text-muted small" id="oldRoomCode">#{{ $currentRoom->ma_phong ?? 'N/A' }}</div>
+                                                    <div class="mt-2">
+                                                        <span class="badge bg-secondary" id="oldRoomPricePerNight">
+                                                            {{ number_format($currentRoom->gia_tren_dem ?? 0, 0, ',', '.') }}đ/đêm
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="ps-3">
+                                                    <div class="text-muted small mb-1">
+                                                        <i class="bi bi-door-open me-1"></i>Phòng mới
+                                                    </div>
+                                                    <div class="fw-bold text-primary" id="newRoomName">Chưa chọn</div>
+                                                    <div class="text-muted small" id="newRoomCode">-</div>
+                                                    <div class="mt-2">
+                                                        <span class="badge bg-primary" id="newRoomPricePerNight">0đ/đêm</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <small class="text-muted d-block mt-2">
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    Chênh lệch được tính dựa trên số đêm còn lại của kỳ nghỉ
-                                </small>
+
+                                {{-- Price Breakdown --}}
+                                <div class="row g-3">
+                                    <div class="col-md-12">
+                                        <div class="bg-white border rounded p-3">
+                                            <h6 class="fw-semibold mb-3">
+                                                <i class="bi bi-receipt me-1"></i>Tổng quan thanh toán
+                                            </h6>
+                                            
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Booking hiện tại:</span>
+                                                <strong>{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }}đ</strong>
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Số đêm còn lại:</span>
+                                                <strong id="nightsDisplay">{{ $meta['nights'] ?? 1 }} đêm</strong>
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-between mb-2">
+                                                <span class="text-muted">Chênh lệch mỗi đêm:</span>
+                                                <strong id="priceDiffPerNight" class="text-primary">0đ</strong>
+                                            </div>
+                                            
+                                            <hr class="my-2">
+                                            
+                                            <div class="d-flex justify-content-between mb-3">
+                                                <span class="fw-semibold">Tổng chênh lệch:</span>
+                                                <h5 class="mb-0" id="totalDifference">0đ</h5>
+                                            </div>
+                                            
+                                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
+                                                <span class="fw-bold">Tổng booking mới:</span>
+                                                <h4 class="mb-0 text-success" id="newTotal">{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }}đ</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Payment Info (will be shown dynamically) --}}
+                                <div id="paymentInfoSection" class="mt-3 d-none">
+                                    <div class="alert alert-warning mb-0">
+                                        <h6 class="fw-semibold mb-2">
+                                            <i class="bi bi-wallet2 me-1"></i>Thông tin thanh toán
+                                        </h6>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span>Đã cọc:</span>
+                                            <strong>{{ number_format($booking->deposit_amount ?? 0, 0, ',', '.') }}đ</strong>
+                                        </div>
+                                        <div id="paymentNeededInfo"></div>
+                                    </div>
+                                </div>
+
+                                {{-- Voucher Info (for downgrade) --}}
+                                <div id="voucherInfoSection" class="mt-3 d-none">
+                                    <div class="alert alert-success mb-0">
+                                        <h6 class="fw-semibold mb-2">
+                                            <i class="bi bi-gift me-1"></i>Hoàn tiền qua Voucher
+                                        </h6>
+                                        <p class="mb-2 small">Bạn đang chọn phòng rẻ hơn! Số tiền chênh lệch sẽ được hoàn qua voucher:</p>
+                                        <div id="expectedVoucherValue" class="fs-5 fw-bold text-success"></div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Voucher có thời hạn 30 ngày và có thể sử dụng cho booking tiếp theo
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <small class="text-muted d-block">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        Giá được tính dựa trên <strong>số đêm còn lại</strong> của kỳ nghỉ hiện tại
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1499,21 +1612,91 @@
                 // Show price summary section
                 document.getElementById('priceSummarySection').classList.remove('d-none');
 
-                // Update values
+                // Update room comparison - We need to get room info from selected card
+                const selectedCard = document.querySelector('.room-card.selected');
+                if (selectedCard) {
+                    // Title format: "#CODE - ROOM NAME"
+                    const titleElement = selectedCard.querySelector('.card-title');
+                    const fullTitle = titleElement ? titleElement.textContent.trim() : '';
+                    
+                    // Split by " - " to get code and name
+                    const titleParts = fullTitle.split(' - ');
+                    const roomCode = titleParts[0] || 'N/A'; // e.g. "#305"
+                    const roomName = titleParts[1] || fullTitle; // e.g. "Suite Room"
+                    
+                    document.getElementById('newRoomName').textContent = roomName;
+                    document.getElementById('newRoomCode').textContent = roomCode;
+                    document.getElementById('newRoomPricePerNight').textContent = Math.round(newRoomPrice).toLocaleString('vi-VN') + 'đ/đêm';
+                }
+
+                // Update basic price info
                 document.getElementById('priceDiffPerNight').textContent = formatCurrency(priceDiffPerNight);
                 document.getElementById('totalDifference').textContent = formatCurrency(totalDifference);
-                document.getElementById('newTotal').textContent = formatCurrency(newTotal);
+                document.getElementById('newTotal').textContent = Math.round(newTotal).toLocaleString('vi-VN') + 'đ';
 
-                // Color coding
+                // Color coding for difference
                 const diffElement = document.getElementById('totalDifference');
+                const diffPerNightElement = document.getElementById('priceDiffPerNight');
+                
                 if (totalDifference > 0) {
+                    // Upgrade - show payment info
                     diffElement.classList.remove('text-success');
                     diffElement.classList.add('text-danger');
+                    diffPerNightElement.classList.remove('text-success');
+                    diffPerNightElement.classList.add('text-danger');
+                    
+                    // Show payment section
+                    document.getElementById('paymentInfoSection').classList.remove('d-none');
+                    document.getElementById('voucherInfoSection').classList.add('d-none');
+                    
+                    // Calculate payment needed (basic estimate)
+                    const depositPct = {{ $meta['deposit_percentage'] ?? 50 }};
+                    const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
+                    const newDepositRequired = newTotal * (depositPct / 100);
+                    const paymentNeeded = Math.max(0, newDepositRequired - currentDeposit);
+                    
+                    const paymentInfoHtml = paymentNeeded > 0 
+                        ? `<div class="d-flex justify-content-between">
+                               <span class="text-danger fw-semibold">Cần thanh toán thêm:</span>
+                               <h5 class="mb-0 text-danger">${Math.round(paymentNeeded).toLocaleString('vi-VN')}đ</h5>
+                           </div>
+                           <small class="text-muted d-block mt-2">
+                               <i class="bi bi-info-circle me-1"></i>
+                               Bạn sẽ được chuyển đến cổng thanh toán VNPay
+                           </small>`
+                        : `<div class="alert alert-success mb-0">
+                               <i class="bi bi-check-circle me-1"></i>
+                               Không cần thanh toán thêm! Bạn đã cọc đủ tiền.
+                           </div>`;
+                    
+                    document.getElementById('paymentNeededInfo').innerHTML = paymentInfoHtml;
+                    
                 } else if (totalDifference < 0) {
+                    // Downgrade - show voucher info
                     diffElement.classList.remove('text-danger');
                     diffElement.classList.add('text-success');
+                    diffPerNightElement.classList.remove('text-danger');
+                    diffPerNightElement.classList.add('text-success');
+                    
+                    // Show voucher section
+                    document.getElementById('voucherInfoSection').classList.remove('d-none');
+                    document.getElementById('paymentInfoSection').classList.add('d-none');
+                    
+                    // Calculate expected voucher value
+                    const depositPct = {{ $meta['deposit_percentage'] ?? 50 }};
+                    const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
+                    const newDepositRequired = newTotal * (depositPct / 100);
+                    const voucherValue = Math.max(0, currentDeposit - newDepositRequired);
+                    
+                    document.getElementById('expectedVoucherValue').textContent = 
+                        Math.round(voucherValue).toLocaleString('vi-VN') + 'đ';
+                    
                 } else {
+                    // Same price
                     diffElement.classList.remove('text-danger', 'text-success');
+                    diffPerNightElement.classList.remove('text-danger', 'text-success');
+                    document.getElementById('paymentInfoSection').classList.add('d-none');
+                    document.getElementById('voucherInfoSection').classList.add('d-none');
                 }
             }
 
@@ -1631,6 +1814,48 @@
                     paymentNeeded
                 });
                 
+                // Build payment section HTML based on whether payment is needed
+                let paymentHtml = '';
+                let confirmButtonText = '';
+                let alertClass = '';
+                
+                if (paymentNeeded > 0) {
+                    // Need to pay more
+                    alertClass = 'alert-primary';
+                    paymentHtml = `
+                        <div class="alert ${alertClass} mb-0">
+                            <strong class="fs-5">CẦN THANH TOÁN:</strong><br>
+                            <span class="fs-4 text-primary">${formatMoney(paymentNeeded)}</span>
+                        </div>
+                    `;
+                    confirmButtonText = '<i class="bi bi-credit-card me-1"></i> Thanh toán VNPay';
+                } else {
+                    // Already paid enough or overpaid
+                    alertClass = 'alert-success';
+                    paymentHtml = `
+                        <div class="alert ${alertClass} mb-2">
+                            <i class="bi bi-check-circle me-1"></i>
+                            <strong class="fs-6">KHÔNG CẦN THANH TOÁN THÊM</strong><br>
+                            <small class="text-muted">Bạn đã cọc đủ tiền cho phòng mới</small>
+                        </div>
+                    `;
+                    
+                    // INFO about voucher auto-apply (positive message, not warning!)
+                    paymentHtml += `
+                        <div class="alert alert-success mb-0">
+                            <i class="bi bi-gift me-1"></i>
+                            <strong>🎁 Bonus:</strong> Nếu bạn có voucher hoàn tiền từ lần downgrade trước, 
+                            voucher đó sẽ được <strong class="text-success">tự động áp dụng</strong> vào đơn này!
+                            <br>
+                            <small class="text-muted d-block mt-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Bạn vẫn sẽ giữ được lợi ích từ voucher khi nâng cấp lại phòng.
+                            </small>
+                        </div>
+                    `;
+                    confirmButtonText = '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng';
+                }
+                
                 Swal.fire({
                     title: 'Xác nhận đổi phòng',
                     html: `
@@ -1655,17 +1880,14 @@
                                 <strong>Deposit cần (${depositPct}%):</strong> ${formatMoney(newDepositRequired)}<br>
                                 <strong>Đã cọc:</strong> ${formatMoney(currentDeposit)}
                             </div>
-                            <div class="alert alert-primary mb-0">
-                                <strong class="fs-5">CẦN THANH TOÁN:</strong><br>
-                                <span class="fs-4 text-primary">${formatMoney(paymentNeeded)}</span>
-                            </div>
+                            ${paymentHtml}
                         </div>
                     `,
-                    icon: 'question',
+                    icon: paymentNeeded > 0 ? 'question' : 'success',
                     showCancelButton: true,
-                    confirmButtonText: '<i class="bi bi-credit-card me-1"></i> Thanh toán VNPay',
+                    confirmButtonText: confirmButtonText,
                     cancelButtonText: 'Hủy',
-                    confirmButtonColor: '#0d6efd'
+                    confirmButtonColor: paymentNeeded > 0 ? '#0d6efd' : '#28a745'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         submitRoomChange();
@@ -1832,6 +2054,12 @@
                                             <td class="text-muted">Chênh lệch:</td>
                                             <td><strong class="text-primary">{{ number_format($changeInfo['price_difference']) }}đ</strong></td>
                                         </tr>
+                                        @if(isset($changeInfo['voucher_discount']) && $changeInfo['voucher_discount'] > 0)
+                                            <tr>
+                                                <td class="text-muted"><i class="bi bi-gift me-1"></i> Voucher áp dụng:</td>
+                                                <td><strong class="text-success">-{{ number_format($changeInfo['voucher_discount']) }}đ</strong></td>
+                                            </tr>
+                                        @endif
                                         <tr>
                                             <td class="text-muted">Đã thanh toán:</td>
                                             <td><strong class="text-info">{{ number_format($changeInfo['payment_amount']) }}đ</strong></td>
