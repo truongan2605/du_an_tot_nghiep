@@ -254,8 +254,9 @@
                                                                         class="form-select form-select-sm border-0 px-2"
                                                                         required>
                                                                         <option value="">Chọn</option>
-                                                                        <option value="tien_mat">Tiền mặt</option>
+                                                                       <option value="tien_mat">Tiền mặt</option>
                                                                         <option value="vnpay">VNPAY</option>
+                                                                        <option value="momo">MoMo</option>
                                                                     </select>
                                                                     <button type="submit"
                                                                         class="btn btn-warning border-0 px-2"

@@ -96,6 +96,13 @@
                                                     {{ $code }}
                                                 </span>
                                             @endforeach
+                                            @if ($booking->roomChanges->isNotEmpty())
+                                                <span class="badge bg-warning text-dark small rounded-pill" 
+                                                    data-bs-toggle="tooltip" 
+                                                    title="Có {{ $booking->roomChanges->count() }} lần đổi phòng">
+                                                    <i class="bi bi-arrow-left-right"></i> {{ $booking->roomChanges->count() }}
+                                                </span>
+                                            @endif
                                         @else
                                             <span class="text-muted small">Chưa gán</span>
                                         @endif
@@ -143,6 +150,15 @@
                                                 <li><a class="dropdown-item small"
                                                         href="{{ route('staff.bookings.show', $booking->id) }}"><i
                                                             class="bi bi-eye me-1"></i> Xem Chi Tiết</a></li>
+                                                @if ($booking->roomChanges->isNotEmpty())
+                                                    <li>
+                                                        <button class="dropdown-item small toggle-room-changes" 
+                                                            data-booking-id="{{ $booking->id }}"
+                                                            type="button">
+                                                            <i class="bi bi-clock-history me-1"></i> Lịch Sử Đổi Phòng
+                                                        </button>
+                                                    </li>
+                                                @endif
                                                 @if (in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan']))
                                                     <li>
                                                         <form action="{{ route('staff.cancel', $booking->id) }}"
@@ -172,6 +188,85 @@
                                         </div>
                                     </td>
                                 </tr>
+                                {{-- Room Change History Row (Hidden by default) --}}
+                                @if ($booking->roomChanges->isNotEmpty())
+                                    <tr class="room-changes-row" id="room-changes-{{ $booking->id }}" style="display: none;">
+                                        <td colspan="10" class="p-0">
+                                            <div class="bg-light border-top border-bottom px-4 py-3">
+                                                <h6 class="mb-3 text-primary">
+                                                    <i class="bi bi-clock-history me-2"></i>Lịch Sử Đổi Phòng
+                                                </h6>
+                                                <div class="timeline">
+                                                    @foreach ($booking->roomChanges->sortByDesc('created_at') as $change)
+                                                        <div class="timeline-item mb-3 d-flex">
+                                                            <div class="timeline-icon me-3">
+                                                                @if ($change->isUpgrade())
+                                                                    <span class="badge bg-success rounded-circle p-2">
+                                                                        <i class="bi bi-arrow-up"></i>
+                                                                    </span>
+                                                                @elseif ($change->isDowngrade())
+                                                                    <span class="badge bg-danger rounded-circle p-2">
+                                                                        <i class="bi bi-arrow-down"></i>
+                                                                    </span>
+                                                                @else
+                                                                    <span class="badge bg-info rounded-circle p-2">
+                                                                        <i class="bi bi-arrow-left-right"></i>
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+                                                            <div class="timeline-content flex-grow-1">
+                                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                    <div>
+                                                                        <strong>{{ $change->oldRoom->ma_phong ?? 'N/A' }}</strong>
+                                                                        <i class="bi bi-arrow-right mx-2"></i>
+                                                                        <strong>{{ $change->newRoom->ma_phong ?? 'N/A' }}</strong>
+                                                                        @if ($change->isUpgrade())
+                                                                            <span class="badge bg-success ms-2">Nâng cấp</span>
+                                                                        @elseif ($change->isDowngrade())
+                                                                            <span class="badge bg-danger ms-2">Hạ cấp</span>
+                                                                        @else
+                                                                            <span class="badge bg-info ms-2">Cùng giá</span>
+                                                                        @endif
+                                                                    </div>
+                                                                    <small class="text-muted">
+                                                                        {{ $change->created_at->format('d/m/Y H:i') }}
+                                                                    </small>
+                                                                </div>
+                                                                <div class="small text-muted">
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <strong>Giá cũ:</strong> {{ number_format($change->old_price, 0, ',', '.') }}đ/đêm<br>
+                                                                            <strong>Giá mới:</strong> {{ number_format($change->new_price, 0, ',', '.') }}đ/đêm<br>
+                                                                            <strong>Số đêm:</strong> {{ $change->nights }}
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            <strong>Người thực hiện:</strong> 
+                                                                            {{ $change->changed_by_type === 'customer' ? 'Khách hàng' : 'Nhân viên' }}
+                                                                            ({{ $change->changedByUser->name ?? 'N/A' }})<br>
+                                                                            <strong>Trạng thái:</strong> 
+                                                                            @if ($change->status === 'completed')
+                                                                                <span class="badge bg-success">Hoàn thành</span>
+                                                                            @elseif ($change->status === 'pending')
+                                                                                <span class="badge bg-warning">Đang xử lý</span>
+                                                                            @else
+                                                                                <span class="badge bg-danger">Thất bại</span>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                    @if ($change->change_reason)
+                                                                        <div class="mt-2">
+                                                                            <strong>Lý do:</strong> {{ $change->change_reason }}
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endif
                             @empty
                                 <tr class="no-data-row">
                                     <td colspan="10" class="text-center py-4 text-muted">
@@ -246,6 +341,32 @@
                     }
                 }
             };
+
+            // Toggle room changes history
+            document.querySelectorAll('.toggle-room-changes').forEach(button => {
+                button.addEventListener('click', function() {
+                    const bookingId = this.dataset.bookingId;
+                    const historyRow = document.getElementById(`room-changes-${bookingId}`);
+                    
+                    if (historyRow) {
+                        if (historyRow.style.display === 'none') {
+                            historyRow.style.display = '';
+                        } else {
+                            historyRow.style.display = 'none';
+                        }
+                    }
+                    
+                    // Close the dropdown
+                    const dropdown = this.closest('.dropdown');
+                    if (dropdown) {
+                        const toggle = dropdown.querySelector('.dropdown-toggle');
+                        if (toggle) {
+                            const inst = bootstrap.Dropdown.getOrCreateInstance(toggle);
+                            inst.hide();
+                        }
+                    }
+                });
+            });
 
             const statusFilter = document.getElementById('statusFilter');
             const dateFilter = document.getElementById('dateFilter');
@@ -345,6 +466,34 @@
 
         .position-relative {
             position: relative;
+        }
+
+        /* Timeline Styles for Room Change History */
+        .timeline {
+            position: relative;
+        }
+
+        .timeline-item {
+            position: relative;
+        }
+
+        .timeline-icon {
+            flex-shrink: 0;
+        }
+
+        .timeline-content {
+            background: white;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+        }
+
+        .room-changes-row {
+            background-color: #f8f9fa;
+        }
+
+        .room-changes-row td {
+            border: none !important;
         }
     </style>
 @endsection

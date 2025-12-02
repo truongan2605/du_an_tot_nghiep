@@ -289,12 +289,19 @@ Route::middleware('auth')
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
         Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel'])->name('booking.cancel');
         Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
+        Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
+        
+        // Room change
+        Route::post('bookings/{booking}/change-room', [BookingController::class, 'changeRoom'])->name('booking.change-room');
 
         // Rewards (Ưu đãi & hạng thành viên)
         Route::get('rewards', [App\Http\Controllers\Account\RewardController::class, 'index'])
         ->name('rewards');
 
     });
+    
+    // Room change callback (outside auth middleware to accept VNPay callback)
+    Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
 
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
 Route::middleware('auth')->group(function () {
@@ -313,9 +320,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/confirm-payment/{dat_phong_id}', [ConfirmPaymentController::class, 'confirm'])->name('api.confirm-payment');
     Route::get('/payment/callback', [PaymentController::class, 'handleVNPayCallback'])->name('payment.callback');
 
+    // MoMo Payment
+    Route::post('/payment/momo/initiate', [PaymentController::class, 'initiateMoMo'])->name('payment.momo.initiate');
+    Route::get('/payment/momo/callback', [PaymentController::class, 'handleMoMoCallback'])->name('payment.momo.callback');
+    Route::post('/payment/momo/ipn', [PaymentController::class, 'handleMoMoIPN'])->name('payment.momo.ipn');
+
     // Remaining payment
     Route::post('/payment/remaining/{dat_phong_id}', [PaymentController::class, 'initiateRemainingPayment'])->name('payment.remaining');
     Route::get('/payment/remaining/callback', [PaymentController::class, 'handleRemainingCallback'])->name('payment.remaining.callback');
+    Route::get('/payment/momo/remaining-callback', [PaymentController::class, 'handleMoMoRemainingCallback'])->name('payment.momo.remaining.callback');
 });
 Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
 
