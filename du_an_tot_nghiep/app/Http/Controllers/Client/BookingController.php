@@ -1310,6 +1310,7 @@ class BookingController extends Controller
                 })->toArray(),
                 'final_per_night' => $finalPerNightServer,
                 'nights' => $nights,
+                'deposit_percentage' => $depositPercentage, // CRITICAL: Store deposit % for MoMo/VNPay callbacks
                 // 'member_discount_amount' => $memberDiscountAmount,
                 // 'member_level' => $user ? ($user->member_level ?? 'dong') : 'dong',
                 // 'member_discount_percent' => $user ? $user->getMemberDiscountPercent() : 0,
