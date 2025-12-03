@@ -195,26 +195,29 @@ class BookingController extends Controller
         $chargeableChildren = $meta['chargeable_children'] ?? 0;
         $totalGuests = $computedAdults + $chargeableChildren;
 
-        // Get all room IDs in this booking
-        $allBookingRoomIds = $booking->datPhongItems->pluck('phong_id')->toArray();
-
-        // Calculate guests per room for multi-room bookings
-        $totalRoomsInBooking = count($allBookingRoomIds);
-        $guestsPerRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
+        // Get guest count from CURRENT ROOM (accurate from DB)
+        $guestsInCurrentRoom = $currentItem->so_nguoi_o ?? 0;
+        
+        // If no so_nguoi_o (old bookings), fall back to calculation
+        if ($guestsInCurrentRoom == 0) {
+            $allBookingRoomIds = $booking->datPhongItems->pluck('phong_id')->toArray();
+            $totalRoomsInBooking = count($allBookingRoomIds);
+            $guestsInCurrentRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
+        }
 
         // Load room details
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentPrice, $guestsPerRoom) {
+            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom) {
                 // Get base price from ROOM's final price (not total or type default)
                 $roomBasePrice = $room->gia_cuoi_cung ?? 0;
                 
                 // Calculate room capacity
                 $roomCapacity = $room->suc_chua ?? ($room->loaiPhong->suc_chua ?? 2);
                 
-                // Calculate extra charges for this room (using guests per room, not total)
-                $extraGuests = max(0, $guestsPerRoom - $roomCapacity);
+                // Calculate extra charges for this room (using same guest count as current room)
+                $extraGuests = max(0, $guestsInCurrentRoom - $roomCapacity);
                 $extraCharge = $extraGuests * 150000; // 150k per person per night
                 
                 // Final price with extra charges
@@ -314,20 +317,25 @@ class BookingController extends Controller
         $currentPrice = $currentItem->gia_tren_dem;
 
         // 8. Calculate prices with extra charges
-        // Get guest count from booking to calculate extra charges
-        $meta = is_array($booking->snapshot_meta)
-            ? $booking->snapshot_meta
-            : json_decode($booking->snapshot_meta, true);
+        // Get guest count from CURRENT ROOM ITEM (accurate from DB)
+        $guestsInRoom = $currentItem->so_nguoi_o ?? 0;
         
-        $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
-        $allBookingRoomIds = $booking->datPhongItems->pluck('phong_id')->toArray();
-        $totalRoomsInBooking = count($allBookingRoomIds);
-        $guestsPerRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
+        // If no so_nguoi_o (old bookings), fall back to calculation
+        if ($guestsInRoom == 0) {
+            $meta = is_array($booking->snapshot_meta)
+                ? $booking->snapshot_meta
+                : json_decode($booking->snapshot_meta, true);
+            
+            $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
+            $allBookingRoomIds = $booking->datPhongItems->pluck('phong_id')->toArray();
+            $totalRoomsInBooking = count($allBookingRoomIds);
+            $guestsInRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
+        }
         
-        // Calculate new room price WITH extra charges (same logic as getAvailableRooms)
+        // Calculate new room price WITH extra charges (using same guest count)
         $newRoomBasePrice = $newRoom->gia_cuoi_cung ?? 0;
         $newRoomCapacity = $newRoom->suc_chua ?? ($newRoom->loaiPhong->suc_chua ?? 2);
-        $extraGuestsNew = max(0, $guestsPerRoom - $newRoomCapacity);
+        $extraGuestsNew = max(0, $guestsInRoom - $newRoomCapacity);
         $extraChargeNew = $extraGuestsNew * 150000;
         $newPrice = $newRoomBasePrice + $extraChargeNew;
         

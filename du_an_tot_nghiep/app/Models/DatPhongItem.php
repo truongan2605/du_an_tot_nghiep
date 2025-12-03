@@ -18,6 +18,7 @@ class DatPhongItem extends Model
         'phong_id',
         'loai_phong_id',
         'so_luong',
+        'so_nguoi_o',
         'gia_tren_dem',
         'so_dem',
         'taxes_amount',

@@ -1334,14 +1334,21 @@
                 const countedPersons = computedAdults + chargeableChildren;
 
                 const totalMaxAllowed = (baseCapacity + 2) * roomsCount;
-                const extraCountTotal = Math.max(0, countedPersons - (baseCapacity * roomsCount));
-                const adultsBeyondBaseTotal = Math.max(0, computedAdults - (baseCapacity * roomsCount));
-                const adultExtraTotal = Math.min(adultsBeyondBaseTotal, extraCountTotal);
-                let childrenExtraTotal = Math.max(0, extraCountTotal - adultExtraTotal);
-                childrenExtraTotal = Math.min(childrenExtraTotal, chargeableChildren);
-
-                const adultsChargePerNightTotal = adultExtraTotal * ADULT_PRICE;
-                const childrenChargePerNightTotal = childrenExtraTotal * CHILD_PRICE;
+                
+                // AUTO-DISTRIBUTE guests across rooms (same as backend)
+                const baseGuestsPerRoom = Math.floor(countedPersons / roomsCount);
+                const extraGuestsRemainder = countedPersons % roomsCount;
+                
+                // Calculate total surcharge by summing per-room charges
+                let totalSurcharge = 0;
+                for (let i = 0; i < roomsCount; i++) {
+                    const guestsInRoom = baseGuestsPerRoom + (i < extraGuestsRemainder ? 1 : 0);
+                    const extraInRoom = Math.max(0, guestsInRoom - baseCapacity);
+                    totalSurcharge += extraInRoom * ADULT_PRICE;
+                }
+                
+                const adultsChargePerNightTotal = totalSurcharge;
+                const childrenChargePerNightTotal = 0; // Already included
                 const addonsPerNight = computeAddonsPerNight();
                 const basePerRoom = pricePerNight;
 

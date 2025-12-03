@@ -804,9 +804,16 @@
                                                             : json_decode($booking->snapshot_meta, true);
                                                         $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
                                                         
-                                                        // For multi-room: divide guests evenly across rooms
-                                                        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
-                                                        $guestsPerRoom = $totalRooms > 0 ? ceil($totalGuests / $totalRooms) : $totalGuests;
+                                                        // Get guest count from DATABASE (accurate)
+                                                        $guestsPerRoom = $currentItem->so_nguoi_o ?? 0;
+                                                        
+                                                        // Fallback for old bookings without so_nguoi_o
+                                                        if ($guestsPerRoom == 0) {
+                                                            $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+                                                            $guestsPerRoom = $totalRooms > 0 ? ceil($totalGuests / $totalRooms) : $totalGuests;
+                                                        } else {
+                                                            $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+                                                        }
                                                     @endphp
                                                     <small class="text-muted">
                                                         <i class="bi bi-people me-1"></i>Sức chứa: {{ $currentRoomType->suc_chua ? $currentRoomType->suc_chua . ' người' : 'Chưa xác định' }}
