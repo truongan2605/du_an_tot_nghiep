@@ -186,12 +186,32 @@ class BookingController extends Controller
         // Available = All - Booked - Current
         $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
 
+        // Get guest count from booking to calculate extra charges
+        $meta = is_array($booking->snapshot_meta)
+            ? $booking->snapshot_meta
+            : json_decode($booking->snapshot_meta, true);
+
+        $computedAdults = $meta['computed_adults'] ?? 0;
+        $chargeableChildren = $meta['chargeable_children'] ?? 0;
+        $totalGuests = $computedAdults + $chargeableChildren;
+
         // Load room details
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentPrice) {
-                $roomPrice = $room->tong_gia ?? $room->gia_mac_dinh ?? 0;
+            ->map(function ($room) use ($currentPrice, $totalGuests) {
+                // Get base price
+                $roomBasePrice = $room->tong_gia ?? $room->gia_mac_dinh ?? 0;
+                
+                // Calculate room capacity
+                $roomCapacity = $room->suc_chua ?? ($room->loaiPhong->suc_chua ?? 2);
+                
+                // Calculate extra charges for this room
+                $extraGuests = max(0, $totalGuests - $roomCapacity);
+                $extraCharge = $extraGuests * 150000; // 150k per person per night
+                
+                // Final price with extra charges
+                $roomPrice = $roomBasePrice + $extraCharge;
                 $priceDiff = $roomPrice - $currentPrice;
 
                 // Get image - try multiple sources
@@ -208,12 +228,15 @@ class BookingController extends Controller
                 return [
                     'id' => $room->id,
                     'code' => $room->ma_phong,
-                    'name' => $room->loaiPhong->ten ?? 'Room', // Changed 'name' to 'ten'
+                    'name' => $room->loaiPhong->ten ?? 'Room',
                     'type' => $room->loaiPhong->slug ?? 'standard',
-                    'price' => $roomPrice, // Using 'price' to match frontend
+                    'price' => $roomPrice,
+                    'base_price' => $roomBasePrice, // NEW: Base price without surcharge
+                    'extra_charge' => $extraCharge, // NEW: Surcharge amount
+                    'extra_guests' => $extraGuests, // NEW: Number of extra guests
                     'price_difference' => $priceDiff,
                     'image' => $imagePath,
-                    'capacity' => $room->loaiPhong->so_nguoi ?? 2
+                    'capacity' => $roomCapacity // Use calculated capacity
                 ];
             })
             ->values();

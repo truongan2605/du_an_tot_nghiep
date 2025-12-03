@@ -798,16 +798,58 @@
                                                         <strong class="text-primary">#{{ $currentRoom->ma_phong ?? 'N/A' }}</strong>
                                                         - {{ $currentRoomType->ten ?? 'N/A' }}
                                                     </h6>
+                                                    @php
+                                                        $meta = is_array($booking->snapshot_meta) 
+                                                            ? $booking->snapshot_meta 
+                                                            : json_decode($booking->snapshot_meta, true);
+                                                        $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
+                                                    @endphp
                                                     <small class="text-muted">
-                                                        <i class="bi bi-people me-1"></i>{{ $currentRoomType->so_nguoi ?? 2 }} người
+                                                        <i class="bi bi-people me-1"></i>Sức chứa: {{ $currentRoomType->so_nguoi ?? 2 }} người
+                                                        <span class="mx-2">•</span>
+                                                        <i class="bi bi-person-check-fill text-info me-1"></i>Đang đặt: <strong class="text-dark">{{ $totalGuests }} người</strong>
                                                         <span class="mx-2">•</span>
                                                         <i class="bi bi-star-fill text-warning me-1"></i>{{ $currentRoomType->hang ?? 'Standard' }}
                                                     </small>
                                                 </div>
-                                                <div class="col-md-3 text-center">
-                                                    <div class="text-muted small mb-1">Giá hiện tại</div>
-                                                    <div class="h6 mb-0 text-success fw-bold">
-                                                        {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }} ₫<small class="text-muted">/đêm</small>
+                                                <div class="col-md-5">
+                                                    @php
+                                                        $meta = is_array($booking->snapshot_meta) 
+                                                            ? $booking->snapshot_meta 
+                                                            : json_decode($booking->snapshot_meta, true);
+                                                        $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
+                                                        $capacity = $currentRoomType->so_nguoi ?? 2;
+                                                        $extraGuests = max(0, $totalGuests - $capacity);
+                                                        $extraCharge = $extraGuests * 150000;
+                                                        $basePrice = ($currentItem->gia_tren_dem ?? 0) - $extraCharge;
+                                                    @endphp
+                                                    
+                                                    @if($extraCharge > 0)
+                                                        <div class="alert alert-info alert-sm p-2 mb-0" style="font-size: 0.75rem;">
+                                                            <div class="d-flex justify-content-between mb-1">
+                                                                <span class="text-muted">Giá gốc:</span>
+                                                                <strong>{{ number_format($basePrice, 0, ',', '.') }}đ</strong>
+                                                            </div>
+                                                            <div class="d-flex justify-content-between">
+                                                                <span class="text-muted">
+                                                                    <i class="bi bi-info-circle me-1"></i>Phụ thu:
+                                                                </span>
+                                                                <strong class="text-primary">+{{ number_format($extraCharge, 0, ',', '.') }}đ</strong>
+                                                            </div>
+                                                            <small class="text-muted">({{ $extraGuests }} người vượt sức chứa)</small>
+                                                        </div>
+                                                    @else
+                                                        <div class="text-muted small">
+                                                            <i class="bi bi-check-circle text-success me-1"></i>
+                                                            Không có phụ thu người
+                                                        </div>
+                                                    @endif
+                                                    
+                                                    <div class="text-end mt-2">
+                                                        <div class="text-muted small">Tổng giá/đêm</div>
+                                                        <div class="h6 mb-0 text-success fw-bold">
+                                                            {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }}đ
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-2 text-end">
@@ -1557,6 +1599,26 @@
                         badgeText = '-' + priceDiffFormatted + 'đ';
                     }
 
+                    // Build surcharge info if applicable
+                    let surchargeHtml = '';
+                    if (room.extra_charge && room.extra_charge > 0) {
+                        surchargeHtml = `
+                            <div class="alert alert-warning alert-sm p-2 mb-2" style="font-size: 0.75rem;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-muted">Giá gốc:</span>
+                                    <strong>${room.base_price.toLocaleString('vi-VN')}đ</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>Phụ thu:
+                                    </span>
+                                    <strong class="text-danger">+${room.extra_charge.toLocaleString('vi-VN')}đ</strong>
+                                </div>
+                                <small class="text-muted">(${room.extra_guests} người vượt sức chứa)</small>
+                            </div>
+                        `;
+                    }
+
                     const cardHtml = `
                         <div class="col-md-4 room-card-wrapper" data-room-id="${room.id}" data-price="${room.price}" data-type="${room.type}">
                             <div class="card room-card h-100">
@@ -1567,8 +1629,9 @@
                                 <div class="card-body">
                                     <h6 class="card-title mb-2 text-primary fw-bold">#${room.code} - ${room.name}</h6>
                                     <div class="text-muted small mb-2">
-                                        <i class="bi bi-people me-1"></i>${room.capacity} người
+                                        <i class="bi bi-people me-1"></i>Sức chứa: ${room.capacity} người
                                     </div>
+                                    ${surchargeHtml}
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span class="text-muted small">Giá/đêm</span>
                                         <strong class="text-success">${room.price.toLocaleString('vi-VN')}đ</strong>
