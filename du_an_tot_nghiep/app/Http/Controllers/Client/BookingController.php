@@ -209,16 +209,24 @@ class BookingController extends Controller
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom) {
+            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $computedAdults, $chargeableChildren) {
                 // Get base price from ROOM's final price (not total or type default)
                 $roomBasePrice = $room->gia_cuoi_cung ?? 0;
                 
                 // Calculate room capacity
                 $roomCapacity = $room->suc_chua ?? ($room->loaiPhong->suc_chua ?? 2);
                 
-                // Calculate extra charges for this room (using same guest count as current room)
-                $extraGuests = max(0, $guestsInCurrentRoom - $roomCapacity);
-                $extraCharge = $extraGuests * 150000; // 150k per person per night
+                // Adults fill capacity FIRST (no surcharge)
+                // Children overflow to extra slots (with surcharge)
+                $adultsInCapacity = min($computedAdults, $roomCapacity);
+                $childrenInCapacity = min($chargeableChildren, max(0, $roomCapacity - $adultsInCapacity));
+                
+                $extraAdults = $computedAdults - $adultsInCapacity;
+                $extraChildren = $chargeableChildren - $childrenInCapacity;
+                
+                $extraAdultsCharge = $extraAdults * 150000;
+                $extraChildrenCharge = $extraChildren * 60000;
+                $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                 
                 // Final price with extra charges
                 $roomPrice = $roomBasePrice + $extraCharge;
@@ -241,12 +249,15 @@ class BookingController extends Controller
                     'name' => $room->loaiPhong->ten ?? 'Room',
                     'type' => $room->loaiPhong->slug ?? 'standard',
                     'price' => $roomPrice,
-                    'base_price' => $roomBasePrice, // NEW: Base price without surcharge
-                    'extra_charge' => $extraCharge, // NEW: Surcharge amount
-                    'extra_guests' => $extraGuests, // NEW: Number of extra guests
+                    'base_price' => $roomBasePrice,
+                    'extra_charge' => $extraCharge,
+                    'extra_adults' => $extraAdults,           // NEW: Extra adults count
+                    'extra_adults_charge' => $extraAdultsCharge, // NEW: Adult surcharge
+                    'extra_children' => $extraChildren,       // NEW: Extra children count
+                    'extra_children_charge' => $extraChildrenCharge, // NEW: Child surcharge
                     'price_difference' => $priceDiff,
                     'image' => $imagePath,
-                    'capacity' => $roomCapacity // Use calculated capacity
+                    'capacity' => $roomCapacity
                 ];
             })
             ->values();
