@@ -682,7 +682,7 @@ class BookingController extends Controller
     $user = Auth::user();
 
     /**
-     * 1. Lấy toàn bộ voucher còn hiệu lực theo ngày cho user
+     * 1. Lấy tất cả voucher còn hiệu lực theo ngày cho user
      */
     $baseVouchers = $user->vouchers()
         ->where('active', 1)
@@ -691,14 +691,15 @@ class BookingController extends Controller
         ->get();
 
     /**
-     * 2. Dựa vào bảng voucher_usage để đếm số lần user đã dùng
-     *    và LOẠI BỎ những voucher đã dùng đủ usage_limit_per_user
+     * 2. Đếm số lần user đã dùng từng voucher trong bảng voucher_usage
+     *    và LOẠI BỎ những voucher đã dùng HẾT LƯỢT
+     *    (dùng cùng quy tắc với trang ví: nếu usage_limit_per_user null/0 thì mặc định = 1)
      */
     $vouchers = collect();
 
     if ($baseVouchers->isNotEmpty()) {
         $usageModel = new VoucherUsage();
-        $usageTable = $usageModel->getTable(); // vd: voucher_usage
+        $usageTable = $usageModel->getTable(); // thường là voucher_usage
 
         // Xác định cột user trong voucher_usage: nguoi_dung_id hoặc user_id
         $userCol = Schema::hasColumn($usageTable, 'nguoi_dung_id')
@@ -715,18 +716,14 @@ class BookingController extends Controller
             ->selectRaw('voucher_id, COUNT(*) as used_count')
             ->pluck('used_count', 'voucher_id');
 
-        // Giữ lại voucher CHƯA dùng hết lượt
+        // Chỉ giữ voucher CÒN LƯỢT (used < limitPerUser)
         $vouchers = $baseVouchers->filter(function ($voucher) use ($usageCounts) {
-            $usedCount = $usageCounts[$voucher->id] ?? 0;
-            $limit     = $voucher->usage_limit_per_user; // có thể null
+            $used = (int) ($usageCounts[$voucher->id] ?? 0);
 
-            // Nếu không đặt giới hạn theo user thì luôn cho phép
-            if (empty($limit)) {
-                return true;
-            }
+            // Nếu usage_limit_per_user null/0 => xem như 1 lượt (giống trang ví)
+            $limitPerUser = (int) ($voucher->usage_limit_per_user ?: 1);
 
-            // Chỉ giữ voucher khi số lần dùng < giới hạn
-            return $usedCount < $limit;
+            return $used < $limitPerUser;
         })->values();
     }
 
@@ -756,6 +753,7 @@ class BookingController extends Controller
         compact('vouchers', 'phong', 'user', 'availableAddons', 'availableRoomsDefault', 'fromDefault', 'toDefault')
     );
 }
+
 
 
 

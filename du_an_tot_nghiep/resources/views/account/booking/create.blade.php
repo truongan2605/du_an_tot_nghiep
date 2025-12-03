@@ -667,7 +667,7 @@
                                                         Voucher của bạn:
                                                     </small>
 
-                                                    @foreach (Auth::user()->vouchers as $voucher)
+                                                    @foreach ($vouchers as $voucher)
                                                         @php
                                                             $isExpired = \Carbon\Carbon::parse(
                                                                 $voucher->end_date,
