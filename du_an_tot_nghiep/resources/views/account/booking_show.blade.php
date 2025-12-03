@@ -798,30 +798,34 @@
                                                         <strong class="text-primary">#{{ $currentRoom->ma_phong ?? 'N/A' }}</strong>
                                                         - {{ $currentRoomType->ten ?? 'N/A' }}
                                                     </h6>
-                                                    @php
+                                                     @php
                                                         $meta = is_array($booking->snapshot_meta) 
                                                             ? $booking->snapshot_meta 
                                                             : json_decode($booking->snapshot_meta, true);
                                                         $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
+                                                        
+                                                        // For multi-room: divide guests evenly across rooms
+                                                        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+                                                        $guestsPerRoom = $totalRooms > 0 ? ceil($totalGuests / $totalRooms) : $totalGuests;
                                                     @endphp
                                                     <small class="text-muted">
-                                                        <i class="bi bi-people me-1"></i>Sức chứa: {{ $currentRoomType->so_nguoi ?? 2 }} người
+                                                        <i class="bi bi-people me-1"></i>Sức chứa: {{ $currentRoomType->suc_chua ? $currentRoomType->suc_chua . ' người' : 'Chưa xác định' }}
                                                         <span class="mx-2">•</span>
-                                                        <i class="bi bi-person-check-fill text-info me-1"></i>Đang đặt: <strong class="text-dark">{{ $totalGuests }} người</strong>
+                                                        <i class="bi bi-person-check-fill text-info me-1"></i>Đang đặt: <strong class="text-dark">{{ $guestsPerRoom }} người</strong>
+                                                        @if($totalRooms > 1)
+                                                            <small class="text-muted">({{ $totalGuests }} người / {{ $totalRooms }} phòng)</small>
+                                                        @endif
                                                         <span class="mx-2">•</span>
                                                         <i class="bi bi-star-fill text-warning me-1"></i>{{ $currentRoomType->hang ?? 'Standard' }}
                                                     </small>
                                                 </div>
                                                 <div class="col-md-5">
                                                     @php
-                                                        $meta = is_array($booking->snapshot_meta) 
-                                                            ? $booking->snapshot_meta 
-                                                            : json_decode($booking->snapshot_meta, true);
-                                                        $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
-                                                        $capacity = $currentRoomType->so_nguoi ?? 2;
-                                                        $extraGuests = max(0, $totalGuests - $capacity);
+                                                        $capacity = $currentRoomType->suc_chua ?? 2;
+                                                        $extraGuests = max(0, $guestsPerRoom - $capacity);
                                                         $extraCharge = $extraGuests * 150000;
-                                                        $basePrice = ($currentItem->gia_tren_dem ?? 0) - $extraCharge;
+                                                        // Get base price from ROOM's final price
+                                                        $basePrice = $currentRoom->gia_cuoi_cung ?? 0;
                                                     @endphp
                                                     
                                                     @if($extraCharge > 0)
