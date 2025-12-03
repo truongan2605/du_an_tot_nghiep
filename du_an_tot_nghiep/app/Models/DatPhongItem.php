@@ -20,6 +20,7 @@ class DatPhongItem extends Model
         'so_luong',
         'so_nguoi_o',
         'number_child',
+        'number_adult',
         'gia_tren_dem',
         'so_dem',
         'taxes_amount',

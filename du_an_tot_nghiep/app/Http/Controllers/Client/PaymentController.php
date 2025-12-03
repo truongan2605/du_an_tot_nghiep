@@ -786,10 +786,13 @@ public function handleMoMoCallback(Request $request)
             $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
             $phongIdsToOccupy = [];
 
-            // AUTO-DISTRIBUTE guests across rooms
-            $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
-            $baseGuestsPerRoom = floor($totalGuests / $roomsCount);
-            $extraGuests = $totalGuests % $roomsCount;
+            // AUTO-DISTRIBUTE adults and children separately
+            $totalAdults = ($meta['computed_adults'] ?? 0);
+            $totalChildren = ($meta['chargeable_children'] ?? 0);
+            $baseAdultsPerRoom = floor($totalAdults / $roomsCount);
+            $extraAdults = $totalAdults % $roomsCount;
+            $baseChildrenPerRoom = floor($totalChildren / $roomsCount);
+            $extraChildren = $totalChildren % $roomsCount;
             
             foreach ($giu_phongs as $index => $giu_phong) {
                 $meta_item = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
@@ -797,17 +800,27 @@ public function handleMoMoCallback(Request $request)
 
                 $nights = $meta_item['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                 
-                // Calculate guests for THIS room (fair distribution)
-                $guestsInRoom = $baseGuestsPerRoom + ($index < $extraGuests ? 1 : 0);
+                // Calculate guests for THIS room
+                $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
+                $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
+                $guestsInRoom = $adultsInRoom + $childrenInRoom;
                 
                 // Get room and its base price
                 $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
                 $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
                 $basePrice = $phong ? ($phong->gia_cuoi_cung ?? 0) : 0;
                 
-                // Calculate surcharge for THIS room
-                $extraGuestsInRoom = max(0, $guestsInRoom - $capacity);
-                $extraCharge = $extraGuestsInRoom * 150000;
+                // Adults fill capacity FIRST (no surcharge)
+                // Children overflow to extra slots (with surcharge)
+                $adultsInCapacity = min($adultsInRoom, $capacity);
+                $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
+                
+                $extraAdults = $adultsInRoom - $adultsInCapacity;
+                $extraChildren = $childrenInRoom - $childrenInCapacity;
+                
+                $extraAdultsCharge = $extraAdults * self::ADULT_PRICE;
+                $extraChildrenCharge = $extraChildren * self::CHILD_PRICE;
+                $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                 
                 // Final price = base + surcharge
                 $price_per_night = $basePrice + $extraCharge;
@@ -821,6 +834,8 @@ public function handleMoMoCallback(Request $request)
                     'so_dem' => $nights,
                     'so_luong' => $giu_phong->so_luong ?? 1,
                     'so_nguoi_o' => $guestsInRoom,
+                    'number_child' => $extraChildren,   // Extra children with surcharge
+                    'number_adult' => $extraAdults,      // Extra adults with surcharge
                     'gia_tren_dem' => $price_per_night,
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                     'spec_signature_hash' => $specSignatureHash,
@@ -934,10 +949,13 @@ public function handleMoMoIPN(Request $request)
             $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
             $phongIdsToOccupy = [];
 
-            // AUTO-DISTRIBUTE guests across rooms
-            $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
-            $baseGuestsPerRoom = floor($totalGuests / $roomsCount);
-            $extraGuests = $totalGuests % $roomsCount;
+            // AUTO-DISTRIBUTE adults and children separately
+            $totalAdults = ($meta['computed_adults'] ?? 0);
+            $totalChildren = ($meta['chargeable_children'] ?? 0);
+            $baseAdultsPerRoom = floor($totalAdults / $roomsCount);
+            $extraAdults = $totalAdults % $roomsCount;
+            $baseChildrenPerRoom = floor($totalChildren / $roomsCount);
+            $extraChildren = $totalChildren % $roomsCount;
             
             foreach ($giu_phongs as $index => $giu_phong) {
                 $meta_item = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
@@ -945,17 +963,27 @@ public function handleMoMoIPN(Request $request)
 
                 $nights = $meta_item['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                 
-                // Calculate guests for THIS room (fair distribution)
-                $guestsInRoom = $baseGuestsPerRoom + ($index < $extraGuests ? 1 : 0);
+                // Calculate guests for THIS room
+                $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
+                $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
+                $guestsInRoom = $adultsInRoom + $childrenInRoom;
                 
                 // Get room and its base price
                 $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
                 $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
                 $basePrice = $phong ? ($phong->gia_cuoi_cung ?? 0) : 0;
                 
-                // Calculate surcharge for THIS room
-                $extraGuestsInRoom = max(0, $guestsInRoom - $capacity);
-                $extraCharge = $extraGuestsInRoom * 150000;
+                // Adults fill capacity FIRST (no surcharge)
+                // Children overflow to extra slots (with surcharge)
+                $adultsInCapacity = min($adultsInRoom, $capacity);
+                $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
+                
+                $extraAdults = $adultsInRoom - $adultsInCapacity;
+                $extraChildren = $childrenInRoom - $childrenInCapacity;
+                
+                $extraAdultsCharge = $extraAdults * self::ADULT_PRICE;
+                $extraChildrenCharge = $extraChildren * self::CHILD_PRICE;
+                $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                 
                 // Final price = base + surcharge
                 $price_per_night = $basePrice + $extraCharge;
@@ -969,6 +997,8 @@ public function handleMoMoIPN(Request $request)
                     'so_dem' => $nights,
                     'so_luong' => $giu_phong->so_luong ?? 1,
                     'so_nguoi_o' => $guestsInRoom,
+                    'number_child' => $extraChildren,   // Extra children with surcharge
+                    'number_adult' => $extraAdults,      // Extra adults with surcharge
                     'gia_tren_dem' => $price_per_night,
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                     'spec_signature_hash' => $specSignatureHash,
@@ -1115,10 +1145,13 @@ public function handleMoMoIPN(Request $request)
                 $giu_phongs       = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
                 $phongIdsToOccupy = [];
 
-                // AUTO-DISTRIBUTE guests across rooms
-                $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
-                $baseGuestsPerRoom = floor($totalGuests / $roomsCount);
-                $extraGuests = $totalGuests % $roomsCount;
+                // AUTO-DISTRIBUTE adults and children separately
+                $totalAdults = ($meta['computed_adults'] ?? 0);
+                $totalChildren = ($meta['chargeable_children'] ?? 0);
+                $baseAdultsPerRoom = floor($totalAdults / $roomsCount);
+                $extraAdults = $totalAdults % $roomsCount;
+                $baseChildrenPerRoom = floor($totalChildren / $roomsCount);
+                $extraChildren = $totalChildren % $roomsCount;
 
                 foreach ($giu_phongs as $index => $giu_phong) {
                     $meta_item = is_string($giu_phong->meta)
@@ -1132,16 +1165,26 @@ public function handleMoMoIPN(Request $request)
                         ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                     
                     // Calculate guests for THIS room (fair distribution)
-                    $guestsInRoom = $baseGuestsPerRoom + ($index < $extraGuests ? 1 : 0);
+                    $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
+                    $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
+                    $guestsInRoom = $adultsInRoom + $childrenInRoom;
                     
                     // Get room and its base price
                     $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
                     $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
                     $basePrice = $phong ? ($phong->gia_cuoi_cung ?? 0) : 0;
                     
-                    // Calculate surcharge for THIS room
-                    $extraGuestsInRoom = max(0, $guestsInRoom - $capacity);
-                    $extraCharge = $extraGuestsInRoom * 150000;
+                    // Adults fill capacity FIRST (no surcharge)
+                    // Children overflow to extra slots (with surcharge)
+                    $adultsInCapacity = min($adultsInRoom, $capacity);
+                    $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
+                    
+                    $extraAdults = $adultsInRoom - $adultsInCapacity;
+                    $extraChildren = $childrenInRoom - $childrenInCapacity;
+                    
+                    $extraAdultsCharge = $extraAdults * self::ADULT_PRICE;
+                    $extraChildrenCharge = $extraChildren * self::CHILD_PRICE;
+                    $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                     
                     // Final price = base + surcharge
                     $price_per_night = $basePrice + $extraCharge;
@@ -1155,6 +1198,8 @@ public function handleMoMoIPN(Request $request)
                         'so_dem'             => $nights,
                         'so_luong'           => $giu_phong->so_luong ?? 1,
                         'so_nguoi_o'         => $guestsInRoom,
+                        'number_child'       => $extraChildren,   // Extra children with surcharge
+                        'number_adult'       => $extraAdults,      // Extra adults with surcharge
                         'gia_tren_dem'       => $price_per_night,
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                         'spec_signature_hash' => $specSignatureHash,

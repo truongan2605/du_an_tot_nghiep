@@ -819,6 +819,26 @@
                                                         <i class="bi bi-people me-1"></i>Sức chứa: {{ $currentRoomType->suc_chua ? $currentRoomType->suc_chua . ' người' : 'Chưa xác định' }}
                                                         <span class="mx-2">•</span>
                                                         <i class="bi bi-person-check-fill text-info me-1"></i>Đang đặt: <strong class="text-dark">{{ $guestsPerRoom }} người</strong>
+                                                        @php
+                                                            // These are EXTRA COUNTS (with surcharge), not totals
+                                                            $extraAdultsSurcharge = $currentItem->number_adult ?? 0;
+                                                            $extraChildrenSurcharge = $currentItem->number_child ?? 0;
+                                                        @endphp
+                                                        @if($extraAdultsSurcharge > 0 || $extraChildrenSurcharge > 0)
+                                                            <small class="text-warning">
+                                                                (
+                                                                @if($extraAdultsSurcharge > 0)
+                                                                    {{ $extraAdultsSurcharge }} người lớn vượt
+                                                                @endif
+                                                                @if($extraAdultsSurcharge > 0 && $extraChildrenSurcharge > 0)
+                                                                    ,
+                                                                @endif
+                                                                @if($extraChildrenSurcharge > 0)
+                                                                    {{ $extraChildrenSurcharge }} trẻ em vượt
+                                                                @endif
+                                                                )
+                                                            </small>
+                                                        @endif
                                                         @if($totalRooms > 1)
                                                             <small class="text-muted">({{ $totalGuests }} người / {{ $totalRooms }} phòng)</small>
                                                         @endif
@@ -828,9 +848,14 @@
                                                 </div>
                                                 <div class="col-md-5">
                                                     @php
-                                                        $capacity = $currentRoomType->suc_chua ?? 2;
-                                                        $extraGuests = max(0, $guestsPerRoom - $capacity);
-                                                        $extraCharge = $extraGuests * 150000;
+                                                        // Get extra counts from DB (already calculated correctly)
+                                                        $extraAdults = $currentItem->number_adult ?? 0;
+                                                        $extraChildren = $currentItem->number_child ?? 0;
+                                                        
+                                                        $extraAdultsCharge = $extraAdults * 150000;
+                                                        $extraChildrenCharge = $extraChildren * 60000;
+                                                        $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
+                                                        
                                                         // Get base price from ROOM's final price
                                                         $basePrice = $currentRoom->gia_cuoi_cung ?? 0;
                                                     @endphp
@@ -841,13 +866,22 @@
                                                                 <span class="text-muted">Giá gốc:</span>
                                                                 <strong>{{ number_format($basePrice, 0, ',', '.') }}đ</strong>
                                                             </div>
-                                                            <div class="d-flex justify-content-between">
-                                                                <span class="text-muted">
-                                                                    <i class="bi bi-info-circle me-1"></i>Phụ thu:
-                                                                </span>
-                                                                <strong class="text-primary">+{{ number_format($extraCharge, 0, ',', '.') }}đ</strong>
+                                                            <div class="border-top pt-1 mt-1">
+                                                                <div class="text-muted mb-1"><i class="bi bi-info-circle me-1"></i>Phụ thu:</div>
+                                                                @if($extraAdults > 0)
+                                                                    <div class="d-flex justify-content-between">
+                                                                        <small class="text-muted">• Người lớn: {{ $extraAdults }} × 150.000đ</small>
+                                                                        <strong class="text-primary">+{{ number_format($extraAdultsCharge, 0, ',', '.') }}đ</strong>
+                                                                    </div>
+                                                                @endif
+                                                                @if($extraChildren > 0)
+                                                                    <div class="d-flex justify-content-between">
+                                                                        <small class="text-muted">• Trẻ em: {{ $extraChildren }} × 60.000đ</small>
+                                                                        <strong class="text-success">+{{ number_format($extraChildrenCharge, 0, ',', '.') }}đ</strong>
+                                                                    </div>
+                                                                @endif
                                                             </div>
-                                                            <small class="text-muted">({{ $extraGuests }} người vượt sức chứa)</small>
+                                                        </div>
                                                         </div>
                                                     @else
                                                         <div class="text-muted small">
@@ -1055,6 +1089,7 @@
                             </div>
                         </div>
                     </div>
+                    </div> <!-- Close modal-body -->
                     <div class="modal-footer border-0">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-circle me-1"></i>Hủy
