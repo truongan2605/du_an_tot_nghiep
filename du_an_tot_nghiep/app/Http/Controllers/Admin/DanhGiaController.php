@@ -157,6 +157,16 @@ public function reply(Request $request, $id)
 
     return back()->with('success', 'Đã trả lời bình luận.');
 }
+public function destroy($id)
+{
+    $dg = DanhGiaSpace::findOrFail($id);
+
+    $dg->delete();
+
+    return back()->with('success', 'Đã xóa đánh giá.');
+}
+
+
 
 
 

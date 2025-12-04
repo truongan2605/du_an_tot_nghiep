@@ -98,30 +98,47 @@
 
             <div class="card-body">
 
-                <div class="d-flex justify-content-between">
+               <div class="d-flex justify-content-between">
 
-                    <!-- Thông tin người dùng -->
-                    <div class="d-flex">
-                        <img src="https://ui-avatars.com/api/?name={{ $danhGia->user->name }}"
-                             class="rounded-circle me-3" width="55">
+    <!-- Thông tin người dùng -->
+    <div class="d-flex">
+        <img src="https://ui-avatars.com/api/?name={{ $danhGia->user->name }}"
+             class="rounded-circle me-3" width="55">
 
-                        <div>
-                            <h5 class="fw-bold mb-1">{{ $danhGia->user->name }}</h5>
-                            <div class="text-warning fw-bold">⭐ {{ $danhGia->rating }}/5</div>
-                            <p class="text-muted fst-italic mt-2">"{{ $danhGia->noi_dung }}"</p>
-                            <small class="text-secondary">
-                                {{ $danhGia->created_at->format('d/m/Y H:i') }}
-                            </small>
-                        </div>
-                    </div>
+        <div>
+            <h5 class="fw-bold mb-1">{{ $danhGia->user->name }}</h5>
+            <div class="text-warning fw-bold">⭐ {{ $danhGia->rating }}/5</div>
+            <p class="text-muted fst-italic mt-2">"{{ $danhGia->noi_dung }}"</p>
+            <small class="text-secondary">
+                {{ $danhGia->created_at->format('d/m/Y H:i') }}
+            </small>
+        </div>
+    </div>
 
-                    <!-- Nút mở form trả lời -->
-                    <button class="btn btn-sm btn-outline-primary reply-btn-hover"
-                        onclick="toggleReplyForm({{ $danhGia->id }})">
-                        <i class="fas fa-reply"></i>
-                    </button>
+    <!-- Nút trả lời + nút xóa -->
+    <div>
+        <button class="btn btn-sm btn-outline-primary reply-btn-hover"
+            onclick="toggleReplyForm({{ $danhGia->id }})">
+            <i class="fas fa-reply"></i>
+        </button>
 
-                </div>
+        <!-- Nút XÓA -->
+      <!-- Nút Xóa -->
+<form action="{{ route('admin.danhgia.delete', $danhGia->id) }}" 
+      method="POST" 
+      onsubmit="return confirm('Bạn có chắc muốn xóa đánh giá này?')">
+    @csrf
+    @method('DELETE')
+
+    <button class="btn btn-danger btn-sm">
+        <i class="fas fa-trash"></i>
+    </button>
+</form>
+
+
+    </div>
+</div>
+
 
                 <!-- Danh sách phản hồi -->
                 @if($danhGia->replies->count() > 0)

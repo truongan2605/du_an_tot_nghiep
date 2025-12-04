@@ -178,6 +178,8 @@ Route::prefix('admin')
         Route::get('/danh-gia', [DanhGiaController::class, 'index'])->name('danhgia.index');
         Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
         Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
+         Route::delete('/danh-gia/{id}/delete', [DanhGiaController::class, 'destroy'])->name('danhgia.delete');
+       
         // trả lời
         Route::post(
             '/danh-gia/{id}/reply',
@@ -311,18 +313,18 @@ Route::middleware('auth')
         Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel'])->name('booking.cancel');
         Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
         Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
-        
+
         // Room change
         Route::post('bookings/{booking}/change-room', [BookingController::class, 'changeRoom'])->name('booking.change-room');
 
         // Rewards (Ưu đãi & hạng thành viên)
         Route::get('rewards', [App\Http\Controllers\Account\RewardController::class, 'index'])
-        ->name('rewards');
+            ->name('rewards');
 
- 
-    
-    // Room change callback (outside auth middleware to accept VNPay callback)
-    Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
+
+
+        // Room change callback (outside auth middleware to accept VNPay callback)
+        Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
 
 
         // Danh sách đặt phòng
@@ -336,6 +338,9 @@ Route::middleware('auth')
         // Lưu đánh giá
         Route::post('/danh-gia/{booking}', [ClientDanhGiaController::class, 'store'])
             ->name('danhgia.store');
+        // xóa đánh giá
+    
+
     });
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
 Route::middleware('auth')->group(function () {
