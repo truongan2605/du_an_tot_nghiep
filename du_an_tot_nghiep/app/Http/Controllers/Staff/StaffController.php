@@ -690,7 +690,7 @@ class StaffController extends Controller
                         'so_hoa_don' => 'HD' . time() . rand(100, 999),
                         'tong_thuc_thu' => 0,
                         'don_vi' => $booking->don_vi_tien ?? 'VND',
-                        'trang_thai' => 'da_xuat',
+                        'trang_thai' => 'tao',
                         'created_by' => Auth::id(),
                     ]);
                 }

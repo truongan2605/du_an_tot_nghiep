@@ -305,13 +305,13 @@
                                                                 Checkin muộn trong ngày
                                                             </div>
                                                         @endif
-                                                        <button type="button"
-                                                            class="btn btn-success px-3 py-1 rounded-pill fw-semibold shadow-sm"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#checkinModal{{ $booking->id }}"
-                                                            data-booking-id="{{ $booking->id }}">
-                                                            <i class="bi bi-check-circle me-1"></i>Check-in
-                                                        </button>
+                                                    <button type="button"
+                                                        class="btn btn-success px-3 py-1 rounded-pill fw-semibold shadow-sm"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#checkinModal{{ $booking->id }}"
+                                                        data-booking-id="{{ $booking->id }}">
+                                                        <i class="bi bi-check-circle me-1"></i>Check-in
+                                                    </button>
                                                     </div>
                                                 @else
                                                     <button
