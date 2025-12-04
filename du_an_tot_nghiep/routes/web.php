@@ -19,7 +19,7 @@ use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\Client\PaymentController;
 use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Staff\AuditLogController;
-use App\Http\Controllers\Staff\CheckoutController;
+
 use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
@@ -36,13 +36,19 @@ use App\Http\Controllers\Payment\ConfirmPaymentController;
 // Equipment/Room (extended)
 use App\Http\Controllers\Admin\AdminNotificationController;
 use App\Http\Controllers\Admin\BatchNotificationController;
-use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
+
 
 // BLOG (Admin + Client)
 use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
+
+use App\Http\Controllers\Admin\DanhGiaController;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
+use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
+use App\Http\Controllers\Staff\CheckoutController;
+use App\Http\Controllers\Client\DanhGiaController as ClientDanhGiaController;
+
 use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
 use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 
@@ -168,6 +174,19 @@ Route::prefix('admin')
         Route::delete('phong/vat-dung-instances/{instance}', [PhongVatDungInstanceController::class, 'destroy'])->name('phong.vatdung.instances.destroy');
         Route::post('phong/vat-dung-instances/{instance}/mark-lost', [PhongVatDungInstanceController::class, 'markLost'])->name('phong.vatdung.instances.mark-lost');
 
+        //đáng giá phòng 
+        Route::get('/danh-gia', [DanhGiaController::class, 'index'])->name('danhgia.index');
+        Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
+        Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
+        // trả lời
+        Route::post(
+            '/danh-gia/{id}/reply',
+            [DanhGiaController::class, 'reply']
+        )->name('danhgia.reply');
+
+
+
+
         // ==================== BLOG (ADMIN) ====================
         Route::prefix('blog')->name('blog.')->group(function () {
             Route::get('posts/trash', [AdminPost::class, 'trash'])->name('posts.trash');
@@ -224,7 +243,7 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
             Route::post('/{id}/reject', [RefundController::class, 'reject'])->name('reject');
             Route::post('/{id}/complete', [RefundController::class, 'complete'])->name('complete');
         });
-         Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
+        Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
             ->name('bookings.rooms.clear_cleaning');
         Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
@@ -300,11 +319,24 @@ Route::middleware('auth')
         Route::get('rewards', [App\Http\Controllers\Account\RewardController::class, 'index'])
         ->name('rewards');
 
-    });
+ 
     
     // Room change callback (outside auth middleware to accept VNPay callback)
     Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
 
+
+        // Danh sách đặt phòng
+        Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
+
+        // Hiển thị form đánh giá
+        // Hiển thị form đánh giá
+        Route::get('/danh-gia/{booking}', [ClientDanhGiaController::class, 'create'])
+            ->name('danhgia.create');
+
+        // Lưu đánh giá
+        Route::post('/danh-gia/{booking}', [ClientDanhGiaController::class, 'store'])
+            ->name('danhgia.store');
+    });
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
 Route::middleware('auth')->group(function () {
     Route::post('/vouchers/claim/{id}', [ClientVoucherController::class, 'claim'])->name('client.vouchers.claim');

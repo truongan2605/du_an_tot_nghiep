@@ -84,6 +84,7 @@
                                 <small class="text-muted">Không</small>
                             @endif
                         </td>
+                        
                         <td style="width:120px;">
                             @if ($p->images->isNotEmpty())
                                 <img src="{{ asset('storage/' . $p->images->first()->image_path) }}" width="100"

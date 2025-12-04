@@ -47,4 +47,6 @@ class HomeController extends Controller
             'blogPosts'   => $blogPosts, // <-- truyền sang view
         ]);
     }
+
+    
 }

@@ -133,6 +133,18 @@ class DatPhong extends Model
     {
         return $this->hasMany(DanhGia::class, 'dat_phong_id');
     }
+public function phongs()
+{
+    return $this->belongsToMany(
+        Phong::class,
+        'dat_phong_items_history',
+        'dat_phong_id',
+        'phong_id'
+    );
+}
+
+
+
 
     public function consumptions()
     {
@@ -354,4 +366,15 @@ class DatPhong extends Model
     {
         return $query->where('trang_thai', 'da_huy');
     }
+
+    public function items()
+{
+    return $this->hasMany(DatPhongItem::class, 'dat_phong_id');
+}
+
+public function phongitems()
+{
+    return $this->belongsToMany(Phong::class, 'dat_phong_items', 'dat_phong_id', 'phong_id');
+}
+
 }
