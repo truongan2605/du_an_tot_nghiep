@@ -1779,7 +1779,7 @@
                 }
 
                 // TODO: Submit room change request
-                alert(`Đang xử lý đổi sang phòng #${selectedRoomId}...\n(Chức năng backend đang được phát triển)`);
+                alert(`Đang xử lý đổi sang phòng #${selectedRoomId}...\n`);
                 
                 // Will be replaced with actual form submission:
                 // const form = document.createElement('form');
