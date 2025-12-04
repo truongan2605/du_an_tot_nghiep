@@ -57,6 +57,10 @@
                                                     class="bi bi-heart fa-fw me-2"></i>Danh sách yêu thích</a>
                                         </li>
                                         <li class="nav-item">
+                                            <a class="nav-link" href="{{ route('client.vouchers.my') }}"><i
+                                                    class="fa-solid fa-wallet fa-fw me-2"></i>Ví Voucher</a>
+                                        </li>
+                                        <li class="nav-item">
                                             <form method="POST" action="{{ route('logout') }}">
                                                 @csrf
                                                 <button type="submit"
@@ -217,14 +221,14 @@
                                                     <div class="mt-2">
                                                         <a href="{{ route('account.booking.show', $b->id) }}"
                                                             class="btn btn-primary-soft mb-0">Quản lý đặt phòng</a>
-                                                        
+
                                                         @if(in_array($b->trang_thai, ['dang_cho', 'da_xac_nhan']))
                                                             @php
                                                                 // Calculate days until check-in using actual check-in time (14:00)
                                                                 $checkInDateTime = \Carbon\Carbon::parse($b->ngay_nhan_phong)->setTime(14, 0, 0);
                                                                 $now = \Carbon\Carbon::now();
                                                                 $daysUntilCheckIn = (int) $now->diffInDays($checkInDateTime, false);
-                                                                
+
                                                                 // Determine deposit type based on deposit_amount
                                                                 $totalAmount = $b->snapshot_total ?? ($b->tong_tien ?? 0);
                                                                 $paidAmount = $b->deposit_amount ?? 0;
@@ -233,7 +237,7 @@
                                                                     $percentage = ($paidAmount / $totalAmount) * 100;
                                                                     $depositType = ($percentage >= 90) ? 100 : 50;
                                                                 }
-                                                                
+
                                                                 // Calculate refund percentage based on policy
                                                                 $refundPercentage = 0;
                                                                 if ($depositType == 100) {
@@ -247,17 +251,17 @@
                                                                     elseif ($daysUntilCheckIn >= 1) $refundPercentage = 30;
                                                                     else $refundPercentage = 0;
                                                                 }
-                                                                
+
                                                                 $refundAmount = ($paidAmount * $refundPercentage) / 100;
                                                             @endphp
-                                                            
-                                                            <button type="button" 
-                                                                    class="btn btn-danger-soft mb-0 ms-2" 
-                                                                    data-bs-toggle="modal" 
+
+                                                            <button type="button"
+                                                                    class="btn btn-danger-soft mb-0 ms-2"
+                                                                    data-bs-toggle="modal"
                                                                     data-bs-target="#cancelModal{{ $b->id }}">
                                                                 <i class="bi bi-x-circle me-1"></i>Hủy phòng
                                                             </button>
-                                                            
+
                                                             <!-- Cancel Booking Modal -->
                                                             <div class="modal fade" id="cancelModal{{ $b->id }}" tabindex="-1" aria-hidden="true">
                                                                 <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -284,11 +288,11 @@
                                                                                         <strong>Ngày nhận phòng:</strong> {{ $checkInDateTime->format('d/m/Y') }}
                                                                                     </div>
                                                                                     <div class="col-md-6">
-                                                                                        <strong>Số tiền đã thanh toán:</strong> 
+                                                                                        <strong>Số tiền đã thanh toán:</strong>
                                                                                         <span class="text-danger">{{ number_format($paidAmount, 0, ',', '.') }} ₫</span>
                                                                                     </div>
                                                                                     <div class="col-md-6">
-                                                                                        <strong>Thời gian còn lại:</strong> 
+                                                                                        <strong>Thời gian còn lại:</strong>
                                                                                         <span class="badge bg-info">{{ $daysUntilCheckIn }} ngày</span>
                                                                                     </div>
                                                                                 </div>
@@ -450,7 +454,7 @@
                                                                 $pendingTransaction = $b->giaoDichs->where('trang_thai', 'dang_cho')->whereIn('nha_cung_cap', ['vnpay', 'momo'])->first();
                                                             @endphp
                                                             @if($pendingTransaction)
-                                                                <a href="{{ route('account.booking.retry-payment', $b->id) }}" 
+                                                                <a href="{{ route('account.booking.retry-payment', $b->id) }}"
                                                                    class="btn btn-success-soft mb-0 ms-2">
                                                                     <i class="bi bi-credit-card me-1"></i>Tiếp tục thanh toán
                                                                 </a>
@@ -527,7 +531,7 @@
                                                 : (json_decode($b->snapshot_meta, true) ?: []);
                                             $label = $statusLabel($b->trang_thai);
                                             $badge = $statusBadge($b->trang_thai);
-                                            
+
                                             // Get refund request
                                             $refundRequest = $b->refundRequests->first();
                                         @endphp
@@ -561,11 +565,11 @@
                                                             VND</h6>
                                                     </div>
                                                 </div>
-                                                
+
                                                 {{-- Refund Information --}}
                                                 @if($refundRequest)
                                                     <hr class="my-3">
-                                                    
+
                                                     {{-- Refund Summary Card --}}
                                                     <div class="card border-0 bg-light-success mb-3">
                                                         <div class="card-body p-3">
@@ -621,9 +625,9 @@
                                                                         <i class="bi {{ $statusIcon }} me-1"></i>{{ $statusText }}
                                                                     </span>
                                                                     <div class="mt-2">
-                                                                        <button class="btn btn-sm btn-primary" type="button" 
-                                                                                data-bs-toggle="collapse" 
-                                                                                data-bs-target="#refundDetails{{ $b->id }}" 
+                                                                        <button class="btn btn-sm btn-primary" type="button"
+                                                                                data-bs-toggle="collapse"
+                                                                                data-bs-target="#refundDetails{{ $b->id }}"
                                                                                 aria-expanded="false">
                                                                             <i class="bi bi-chevron-down"></i> Xem chi tiết
                                                                         </button>
@@ -632,7 +636,7 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     {{-- Expandable Detailed Breakdown --}}
                                                     <div class="collapse" id="refundDetails{{ $b->id }}">
                                                         <div class="card border mb-3">
@@ -715,7 +719,7 @@
                                                                                 <p class="mb-0 mt-1 small">Yêu cầu hoàn tiền đã được tạo tự động khi đặt phòng bị hủy</p>
                                                                             </div>
                                                                         </div>
-                                                                        
+
                                                                         @if($refundRequest->status === 'rejected')
                                                                             <div class="timeline-item rejected">
                                                                                 <div class="timeline-marker">
@@ -768,7 +772,7 @@
                                                                                     @endif
                                                                                 </div>
                                                                             </div>
-                                                                            
+
                                                                             <div class="timeline-item {{ $refundRequest->status === 'completed' ? 'completed' : '' }}">
                                                                                 <div class="timeline-marker">
                                                                                     <i class="bi {{ $refundRequest->status === 'completed' ? 'bi-check-circle-fill' : 'bi-circle' }}"></i>
@@ -788,7 +792,7 @@
                                                                                                 <strong>Hoàn tất!</strong> Số tiền <strong>{{ number_format($refundRequest->amount, 0, ',', '.') }} ₫</strong> đã được hoàn vào tài khoản của bạn.
                                                                                             </small>
                                                                                         </div>
-                                                                                        
+
                                                                                         {{-- Proof Image Display --}}
                                                                                         @if($refundRequest->proof_image_path)
                                                                                             <div class="mt-3 border rounded p-3 bg-white">
@@ -797,9 +801,9 @@
                                                                                                 </strong>
                                                                                                 <div class="text-center">
                                                                                                     <a href="{{ $refundRequest->proof_image_url }}" target="_blank">
-                                                                                                        <img src="{{ $refundRequest->proof_image_url }}" 
-                                                                                                             alt="Proof of refund" 
-                                                                                                             class="img-thumbnail" 
+                                                                                                        <img src="{{ $refundRequest->proof_image_url }}"
+                                                                                                             alt="Proof of refund"
+                                                                                                             class="img-thumbnail"
                                                                                                              style="max-width: 100%; max-height: 300px; cursor: pointer;">
                                                                                                     </a>
                                                                                                 </div>
@@ -826,7 +830,7 @@
                                                                 </div>
 
                                                                 {{-- Help Information --}}
-                                                              
+
                                                             </div>
                                                         </div>
                                                     </div>

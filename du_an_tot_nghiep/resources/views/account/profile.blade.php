@@ -57,6 +57,11 @@
                                                     class="bi bi-heart fa-fw me-2"></i>Danh sách yêu thích</a>
                                         </li>
                                         <li class="nav-item">
+                                            <a class="nav-link" href="{{ route('client.vouchers.my') }}"><i
+                                                    class="fa-solid fa-wallet fa-fw me-2"></i>Ví Voucher</a>
+                                        </li>
+
+                                        <li class="nav-item">
                                             <form method="POST" action="{{ route('logout') }}">
                                                 @csrf
                                                 <button type="submit"
