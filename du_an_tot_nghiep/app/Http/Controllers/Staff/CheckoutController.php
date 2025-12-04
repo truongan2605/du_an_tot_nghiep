@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Services\PaymentNotificationService;
+use App\Models\DatPhongItemHistory;
 
 class CheckoutController extends Controller
 {
@@ -215,6 +216,33 @@ class CheckoutController extends Controller
         return $item;
     }
 
+    // hítory item
+    private function archiveDatPhongItems(int $bookingId)
+{
+    $cartItems = DB::table('dat_phong_item')->where('dat_phong_id', $bookingId)->get();
+
+    $created = collect();
+    foreach ($cartItems as $it) {
+        // map tên cột theo db của bạn: nếu cột tên khác, sửa lại
+        $payload = [
+            'dat_phong_id' => $it->dat_phong_id ?? $bookingId,
+            'phong_id' => $it->phong_id ?? null,
+            'phong_ma' => $it->phong_ma ?? null,
+            'loai_phong_id' => $it->loai_phong_id ?? null,
+            'gia_tren_dem' => $it->gia_tren_dem ?? ($it->gia ?? null),
+            'so_luong' => $it->so_luong ?? 1,
+            'snapshot' => null,
+            'created_at' => $it->created_at ?? now(),
+            'updated_at' => $it->updated_at ?? now(),
+        ];
+
+        $createdItem = DatPhongItemHistory::create($payload);
+        $created->push($createdItem);
+    }
+
+    return $created;
+}
+
     /**
      * Xóa ảnh CCCD từ snapshot_meta của booking
      */
@@ -370,7 +398,12 @@ class CheckoutController extends Controller
                     Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
                 }
 
-                DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+                // 1) sao chép cart -> history
+$this->archiveDatPhongItems($booking->id);
+
+// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+
 
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
@@ -472,7 +505,12 @@ class CheckoutController extends Controller
                     Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
                 }
 
-                DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+                // 1) sao chép cart -> history
+$this->archiveDatPhongItems($booking->id);
+
+// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+
 
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
@@ -522,7 +560,12 @@ class CheckoutController extends Controller
                         Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
                     }
 
-                    DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+                    // 1) sao chép cart -> history
+$this->archiveDatPhongItems($booking->id);
+
+// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+
 
                     $booking->checkout_at = now();
                     $booking->checkout_by = Auth::id();
@@ -584,7 +627,12 @@ class CheckoutController extends Controller
                     Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
                 }
 
-                DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+                // 1) sao chép cart -> history
+$this->archiveDatPhongItems($booking->id);
+
+// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+
 
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
@@ -663,7 +711,12 @@ class CheckoutController extends Controller
                 Phong::whereIn('id', $phongIds)->update(['trang_thai' => 'trong', 'don_dep' => true, 'updated_at' => now()]);
             }
 
-            DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+            // 1) sao chép cart -> history
+$this->archiveDatPhongItems($booking->id);
+
+// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+
 
             $booking->checkout_at = now();
             $booking->checkout_by = Auth::id();
