@@ -382,7 +382,7 @@
                                         {{ number_format($phong->gia_cuoi_cung, 0, '.', ',') }} VND
                                     </h6>
                                    <h6 class="mb-0">
-    {{ number_format($phong->danhGias->whereNotNull('rating')->avg('rating'), 1) }}
+    4.8
     <i class="fa-solid fa-star text-warning ms-1"></i>
 </h6>
 
