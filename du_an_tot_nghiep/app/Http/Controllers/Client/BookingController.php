@@ -540,7 +540,10 @@ class BookingController extends Controller
             
             // Store vouchers to apply in session
             if (count($appliedVouchers) > 0) {
-                session(['room_change_vouchers' => $appliedVouchers]);
+                session([
+                    'room_change_vouchers' => $appliedVouchers,
+                    'room_change_voucher_total' => $voucherDiscount  // Store total for callback
+                ]);
             }
             
             // Check if additional payment is actually needed
@@ -550,7 +553,8 @@ class BookingController extends Controller
                 return $this->redirectToVNPayForRoomChange($booking, $roomChange, $finalPaymentNeeded);
             } else {
                 // No payment needed - complete directly and mark vouchers as used
-                $result = $this->completeRoomChange($roomChange);
+                // Pass voucher discount to completeRoomChange
+                $result = $this->completeRoomChange($roomChange, $voucherDiscount);
                 
                 // Mark vouchers as used
                 foreach ($appliedVouchers as $voucherInfo) {
@@ -598,7 +602,7 @@ class BookingController extends Controller
             
         } elseif ($priceDiff < 0) {
             // DOWNGRADE - Auto refund via voucher
-            $result = $this->completeRoomChange($roomChange);
+            $result = $this->completeRoomChange($roomChange, 0);  // No voucher used for downgrade
 
             if ($result) {
                 // Calculate refund amount
@@ -627,7 +631,7 @@ class BookingController extends Controller
 
         } else {
             // SAME PRICE - Direct update
-            $result = $this->completeRoomChange($roomChange);
+            $result = $this->completeRoomChange($roomChange, 0);  // No payment or voucher
 
             if ($result) {
                 $oldRoom = $roomChange->oldRoom;
@@ -754,8 +758,9 @@ class BookingController extends Controller
             ];
             $roomChange->save();
 
-            // Complete room change
-            $result = $this->completeRoomChange($roomChange);
+            // Complete room change - include voucher value from session
+            $voucherTotal = session('room_change_voucher_total', 0);
+            $result = $this->completeRoomChange($roomChange, $voucherTotal);
             
             // 🎫 Mark vouchers as used if any
             $appliedVouchers = session('room_change_vouchers', []);
@@ -797,8 +802,8 @@ class BookingController extends Controller
                 }
             }
             
-            // Clear session
-            session()->forget(['room_change_id', 'room_change_vouchers']);
+            // Clear session - include voucher_total
+            session()->forget(['room_change_id', 'room_change_vouchers', 'room_change_voucher_total']);
             
             if ($result) {
                 $oldRoom = $roomChange->oldRoom;
@@ -842,8 +847,9 @@ class BookingController extends Controller
 
     /**
      * Complete room change (update booking)
+     * @param $voucherValue Amount paid via vouchers (should be added to deposit)
      */
-    private function completeRoomChange($roomChange)
+    private function completeRoomChange($roomChange, $voucherValue = 0)
     {
         try {
             DB::beginTransaction();
@@ -887,16 +893,19 @@ class BookingController extends Controller
             // Update booking totals
             $booking->tong_tien = $newBookingTotal;
             $booking->snapshot_total = $newBookingTotal;
-            $booking->deposit_amount = $booking->deposit_amount + $paymentMade;  // Add payment to existing deposit
+            
+            // CRITICAL FIX: Add BOTH VNPay payment AND voucher value to deposit
+            $booking->deposit_amount = $booking->deposit_amount + $paymentMade + $voucherValue;
             $booking->save();
 
-            Log::info(' Booking totals updated after room change', [
+            Log::info('💰 Booking totals updated after room change', [
                 'old_room_total' => $oldRoomTotal,
                 'new_room_total' => $newRoomTotal,
                 'current_booking_total' => $currentBookingTotal,
                 'new_booking_total' => $newBookingTotal,
-                'old_deposit' => $booking->deposit_amount - $paymentMade,
-                'payment_made' => $paymentMade,
+                'old_deposit' => $booking->deposit_amount - $paymentMade - $voucherValue,
+                'vnpay_payment' => $paymentMade,
+                'voucher_value' => $voucherValue,
                 'new_deposit' => $booking->deposit_amount
             ]);
 

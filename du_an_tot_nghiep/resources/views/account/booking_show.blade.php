@@ -217,7 +217,7 @@
                                                 <i class="bi {{ in_array($booking->trang_thai, ['dang_su_dung', 'hoan_thanh']) ? 'bi-check-circle-fill' : 'bi-circle' }}"></i>
                                             </div>
                                             <div class="timeline-content">
-                                                <h6>Check-in</h6>
+                                                <h6>Nhận Phòng</h6>
                                                 <small class="text-muted">{{ $formatDateVi($booking->ngay_nhan_phong, 'd M Y') }} 14:00</small>
                                             </div>
                                         </div>
@@ -227,7 +227,7 @@
                                                 <i class="bi {{ $booking->trang_thai === 'hoan_thanh' ? 'bi-check-circle-fill' : 'bi-circle' }}"></i>
                                             </div>
                                             <div class="timeline-content">
-                                                <h6>Check-out</h6>
+                                                <h6>Trả phòng</h6>
                                                 <small class="text-muted">{{ $formatDateVi($booking->ngay_tra_phong, 'd M Y') }} 12:00</small>
                                             </div>
                                         </div>
@@ -745,7 +745,7 @@
                             <div class="d-flex align-items-start">
                                 <i class="bi bi-info-circle-fill fs-5 me-3 flex-shrink-0 text-info"></i>
                                 <div class="small">
-                                    <strong>Chính sách:</strong> Trước 24h check-in • Upgrade: Thanh toán chênh lệch • Downgrade: Nhận voucher • Giới hạn 2 lần/booking • Miễn phí nếu cùng giá
+                                    <strong>Chính sách:</strong> Trước 24h Nhận phòng • Đổi phòng tăng giá: Thanh toán chênh lệch • Đổi phòng dưới giá: Nhận voucher • Giới hạn 2 lần/Đổi phòng • Miễn phí nếu cùng giá
                                 </div>
                             </div>
                         </div>
