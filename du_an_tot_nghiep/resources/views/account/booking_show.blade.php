@@ -1586,11 +1586,11 @@
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="text-muted">
-                                        <i class="bi bi-info-circle me-1"></i>Phụ thu:
+                                        <i class="bi bi-info-circle me-1"></i>Phụ thu số người vượt:
                                     </span>
                                     <strong class="text-danger">+${room.extra_charge.toLocaleString('vi-VN')}đ</strong>
                                 </div>
-                                <small class="text-muted">(${room.extra_guests} người vượt sức chứa)</small>
+                                <small class="text-muted">(số người vượt sức chứa )</small>
                             </div>
                         `;
                     }
