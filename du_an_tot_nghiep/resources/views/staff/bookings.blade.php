@@ -96,6 +96,13 @@
                                                     {{ $code }}
                                                 </span>
                                             @endforeach
+                                            @if ($booking->roomChanges->isNotEmpty())
+                                                <span class="badge bg-warning text-dark small rounded-pill" 
+                                                    data-bs-toggle="tooltip" 
+                                                    title="Có {{ $booking->roomChanges->count() }} lần đổi phòng">
+                                                    <i class="bi bi-arrow-left-right"></i> {{ $booking->roomChanges->count() }}
+                                                </span>
+                                            @endif
                                         @else
                                             <span class="text-muted small">Chưa gán</span>
                                         @endif
@@ -126,8 +133,20 @@
                                         </span>
                                     </td>
                                     <td class="small">{{ Str::limit($booking->ma_tham_chieu ?? 'Chưa có', 15) }}</td>
-                                    <td class="small">{{ $booking->ngay_nhan_phong?->format('d/m H:i') ?? '-' }}</td>
-                                    <td class="small">{{ $booking->ngay_tra_phong?->format('d/m H:i') ?? '-' }}</td>
+                                    <td class="small">
+                                        @if($booking->ngay_nhan_phong)
+                                            {{ \Carbon\Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0)->format('d/m H:i') }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td class="small">
+                                        @if($booking->ngay_tra_phong)
+                                            {{ \Carbon\Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0)->format('d/m H:i') }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
                                     <td class="text-end fw-semibold small">
                                         {{ number_format($booking->tong_tien, 0, ',', '.') }}đ</td>
                                     <td class="text-end fw-semibold small">
@@ -140,9 +159,33 @@
                                                 <i class="bi bi-three-dots-vertical"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                <li>
+                                                    <button class="dropdown-item small quick-view-btn" 
+                                                        data-booking-id="{{ $booking->id }}"
+                                                        type="button">
+                                                        <i class="bi bi-lightning me-1"></i> Xem Nhanh
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button class="dropdown-item small quick-note-btn" 
+                                                        data-booking-id="{{ $booking->id }}"
+                                                        type="button">
+                                                        <i class="bi bi-pencil-square me-1"></i> Ghi Chú Nhanh
+                                                    </button>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
                                                 <li><a class="dropdown-item small"
                                                         href="{{ route('staff.bookings.show', $booking->id) }}"><i
                                                             class="bi bi-eye me-1"></i> Xem Chi Tiết</a></li>
+                                                @if ($booking->roomChanges->isNotEmpty())
+                                                    <li>
+                                                        <button class="dropdown-item small toggle-room-changes" 
+                                                            data-booking-id="{{ $booking->id }}"
+                                                            type="button">
+                                                            <i class="bi bi-clock-history me-1"></i> Lịch Sử Đổi Phòng
+                                                        </button>
+                                                    </li>
+                                                @endif
                                                 @if (in_array($booking->trang_thai, ['dang_cho', 'dang_cho_xac_nhan', 'da_xac_nhan']))
                                                     <li>
                                                         <form action="{{ route('staff.cancel', $booking->id) }}"
@@ -172,6 +215,85 @@
                                         </div>
                                     </td>
                                 </tr>
+                                {{-- Room Change History Row (Hidden by default) --}}
+                                @if ($booking->roomChanges->isNotEmpty())
+                                    <tr class="room-changes-row" id="room-changes-{{ $booking->id }}" style="display: none;">
+                                        <td colspan="10" class="p-0">
+                                            <div class="bg-light border-top border-bottom px-4 py-3">
+                                                <h6 class="mb-3 text-primary">
+                                                    <i class="bi bi-clock-history me-2"></i>Lịch Sử Đổi Phòng
+                                                </h6>
+                                                <div class="timeline">
+                                                    @foreach ($booking->roomChanges->sortByDesc('created_at') as $change)
+                                                        <div class="timeline-item mb-3 d-flex">
+                                                            <div class="timeline-icon me-3">
+                                                                @if ($change->isUpgrade())
+                                                                    <span class="badge bg-success rounded-circle p-2">
+                                                                        <i class="bi bi-arrow-up"></i>
+                                                                    </span>
+                                                                @elseif ($change->isDowngrade())
+                                                                    <span class="badge bg-danger rounded-circle p-2">
+                                                                        <i class="bi bi-arrow-down"></i>
+                                                                    </span>
+                                                                @else
+                                                                    <span class="badge bg-info rounded-circle p-2">
+                                                                        <i class="bi bi-arrow-left-right"></i>
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+                                                            <div class="timeline-content flex-grow-1">
+                                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                    <div>
+                                                                        <strong>{{ $change->oldRoom->ma_phong ?? 'N/A' }}</strong>
+                                                                        <i class="bi bi-arrow-right mx-2"></i>
+                                                                        <strong>{{ $change->newRoom->ma_phong ?? 'N/A' }}</strong>
+                                                                        @if ($change->isUpgrade())
+                                                                            <span class="badge bg-success ms-2">Nâng cấp</span>
+                                                                        @elseif ($change->isDowngrade())
+                                                                            <span class="badge bg-danger ms-2">Hạ cấp</span>
+                                                                        @else
+                                                                            <span class="badge bg-info ms-2">Cùng giá</span>
+                                                                        @endif
+                                                                    </div>
+                                                                    <small class="text-muted">
+                                                                        {{ $change->created_at->format('d/m/Y H:i') }}
+                                                                    </small>
+                                                                </div>
+                                                                <div class="small text-muted">
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <strong>Giá cũ:</strong> {{ number_format($change->old_price, 0, ',', '.') }}đ/đêm<br>
+                                                                            <strong>Giá mới:</strong> {{ number_format($change->new_price, 0, ',', '.') }}đ/đêm<br>
+                                                                            <strong>Số đêm:</strong> {{ $change->nights }}
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            <strong>Người thực hiện:</strong> 
+                                                                            {{ $change->changed_by_type === 'customer' ? 'Khách hàng' : 'Nhân viên' }}
+                                                                            ({{ $change->changedByUser->name ?? 'N/A' }})<br>
+                                                                            <strong>Trạng thái:</strong> 
+                                                                            @if ($change->status === 'completed')
+                                                                                <span class="badge bg-success">Hoàn thành</span>
+                                                                            @elseif ($change->status === 'pending')
+                                                                                <span class="badge bg-warning">Đang xử lý</span>
+                                                                            @else
+                                                                                <span class="badge bg-danger">Thất bại</span>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                    @if ($change->change_reason)
+                                                                        <div class="mt-2">
+                                                                            <strong>Lý do:</strong> {{ $change->change_reason }}
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endif
                             @empty
                                 <tr class="no-data-row">
                                     <td colspan="10" class="text-center py-4 text-muted">
@@ -191,6 +313,75 @@
                     <div>
                         {{ $bookings->onEachSide(1)->links('pagination::bootstrap-5') }}
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Quick View Modal --}}
+    <div class="modal fade" id="quickViewModal" tabindex="-1" aria-labelledby="quickViewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary bg-opacity-10">
+                    <h5 class="modal-title" id="quickViewModalLabel">
+                        <i class="bi bi-lightning-fill me-2 text-primary"></i>
+                        Xem Nhanh Booking
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="quickViewContent">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Đang tải thông tin booking...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Đóng
+                    </button>
+                    <a href="#" class="btn btn-primary btn-sm" id="viewFullDetailsBtn">
+                        <i class="bi bi-eye me-1"></i>Xem Chi Tiết Đầy Đủ
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Quick Note Modal --}}
+    <div class="modal fade" id="quickNoteModal" tabindex="-1" aria-labelledby="quickNoteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-10">
+                    <h5 class="modal-title" id="quickNoteModalLabel">
+                        <i class="bi bi-pencil-square me-2 text-warning"></i>
+                        Ghi Chú Nhanh
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="quickNoteForm">
+                        <input type="hidden" id="noteBookingId" name="booking_id">
+                        <div class="mb-3">
+                            <label for="bookingReference" class="form-label fw-bold">Booking:</label>
+                            <input type="text" class="form-control" id="bookingReference" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="noteContent" class="form-label fw-bold">Ghi chú: <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="noteContent" name="note" rows="4" 
+                                placeholder="Nhập ghi chú cho booking này..." required></textarea>
+                            <div class="form-text">Ghi chú sẽ được lưu vào lịch sử của booking</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+                        <i class="bi bi-x-lg me-1"></i>Hủy
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" id="saveNoteBtn">
+                        <i class="bi bi-check-lg me-1"></i>Lưu Ghi Chú
+                    </button>
                 </div>
             </div>
         </div>
@@ -246,6 +437,269 @@
                     }
                 }
             };
+
+            // Quick View functionality
+            document.querySelectorAll('.quick-view-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const bookingId = this.dataset.bookingId;
+                    const modal = new bootstrap.Modal(document.getElementById('quickViewModal'));
+                    const contentDiv = document.getElementById('quickViewContent');
+                    const viewFullBtn = document.getElementById('viewFullDetailsBtn');
+                    
+                    // Update link to full details page
+                    viewFullBtn.href = `/staff/bookings/${bookingId}`;
+                    
+                    // Show loading state
+                    contentDiv.innerHTML = `
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                            <p class="mt-3 text-muted">Đang tải thông tin booking...</p>
+                        </div>
+                    `;
+                    
+                    modal.show();
+                    
+                    // Fetch booking details via AJAX
+                    fetch(`/staff/bookings/${bookingId}/quick-view`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                contentDiv.innerHTML = formatQuickViewContent(data.booking);
+                            } else {
+                                contentDiv.innerHTML = `
+                                    <div class="alert alert-danger">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        ${data.message || 'Không thể tải thông tin booking'}
+                                    </div>
+                                `;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            contentDiv.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    Có lỗi xảy ra khi tải thông tin. Vui lòng thử lại.
+                                </div>
+                            `;
+                        });
+                    
+                    // Close dropdown
+                    const dropdown = this.closest('.dropdown');
+                    if (dropdown) {
+                        const toggle = dropdown.querySelector('.dropdown-toggle');
+                        if (toggle) {
+                            bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+                        }
+                    }
+                });
+            });
+
+            // Quick Note functionality
+            document.querySelectorAll('.quick-note-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const bookingId = this.dataset.bookingId;
+                    const row = this.closest('tr');
+                    const bookingRef = row.querySelector('td:nth-child(5)').textContent.trim();
+                    
+                    document.getElementById('noteBookingId').value = bookingId;
+                    document.getElementById('bookingReference').value = bookingRef;
+                    document.getElementById('noteContent').value = '';
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('quickNoteModal'));
+                    modal.show();
+                    
+                    // Close dropdown
+                    const dropdown = this.closest('.dropdown');
+                    if (dropdown) {
+                        const toggle = dropdown.querySelector('.dropdown-toggle');
+                        if (toggle) {
+                            bootstrap.Dropdown.getOrCreateInstance(toggle).hide();
+                        }
+                    }
+                });
+            });
+
+            // Save Note functionality
+            document.getElementById('saveNoteBtn').addEventListener('click', function() {
+                const bookingId = document.getElementById('noteBookingId').value;
+                const noteContent = document.getElementById('noteContent').value.trim();
+                const saveBtn = this;
+                
+                if (!noteContent) {
+                    alert('Vui lòng nhập nội dung ghi chú');
+                    return;
+                }
+                
+                // Disable button and show loading
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
+                
+                // Send AJAX request
+                fetch(`/staff/bookings/${bookingId}/add-note`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({ note: noteContent })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success message
+                        alert('✅ Ghi chú đã được lưu thành công!');
+                        
+                        // Close modal
+                        bootstrap.Modal.getInstance(document.getElementById('quickNoteModal')).hide();
+                        
+                        // Reset form
+                        document.getElementById('quickNoteForm').reset();
+                    } else {
+                        alert('❌ ' + (data.message || 'Không thể lưu ghi chú'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('❌ Có lỗi xảy ra khi lưu ghi chú. Vui lòng thử lại.');
+                })
+                .finally(() => {
+                    // Re-enable button
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Lưu Ghi Chú';
+                });
+            });
+
+            // Helper function to format quick view content
+            function formatQuickViewContent(booking) {
+                const statusColors = {
+                    'dang_cho': 'warning',
+                    'da_xac_nhan': 'primary',
+                    'dang_su_dung': 'info',
+                    'da_huy': 'secondary',
+                    'hoan_thanh': 'success'
+                };
+                
+                const statusLabels = {
+                    'dang_cho': 'Chờ Xác Nhận',
+                    'da_xac_nhan': 'Đã Xác Nhận',
+                    'dang_su_dung': 'Đang Sử Dụng',
+                    'da_huy': 'Đã Hủy',
+                    'hoan_thanh': 'Hoàn Thành'
+                };
+                
+                return `
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">${booking.ma_tham_chieu}</h6>
+                                    <small class="text-muted">ID: ${booking.id}</small>
+                                </div>
+                                <span class="badge bg-${statusColors[booking.trang_thai] || 'secondary'}">
+                                    ${statusLabels[booking.trang_thai] || booking.trang_thai}
+                                </span>
+                            </div>
+                            <hr>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="text-muted small">Khách hàng</label>
+                            <div class="fw-bold">${booking.customer_name || 'N/A'}</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="text-muted small">Email / SĐT</label>
+                            <div class="fw-bold small">${booking.customer_email || 'N/A'}</div>
+                            <div class="fw-bold small">${booking.customer_phone || 'N/A'}</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="text-muted small">Ngày nhận phòng</label>
+                            <div class="fw-bold">
+                                <i class="bi bi-calendar-check text-success me-1"></i>
+                                ${booking.ngay_nhan_phong}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="text-muted small">Ngày trả phòng</label>
+                            <div class="fw-bold">
+                                <i class="bi bi-calendar-x text-danger me-1"></i>
+                                ${booking.ngay_tra_phong}
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="text-muted small">Phòng</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                ${booking.rooms.map(room => `
+                                    <span class="badge bg-success bg-opacity-75">${room}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="text-muted small">Tổng tiền</label>
+                            <div class="fw-bold text-primary fs-5">${formatMoney(booking.tong_tien)}</div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="text-muted small">Đã cọc</label>
+                            <div class="fw-bold text-success">${formatMoney(booking.deposit_amount)}</div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label class="text-muted small">Còn lại</label>
+                            <div class="fw-bold text-danger">${formatMoney(booking.tong_tien - booking.deposit_amount)}</div>
+                        </div>
+                        
+                        ${booking.notes && booking.notes.length > 0 ? `
+                            <div class="col-12">
+                                <label class="text-muted small">Ghi chú gần nhất</label>
+                                <div class="alert alert-info mb-0">
+                                    <small>${booking.notes[0].content}</small>
+                                    <div class="text-muted mt-1" style="font-size: 0.75rem;">
+                                        ${booking.notes[0].created_at} - ${booking.notes[0].created_by}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            function formatMoney(amount) {
+                return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+            }
+
+            // Toggle room changes history
+            document.querySelectorAll('.toggle-room-changes').forEach(button => {
+                button.addEventListener('click', function() {
+                    const bookingId = this.dataset.bookingId;
+                    const historyRow = document.getElementById(`room-changes-${bookingId}`);
+                    
+                    if (historyRow) {
+                        if (historyRow.style.display === 'none') {
+                            historyRow.style.display = '';
+                        } else {
+                            historyRow.style.display = 'none';
+                        }
+                    }
+                    
+                    // Close the dropdown
+                    const dropdown = this.closest('.dropdown');
+                    if (dropdown) {
+                        const toggle = dropdown.querySelector('.dropdown-toggle');
+                        if (toggle) {
+                            const inst = bootstrap.Dropdown.getOrCreateInstance(toggle);
+                            inst.hide();
+                        }
+                    }
+                });
+            });
 
             const statusFilter = document.getElementById('statusFilter');
             const dateFilter = document.getElementById('dateFilter');
@@ -345,6 +799,34 @@
 
         .position-relative {
             position: relative;
+        }
+
+        /* Timeline Styles for Room Change History */
+        .timeline {
+            position: relative;
+        }
+
+        .timeline-item {
+            position: relative;
+        }
+
+        .timeline-icon {
+            flex-shrink: 0;
+        }
+
+        .timeline-content {
+            background: white;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+        }
+
+        .room-changes-row {
+            background-color: #f8f9fa;
+        }
+
+        .room-changes-row td {
+            border: none !important;
         }
     </style>
 @endsection

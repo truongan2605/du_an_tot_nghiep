@@ -33,6 +33,8 @@ class DatPhong extends Model
         'created_by',
         'phuong_thuc',
         'ma_voucher',
+        'voucher_id',
+        'voucher_discount',
         'voucher_code',
         'discount_amount',
         'snapshot_total',
@@ -52,7 +54,7 @@ class DatPhong extends Model
         'early_checkout_refund_amount',
         'is_late_checkout',
         'late_checkout_fee_amount',
-
+        'blocks_checkin',
     ];
 
 
@@ -72,6 +74,7 @@ class DatPhong extends Model
         'deposit_amount' => 'decimal:2',
         'is_late_checkout' => 'boolean',
         'late_checkout_fee_amount' => 'decimal:0',
+        'blocks_checkin' => 'boolean',
     ];
 
     // Relationships
@@ -103,6 +106,11 @@ class DatPhong extends Model
     public function refundRequests()
     {
         return $this->hasMany(\App\Models\RefundRequest::class, 'dat_phong_id');
+    }
+
+    public function refundRequest()
+    {
+        return $this->hasOne(\App\Models\RefundRequest::class, 'dat_phong_id')->latestOfMany();
     }
 
     public function datPhongAddons(): HasMany
@@ -140,6 +148,11 @@ public function phongs()
     public function vatDungIncidents()
     {
         return $this->hasMany(\App\Models\VatDungIncident::class, 'dat_phong_id');
+    }
+
+    public function roomChanges(): HasMany
+    {
+        return $this->hasMany(\App\Models\RoomChange::class, 'dat_phong_id');
     }
 
     public function computeVatDungTotal(): float

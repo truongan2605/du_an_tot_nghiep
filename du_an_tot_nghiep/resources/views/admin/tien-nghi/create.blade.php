@@ -27,8 +27,8 @@
                         </div>
                         <div class="mb-3">
                             <label for="gia" class="form-label">Giá dịch vụ</label>
-                            <input type="number" step="0.01" name="gia" id="gia"
-                                value="{{ old('gia', $tiennghi->gia ?? 0) }}" class="form-control">
+                            <input type="text" id="gia" name="gia" class="form-control"
+                            value="{{ old('gia') }}" oninput="formatMoney(this)" maxlength="20">
                         </div>
 
                         <div class="mb-3">
@@ -101,5 +101,31 @@
                 document.getElementById('preview-container').style.display = 'none';
             }
         });
+
+        function formatMoney(input) {
+        let v = input.value.toLowerCase().replace(/\s+/g, '');
+
+        if (v.endsWith('k')) {
+            v = v.replace('k', '');
+            v = parseInt(v || 0) * 1000;
+        } else if (v.endsWith('m')) {
+            v = v.replace('m', '');
+            v = parseInt(v || 0) * 1000000;
+        } else if (v.endsWith('b')) {
+            v = v.replace('b', '');
+            v = parseInt(v || 0) * 1000000000;
+        } else {
+            v = v.replace(/\D/g, '');
+        }
+
+        if (v.length > 12) v = v.substring(0, 12);
+
+        if (v === "") {
+            input.value = "";
+            return;
+        }
+
+        input.value = Number(v).toLocaleString("vi-VN");
+    }
     </script>
 @endsection

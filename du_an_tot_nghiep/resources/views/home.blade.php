@@ -96,9 +96,9 @@
                     <div class="col-lg-3 col-md-6 d-flex align-items-center">
                         <i class="bi bi-door-open fs-3 me-2 text-muted"></i>
                         <div class="flex-grow-1">
-                            <label class="form-label fw-semibold text-muted mb-1">Room Type</label>
+                            <label class="form-label fw-semibold text-muted mb-1">Loại phòng</label>
                             <select class="form-select js-choice" name="loai_phong_id" data-search-enabled="true">
-                                <option value="">-- All Room Type --</option>
+                                <option value="">-- Tất cả loại phòng --</option>
                                 @foreach ($loaiPhongs as $loaiPhong)
                                     <option value="{{ $loaiPhong->id }}"
                                         {{ request('loai_phong_id') == $loaiPhong->id ? 'selected' : '' }}>
@@ -113,9 +113,9 @@
                     <div class="col-lg-3 col-md-6 d-flex align-items-center">
                         <i class="bi bi-calendar fs-3 me-2 text-muted"></i>
                         <div class="flex-grow-1">
-                            <label class="form-label fw-semibold text-muted mb-1">Check in - out</label>
+                            <label class="form-label fw-semibold text-muted mb-1">Nhận phòng - Trả phòng</label>
                             <input type="text" class="form-control flatpickr" name="date_range" data-mode="range"
-                                placeholder="Select date" value="{{ request('date_range') }}">
+                                placeholder="Chọn ngày" value="{{ request('date_range') }}">
                         </div>
                     </div>
 
@@ -123,7 +123,7 @@
                     <div class="col-lg-5 col-md-12 d-flex align-items-center">
                         <i class="bi bi-cash-stack fs-3 me-3 text-muted"></i>
                         <div class="flex-grow-1">
-                            <label class="form-label fw-semibold text-muted mb-1">Price (VNĐ)</label>
+                            <label class="form-label fw-semibold text-muted mb-1">Giá (VNĐ)</label>
                             <div id="price-slider-home" class="my-1"></div>
                             <div class="d-flex justify-content-between small text-muted mt-1">
                                 <span id="min-price-home">{{ number_format($giaMin, 0, ',', '.') }}đ</span>

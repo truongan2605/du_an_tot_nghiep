@@ -408,6 +408,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
+                $booking->blocks_checkin = false;
                 $booking->is_checkout_early = true;
                 $booking->early_checkout_refund_amount = $earlyRefund > 0 ? $earlyRefund : 0;
                 $booking->save();
@@ -515,6 +516,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
+                $booking->blocks_checkin = false;
                 $booking->is_late_checkout = true;
                 $booking->late_checkout_fee_amount = $lateFee > 0 ? $lateFee : 0;
                 $booking->save();
@@ -570,6 +572,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                     $booking->checkout_at = now();
                     $booking->checkout_by = Auth::id();
                     $booking->trang_thai = 'hoan_thanh';
+                    $booking->blocks_checkin = false;
                     $booking->save();
 
                     // Xóa ảnh CCCD sau khi checkout thành công
@@ -637,6 +640,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 $booking->checkout_at = now();
                 $booking->checkout_by = Auth::id();
                 $booking->trang_thai = 'hoan_thanh';
+                $booking->blocks_checkin = false;
                 $booking->save();
 
                 // Xóa ảnh CCCD sau khi checkout thành công
@@ -721,6 +725,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
             $booking->checkout_at = now();
             $booking->checkout_by = Auth::id();
             $booking->trang_thai = 'hoan_thanh';
+            $booking->blocks_checkin = false;
             $booking->save();
 
             // Xóa ảnh CCCD sau khi checkout thành công
