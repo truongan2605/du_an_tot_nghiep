@@ -65,13 +65,13 @@
         })
     </script>
     <!-- AI chatbox -->
- <script data-name-bot="bot-demo"
+<script data-name-bot="huy"
 	src="https://app.preny.ai/embed-global.js"
 	data-button-style="width:300px;height:300px;"
 	data-language="vi"
 	async
 	defer
-	data-preny-bot-id="691c2794731640a12967585d"
+	data-preny-bot-id="692bcf49a98b11e2f6c759c8"
 ></script>
 
 <!-- end chat -->
