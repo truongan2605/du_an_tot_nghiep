@@ -64,6 +64,10 @@
                                         </a>
                                     </li>
                                     <li class="nav-item">
+                                            <a class="nav-link" href="{{ route('client.vouchers.my') }}"><i
+                                                    class="fa-solid fa-wallet fa-fw me-2"></i>Ví Voucher</a>
+                                        </li>
+                                    <li class="nav-item">
                                         <form method="POST" action="{{ route('logout') }}">
                                             @csrf
                                             <button type="submit"
@@ -155,17 +159,17 @@
 
                             <ul class="list-group">
                                 <li class="list-group-item {{ $currentLevel == 'Đồng' ? 'active' : '' }}">
-                                    <strong>Đồng</strong> 
+                                    <strong>Đồng</strong>
                                 </li>
                                 <li class="list-group-item {{ $currentLevel == 'Bạc' ? 'active' : '' }}">
-                                    <strong>Bạc</strong> 
+                                    <strong>Bạc</strong>
                                     (tiêu ≥ 1.000.000đ trong 1 đơn hoàn thành hoặc tổng chi tiêu ≥ 1.000.000đ)
                                 </li>
                                 <li class="list-group-item {{ $currentLevel == 'Vàng' ? 'active' : '' }}">
                                     <strong>Vàng</strong>(tổng chi tiêu ≥ 15.000.000đ)
                                 </li>
                                 <li class="list-group-item {{ $currentLevel == 'Kim Cương' ? 'active' : '' }}">
-                                    <strong>Kim Cương</strong> 
+                                    <strong>Kim Cương</strong>
                                     (tổng chi tiêu ≥ 50.000.000đ)
                                 </li>
                             </ul>
