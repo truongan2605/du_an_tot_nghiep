@@ -783,6 +783,21 @@ public function handleMoMoCallback(Request $request)
                 'can_thanh_toan' => !$isFullPayment,
             ]);
 
+            // Ghi nhận sử dụng voucher nếu có
+            if (!empty($dat_phong->voucher_id)) {
+                VoucherUsage::firstOrCreate(
+                    [
+                        'dat_phong_id' => $dat_phong->id,
+                        'voucher_id'   => $dat_phong->voucher_id,
+                    ],
+                    [
+                        'nguoi_dung_id'  => $dat_phong->nguoi_dung_id,
+                        'amount' => $dat_phong->voucher_discount ?? 0,
+                        'used_at'  => now(),
+                    ]
+                );
+            }
+
             $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
             $phongIdsToOccupy = [];
 
@@ -805,7 +820,7 @@ public function handleMoMoCallback(Request $request)
                 $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
                 $guestsInRoom = $adultsInRoom + $childrenInRoom;
                 
-                // Get room and its base price
+                // Get room and its base price (SAME AS VNPAY)
                 $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
                 $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
                 $basePrice = $phong ? ($phong->gia_cuoi_cung ?? 0) : 0;
@@ -815,7 +830,7 @@ public function handleMoMoCallback(Request $request)
                 $adultsInCapacity = min($adultsInRoom, $capacity);
                 $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
                 
-                // CRITICAL FIX: Use different variable names to avoid collision
+                // Calculate extra guests beyond capacity
                 $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
                 $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
                 
@@ -823,7 +838,7 @@ public function handleMoMoCallback(Request $request)
                 $extraChildrenCharge = $extraChildrenThisRoom * self::CHILD_PRICE;
                 $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                 
-                // Final price = base + surcharge
+                // Final price = base + surcharge (NO VOUCHER - voucher applied at booking level)
                 $price_per_night = $basePrice + $extraCharge;
 
                 $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
@@ -837,7 +852,7 @@ public function handleMoMoCallback(Request $request)
                     'so_nguoi_o' => $guestsInRoom,
                     'number_child' => $extraChildrenThisRoom,   // Extra children with surcharge
                     'number_adult' => $extraAdultsThisRoom,      // Extra adults with surcharge
-                    'gia_tren_dem' => $price_per_night,
+                    'gia_tren_dem' => $price_per_night,          // Base price + surcharge (no voucher)
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                     'spec_signature_hash' => $specSignatureHash,
                 ];
@@ -947,6 +962,21 @@ public function handleMoMoIPN(Request $request)
                 'can_thanh_toan' => !$isFullPayment,
             ]);
 
+            // Ghi nhận sử dụng voucher nếu có
+            if (!empty($dat_phong->voucher_id)) {
+                VoucherUsage::firstOrCreate(
+                    [
+                        'dat_phong_id' => $dat_phong->id,
+                        'voucher_id'   => $dat_phong->voucher_id,
+                    ],
+                    [
+                        'nguoi_dung_id'  => $dat_phong->nguoi_dung_id,
+                        'amount' => $dat_phong->voucher_discount ?? 0,
+                        'used_at'  => now(),
+                    ]
+                );
+            }
+
             $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
             $phongIdsToOccupy = [];
 
@@ -969,7 +999,7 @@ public function handleMoMoIPN(Request $request)
                 $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
                 $guestsInRoom = $adultsInRoom + $childrenInRoom;
                 
-                // Get room and its base price
+                // Get room and its base price (SAME AS VNPAY)
                 $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
                 $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
                 $basePrice = $phong ? ($phong->gia_cuoi_cung ?? 0) : 0;
@@ -979,7 +1009,7 @@ public function handleMoMoIPN(Request $request)
                 $adultsInCapacity = min($adultsInRoom, $capacity);
                 $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
                 
-                // CRITICAL FIX: Use different variable names to avoid collision
+                // Calculate extra guests beyond capacity
                 $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
                 $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
                 
@@ -987,7 +1017,7 @@ public function handleMoMoIPN(Request $request)
                 $extraChildrenCharge = $extraChildrenThisRoom * self::CHILD_PRICE;
                 $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                 
-                // Final price = base + surcharge
+                // Final price = base + surcharge (NO VOUCHER - voucher applied at booking level)
                 $price_per_night = $basePrice + $extraCharge;
 
                 $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
@@ -1001,7 +1031,7 @@ public function handleMoMoIPN(Request $request)
                     'so_nguoi_o' => $guestsInRoom,
                     'number_child' => $extraChildrenThisRoom,   // Extra children with surcharge
                     'number_adult' => $extraAdultsThisRoom,      // Extra adults with surcharge
-                    'gia_tren_dem' => $price_per_night,
+                    'gia_tren_dem' => $price_per_night,          // Base price + surcharge (no voucher)
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                     'spec_signature_hash' => $specSignatureHash,
                 ];

@@ -43,6 +43,12 @@ class Voucher extends Model
                     ->withTimestamps();
     }
 
+    // ======= Quan hệ tới VoucherUsage (để check đã dùng chưa) =======
+    public function usages()
+    {
+        return $this->hasMany(VoucherUsage::class, 'voucher_id');
+    }
+
     // ======= Kiểm tra còn hiệu lực =======
     public function getConHieuLucAttribute(): bool
     {

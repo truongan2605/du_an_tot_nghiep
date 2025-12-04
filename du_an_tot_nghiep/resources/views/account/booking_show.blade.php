@@ -33,7 +33,7 @@
         $hoursUntilCheckIn = (int) $now->diffInHours($checkInDateTime, false);
         
         // Calculate refund if cancelled now
-        $totalAmount = $booking->snapshot_total ?? ($booking->tong_tien ?? 0);
+        $totalAmount = $booking->tong_tien ?? ($booking->snapshot_total ?? 0);
         $paidAmount = $booking->deposit_amount ?? 0;
         
         // CRITICAL: Subtract unused voucher values (same logic as backend)
@@ -254,7 +254,7 @@
                                 <div class="col-md-4">
                                     <div class="text-center text-md-end">
                                         <div class="text-muted small mb-1"><i class="bi bi-currency-dollar me-1"></i> Tổng tiền</div>
-                                        <div class="h5 mb-0 fw-bold text-primary">{{ number_format($booking->snapshot_total ?? ($booking->tong_tien ?? 0), 0, ',', '.') }} VND</div>
+                                        <div class="h5 mb-0 fw-bold text-primary">{{ number_format($booking->tong_tien ?? ($booking->snapshot_total ?? 0), 0, ',', '.') }} VND</div>
                                     </div>
                                 </div>
                             </div>
@@ -552,7 +552,7 @@
                                     $adults = $meta['adults_input'] ?? ($meta['computed_adults'] ?? ($meta['guests_adults'] ?? 0));
                                     $children = $meta['children_input'] ?? ($meta['chargeable_children'] ?? 0);
                                     $nights = $meta['nights'] ?? ($booking->datPhongItems->first()->so_dem ?? 1);
-                                    $total = $booking->snapshot_total ?? ($booking->tong_tien ?? 0);
+                                    $total = $booking->tong_tien ?? ($booking->snapshot_total ?? 0);
                                 @endphp
                                 <div class="col-md-3 col-6">
                                     <div class="card border-0 bg-light h-100 text-center p-3">
@@ -977,6 +977,48 @@
                                             <small class="text-muted">
                                                 <i class="bi bi-info-circle"></i> Hạn 30 ngày
                                             </small>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- NEW: Manual Voucher Selection Section (only show for upgrades) --}}
+                                    <div id="voucherSelectionSection" class="mt-3 d-none">
+                                        <div class="card border-success">
+                                            <div class="card-header bg-success bg-opacity-10 border-success">
+                                                <h6 class="mb-0 fw-semibold small text-success">
+                                                    <i class="bi bi-gift-fill me-2"></i>
+                                                    Sử dụng Voucher (Tùy chọn)
+                                                </h6>
+                                            </div>
+                                            <div class="card-body p-3">
+                                                <p class="text-muted small mb-3">
+                                                    <i class="bi bi-info-circle me-1"></i>
+                                                    Bạn có voucher hoàn tiề từ lần downgrade trước. Chọn voucher để giảm chi phí nâng cấp.
+                                                </p>
+                                                
+                                                {{-- Voucher list container --}}
+                                                <div id="availableVouchersList">
+                                                    {{-- Vouchers will be loaded here via JS --}}
+                                                    <div class="text-center py-3" id="loadingVouchers">
+                                                        <div class="spinner-border spinner-border-sm text-success"></div>
+                                                        <p class="text-muted small mt-2 mb-0">Đang tải voucher...</p>
+                                                    </div>
+                                                </div>
+                                                
+                                                {{-- No vouchers message --}}
+                                                <div id="noVouchersMessage" class="text-center py-3 d-none">
+                                                    <i class="bi bi-inbox text-muted fs-3 d-block mb-2"></i>
+                                                    <p class="text-muted small mb-0">Không có voucher khả dụng</p>
+                                                </div>
+                                                
+                                                {{-- Selected vouchers summary --}}
+                                                <div id="selectedVouchersSummary" class="mt-3 d-none">
+                                                    <hr>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span class="fw-semibold small">Tổng giảm giá:</span>
+                                                        <span class="badge bg-success fs-6" id="totalVoucherDiscount">0đ</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1692,6 +1734,9 @@
                     
                     document.getElementById('paymentNeededInfo').innerHTML = paymentInfoHtml;
                     
+                    // ===== NEW: Load vouchers for upgrade =====
+                    loadAvailableVouchers();
+                    
                 } else if (totalDifference < 0) {
                     // Downgrade - show voucher info
                     diffElement.classList.remove('text-danger');
@@ -2205,12 +2250,135 @@
                 roomInput.value = selectedRoomId;
                 form.appendChild(roomInput);
                 
+                // ===== NEW: Add selected vouchers =====
+                const selectedVouchers = document.querySelectorAll('.voucher-checkbox:checked');
+                selectedVouchers.forEach(checkbox => {
+                    const voucherInput = document.createElement('input');
+                    voucherInput.type = 'hidden';
+                    voucherInput.name = 'voucher_ids[]';
+                    voucherInput.value = checkbox.value;
+                    form.appendChild(voucherInput);
+                });
+                
                 document.body.appendChild(form);
                 form.submit();
             }
             
             function formatMoney(amount) {
                 return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
+            }
+            
+            // ===== NEW: Voucher handling functions =====
+            let availableVouchers = [];
+            let selectedVoucherIds = [];
+            
+            async function loadAvailableVouchers() {
+                const bookingId = {{ $booking->id }};
+                const voucherSection = document.getElementById('voucherSelectionSection');
+                const loadingEl = document.getElementById('loadingVouchers');
+                const listEl = document.getElementById('availableVouchersList');
+                const noVouchersEl = document.getElementById('noVouchersMessage');
+                
+                try {
+                    const response = await fetch(`/account/bookings/${bookingId}/available-vouchers`);
+                    const data = await response.json();
+                    
+                    loadingEl.style.display = 'none';
+                    
+                    if (data.success && data.vouchers.length > 0) {
+                        availableVouchers = data.vouchers;
+                        renderVouchers(data.vouchers);
+                        voucherSection.classList.remove('d-none');
+                        noVouchersEl.classList.add('d-none');
+                    } else {
+                        noVouchersEl.classList.remove('d-none');
+                        voucherSection.classList.add('d-none');
+                    }
+                } catch (error) {
+                    console.error('Error loading vouchers:', error);
+                    loadingEl.innerHTML = '<p class="text-danger small">Lỗi tải voucher</p>';
+                }
+            }
+            
+            function renderVouchers(vouchers) {
+                const listEl = document.getElementById('availableVouchersList');
+                
+                listEl.innerHTML = vouchers.map(v => `
+                    <div class="form-check border rounded p-3 mb-2 voucher-item" style="transition: all 0.2s;">
+                        <input class="form-check-input voucher-checkbox" 
+                               type="checkbox" 
+                               value="${v.id}" 
+                               id="voucher_${v.id}"
+                               data-value="${v.value}"
+                               onchange="recalculateWithVouchers()">
+                        <label class="form-check-label w-100 cursor-pointer" for="voucher_${v.id}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <strong class="text-primary">${v.code}</strong>
+                                    <p class="text-muted small mb-0 mt-1">${v.note || ''}</p>
+                                </div>
+                                <div class="text-end ms-3">
+                                    <span class="badge bg-success fs-6">
+                                        -${new Intl.NumberFormat('vi-VN').format(v.value)}đ
+                                    </span>
+                                    <small class="text-muted d-block mt-1">HSD: ${v.end_date}</small>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                `).join('');
+            }
+            
+            function recalculateWithVouchers() {
+                const checkboxes = document.querySelectorAll('.voucher-checkbox:checked');
+                let totalVoucherDiscount = 0;
+                
+                checkboxes.forEach(cb => {
+                    totalVoucherDiscount += parseFloat(cb.dataset.value) || 0;
+                });
+                
+                // Update summary section
+                const summaryEl = document.getElementById('selectedVouchersSummary');
+                const totalDiscountEl = document.getElementById('totalVoucherDiscount');
+                
+                if (totalVoucherDiscount > 0) {
+                    summaryEl.classList.remove('d-none');
+                    totalDiscountEl.textContent = formatMoney(totalVoucherDiscount);
+                } else {
+                    summaryEl.classList.add('d-none');
+                }
+                
+                // Update payment info with voucher discount
+                const paymentInfoEl = document.getElementById('paymentNeededInfo');
+                if (paymentInfoEl && paymentInfoEl.textContent.includes('Cần thanh toán')) {
+                    // Recalculate payment needed
+                    const depositPct = {{ $meta['deposit_percentage'] ?? 50 }};
+                    const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
+                    const newTotal = parseFloat(document.getElementById('newTotal').textContent.replace(/[^0-9]/g, '')) || 0;
+                    const newDepositRequired = newTotal * (depositPct / 100);
+                    const basePaymentNeeded = Math.max(0, newDepositRequired - currentDeposit);
+                    const finalPaymentNeeded = Math.max(0, basePaymentNeeded - totalVoucherDiscount);
+                    
+                    const paymentInfoHtml = finalPaymentNeeded > 0 
+                        ? `<div class="d-flex justify-content-between">
+                               <span class="text-danger fw-semibold">Cần thanh toán:</span>
+                               <h5 class="mb-0 text-danger">${formatMoney(finalPaymentNeeded)}</h5>
+                           </div>
+                           ${totalVoucherDiscount > 0 ? `<small class="text-success d-block mt-1">
+                               <i class="bi bi-check-circle me-1"></i>
+                               Đã giảm ${formatMoney(totalVoucherDiscount)} từ voucher
+                           </small>` : ''}
+                           <small class="text-muted d-block mt-2">
+                               <i class="bi bi-info-circle me-1"></i>
+                               Bạn sẽ được chuyển đến cổng thanh toán VNPay
+                           </small>`
+                         : `<div class="alert alert-success mb-0">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Miễn phí! Voucher đã cover toàn bộ chi phí.
+                            </div>`;
+                    
+                    paymentInfoEl.innerHTML = paymentInfoHtml;
+                }
             }
             
             // Check for room change success and show notification
