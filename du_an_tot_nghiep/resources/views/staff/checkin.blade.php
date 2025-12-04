@@ -200,11 +200,46 @@
                                         {{ number_format($booking->tong_tien) }}đ</td>
                                     <td class="text-end text-success small fw-medium d-none d-sm-table-cell">
                                         {{ number_format($booking->paid) }}đ</td>
-                                    <td class="text-end fw-semibold text-danger small d-none d-md-table-cell">
-                                        {{ number_format($booking->remaining) }}đ</td>
+                                    <td class="text-end fw-semibold small d-none d-md-table-cell">
+                                        @if ($booking->remaining < 0)
+                                            <span class="badge bg-success rounded-pill px-2 py-1 small fw-semibold shadow-sm" 
+                                                  data-bs-toggle="tooltip" data-bs-placement="top"
+                                                  title="Đã thanh toán đủ ">
+                                                <i class="bi bi-check-circle me-1"></i>Đã TT đủ
+                                            </span>
+                                        @elseif ($booking->remaining > 0)
+                                            <span class="text-danger">{{ number_format($booking->remaining) }}đ</span>
+                                        @else
+                                            <span class="text-success">0đ</span>
+                                        @endif
+                                    </td>
 
                                     <td class="text-center d-none d-sm-table-cell">
-                                        @if ($booking->trang_thai === 'da_xac_nhan')
+                                        @php
+                                            // Get LATEST completed room change (not just any downgrade!)
+                                            $latestRoomChange = \App\Models\RoomChange::where('dat_phong_id', $booking->id)
+                                                ->where('status', 'completed')
+                                                ->orderBy('created_at', 'desc')
+                                                ->first();
+                                            
+                                            $hasRoomChange = $latestRoomChange !== null;
+                                            $isLatestDowngrade = $hasRoomChange && $latestRoomChange->price_difference < 0;
+                                            $isLatestUpgrade = $hasRoomChange && $latestRoomChange->price_difference > 0;
+                                        @endphp
+                                        
+                                        @if ($isLatestDowngrade)
+                                            <span class="badge bg-info rounded-pill px-2 py-1 small fw-semibold shadow-sm"
+                                                  data-bs-toggle="tooltip" data-bs-placement="top"
+                                                  title="Khách hàng đã đổi xuống phòng rẻ hơn và nhận voucher hoàn tiền">
+                                                <i class="bi bi-arrow-down-circle me-1"></i>Đã downgrade
+                                            </span>
+                                        @elseif ($isLatestUpgrade)
+                                            <span class="badge bg-success rounded-pill px-2 py-1 small fw-semibold shadow-sm"
+                                                  data-bs-toggle="tooltip" data-bs-placement="top"
+                                                  title="Khách hàng đã nâng cấp lên phòng đắt hơn">
+                                                <i class="bi bi-arrow-up-circle me-1"></i>Đã upgrade
+                                            </span>
+                                        @elseif ($booking->trang_thai === 'da_xac_nhan')
                                             <span
                                                 class="badge bg-info rounded-pill px-2 py-1 small fw-semibold shadow-sm">Xác
                                                 nhận</span>
@@ -1124,6 +1159,14 @@
             confirmCCCDCount: typeof window.confirmCCCDCount,
             setCCCDCount: typeof window.setCCCDCount,
             updateCCCDInputs: typeof window.updateCCCDInputs
+        });
+
+        // Khởi tạo tooltips cho tất cả các elements có data-bs-toggle="tooltip"
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
         });
     </script>
     {{-- Các hàm JavaScript cũ đã được thay thế bởi hàm mới trong IIFE ở trên (dòng 950-997) --}}

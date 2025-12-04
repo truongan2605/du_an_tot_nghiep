@@ -194,6 +194,8 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::delete('/cancel/{id}', [StaffController::class, 'cancel'])->name('cancel');
         Route::get('/bookings', [StaffController::class, 'bookings'])->name('bookings');
         Route::get('/bookings/{booking}', [StaffController::class, 'showBooking'])->name('bookings.show');
+        Route::get('/bookings/{booking}/quick-view', [StaffController::class, 'quickView'])->name('bookings.quick-view');
+        Route::post('/bookings/{booking}/add-note', [StaffController::class, 'addNote'])->name('bookings.add-note');
 
         // Room management
         Route::get('/rooms', [StaffController::class, 'rooms'])->name('rooms');

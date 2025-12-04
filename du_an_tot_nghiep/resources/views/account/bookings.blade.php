@@ -43,6 +43,12 @@
                                                     class="bi bi-person fa-fw me-2"></i>My Profile</a>
                                         </li>
                                         <li class="nav-item">
+                                        {{-- Trang hiện tại: Ưu đãi --}}
+                                            <a class="nav-link" href="{{ route('account.rewards') }}">
+                                                <i class="bi bi-gift fa-fw me-2"></i>Ưu đãi
+                                            </a>
+                                        </li>
+                                        <li class="nav-item">
                                             <a class="nav-link active" href="{{ route('account.booking.index') }}"><i
                                                     class="bi bi-ticket-perforated fa-fw me-2"></i>Đặt phòng của tôi</a>
                                         </li>
@@ -782,6 +788,28 @@
                                                                                                 <strong>Hoàn tất!</strong> Số tiền <strong>{{ number_format($refundRequest->amount, 0, ',', '.') }} ₫</strong> đã được hoàn vào tài khoản của bạn.
                                                                                             </small>
                                                                                         </div>
+                                                                                        
+                                                                                        {{-- Proof Image Display --}}
+                                                                                        @if($refundRequest->proof_image_path)
+                                                                                            <div class="mt-3 border rounded p-3 bg-white">
+                                                                                                <strong class="d-block mb-2 text-primary">
+                                                                                                    <i class="bi bi-image me-1"></i> Ảnh chứng minh hoàn tiền:
+                                                                                                </strong>
+                                                                                                <div class="text-center">
+                                                                                                    <a href="{{ $refundRequest->proof_image_url }}" target="_blank">
+                                                                                                        <img src="{{ $refundRequest->proof_image_url }}" 
+                                                                                                             alt="Proof of refund" 
+                                                                                                             class="img-thumbnail" 
+                                                                                                             style="max-width: 100%; max-height: 300px; cursor: pointer;">
+                                                                                                    </a>
+                                                                                                </div>
+                                                                                                <div class="text-center mt-2">
+                                                                                                    <a href="{{ $refundRequest->proof_image_url }}" download class="btn btn-sm btn-outline-primary">
+                                                                                                        <i class="bi bi-download me-1"></i> Tải xuống ảnh
+                                                                                                    </a>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        @endif
                                                                                     @else
                                                                                         <p class="mb-0 mt-1 small text-muted">
                                                                                             @if($refundRequest->status === 'approved')

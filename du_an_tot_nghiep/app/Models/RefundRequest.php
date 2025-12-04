@@ -16,6 +16,7 @@ class RefundRequest extends Model
         'processed_at',
         'admin_note',
         'processed_by',
+        'proof_image_path',
     ];
 
     protected $casts = [
@@ -55,5 +56,12 @@ class RefundRequest extends Model
             'rejected' => 'Từ chối',
             default => $this->status
         };
+    }
+
+    public function getProofImageUrlAttribute(): ?string
+    {
+        return $this->proof_image_path 
+            ? asset('storage/' . $this->proof_image_path) 
+            : null;
     }
 }

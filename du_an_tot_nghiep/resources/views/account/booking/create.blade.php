@@ -1384,6 +1384,7 @@
                     total = Math.max(0, rawTotal - voucherDiscount);
                 }
 
+                // Calculate final per night and deposit based on voucher-adjusted total
                 const finalPerNight = total / nights; // giá trung bình / đêm (đã gồm weekend + extra + voucher)
 
                 // Lấy phần trăm đặt cọc
@@ -1392,9 +1393,12 @@
                     ? parseInt(selectedDepositRadio.value, 10)
                     : 50;
                 const depositPercent = depositPercentageValue / 100;
-                let deposit = total * depositPercent;
-                // Làm tròn lên theo 1.000
-                deposit = Math.ceil(deposit / 1000) * 1000;
+                
+                // ✅ FIX: Khi 100%, deposit = total (không làm tròn). Khi 50%, làm tròn lên đến hàng nghìn
+                let deposit = depositPercent === 1 
+                    ? total 
+                    : Math.ceil(total * depositPercent / 1000) * 1000;
+
 
                 const percentageText = depositPercent * 100 + '%';
                 const depositLabel = document.getElementById('deposit_percentage_label');
@@ -1449,8 +1453,10 @@
                 // LƯU GIÁ GỐC (KHÔNG VOUCHER) ĐỂ ÁP DỤNG / RESET VOUCHER
                 if (originalTotalInput) originalTotalInput.value = rawTotal;
                 if (originalDepositInput) {
-                    let depositRaw = rawTotal * depositPercent;
-                    depositRaw = Math.ceil(depositRaw / 1000) * 1000;
+                    // ✅ FIX: Khi 100%, deposit = rawTotal (không làm tròn). Khi 50%, làm tròn lên đến hàng nghìn
+                    const depositRaw = depositPercent === 1 
+                        ? rawTotal 
+                        : Math.ceil(rawTotal * depositPercent / 1000) * 1000;
                     originalDepositInput.value = depositRaw;
                 }
             }

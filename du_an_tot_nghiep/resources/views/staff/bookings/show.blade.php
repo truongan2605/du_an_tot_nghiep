@@ -1485,7 +1485,7 @@
                 e.preventDefault();
                 
                 // TODO: Submit to backend
-                alert('Đang xử lý đổi phòng...\n(Chức năng backend đang được phát triển)');
+                alert('Đang xử lý đổi phòng.');
                 
                 // Will be replaced with:
                 // this.action = '/staff/booking/{{ $booking->id }}/change-room';
