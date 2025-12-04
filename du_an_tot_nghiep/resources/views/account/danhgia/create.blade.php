@@ -15,11 +15,11 @@
             <label class="form-label">Số sao</label>
             <select name="rating" class="form-control" required>
                 <option value="">-- Chọn sao --</option>
-                <option value="1">1 sao</option>
-                <option value="2">2 sao</option>
-                <option value="3">3 sao</option>
-                <option value="4">4 sao</option>
-                <option value="5">5 sao</option>
+                <option value="1">1 sao⭐</option>
+                <option value="2">2 sao⭐</option>
+                <option value="3">3 sao⭐</option>
+                <option value="4">4 sao⭐</option>
+                <option value="5">5 sao⭐</option>
             </select>
         </div>
 
