@@ -296,158 +296,53 @@
                         </div>
                     </div>
 
-                    <!-- Customer Review  -->
-                    <div class="card bg-transparent">
-                        <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                            <h3 class="card-title mb-0">Đánh giá khách hàng</h3>
-                        </div>
+<h3 class="mt-4 mb-3">Đánh giá của khách hàng</h3>
 
-                        <div class="card-body pt-4 p-0">
-                            <div class="card bg-light p-4 mb-4">
-                                <div class="row g-4 align-items-center">
-                                    <div class="col-md-4">
-                                        <div class="text-center">
-                                            @php
-                                                $avg = isset($avgRating) ? floatval($avgRating) : 0.0;
-                                                $reviewCount = isset($reviews) ? $reviews->count() : 0;
-                                            @endphp
-                                            <h2 class="mb-0">{{ number_format($avg, 1) }}</h2>
-                                            <p class="mb-2">Dựa trên {{ $reviewCount }}
-                                                đánh giá{{ $reviewCount !== 1 ? '' : '' }}</p>
+<div id="reviews-wrapper">
 
-                                            {{-- star rendering --}}
-                                            <ul class="list-inline mb-0">
-                                                @php
-                                                    $fullStars = floor($avg);
-                                                    $hasHalf = $avg - $fullStars >= 0.5;
-                                                    $emptyStars = 5 - $fullStars - ($hasHalf ? 1 : 0);
-                                                @endphp
+    @forelse($phong->danhGias as $index => $dg)
+    <div class="review-box" data-index="{{ $index }}">
 
-                                                @for ($i = 0; $i < $fullStars; $i++)
-                                                    <li class="list-inline-item me-0"><i
-                                                            class="fa-solid fa-star text-warning"></i></li>
-                                                @endfor
-                                                @if ($hasHalf)
-                                                    <li class="list-inline-item me-0"><i
-                                                            class="fa-solid fa-star-half-alt text-warning"></i></li>
-                                                @endif
-                                                @for ($i = 0; $i < $emptyStars; $i++)
-                                                    <li class="list-inline-item me-0"><i
-                                                            class="fa-solid fa-star text-muted"></i></li>
-                                                @endfor
-                                            </ul>
-                                        </div>
-                                    </div>
+        <div class="d-flex align-items-center justify-content-between mb-1">
+            <span class="fw-semibold">
+                <i class="fa fa-user-circle me-1"></i> {{ $dg->user->name }}
+            </span>
+            <span class="text-muted small">{{ $dg->created_at->format('d/m/Y') }}</span>
+        </div>
 
-                                    <div class="col-md-8">
-                                        @php
-                                            $counts = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
-                                            if ($reviewCount && $reviewCount > 0) {
-                                                foreach ($reviews as $rv) {
-                                                    $v = intval($rv->diem);
-                                                    if (isset($counts[$v])) {
-                                                        $counts[$v]++;
-                                                    }
-                                                }
-                                            }
-                                        @endphp
+        @if($dg->rating)
+        <div class="review-stars mb-2">
+            @for($i = 1; $i <= $dg->rating; $i++)
+                <i class="fa-solid fa-star text-warning"></i>
+            @endfor
+        </div>
+        @endif
 
-                                        <div class="card-body p-0">
-                                            <div class="row gx-3 g-2 align-items-center">
-                                                @foreach ([5, 4, 3, 2, 1] as $star)
-                                                    <div class="col-9 col-sm-10">
-                                                        <div class="progress progress-sm bg-warning bg-opacity-15">
-                                                            @php
-                                                                $pct = $reviewCount
-                                                                    ? round(($counts[$star] / $reviewCount) * 100)
-                                                                    : 0;
-                                                            @endphp
-                                                            <div class="progress-bar bg-warning" role="progressbar"
-                                                                style="width: {{ $pct }}%"
-                                                                aria-valuenow="{{ $pct }}" aria-valuemin="0"
-                                                                aria-valuemax="100"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-3 col-sm-2 text-end">
-                                                        <span class="h6 fw-light mb-0">{{ $pct ?? 0 }}%</span>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+        <p class="mb-1">{{ $dg->noi_dung }}</p>
 
-                            {{-- Leave review form (optional) --}}
-                            <form class="mb-5" method="POST" action="#">
-                                <div class="form-control-bg-light mb-3">
-                                    <select class="form-select js-choice" name="rating">
-                                        <option selected>★★★★★ (5/5)</option>
-                                        <option>★★★★☆ (4/5)</option>
-                                        <option>★★★☆☆ (3/5)</option>
-                                        <option>★★☆☆☆ (2/5)</option>
-                                        <option>★☆☆☆☆ (1/5)</option>
-                                    </select>
-                                </div>
-                                <div class="form-control-bg-light mb-3">
-                                    <textarea class="form-control" name="content" placeholder="Đánh giá của bạn" rows="3"></textarea>
-                                </div>
-                                <button type="submit" class="btn btn-lg btn-primary mb-0">Đăng đánh giá <i
-                                        class="bi fa-fw bi-arrow-right ms-2"></i></button>
-                            </form>
+        @foreach($dg->replies as $reply)
+        <div class="review-reply mt-2">
+            <strong><i class="fa fa-user-shield"></i> Admin:</strong>
+            <p class="mb-1">{{ $reply->noi_dung }}</p>
+            <small class="text-muted">{{ $reply->created_at->format('d/m/Y') }}</small>
+        </div>
+        @endforeach
 
-                            {{-- List reviews --}}
-                            @if ($reviewCount > 0)
-                                @foreach ($reviews as $rv)
-                                    @php
-                                        $author = $rv->nguoiDung ?? null;
-                                        $rating = $rv->diem ?? 0;
-                                    @endphp
-                                    <div class="d-md-flex my-4">
-                                        {{-- Avatar --}}
-                                        <div class="avatar avatar-lg me-3 flex-shrink-0">
-                                            <img class="avatar-img rounded-circle"
-                                                src="{{ $author && $author->avatar ? asset('storage/' . $author->avatar) : asset('template/stackbros/assets/images/avatar/avt.jpg') }}"
-                                                alt="avatar">
-                                        </div>
-                                        <div>
-                                            <div class="d-flex justify-content-between mt-1 mt-md-0">
-                                                <div>
-                                                    <h6 class="me-3 mb-0">{{ $author->name ?? 'Guest' }}</h6>
-                                                    <ul class="nav nav-divider small mb-2">
-                                                        <li class="nav-item">Đã ở {{ $rv->created_at->format('d M Y') }}
-                                                        </li>
-                                                    </ul>
-                                                </div>
-                                                <div class="icon-md rounded text-bg-warning fs-6">
-                                                    {{ number_format($rating, 1) }}</div>
-                                            </div>
+    </div>
+    @empty
+        <p class="text-muted">Chưa có đánh giá nào.</p>
+    @endforelse
+</div>
 
-                                            <p class="mb-2">{{ $rv->noi_dung }}</p>
+<button id="toggle-all" class="btn btn-outline-primary mt-3" style="display:none;">
+    Xem tất cả đánh giá
+</button>
 
-                                            @if (!empty($rv->anh) && is_array($rv->anh))
-                                                <div class="row g-4">
-                                                    @foreach ($rv->anh as $img)
-                                                        <div class="col-4 col-sm-3 col-lg-2">
-                                                            <img src="{{ Storage::url($img) }}" class="rounded"
-                                                                alt="">
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            @endif
-                                        </div>
-                                    </div>
-                                    <hr>
-                                @endforeach
-                            @else
-                                <p class="mb-0">Chưa có đánh giá nào — hãy là người đầu tiên đánh giá phòng này.</p>
-                            @endif
 
-                            <div class="text-center mt-3">
-                                <a href="#" class="btn btn-primary-soft mb-0">Tải thêm</a>
-                            </div>
-                        </div>
-                    </div>
+
+
+
+
 
                     <!-- Hotel Policies (kept as-is) -->
                     <div class="card bg-transparent">
@@ -689,3 +584,58 @@
         });
     </script>
 @endpush
+
+
+<style>
+/* Review container */
+.review-box {
+    padding: 15px 0;
+    border-bottom: 1px solid #eaeaea;
+}
+.review-reply {
+    background: #f8f9fa;
+    border-left: 3px solid #0d6efd;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-top: 8px;
+    font-size: 14px;
+}
+
+
+</style>
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    const reviews = document.querySelectorAll('.review-box');
+    const toggleBtn = document.getElementById('toggle-all');
+
+    if (reviews.length > 3) {
+        // Ẩn tất cả review sau review thứ 3
+        reviews.forEach((box, i) => {
+            if (i > 2) box.style.display = 'none';
+        });
+        toggleBtn.style.display = 'block';
+    }
+
+    let expanded = false;
+
+    toggleBtn.addEventListener('click', function() {
+        expanded = !expanded;
+
+        reviews.forEach((box, i) => {
+            if (!expanded && i > 2) box.style.display = 'none';
+            else box.style.display = 'block';
+        });
+
+        toggleBtn.textContent = expanded 
+            ? 'Thu gọn đánh giá'
+            : 'Xem tất cả đánh giá';
+    });
+});
+</script>
+
+
+

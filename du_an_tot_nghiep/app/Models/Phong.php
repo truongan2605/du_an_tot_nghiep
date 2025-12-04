@@ -401,5 +401,7 @@ public function danhGiaspace()
                 Log::warning('Could not compute spec_signature_hash for Phong id=' . ($phong->id ?? 'new') . ': ' . $e->getMessage());
             }
         });
+
     }
+    
 }
