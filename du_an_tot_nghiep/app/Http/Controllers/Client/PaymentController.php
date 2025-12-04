@@ -815,31 +815,25 @@ public function handleMoMoCallback(Request $request)
 
                 $nights = $meta_item['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                 
+                // Calculate price per night from discounted total (same as VNPay)
+                // This ensures voucher discount is distributed across all rooms
+                $price_per_night = $meta_item['final_per_night']
+                    ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+                
                 // Calculate guests for THIS room
                 $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
                 $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
                 $guestsInRoom = $adultsInRoom + $childrenInRoom;
                 
-                // Get room and its base price (SAME AS VNPAY)
+                // Get room capacity for guest tracking
                 $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
                 $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
-                $basePrice = $phong ? ($phong->gia_cuoi_cung ?? 0) : 0;
                 
-                // Adults fill capacity FIRST (no surcharge)
-                // Children overflow to extra slots (with surcharge)
+                // Calculate extra guests beyond capacity (for tracking only)
                 $adultsInCapacity = min($adultsInRoom, $capacity);
                 $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
-                
-                // Calculate extra guests beyond capacity
                 $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
                 $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
-                
-                $extraAdultsCharge = $extraAdultsThisRoom * self::ADULT_PRICE;
-                $extraChildrenCharge = $extraChildrenThisRoom * self::CHILD_PRICE;
-                $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
-                
-                // Final price = base + surcharge (NO VOUCHER - voucher applied at booking level)
-                $price_per_night = $basePrice + $extraCharge;
 
                 $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
 
@@ -850,9 +844,9 @@ public function handleMoMoCallback(Request $request)
                     'so_dem' => $nights,
                     'so_luong' => $giu_phong->so_luong ?? 1,
                     'so_nguoi_o' => $guestsInRoom,
-                    'number_child' => $extraChildrenThisRoom,   // Extra children with surcharge
-                    'number_adult' => $extraAdultsThisRoom,      // Extra adults with surcharge
-                    'gia_tren_dem' => $price_per_night,          // Base price + surcharge (no voucher)
+                    'number_child' => $extraChildrenThisRoom,   // Extra children count
+                    'number_adult' => $extraAdultsThisRoom,      // Extra adults count
+                    'gia_tren_dem' => $price_per_night,          // Discounted price (includes voucher)
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                     'spec_signature_hash' => $specSignatureHash,
                 ];
@@ -1196,32 +1190,25 @@ public function handleMoMoIPN(Request $request)
                     $nights = $meta_item['nights']
                         ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                     
+                    // Calculate price per night from discounted total (same as MoMo fix)
+                    // This ensures voucher discount is distributed across all rooms
+                    $price_per_night = $meta_item['final_per_night']
+                        ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+                    
                     // Calculate guests for THIS room (fair distribution)
                     $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
                     $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
                     $guestsInRoom = $adultsInRoom + $childrenInRoom;
                     
-                    // Get room and its base price
+                    // Get room capacity for guest tracking
                     $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
                     $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
-                    $basePrice = $phong ? ($phong->gia_cuoi_cung ?? 0) : 0;
                     
-                    // Adults fill capacity FIRST (no surcharge)
-                    // Children overflow to extra slots (with surcharge)
+                    // Calculate extra guests beyond capacity (for tracking only)
                     $adultsInCapacity = min($adultsInRoom, $capacity);
                     $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
-                    
-                    // CRITICAL FIX: Use different variable names to avoid collision
-                    // with $extraAdults and $extraChildren from distribution logic (line 1152-1154)
                     $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
                     $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
-                    
-                    $extraAdultsCharge = $extraAdultsThisRoom * self::ADULT_PRICE;
-                    $extraChildrenCharge = $extraChildrenThisRoom * self::CHILD_PRICE;
-                    $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
-                    
-                    // Final price = base + surcharge
-                    $price_per_night = $basePrice + $extraCharge;
 
                     $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
 
@@ -1232,9 +1219,9 @@ public function handleMoMoIPN(Request $request)
                         'so_dem'             => $nights,
                         'so_luong'           => $giu_phong->so_luong ?? 1,
                         'so_nguoi_o'         => $guestsInRoom,
-                        'number_child'       => $extraChildrenThisRoom,   // Extra children with surcharge
-                        'number_adult'       => $extraAdultsThisRoom,      // Extra adults with surcharge
-                        'gia_tren_dem'       => $price_per_night,
+                        'number_child'       => $extraChildrenThisRoom,   // Extra children count
+                        'number_adult'       => $extraAdultsThisRoom,      // Extra adults count
+                        'gia_tren_dem'       => $price_per_night,          // Discounted price (includes voucher)
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                         'spec_signature_hash' => $specSignatureHash,
                     ];
@@ -1382,6 +1369,17 @@ public function handleMoMoIPN(Request $request)
 
                     $nights = $meta['nights']
                         ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
+                    
+                    Log::debug('VNPay callback price calculation', [
+                        'dat_phong_id' => $dat_phong->id,
+                        'tong_tien' => $dat_phong->tong_tien,
+                        'voucher_discount' => $dat_phong->voucher_discount,
+                        'meta_final_per_night' => $meta['final_per_night'] ?? null,
+                        'nights' => $nights,
+                        'roomsCount' => $roomsCount,
+                        'calculated_price' => $dat_phong->tong_tien / max(1, $nights * $roomsCount),
+                    ]);
+                    
                     $price_per_night = $meta['final_per_night']
                         ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
 
