@@ -209,20 +209,33 @@ class BookingController extends Controller
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $computedAdults, $chargeableChildren) {
+            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem) {
                 // Get base price from ROOM's final price (not total or type default)
                 $roomBasePrice = $room->gia_cuoi_cung ?? 0;
                 
                 // Calculate room capacity
                 $roomCapacity = $room->suc_chua ?? ($room->loaiPhong->suc_chua ?? 2);
                 
-                // Adults fill capacity FIRST (no surcharge)
-                // Children overflow to extra slots (with surcharge)
-                $adultsInCapacity = min($computedAdults, $roomCapacity);
-                $childrenInCapacity = min($chargeableChildren, max(0, $roomCapacity - $adultsInCapacity));
+                // CRITICAL FIX: Calculate extra charges based on CURRENT ROOM's guest count
+                // For multi-room bookings, each room should be priced independently
+                $extraGuests = max(0, $guestsInCurrentRoom - $roomCapacity);
                 
-                $extraAdults = $computedAdults - $adultsInCapacity;
-                $extraChildren = $chargeableChildren - $childrenInCapacity;
+                // Use actual adult/child ratio from current room for accurate pricing
+                // number_adult and number_child in DB store EXTRA guests beyond capacity
+                $currentExtraAdults = $currentItem->number_adult ?? 0;
+                $currentExtraChildren = $currentItem->number_child ?? 0;
+                $currentTotalExtra = $currentExtraAdults + $currentExtraChildren;
+                
+                if ($extraGuests > 0 && $currentTotalExtra > 0) {
+                    // Maintain the same adult/child ratio for new room
+                    $adultRatio = $currentExtraAdults / $currentTotalExtra;
+                    $extraAdults = round($extraGuests * $adultRatio);
+                    $extraChildren = $extraGuests - $extraAdults;
+                } else {
+                    // Fallback: assume all extra guests are adults
+                    $extraAdults = $extraGuests;
+                    $extraChildren = 0;
+                }
                 
                 $extraAdultsCharge = $extraAdults * 150000;
                 $extraChildrenCharge = $extraChildren * 60000;
@@ -343,11 +356,29 @@ class BookingController extends Controller
             $guestsInRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
         }
         
-        // Calculate new room price WITH extra charges (using same guest count)
+        // CRITICAL FIX: Calculate new room price using CURRENT ROOM's guest count
+        // and maintain adult/child ratio for accurate pricing
         $newRoomBasePrice = $newRoom->gia_cuoi_cung ?? 0;
         $newRoomCapacity = $newRoom->suc_chua ?? ($newRoom->loaiPhong->suc_chua ?? 2);
         $extraGuestsNew = max(0, $guestsInRoom - $newRoomCapacity);
-        $extraChargeNew = $extraGuestsNew * 150000;
+        
+        // Use actual adult/child ratio from current room
+        $currentExtraAdults = $currentItem->number_adult ?? 0;
+        $currentExtraChildren = $currentItem->number_child ?? 0;
+        $currentTotalExtra = $currentExtraAdults + $currentExtraChildren;
+        
+        if ($extraGuestsNew > 0 && $currentTotalExtra > 0) {
+            // Maintain the same adult/child ratio
+            $adultRatio = $currentExtraAdults / $currentTotalExtra;
+            $extraAdultsNew = round($extraGuestsNew * $adultRatio);
+            $extraChildrenNew = $extraGuestsNew - $extraAdultsNew;
+        } else {
+            // Fallback: all extra as adults
+            $extraAdultsNew = $extraGuestsNew;
+            $extraChildrenNew = 0;
+        }
+        
+        $extraChargeNew = ($extraAdultsNew * 150000) + ($extraChildrenNew * 60000);
         $newPrice = $newRoomBasePrice + $extraChargeNew;
         
         $checkIn = Carbon::parse($booking->ngay_nhan_phong);

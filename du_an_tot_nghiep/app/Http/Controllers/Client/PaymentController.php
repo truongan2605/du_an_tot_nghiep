@@ -815,11 +815,12 @@ public function handleMoMoCallback(Request $request)
                 $adultsInCapacity = min($adultsInRoom, $capacity);
                 $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
                 
-                $extraAdults = $adultsInRoom - $adultsInCapacity;
-                $extraChildren = $childrenInRoom - $childrenInCapacity;
+                // CRITICAL FIX: Use different variable names to avoid collision
+                $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
+                $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
                 
-                $extraAdultsCharge = $extraAdults * self::ADULT_PRICE;
-                $extraChildrenCharge = $extraChildren * self::CHILD_PRICE;
+                $extraAdultsCharge = $extraAdultsThisRoom * self::ADULT_PRICE;
+                $extraChildrenCharge = $extraChildrenThisRoom * self::CHILD_PRICE;
                 $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                 
                 // Final price = base + surcharge
@@ -834,8 +835,8 @@ public function handleMoMoCallback(Request $request)
                     'so_dem' => $nights,
                     'so_luong' => $giu_phong->so_luong ?? 1,
                     'so_nguoi_o' => $guestsInRoom,
-                    'number_child' => $extraChildren,   // Extra children with surcharge
-                    'number_adult' => $extraAdults,      // Extra adults with surcharge
+                    'number_child' => $extraChildrenThisRoom,   // Extra children with surcharge
+                    'number_adult' => $extraAdultsThisRoom,      // Extra adults with surcharge
                     'gia_tren_dem' => $price_per_night,
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                     'spec_signature_hash' => $specSignatureHash,
@@ -978,11 +979,12 @@ public function handleMoMoIPN(Request $request)
                 $adultsInCapacity = min($adultsInRoom, $capacity);
                 $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
                 
-                $extraAdults = $adultsInRoom - $adultsInCapacity;
-                $extraChildren = $childrenInRoom - $childrenInCapacity;
+                // CRITICAL FIX: Use different variable names to avoid collision
+                $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
+                $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
                 
-                $extraAdultsCharge = $extraAdults * self::ADULT_PRICE;
-                $extraChildrenCharge = $extraChildren * self::CHILD_PRICE;
+                $extraAdultsCharge = $extraAdultsThisRoom * self::ADULT_PRICE;
+                $extraChildrenCharge = $extraChildrenThisRoom * self::CHILD_PRICE;
                 $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                 
                 // Final price = base + surcharge
@@ -997,8 +999,8 @@ public function handleMoMoIPN(Request $request)
                     'so_dem' => $nights,
                     'so_luong' => $giu_phong->so_luong ?? 1,
                     'so_nguoi_o' => $guestsInRoom,
-                    'number_child' => $extraChildren,   // Extra children with surcharge
-                    'number_adult' => $extraAdults,      // Extra adults with surcharge
+                    'number_child' => $extraChildrenThisRoom,   // Extra children with surcharge
+                    'number_adult' => $extraAdultsThisRoom,      // Extra adults with surcharge
                     'gia_tren_dem' => $price_per_night,
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                     'spec_signature_hash' => $specSignatureHash,
@@ -1179,11 +1181,13 @@ public function handleMoMoIPN(Request $request)
                     $adultsInCapacity = min($adultsInRoom, $capacity);
                     $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
                     
-                    $extraAdults = $adultsInRoom - $adultsInCapacity;
-                    $extraChildren = $childrenInRoom - $childrenInCapacity;
+                    // CRITICAL FIX: Use different variable names to avoid collision
+                    // with $extraAdults and $extraChildren from distribution logic (line 1152-1154)
+                    $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
+                    $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
                     
-                    $extraAdultsCharge = $extraAdults * self::ADULT_PRICE;
-                    $extraChildrenCharge = $extraChildren * self::CHILD_PRICE;
+                    $extraAdultsCharge = $extraAdultsThisRoom * self::ADULT_PRICE;
+                    $extraChildrenCharge = $extraChildrenThisRoom * self::CHILD_PRICE;
                     $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
                     
                     // Final price = base + surcharge
@@ -1198,8 +1202,8 @@ public function handleMoMoIPN(Request $request)
                         'so_dem'             => $nights,
                         'so_luong'           => $giu_phong->so_luong ?? 1,
                         'so_nguoi_o'         => $guestsInRoom,
-                        'number_child'       => $extraChildren,   // Extra children with surcharge
-                        'number_adult'       => $extraAdults,      // Extra adults with surcharge
+                        'number_child'       => $extraChildrenThisRoom,   // Extra children with surcharge
+                        'number_adult'       => $extraAdultsThisRoom,      // Extra adults with surcharge
                         'gia_tren_dem'       => $price_per_night,
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                         'spec_signature_hash' => $specSignatureHash,
