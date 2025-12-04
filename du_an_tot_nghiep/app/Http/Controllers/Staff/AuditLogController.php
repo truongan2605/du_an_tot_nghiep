@@ -58,6 +58,14 @@ class AuditLogController extends Controller
 
         $users = $collection->pluck('user_name')->filter()->unique()->values()->all();
         $events = $collection->pluck('event')->filter()->unique()->values()->all();
+        
+        // Get unique models for dropdown
+        $models = $collection->pluck('auditable_type')->filter()->unique()->map(function($type) {
+            return [
+                'value' => class_basename($type), // Short name like "DatPhong"
+                'label' => \App\Helpers\AuditFieldTranslator::translateModel($type) // Vietnamese translation
+            ];
+        })->sortBy('label')->values()->all();
 
         // Prepare processed logs: summary + HTML details (escaped) to avoid showing raw JSON/URL
         $processed = $collection->map(function (AuditLog $log) {
@@ -178,6 +186,7 @@ class AuditLogController extends Controller
             'logs' => $logsPaginator,
             'users' => $users,
             'events' => $events,
+            'models' => $models,
             'totalCount' => $totalCount,
             'recentCount' => $recentCount,
         ]);

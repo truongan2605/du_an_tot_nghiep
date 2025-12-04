@@ -141,6 +141,24 @@ class RefundController extends Controller
      */
     public function complete(Request $request, $id)
     {
+        // Validate proof option
+        $request->validate([
+            'proof_option' => 'required|in:upload,generate',
+            'note' => 'nullable|string|max:500',
+        ]);
+
+        // Conditional validation for upload
+        if ($request->input('proof_option') === 'upload') {
+            $request->validate([
+                'proof_image' => 'required|image|mimes:jpeg,jpg,png|max:5120',
+            ], [
+                'proof_image.required' => 'Vui lòng tải lên ảnh chứng minh hoàn tiền.',
+                'proof_image.image' => 'File phải là ảnh.',
+                'proof_image.mimes' => 'Ảnh phải có định dạng: JPG, JPEG, PNG.',
+                'proof_image.max' => 'Ảnh không được vượt quá 5MB.',
+            ]);
+        }
+
         $refund = RefundRequest::findOrFail($id);
 
         if ($refund->status !== 'approved') {
@@ -148,25 +166,51 @@ class RefundController extends Controller
         }
 
         try {
+            $imagePath = null;
+
+            if ($request->input('proof_option') === 'upload') {
+                // Handle manual upload
+                if ($request->hasFile('proof_image')) {
+                    $image = $request->file('proof_image');
+                    $filename = 'refund_' . $refund->id . '_' . time() . '.' . $image->getClientOriginalExtension();
+                    $imagePath = $image->storeAs('refund_proofs', $filename, 'public');
+                }
+            } else {
+                // Auto-generate receipt
+                $generator = new \App\Services\RefundReceiptGenerator();
+                $imagePath = $generator->generate($refund);
+                
+                if (!$imagePath) {
+                    return back()->with('error', 'Không thể tạo ảnh chứng minh. Vui lòng thử lại.');
+                }
+            }
+
             $refund->update([
                 'status' => 'completed',
                 'admin_note' => ($refund->admin_note ?? '') . "\n" . $request->input('note', 'Đã chuyển tiền hoàn cho khách.'),
+                'proof_image_path' => $imagePath,
             ]);
 
-            Log::info('Refund marked as completed', [
+            Log::info('Refund marked as completed with proof image', [
                 'refund_id' => $refund->id,
                 'amount' => $refund->amount,
                 'completed_by' => Auth::id(),
+                'proof_image' => $imagePath,
+                'proof_method' => $request->input('proof_option'),
             ]);
 
-            return back()->with('success', 'Đã đánh dấu hoàn tiền thành công.');
+            $message = $request->input('proof_option') === 'upload' 
+                ? 'Đã đánh dấu hoàn tiền thành công và lưu ảnh chứng minh.'
+                : 'Đã đánh dấu hoàn tiền thành công và tạo biên nhận tự động.';
+
+            return back()->with('success', $message);
 
         } catch (\Exception $e) {
             Log::error('Error completing refund', [
                 'refund_id' => $id,
                 'error' => $e->getMessage(),
             ]);
-            return back()->with('error', 'Có lỗi xảy ra.');
+            return back()->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
         }
     }
 }

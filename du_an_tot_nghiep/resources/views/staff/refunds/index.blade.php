@@ -112,8 +112,8 @@
                             <th style="width: 40px;"></th>
                             <th>Mã đặt phòng</th>
                             <th>Khách hàng</th>
-                            <th>Booking Info</th>
-                            <th class="text-end">Refund</th>
+                            <th>Thông tin đặt phòng</th>
+                            <th class="text-end">Hoàn tiền</th>
                             <th class="text-center">Trạng thái</th>
                             <th class="text-center">Thao tác</th>
                         </tr>
@@ -167,15 +167,15 @@
                                 <td>
                                     <div class="small">
                                         <span class="badge {{ $depositType == 100 ? 'bg-success' : 'bg-info' }} mb-1">
-                                            {{ $depositType }}% payment
+                                            Thanh toán {{ $depositType }}%
                                         </span>
                                     </div>
                                     <div class="small text-muted">
-                                        Cancelled: {{ $cancelledAt->diffForHumans() }}
+                                        Đã hủy: {{ $cancelledAt->format('d/m/Y H:i') }}
                                     </div>
                                     <div class="small">
                                         <span class="badge {{ $daysBeforeCheckIn >= 7 ? 'bg-success' : ($daysBeforeCheckIn >= 3 ? 'bg-warning' : 'bg-danger') }}">
-                                            {{ abs($daysBeforeCheckIn) }} days {{ $daysBeforeCheckIn >= 0 ? 'before' : 'after' }}
+                                            {{ abs(round($daysBeforeCheckIn)) }} ngày {{ $daysBeforeCheckIn >= 0 ? 'trước' : 'sau' }}
                                         </span>
                                     </div>
                                 </td>
@@ -229,27 +229,27 @@
                                             {{-- Booking Details --}}
                                             <div class="col-md-4">
                                                 <h6 class="text-primary mb-2">
-                                                    <i class="fas fa-calendar-alt"></i> Booking Details
+                                                    <i class="fas fa-calendar-alt"></i> Thông Tin Đặt Phòng
                                                 </h6>
                                                 <table class="table table-sm table-borderless mb-0">
                                                     <tr>
-                                                        <td class="text-muted">Check-in:</td>
+                                                        <td class="text-muted">Nhận phòng:</td>
                                                         <td><strong>{{ $booking->ngay_nhan_phong->format('d/m/Y') }}</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Check-out:</td>
+                                                        <td class="text-muted">Trả phòng:</td>
                                                         <td><strong>{{ $booking->ngay_tra_phong->format('d/m/Y') }}</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Nights:</td>
+                                                        <td class="text-muted">Số đêm:</td>
                                                         <td>{{ $booking->ngay_nhan_phong->diffInDays($booking->ngay_tra_phong) }}</td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Total:</td>
+                                                        <td class="text-muted">Tổng tiền:</td>
                                                         <td><strong>{{ number_format($booking->tong_tien, 0, ',', '.') }} ₫</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Deposit:</td>
+                                                        <td class="text-muted">Đặt cọc:</td>
                                                         <td>
                                                             <span class="badge {{ $depositType == 100 ? 'bg-success' : 'bg-info' }}">
                                                                 {{ $depositType }}%
@@ -263,27 +263,27 @@
                                             {{-- Cancellation Details --}}
                                             <div class="col-md-4">
                                                 <h6 class="text-danger mb-2">
-                                                    <i class="fas fa-ban"></i> Cancellation Details
+                                                    <i class="fas fa-ban"></i> Thông Tin Hủy Phòng
                                                 </h6>
                                                 <table class="table table-sm table-borderless mb-0">
                                                     <tr>
-                                                        <td class="text-muted">Cancelled at:</td>
+                                                        <td class="text-muted">Thời gian hủy:</td>
                                                         <td><strong>{{ $cancelledAt->format('d/m/Y H:i') }}</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Days before:</td>
+                                                        <td class="text-muted">Số ngày trước:</td>
                                                         <td>
                                                             <span class="badge {{ $daysBeforeCheckIn >= 7 ? 'bg-success' : ($daysBeforeCheckIn >= 3 ? 'bg-warning text-dark' : 'bg-danger') }}">
-                                                                {{ abs(round($daysBeforeCheckIn, 1)) }} days
+                                                                {{ abs(round($daysBeforeCheckIn)) }} ngày
                                                             </span>
                                                         </td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Reason:</td>
+                                                        <td class="text-muted">Lý do:</td>
                                                         <td>{{ $booking->cancellation_reason ?? 'N/A' }}</td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Requested:</td>
+                                                        <td class="text-muted">Yêu cầu lúc:</td>
                                                         <td>{{ $refund->requested_at->format('d/m/Y H:i') }}</td>
                                                     </tr>
                                                 </table>
@@ -292,28 +292,50 @@
                                             {{-- Refund Calculation --}}
                                             <div class="col-md-4">
                                                 <h6 class="text-success mb-2">
-                                                    <i class="fas fa-calculator"></i> Refund Calculation
+                                                    <i class="fas fa-calculator"></i> Tính Toán Hoàn Tiền
                                                 </h6>
                                                 <table class="table table-sm table-borderless mb-0">
                                                     <tr>
-                                                        <td class="text-muted">Paid amount:</td>
+                                                        <td class="text-muted">Số tiền đã trả:</td>
                                                         <td><strong>{{ number_format($booking->deposit_amount, 0, ',', '.') }} ₫</strong></td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Refund %:</td>
+                                                        <td class="text-muted">Tỷ lệ hoàn:</td>
                                                         <td>
                                                             <span class="badge bg-primary">{{ $refund->percentage }}%</span>
                                                         </td>
                                                     </tr>
                                                     <tr>
-                                                        <td class="text-muted">Refund amount:</td>
+                                                        <td class="text-muted">Số tiền hoàn:</td>
                                                         <td><strong class="text-success">{{ number_format($refund->amount, 0, ',', '.') }} ₫</strong></td>
                                                     </tr>
                                                     @if($refund->admin_note)
                                                         <tr>
                                                             <td class="text-muted" colspan="2">
                                                                 <div class="alert alert-info alert-sm mb-0 mt-2 p-2">
-                                                                    <small><strong>Admin note:</strong><br>{{ $refund->admin_note }}</small>
+                                                                    <small><strong>Ghi chú quản trị:</strong><br>{{ $refund->admin_note }}</small>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endif
+                                                    
+                                                    {{-- Display Proof Image --}}
+                                                    @if($refund->proof_image_path)
+                                                        <tr>
+                                                            <td class="text-muted" colspan="2">
+                                                                <div class="mt-3">
+                                                                    <strong>Ảnh chứng minh:</strong>
+                                                                    <div class="mt-2">
+                                                                        <a href="{{ $refund->proof_image_url }}" target="_blank">
+                                                                            <img src="{{ $refund->proof_image_url }}" 
+                                                                                 alt="Proof of refund" 
+                                                                                 class="img-thumbnail" 
+                                                                                 style="max-width: 100%; max-height: 250px; cursor: pointer;">
+                                                                        </a>
+                                                                    </div>
+                                                                    <a href="{{ $refund->proof_image_url }}" download class="btn btn-sm btn-outline-primary mt-2">
+                                                                        <i class="fas fa-download"></i> Tải xuống
+                                                                    </a>
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -379,10 +401,10 @@
                                                 </div>
                                                 <div class="alert alert-info alert-sm mb-0 p-2">
                                                     <small>
-                                                        <strong><i class="fas fa-check-circle"></i> Case hiện tại:</strong>
-                                                        Deposit <strong>{{ $depositType }}%</strong>, 
-                                                        hủy <strong>{{ abs(round($daysBeforeCheckIn, 1)) }} ngày</strong> {{ $daysBeforeCheckIn >= 0 ? 'trước' : 'sau' }} check-in
-                                                        → Policy: <strong class="text-primary">{{ $refund->percentage }}%</strong>
+                                                        <strong><i class="fas fa-check-circle"></i> Trường hợp hiện tại:</strong>
+                                                        Đặt cọc <strong>{{ $depositType }}%</strong>, 
+                                                        hủy <strong>{{ abs(round($daysBeforeCheckIn)) }} ngày</strong> {{ $daysBeforeCheckIn >= 0 ? 'trước' : 'sau' }} nhận phòng
+                                                        → Chính sách: <strong class="text-primary">{{ $refund->percentage }}%</strong>
                                                     </small>
                                                 </div>
                                             </div>
@@ -454,7 +476,7 @@
                             <div class="modal fade" id="completeModal{{ $refund->id }}" tabindex="-1">
                                 <div class="modal-dialog">
                                     <div class="modal-content">
-                                        <form method="POST" action="{{ route('staff.refunds.complete', $refund->id) }}">
+                                        <form method="POST" action="{{ route('staff.refunds.complete', $refund->id) }}" enctype="multipart/form-data">
                                             @csrf
                                             <div class="modal-header">
                                                 <h5 class="modal-title">Đánh Dấu Đã Hoàn Tiền</h5>
@@ -465,6 +487,50 @@
                                                 <ul>
                                                     <li><strong>Số tiền:</strong> {{ number_format($refund->amount, 0, ',', '.') }} ₫</li>
                                                 </ul>
+                                                
+                                                {{-- Proof Option Selection --}}
+                                                <div class="mb-3">
+                                                    <label class="form-label">Chọn phương thức chứng minh <span class="text-danger">*</span></label>
+                                                    <div class="d-flex gap-3">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="radio" name="proof_option" id="uploadOption{{ $refund->id }}" value="upload" checked onchange="toggleProofMethod({{ $refund->id }}, 'upload')">
+                                                            <label class="form-check-label" for="uploadOption{{ $refund->id }}">
+                                                                <i class="bi bi-upload me-1"></i> Tải lên ảnh
+                                                            </label>
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="radio" name="proof_option" id="generateOption{{ $refund->id }}" value="generate" onchange="toggleProofMethod({{ $refund->id }}, 'generate')">
+                                                            <label class="form-check-label" for="generateOption{{ $refund->id }}">
+                                                                <i class="bi bi-magic me-1"></i> Tạo biên nhận tự động
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Upload Section --}}
+                                                <div id="uploadSection{{ $refund->id }}" class="mb-3">
+                                                    <label class="form-label">Ảnh chứng minh hoàn tiền <span class="text-danger">*</span></label>
+                                                    <input type="file" name="proof_image" id="proofImageInput{{ $refund->id }}" class="form-control" accept="image/jpeg,image/jpg,image/png" onchange="previewImage(this, 'preview{{ $refund->id }}')">
+                                                    <small class="text-muted">Định dạng: JPG, PNG. Tối đa 5MB</small>
+                                                    <div class="mt-2">
+                                                        <img id="preview{{ $refund->id }}" src="" alt="Preview" style="max-width: 100%; max-height: 200px; display: none;" class="img-thumbnail">
+                                                    </div>
+                                                </div>
+                                                
+                                                {{-- Generate Info Section --}}
+                                                <div id="generateSection{{ $refund->id }}" class="mb-3" style="display: none;">
+                                                    <div class="alert alert-info">
+                                                        <i class="bi bi-info-circle me-2"></i>
+                                                        <strong>Biên nhận sẽ được tạo tự động</strong> với thông tin:
+                                                        <ul class="mb-0 mt-2 small">
+                                                            <li>Mã giao dịch: REF-{{ str_pad($refund->id, 6, '0', STR_PAD_LEFT) }}</li>
+                                                            <li>Người nhận: {{ $refund->datPhong->contact_name ?? 'N/A' }}</li>
+                                                            <li>Số tiền: {{ number_format($refund->amount, 0, ',', '.') }} ₫</li>
+                                                            <li>Ngày: {{ now()->format('d/m/Y H:i') }}</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                
                                                 <div class="mb-3">
                                                     <label class="form-label">Ghi chú xác nhận (tùy chọn)</label>
                                                     <textarea name="note" class="form-control" rows="2" placeholder="VD: Đã chuyển qua VNPay..."></textarea>
@@ -520,4 +586,48 @@
         }
     }
 </style>
+
+<script>
+// Toggle between upload and generate proof methods
+function toggleProofMethod(refundId, method) {
+    const uploadSection = document.getElementById('uploadSection' + refundId);
+    const generateSection = document.getElementById('generateSection' + refundId);
+    const fileInput = document.getElementById('proofImageInput' + refundId);
+    
+    if (method === 'upload') {
+        uploadSection.style.display = 'block';
+        generateSection.style.display = 'none';
+        fileInput.required = true;
+    } else {
+        uploadSection.style.display = 'none';
+        generateSection.style.display = 'block';
+        fileInput.required = false;
+        fileInput.value = ''; // Clear file input
+        
+        // Hide preview if any
+        const preview = document.getElementById('preview' + refundId);
+        if (preview) {
+            preview.style.display = 'none';
+        }
+    }
+}
+
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        preview.src = '';
+        preview.style.display = 'none';
+    }
+}
+</script>
 @endsection

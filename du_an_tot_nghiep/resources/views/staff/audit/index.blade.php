@@ -96,7 +96,14 @@
 
                 <div class="col-auto">
                     <label class="form-label small mb-1">Model</label>
-                    <input type="text" name="auditable_type" value="{{ request('auditable_type') }}" placeholder="Model (ví dụ: DatPhong)" class="form-control form-control-sm" />
+                    <select name="auditable_type" class="form-select form-select-sm">
+                        <option value="">Tất cả</option>
+                        @foreach($models as $model)
+                            <option value="{{ $model['value'] }}" @selected(request('auditable_type') == $model['value'])>
+                                {{ $model['label'] }}
+                            </option>
+                        @endforeach
+                    </select>
                 </div>
 
                 <div class="col-auto flex-grow-1">

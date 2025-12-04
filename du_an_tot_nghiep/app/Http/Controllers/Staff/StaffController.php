@@ -12,6 +12,7 @@ use App\Models\LoaiPhong;
 use App\Models\HoaDonItem;
 use App\Models\PhongDaDat;
 use App\Models\DatPhongItem;
+use App\Models\RefundRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use App\Models\VatDungIncident;
@@ -30,7 +31,7 @@ class StaffController extends Controller
 {
 
 
-    public function index()
+    public function index(Request $request)
     {
         $today = now();
         $weekRange = [$today->copy()->startOfWeek()->toDateString(), $today->copy()->endOfWeek()->toDateString()];
@@ -43,37 +44,62 @@ class StaffController extends Controller
 
         $pendingBookings = DatPhong::where('trang_thai', 'dang_cho')->count();
         $totalBookings = DatPhong::count();
-        $giaoDichThanhCong = GiaoDich::where('trang_thai', 'thanh_cong');
-        $giaoDichHoanTien = GiaoDich::where('trang_thai', 'da_hoan');
 
-        $todayRevenue = $giaoDichThanhCong->clone()
+        // === HYBRID REVENUE MODEL ===
+        // Revenue = GiaoDich (paid) + HoaDon (unpaid charges)
+        
+        // Today
+        $todayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
             ->whereDate('created_at', $today)
             ->sum('so_tien');
-        $todayRefund = $giaoDichHoanTien->clone()
-            ->whereDate('created_at', $today)
-            ->sum('so_tien');
+        $todayInvoiced = HoaDon::whereDate('created_at', $today)
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $todayRevenue = $todayPaid + $todayInvoiced;
+        
+        $todayRefund = RefundRequest::where('status', 'completed')
+            ->whereDate('processed_at', $today)
+            ->sum('amount');
         $todayNetRevenue = $todayRevenue - $todayRefund;
-        $weeklyRevenue = $giaoDichThanhCong->clone()
+
+        // Weekly
+        $weeklyPaid = GiaoDich::where('trang_thai', 'thanh_cong')
             ->whereBetween(DB::raw('DATE(created_at)'), $weekRange)
             ->sum('so_tien');
-        $weeklyRefund = $giaoDichHoanTien->clone()
-            ->whereBetween(DB::raw('DATE(created_at)'), $weekRange)
-            ->sum('so_tien');
+        $weeklyInvoiced = HoaDon::whereBetween(DB::raw('DATE(created_at)'), $weekRange)
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $weeklyRevenue = $weeklyPaid + $weeklyInvoiced;
+        
+        $weeklyRefund = RefundRequest::where('status', 'completed')
+            ->whereBetween(DB::raw('DATE(processed_at)'), $weekRange)
+            ->sum('amount');
         $weeklyNetRevenue = $weeklyRevenue - $weeklyRefund;
 
-        $monthlyRevenue = $giaoDichThanhCong->clone()
+        // Monthly
+        $monthlyPaid = GiaoDich::where('trang_thai', 'thanh_cong')
             ->whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
             ->sum('so_tien');
-        $monthlyRefund = $giaoDichHoanTien->clone()
-            ->whereYear('created_at', $year)
+        $monthlyInvoiced = HoaDon::whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
-            ->sum('so_tien');
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $monthlyRevenue = $monthlyPaid + $monthlyInvoiced;
+        
+        $monthlyRefund = RefundRequest::where('status', 'completed')
+            ->whereYear('processed_at', $year)
+            ->whereMonth('processed_at', $month)
+            ->sum('amount');
         $monthlyNetRevenue = $monthlyRevenue - $monthlyRefund;
 
-
-        $totalRevenue = $giaoDichThanhCong->clone()->sum('so_tien');
-        $totalRefund = $giaoDichHoanTien->clone()->sum('so_tien');
+        // Total
+        $totalPaid = GiaoDich::where('trang_thai', 'thanh_cong')->sum('so_tien');
+        $totalInvoiced = HoaDon::whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $totalRevenue = $totalPaid + $totalInvoiced;
+        
+        $totalRefund = RefundRequest::where('status', 'completed')->sum('amount');
         $totalNetRevenue = $totalRevenue - $totalRefund;
 
         $todayDeposit = GiaoDich::where('trang_thai', 'thanh_cong')
@@ -98,20 +124,26 @@ class StaffController extends Controller
         $availableRooms = Phong::where('trang_thai', 'trong')->count();
         
         // === Room Analytics Overview (Current Month) ===
+        // IMPORTANT: Use HoaDonItems instead of dat_phong_item because dat_phong_item gets deleted after checkout!
         $currentMonth = $today->month;
         $currentYear = $today->year;
         
-        $roomTypeStats = DB::table('dat_phong_item as dpi')
-            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
-            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
-            ->whereYear('dp.ngay_nhan_phong', $currentYear)
-            ->whereMonth('dp.ngay_nhan_phong', $currentMonth)
-            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+        // Get all room-related revenue from HoaDonItems (includes both checked-out and active bookings)
+        $roomTypeStats = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->join('dat_phong as dp', 'hd.dat_phong_id', '=', 'dp.id')
+            ->leftJoin('loai_phong as lp', 'hdi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('hd.created_at', $currentYear)
+            ->whereMonth('hd.created_at', $currentMonth)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.loai_phong_id')
             ->select(
                 'lp.id',
                 'lp.ten',
-                DB::raw('COUNT(DISTINCT dp.id) as total_bookings'),
-                DB::raw('SUM(dpi.tong_item) as total_revenue')
+                DB::raw('COUNT(DISTINCT CASE WHEN hdi.type = "room_booking" THEN hd.dat_phong_id END) as total_bookings'),
+                DB::raw('SUM(CASE WHEN hdi.type = "room_booking" THEN hdi.amount ELSE 0 END) as booking_revenue'),
+                DB::raw('SUM(CASE WHEN hdi.type != "room_booking" THEN hdi.amount ELSE 0 END) as additional_revenue'),
+                DB::raw('SUM(hdi.amount) as total_revenue')
             )
             ->groupBy('lp.id', 'lp.ten')
             ->get();
@@ -136,6 +168,8 @@ class StaffController extends Controller
                 'ten' => $stat->ten,
                 'total_rooms' => $totalRooms,
                 'total_bookings' => $stat->total_bookings,
+                'booking_revenue' => $stat->booking_revenue ?? 0,
+                'additional_revenue' => $stat->additional_revenue ?? 0,
                 'total_revenue' => $stat->total_revenue ?? 0,
                 'occupancy_rate' => $occupancyRate
             ];
@@ -197,6 +231,40 @@ class StaffController extends Controller
             ->limit(10)
             ->get();
 
+        // Custom Date Range Filter
+        $customRevenue = null;
+        $customRefund = null;
+        $customNetRevenue = null;
+        $customRangeLabel = null;
+
+        if ($request->has('start_date') && $request->has('end_date')) {
+            try {
+                $startDate = Carbon::parse($request->start_date)->startOfDay();
+                $endDate = Carbon::parse($request->end_date)->endOfDay();
+                
+                // Hybrid model: GiaoDich (paid) + HoaDon (all invoices)
+                $customPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+                    ->whereBetween('created_at', [$startDate, $endDate])
+                    ->sum('so_tien');
+                
+                $customInvoiced = HoaDon::whereBetween('created_at', [$startDate, $endDate])
+                    ->whereNotIn('trang_thai', ['da_huy'])
+                    ->sum('tong_thuc_thu');
+                
+                $customRevenue = $customPaid + $customInvoiced;
+                
+                // Use RefundRequest instead of GiaoDich
+                $customRefund = RefundRequest::where('status', 'completed')
+                    ->whereBetween('processed_at', [$startDate, $endDate])
+                    ->sum('amount');
+                
+                $customNetRevenue = $customRevenue - $customRefund;
+                $customRangeLabel = $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y');
+            } catch (\Exception $e) {
+                Log::error('Error parsing date range', ['error' => $e->getMessage()]);
+            }
+        }
+
         return view('staff.index', compact(
             'pendingBookings',
             'todayRevenue',
@@ -222,7 +290,11 @@ class StaffController extends Controller
             'revenueData',
             'roomTypeStats',
             'analyticsChartLabels',
-            'analyticsChartData'
+            'analyticsChartData',
+            'customRevenue',
+            'customRefund',
+            'customNetRevenue',
+            'customRangeLabel'
         ));
     }
 
@@ -876,6 +948,144 @@ class StaffController extends Controller
             ->paginate(10);
 
         return view('staff.bookings', compact('bookings'));
+    }
+
+    /**
+     * Quick view booking details for modal (AJAX)
+     */
+    public function quickView($id)
+    {
+        try {
+            $booking = DatPhong::with([
+                'nguoiDung',
+                'datPhongItems.phong',
+                'datPhongItems.loaiPhong',
+                'hoaDons.hoaDonItems.phong'
+            ])->findOrFail($id);
+
+            // Get room codes
+            $roomCodes = [];
+            if ($booking->datPhongItems && $booking->datPhongItems->isNotEmpty()) {
+                foreach ($booking->datPhongItems as $item) {
+                    if (!empty($item->phong) && !empty($item->phong->ma_phong)) {
+                        $roomCodes[] = $item->phong->ma_phong;
+                    } elseif (!empty($item->phong_id)) {
+                        $roomCodes[] = 'Phòng #' . $item->phong_id;
+                    }
+                }
+            } else {
+                // Fallback to hoa_don_items if dat_phong_item deleted
+                if (!empty($booking->hoaDons)) {
+                    foreach ($booking->hoaDons as $hd) {
+                        if (empty($hd->hoaDonItems)) continue;
+                        foreach ($hd->hoaDonItems as $it) {
+                            if (in_array($it->type, ['room', 'room_booking'])) {
+                                if (!empty($it->phong) && !empty($it->phong->ma_phong)) {
+                                    $roomCodes[] = $it->phong->ma_phong;
+                                } elseif (!empty($it->phong_id)) {
+                                    $roomCodes[] = 'Phòng #' . $it->phong_id;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            $roomCodes = array_values(array_unique(array_filter($roomCodes)));
+
+            // Get notes from snapshot_meta
+            $notes = [];
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                $meta = json_decode($booking->snapshot_meta, true) ?? [];
+            } else {
+                $meta = [];
+            }
+            
+            if (!empty($meta['staff_notes']) && is_array($meta['staff_notes'])) {
+                $notes = array_slice($meta['staff_notes'], -1); // Get last note
+            }
+
+            $data = [
+                'id' => $booking->id,
+                'ma_tham_chieu' => $booking->ma_tham_chieu,
+                'trang_thai' => $booking->trang_thai,
+                'customer_name' => $booking->nguoiDung->name ?? $booking->contact_name ?? 'N/A',
+                'customer_email' => $booking->nguoiDung->email ?? $booking->contact_email ?? 'N/A',
+                'customer_phone' => $booking->nguoiDung->phone ?? $booking->contact_phone ?? 'N/A',
+                'ngay_nhan_phong' => Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0)->format('d/m/Y H:i'),
+                'ngay_tra_phong' => Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0)->format('d/m/Y H:i'),
+                'rooms' => $roomCodes,
+                'tong_tien' => $booking->tong_tien ?? 0,
+                'deposit_amount' => $booking->deposit_amount ?? 0,
+                'notes' => $notes
+            ];
+
+            return response()->json([
+                'success' => true,
+                'booking' => $data
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Quick view error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể tải thông tin booking'
+            ], 500);
+        }
+    }
+
+    /**
+     * Add quick note to booking
+     */
+    public function addNote(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'note' => 'required|string|max:1000'
+            ]);
+
+            $booking = DatPhong::findOrFail($id);
+            
+            // Get current meta
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                $meta = json_decode($booking->snapshot_meta, true) ?? [];
+            } else {
+                $meta = [];
+            }
+
+            // Initialize staff_notes array if not exists
+            if (!isset($meta['staff_notes']) || !is_array($meta['staff_notes'])) {
+                $meta['staff_notes'] = [];
+            }
+
+            // Add new note
+            $meta['staff_notes'][] = [
+                'content' => $request->note,
+                'created_at' => now()->format('d/m/Y H:i'),
+                'created_by' => Auth::user()->name ?? 'Staff',
+                'created_by_id' => Auth::id()
+            ];
+
+            // Save meta
+            $booking->update([
+                'snapshot_meta' => $meta
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Ghi chú đã được lưu thành công'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Add note error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể lưu ghi chú'
+            ], 500);
+        }
     }
 
 

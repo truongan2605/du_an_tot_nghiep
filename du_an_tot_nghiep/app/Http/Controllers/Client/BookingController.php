@@ -322,26 +322,116 @@ class BookingController extends Controller
 
         // 10. Handle payment based on price difference
         if ($priceDiff > 0) {
-            // UPGRADE - Need payment
+            // UPGRADE - Check if payment needed
             $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
 
             // Calculate new deposit based on FULL BOOKING total (not just changed room)
             $newDepositRequired = $newBookingTotal * ($depositPct / 100);
-            $paymentNeeded = $newDepositRequired - $booking->deposit_amount;
+            $basePaymentNeeded = $newDepositRequired - $booking->deposit_amount;
 
-            Log::info(' Upgrade payment calculation', [
+            // 🎁 CRITICAL: Check for unused downgrade vouchers to AUTO-APPLY (not reclaim!)
+            $unusedVouchers = \App\Models\Voucher::where('code', 'LIKE', 'DOWNGRADE%')
+                ->whereHas('users', function($q) use ($booking) {
+                    $q->where('user_id', $booking->nguoi_dung_id);
+                })
+                ->where('active', true)
+                ->where('end_date', '>=', now())
+                ->get();
+
+            $voucherDiscount = 0;
+            $appliedVouchers = [];
+
+            foreach ($unusedVouchers as $voucher) {
+                // Check if voucher was used
+                $isUsed = \App\Models\VoucherUsage::where('voucher_id', $voucher->id)
+                    ->where('nguoi_dung_id', $booking->nguoi_dung_id)
+                    ->exists();
+
+                if (!$isUsed) {
+                    // ✨ AUTO-APPLY voucher (not deactivate!)
+                    $voucherDiscount += $voucher->value;
+                    $appliedVouchers[] = [
+                        'id' => $voucher->id,
+                        'code' => $voucher->code,
+                        'value' => $voucher->value
+                    ];
+                }
+            }
+
+            // Calculate final payment after applying vouchers
+            // If basePaymentNeeded is negative (overpaid), add voucher value back
+            // If basePaymentNeeded is positive (need more), subtract voucher discount
+            $finalPaymentNeeded = $basePaymentNeeded + max(0, -$basePaymentNeeded);
+            $finalPaymentNeeded = max(0, $finalPaymentNeeded - $voucherDiscount);
+
+            Log::info('📊 Upgrade payment calculation', [
                 'deposit_pct' => $depositPct,
                 'new_booking_total' => $newBookingTotal,
                 'new_deposit_required' => $newDepositRequired,
                 'already_paid' => $booking->deposit_amount,
-                'payment_needed' => $paymentNeeded
+                'base_payment_needed' => $basePaymentNeeded,
+                'voucher_discount' => $voucherDiscount,
+                'applied_vouchers' => $appliedVouchers,
+                'final_payment_needed' => $finalPaymentNeeded
             ]);
 
-            // Store room_change_id in session for callback
-            session(['room_change_id' => $roomChange->id]);
+            // Store vouchers to apply in session
+            if (count($appliedVouchers) > 0) {
+                session(['room_change_vouchers' => $appliedVouchers]);
+            }
 
-            // Redirect to VNPay
-            return $this->redirectToVNPayForRoomChange($booking, $roomChange, $paymentNeeded);
+            // Check if additional payment is actually needed
+            if ($finalPaymentNeeded > 0) {
+                // Need to pay more - redirect to VNPay
+                session(['room_change_id' => $roomChange->id]);
+                return $this->redirectToVNPayForRoomChange($booking, $roomChange, $finalPaymentNeeded);
+            } else {
+                // No payment needed - complete directly and mark vouchers as used
+                $result = $this->completeRoomChange($roomChange);
+
+                // Mark vouchers as used
+                foreach ($appliedVouchers as $voucherInfo) {
+                    \App\Models\VoucherUsage::create([
+                        'voucher_id' => $voucherInfo['id'],
+                        'dat_phong_id' => $booking->id,
+                        'nguoi_dung_id' => $booking->nguoi_dung_id,
+                        'amount' => $voucherInfo['value']
+                    ]);
+
+                    Log::info('🎫 Voucher auto-applied', [
+                        'voucher_code' => $voucherInfo['code'],
+                        'value' => $voucherInfo['value'],
+                        'booking_id' => $booking->id
+                    ]);
+                }
+
+                if ($result) {
+                    $oldRoom = $roomChange->oldRoom;
+                    $newRoom = $roomChange->newRoom;
+
+                    $successMessage = 'Đổi phòng thành công! ';
+                    if (count($appliedVouchers) > 0) {
+                        $totalDiscount = array_sum(array_column($appliedVouchers, 'value'));
+                        $successMessage .= 'Đã áp dụng voucher ' . number_format($totalDiscount) . 'đ. Không cần thanh toán thêm!';
+                    } else {
+                        $successMessage .= 'Không cần thanh toán thêm.';
+                    }
+
+                    return redirect('/account/bookings/' . $roomChange->dat_phong_id)
+                        ->with('room_change_success', [
+                            'old_room' => $oldRoom->ma_phong ?? 'N/A',
+                            'new_room' => $newRoom->ma_phong ?? 'N/A',
+                            'price_difference' => $priceDiff,
+                            'payment_amount' => 0,
+                            'applied_vouchers' => $appliedVouchers,
+                            'voucher_discount' => $voucherDiscount,
+                            'message' => 'Đã áp dụng voucher - Miễn phí đổi phòng'
+                        ])
+                        ->with('success', $successMessage);
+                } else {
+                    return back()->with('error', 'Có lỗi khi cập nhật thông tin phòng.');
+                }
+            }
 
         } elseif ($priceDiff < 0) {
             // DOWNGRADE - Auto refund via voucher
@@ -371,7 +461,6 @@ class BookingController extends Controller
             } else {
                 return back()->with('error', 'Có lỗi khi cập nhật thông tin phòng.');
             }
-
         } else {
             // SAME PRICE - Direct update
             $result = $this->completeRoomChange($roomChange);
@@ -504,21 +593,71 @@ class BookingController extends Controller
             // Complete room change
             $result = $this->completeRoomChange($roomChange);
 
+            // 🎫 Mark vouchers as used if any
+            $appliedVouchers = session('room_change_vouchers', []);
+            if (count($appliedVouchers) > 0) {
+                foreach ($appliedVouchers as $voucherInfo) {
+                    // Verify voucher still exists before creating usage record
+                    $voucher = \App\Models\Voucher::find($voucherInfo['id']);
+
+                    if (!$voucher) {
+                        Log::warning('⚠️ Voucher not found, skipping usage record', [
+                            'voucher_id' => $voucherInfo['id'],
+                            'voucher_code' => $voucherInfo['code'] ?? 'N/A',
+                            'booking_id' => $roomChange->dat_phong_id
+                        ]);
+                        continue;
+                    }
+
+                    if (!$voucher->active) {
+                        Log::warning('⚠️ Voucher inactive, skipping usage record', [
+                            'voucher_id' => $voucher->id,
+                            'voucher_code' => $voucher->code,
+                            'booking_id' => $roomChange->dat_phong_id
+                        ]);
+                        continue;
+                    }
+
+                    \App\Models\VoucherUsage::create([
+                        'voucher_id' => $voucherInfo['id'],
+                        'dat_phong_id' => $roomChange->dat_phong_id,
+                        'nguoi_dung_id' => $roomChange->booking->nguoi_dung_id,
+                        'amount' => $voucherInfo['value']
+                    ]);
+
+                    Log::info('🎫 Voucher applied after payment', [
+                        'voucher_code' => $voucherInfo['code'],
+                        'value' => $voucherInfo['value'],
+                        'booking_id' => $roomChange->dat_phong_id
+                    ]);
+                }
+            }
+
             // Clear session
-            session()->forget('room_change_id');
+            session()->forget(['room_change_id', 'room_change_vouchers']);
 
             if ($result) {
                 $oldRoom = $roomChange->oldRoom;
                 $newRoom = $roomChange->newRoom;
                 $priceDiff = $roomChange->price_difference;
 
+                $successData = [
+                    'old_room' => $oldRoom->ma_phong ?? 'N/A',
+                    'new_room' => $newRoom->ma_phong ?? 'N/A',
+                    'price_difference' => $priceDiff,
+                    'payment_amount' => $roomChange->payment_info['vnp_Amount'] ?? 0
+                ];
+
+                // Add voucher info if applied
+                if (count($appliedVouchers) > 0) {
+                    $totalDiscount = array_sum(array_column($appliedVouchers, 'value'));
+                    $successData['applied_vouchers'] = $appliedVouchers;
+                    $successData['voucher_discount'] = $totalDiscount;
+                    $successData['message'] = 'Đã áp dụng voucher ' . number_format($totalDiscount) . 'đ';
+                }
+
                 return redirect('/account/bookings/' . $roomChange->dat_phong_id)
-                    ->with('room_change_success', [
-                        'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                        'new_room' => $newRoom->ma_phong ?? 'N/A',
-                        'price_difference' => $priceDiff,
-                        'payment_amount' => $roomChange->payment_info['vnp_Amount'] ?? 0
-                    ])
+                    ->with('room_change_success', $successData)
                     ->with('success', 'Đổi phòng thành công! Thanh toán đã được xác nhận.');
             } else {
                 return redirect('/account/bookings/' . $roomChange->dat_phong_id)
@@ -633,7 +772,6 @@ class BookingController extends Controller
 
             DB::commit();
             return true;
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Room change completion failed: ' . $e->getMessage());
@@ -652,7 +790,7 @@ class BookingController extends Controller
         $voucher = Voucher::create([
             'code' => $code,
             'name' => "Hoàn tiền đổi phòng - {$code}",
-            'type' => 'fixed', 
+            'type' => 'fixed',
             'value' => $refundAmount,
             'qty' => 1,
             'start_date' => Carbon::now(),
@@ -680,31 +818,85 @@ class BookingController extends Controller
     }
 
     public function create(Phong $phong)
-    {
-        $phong->load(['loaiPhong', 'tienNghis', 'images', 'bedTypes', 'activeOverrides']);
-        $user = Auth::user();
+{
+    $phong->load(['loaiPhong', 'tienNghis', 'images', 'bedTypes', 'activeOverrides']);
+    $user = Auth::user();
 
-        $typeAmenityIds = $phong->loaiPhong ? $phong->loaiPhong->tienNghis->pluck('id')->toArray() : [];
-        $roomAmenityIds = $phong->tienNghis ? $phong->tienNghis->pluck('id')->toArray() : [];
-        $allAmenityIds = array_values(array_unique(array_merge($typeAmenityIds, $roomAmenityIds)));
+    /**
+     * 1. Lấy tất cả voucher còn hiệu lực theo ngày cho user
+     */
+    $baseVouchers = $user->vouchers()
+        ->where('active', 1)
+        ->whereDate('start_date', '<=', now())
+        ->whereDate('end_date', '>=', now())
+        ->get();
 
-        $availableAddons = \App\Models\TienNghi::where('active', true)
-            ->when(!empty($allAmenityIds), function ($q) use ($allAmenityIds) {
-                $q->whereNotIn('id', $allAmenityIds);
-            })->orderBy('ten')->get();
+    /**
+     * 2. Đếm số lần user đã dùng từng voucher trong bảng voucher_usage
+     *    và LOẠI BỎ những voucher đã dùng HẾT LƯỢT
+     *    (dùng cùng quy tắc với trang ví: nếu usage_limit_per_user null/0 thì mặc định = 1)
+     */
+    $vouchers = collect();
 
-        $fromDefault = Carbon::today();
-        $toDefault = Carbon::tomorrow();
+    if ($baseVouchers->isNotEmpty()) {
+        $usageModel = new VoucherUsage();
+        $usageTable = $usageModel->getTable(); // thường là voucher_usage
 
-        $availableRoomsDefault = $this->computeAvailableRoomsCount(
-            $phong->loai_phong_id,
-            $fromDefault,
-            $toDefault,
-            $phong->spec_signature_hash ?? $phong->specSignatureHash()
-        );
+        // Xác định cột user trong voucher_usage: nguoi_dung_id hoặc user_id
+        $userCol = Schema::hasColumn($usageTable, 'nguoi_dung_id')
+            ? 'nguoi_dung_id'
+            : (Schema::hasColumn($usageTable, 'user_id') ? 'user_id' : null);
 
-        return view('account.booking.create', compact('phong', 'user', 'availableAddons', 'availableRoomsDefault', 'fromDefault', 'toDefault'));
+        // Đếm số lần user này đã dùng từng voucher
+        $usageCounts = VoucherUsage::query()
+            ->when($userCol, function ($q) use ($userCol, $user) {
+                $q->where($userCol, $user->id);
+            })
+            ->whereIn('voucher_id', $baseVouchers->pluck('id'))
+            ->groupBy('voucher_id')
+            ->selectRaw('voucher_id, COUNT(*) as used_count')
+            ->pluck('used_count', 'voucher_id');
+
+        // Chỉ giữ voucher CÒN LƯỢT (used < limitPerUser)
+        $vouchers = $baseVouchers->filter(function ($voucher) use ($usageCounts) {
+            $used = (int) ($usageCounts[$voucher->id] ?? 0);
+
+            // Nếu usage_limit_per_user null/0 => xem như 1 lượt (giống trang ví)
+            $limitPerUser = (int) ($voucher->usage_limit_per_user ?: 1);
+
+            return $used < $limitPerUser;
+        })->values();
     }
+
+    // ===== PHẦN CÒN LẠI GIỮ NGUYÊN NHƯ CŨ =====
+
+    $typeAmenityIds = $phong->loaiPhong ? $phong->loaiPhong->tienNghis->pluck('id')->toArray() : [];
+    $roomAmenityIds = $phong->tienNghis ? $phong->tienNghis->pluck('id')->toArray() : [];
+    $allAmenityIds = array_values(array_unique(array_merge($typeAmenityIds, $roomAmenityIds)));
+
+    $availableAddons = \App\Models\TienNghi::where('active', true)
+        ->when(!empty($allAmenityIds), function ($q) use ($allAmenityIds) {
+            $q->whereNotIn('id', $allAmenityIds);
+        })->orderBy('ten')->get();
+
+    $fromDefault = Carbon::today();
+    $toDefault   = Carbon::tomorrow();
+
+    $availableRoomsDefault = $this->computeAvailableRoomsCount(
+        $phong->loai_phong_id,
+        $fromDefault,
+        $toDefault,
+        $phong->spec_signature_hash ?? $phong->specSignatureHash()
+    );
+
+    return view(
+        'account.booking.create',
+        compact('vouchers', 'phong', 'user', 'availableAddons', 'availableRoomsDefault', 'fromDefault', 'toDefault')
+    );
+}
+
+
+
 
     public function availability(Request $request)
     {
@@ -1170,6 +1362,7 @@ class BookingController extends Controller
                 })->toArray(),
                 'final_per_night' => $finalPerNightServer,
                 'nights' => $nights,
+                'deposit_percentage' => $depositPercentage, // CRITICAL: Store deposit % for MoMo/VNPay callbacks
                 // 'member_discount_amount' => $memberDiscountAmount,
                 // 'member_level' => $user ? ($user->member_level ?? 'dong') : 'dong',
                 // 'member_discount_percent' => $user ? $user->getMemberDiscountPercent() : 0,
@@ -1288,7 +1481,7 @@ class BookingController extends Controller
                     ]);
 
                     $meta = [
-                        'final_per_night' => (float)$finalPerNightServer,
+                        'final_per_night' => (float)($finalPerNightServer / max(1, $roomsCount)), // Per-room price
                         'snapshot_total' => (float)$snapshotTotalServer,
                         'nights' => $nights,
                         'rooms_count' => $roomsCount,
@@ -1473,118 +1666,118 @@ class BookingController extends Controller
     }
 
     public function validateVoucher(Request $request)
-{
-    $request->validate([
-        'name' => 'required|string|max:50',
-        'code' => 'required|string|max:50',
-        'phong_id' => 'required|integer|exists:phong,id',
-        'ngay_nhan_phong' => 'required|date',
-        'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
-        'adults' => 'required|integer|min:1',
-        'children' => 'nullable|integer|min:0',
-        'children_ages' => 'nullable|array',
-        'children_ages.*' => 'integer|min:0|max:12',
-        'addons' => 'nullable|array',
-        'rooms_count' => 'required|integer|min:1',
-    ]);
+    {
+        $request->validate([
+            'name' => 'required|string|max:50',
+            'code' => 'required|string|max:50',
+            'phong_id' => 'required|integer|exists:phong,id',
+            'ngay_nhan_phong' => 'required|date',
+            'ngay_tra_phong' => 'required|date|after:ngay_nhan_phong',
+            'adults' => 'required|integer|min:1',
+            'children' => 'nullable|integer|min:0',
+            'children_ages' => 'nullable|array',
+            'children_ages.*' => 'integer|min:0|max:12',
+            'addons' => 'nullable|array',
+            'rooms_count' => 'required|integer|min:1',
+        ]);
 
-    $code = strtoupper(trim($request->code));
-    $voucher = Voucher::where('code', $code)
-        ->where('active', true)
-        ->where('start_date', '<=', now())
-        ->where('end_date', '>=', now())
-        ->where('qty', '>', 0)
-        ->first();
+        $code = strtoupper(trim($request->code));
+        $voucher = Voucher::where('code', $code)
+            ->where('active', true)
+            ->where('start_date', '<=', now())
+            ->where('end_date', '>=', now())
+            ->where('qty', '>', 0)
+            ->first();
 
-    if (!$voucher) {
-        return response()->json(['error' => 'Mã voucher không hợp lệ hoặc đã hết hạn.'], 400);
-    }
-
-    // ===== Giới hạn lượt dùng / user (bảng voucher_usage, cột nguoi_dung_id) =====
-    $userId = Auth::id();
-    if ($userId && $voucher->usage_limit_per_user) {
-        $usageCount = VoucherUsage::where('voucher_id', $voucher->id)
-            ->where('nguoi_dung_id', $userId)
-            ->count();
-
-        if ($usageCount >= $voucher->usage_limit_per_user) {
-            return response()->json(['error' => 'Bạn đã sử dụng hết lượt cho voucher này.'], 400);
+        if (!$voucher) {
+            return response()->json(['error' => 'Mã voucher không hợp lệ hoặc đã hết hạn.'], 400);
         }
-    }
 
-    // ===== Tính tổng tiền đặt phòng (giữ nguyên logic cũ) =====
-    $phong = Phong::findOrFail($request->phong_id);
-    $nights = $this->calculateNights($request->ngay_nhan_phong, $request->ngay_tra_phong);
-    $basePerNight = (float) ($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
-    $roomsCount = $request->rooms_count;
+        // ===== Giới hạn lượt dùng / user (bảng voucher_usage, cột nguoi_dung_id) =====
+        $userId = Auth::id();
+        if ($userId && $voucher->usage_limit_per_user) {
+            $usageCount = VoucherUsage::where('voucher_id', $voucher->id)
+                ->where('nguoi_dung_id', $userId)
+                ->count();
 
-    $adultsInput = $request->adults;
-    $childrenInput = $request->children ?? 0;
-    $childrenAges = $request->children_ages ?? [];
-
-    $computedAdults = $adultsInput;
-    $chargeableChildren = 0;
-    foreach ($childrenAges as $age) {
-        $age = (int)$age;
-        if ($age >= 13) $computedAdults++;
-        elseif ($age >= 7) $chargeableChildren++;
-    }
-
-    $roomCapacity = 0;
-    if ($phong->bedTypes && $phong->bedTypes->count()) {
-        foreach ($phong->bedTypes as $bt) {
-            $qty = (int) ($bt->pivot->quantity ?? 0);
-            $cap = (int) ($bt->capacity ?? 1);
-            $roomCapacity += $qty * $cap;
+            if ($usageCount >= $voucher->usage_limit_per_user) {
+                return response()->json(['error' => 'Bạn đã sử dụng hết lượt cho voucher này.'], 400);
+            }
         }
+
+        // ===== Tính tổng tiền đặt phòng (giữ nguyên logic cũ) =====
+        $phong = Phong::findOrFail($request->phong_id);
+        $nights = $this->calculateNights($request->ngay_nhan_phong, $request->ngay_tra_phong);
+        $basePerNight = (float) ($phong->tong_gia ?? $phong->gia_mac_dinh ?? 0);
+        $roomsCount = $request->rooms_count;
+
+        $adultsInput = $request->adults;
+        $childrenInput = $request->children ?? 0;
+        $childrenAges = $request->children_ages ?? [];
+
+        $computedAdults = $adultsInput;
+        $chargeableChildren = 0;
+        foreach ($childrenAges as $age) {
+            $age = (int)$age;
+            if ($age >= 13) $computedAdults++;
+            elseif ($age >= 7) $chargeableChildren++;
+        }
+
+        $roomCapacity = 0;
+        if ($phong->bedTypes && $phong->bedTypes->count()) {
+            foreach ($phong->bedTypes as $bt) {
+                $qty = (int) ($bt->pivot->quantity ?? 0);
+                $cap = (int) ($bt->capacity ?? 1);
+                $roomCapacity += $qty * $cap;
+            }
+        }
+        if ($roomCapacity <= 0) {
+            $roomCapacity = (int) ($phong->suc_chua ?? ($phong->loaiPhong->suc_chua ?? 1));
+        }
+
+        $totalRoomCapacity = $roomCapacity * $roomsCount;
+        $countedPersons = $computedAdults + $chargeableChildren;
+        $extraCountTotal = max(0, $countedPersons - $totalRoomCapacity);
+        $adultBeyondBaseTotal = max(0, $computedAdults - $totalRoomCapacity);
+        $adultExtraTotal = min($adultBeyondBaseTotal, $extraCountTotal);
+        $childrenExtraTotal = max(0, $extraCountTotal - $adultExtraTotal);
+        $childrenExtraTotal = min($childrenExtraTotal, $chargeableChildren);
+
+        $adultsChargePerNight = $adultExtraTotal * self::ADULT_PRICE;
+        $childrenChargePerNight = $childrenExtraTotal * self::CHILD_PRICE;
+
+        $selectedAddonIds = $request->addons ?? [];
+        $selectedAddons = \App\Models\TienNghi::whereIn('id', $selectedAddonIds)->get();
+        $addonsPerNightPerRoom = (float) ($selectedAddons->sum('gia') ?? 0.0);
+        $addonsPerNight = $addonsPerNightPerRoom * $roomsCount;
+
+        $finalPerNight = ($basePerNight * $roomsCount)
+            + $adultsChargePerNight
+            + $childrenChargePerNight
+            + $addonsPerNight;
+
+        $totalBeforeDiscount = $finalPerNight * $nights;
+
+        if ($voucher->min_order_amount && $totalBeforeDiscount < $voucher->min_order_amount) {
+            return response()->json(['error' => 'Đơn hàng chưa đạt giá trị tối thiểu để áp dụng voucher.'], 400);
+        }
+
+        // ===== Tính discount_amount =====
+        $type = strtolower($voucher->type);
+        if (in_array($type, ['phan_tram', 'percent'])) {
+            $discountAmount = $totalBeforeDiscount * $voucher->value / 100;
+        } else {
+            $discountAmount = $voucher->value;
+        }
+        $discountAmount = min($discountAmount, $totalBeforeDiscount);
+
+        return response()->json([
+            'success' => true,
+            'discount_amount' => $discountAmount,
+            'voucher_id' => $voucher->id,
+            'message' => 'Voucher áp dụng thành công! Giảm ' . number_format($discountAmount) . ' VND.',
+        ]);
     }
-    if ($roomCapacity <= 0) {
-        $roomCapacity = (int) ($phong->suc_chua ?? ($phong->loaiPhong->suc_chua ?? 1));
-    }
-
-    $totalRoomCapacity = $roomCapacity * $roomsCount;
-    $countedPersons = $computedAdults + $chargeableChildren;
-    $extraCountTotal = max(0, $countedPersons - $totalRoomCapacity);
-    $adultBeyondBaseTotal = max(0, $computedAdults - $totalRoomCapacity);
-    $adultExtraTotal = min($adultBeyondBaseTotal, $extraCountTotal);
-    $childrenExtraTotal = max(0, $extraCountTotal - $adultExtraTotal);
-    $childrenExtraTotal = min($childrenExtraTotal, $chargeableChildren);
-
-    $adultsChargePerNight = $adultExtraTotal * self::ADULT_PRICE;
-    $childrenChargePerNight = $childrenExtraTotal * self::CHILD_PRICE;
-
-    $selectedAddonIds = $request->addons ?? [];
-    $selectedAddons = \App\Models\TienNghi::whereIn('id', $selectedAddonIds)->get();
-    $addonsPerNightPerRoom = (float) ($selectedAddons->sum('gia') ?? 0.0);
-    $addonsPerNight = $addonsPerNightPerRoom * $roomsCount;
-
-    $finalPerNight = ($basePerNight * $roomsCount)
-        + $adultsChargePerNight
-        + $childrenChargePerNight
-        + $addonsPerNight;
-
-    $totalBeforeDiscount = $finalPerNight * $nights;
-
-    if ($voucher->min_order_amount && $totalBeforeDiscount < $voucher->min_order_amount) {
-        return response()->json(['error' => 'Đơn hàng chưa đạt giá trị tối thiểu để áp dụng voucher.'], 400);
-    }
-
-    // ===== Tính discount_amount =====
-    $type = strtolower($voucher->type);
-    if (in_array($type, ['phan_tram', 'percent'])) {
-        $discountAmount = $totalBeforeDiscount * $voucher->value / 100;
-    } else {
-        $discountAmount = $voucher->value;
-    }
-    $discountAmount = min($discountAmount, $totalBeforeDiscount);
-
-    return response()->json([
-        'success' => true,
-        'discount_amount' => $discountAmount,
-        'voucher_id' => $voucher->id,
-        'message' => 'Voucher áp dụng thành công! Giảm ' . number_format($discountAmount) . ' VND.',
-    ]);
-}
 
 
     private function calculateNights($from, $to)
@@ -1613,142 +1806,144 @@ class BookingController extends Controller
     }
 
     public function applyVoucher(Request $request)
-{
-    try {
-        $code = strtoupper(trim($request->input('code')));
-        $totalRaw = (string) $request->input('total', '0');
-        $total = (int) preg_replace('/\D/', '', $totalRaw);
+    {
+        try {
+            $code = strtoupper(trim($request->input('code')));
+            $totalRaw = (string) $request->input('total', '0');
+            $total = (int) preg_replace('/\D/', '', $totalRaw);
 
-        if ($total <= 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Giá trị đơn hàng không hợp lệ.',
-            ]);
-        }
+            if ($total <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Giá trị đơn hàng không hợp lệ.',
+                ]);
+            }
 
-        $voucher = Voucher::where('code', $code)->first();
-        if (!$voucher) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Mã giảm giá không tồn tại.',
-            ]);
-        }
+            $voucher = Voucher::where('code', $code)->first();
+            if (!$voucher) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá không tồn tại.',
+                ]);
+            }
 
-        $today = Carbon::today()->toDateString();
-        $start = $voucher->start_date ? Carbon::parse($voucher->start_date)->toDateString() : null;
-        $end   = $voucher->end_date ? Carbon::parse($voucher->end_date)->toDateString() : null;
+            $today = Carbon::today()->toDateString();
+            $start = $voucher->start_date ? Carbon::parse($voucher->start_date)->toDateString() : null;
+            $end   = $voucher->end_date ? Carbon::parse($voucher->end_date)->toDateString() : null;
 
-        if (
-            !$voucher->active ||
-            ($start && $start > $today) ||
-            ($end && $end < $today) ||
-            ($voucher->qty !== null && $voucher->qty <= 0)
-        ) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Mã giảm giá đã hết hạn, chưa có hiệu lực hoặc đã hết lượt.',
-            ]);
-        }
+            if (
+                !$voucher->active ||
+                ($start && $start > $today) ||
+                ($end && $end < $today) ||
+                ($voucher->qty !== null && $voucher->qty <= 0)
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Mã giảm giá đã hết hạn, chưa có hiệu lực hoặc đã hết lượt.',
+                ]);
+            }
 
-        $userId = Auth::id();
-        if (!empty($voucher->usage_limit_per_user) && $userId) {
-            if (class_exists(VoucherUsage::class)) {
-                $usageModel = new VoucherUsage();
-                $table = $usageModel->getTable();
+            // ===== Giới hạn lượt dùng / user =====
+            $userId = Auth::id();
+            if (!empty($voucher->usage_limit_per_user) && $userId) {
+                if (class_exists(VoucherUsage::class)) {
+                    $usageModel = new VoucherUsage();
+                    $table = $usageModel->getTable(); // -> voucher_usage
 
-                if (Schema::hasTable($table)) {
-                    $userCol = Schema::hasColumn($table, 'nguoi_dung_id')
-                        ? 'nguoi_dung_id'
-                        : (Schema::hasColumn($table, 'user_id') ? 'user_id' : null);
+                    if (Schema::hasTable($table)) {
+                        // cột user là nguoi_dung_id (theo hình bạn gửi)
+                        $userCol = Schema::hasColumn($table, 'nguoi_dung_id')
+                            ? 'nguoi_dung_id'
+                            : (Schema::hasColumn($table, 'user_id') ? 'user_id' : null);
 
-                    if ($userCol) {
-                        $usageCount = VoucherUsage::where('voucher_id', $voucher->id)
-                            ->where($userCol, $userId)
-                            ->count();
+                        if ($userCol) {
+                            $usageCount = VoucherUsage::where('voucher_id', $voucher->id)
+                                ->where($userCol, $userId)
+                                ->count();
 
-                        if ($usageCount >= $voucher->usage_limit_per_user) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Bạn đã sử dụng hết lượt cho mã giảm giá này.',
-                            ]);
+                            if ($usageCount >= $voucher->usage_limit_per_user) {
+                                return response()->json([
+                                    'success' => false,
+                                    'message' => 'Bạn đã sử dụng hết lượt cho mã giảm giá này.',
+                                ]);
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // ===== Đơn tối thiểu =====
-        if (!empty($voucher->min_order_amount) && $total < $voucher->min_order_amount) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Đơn hàng chưa đạt giá trị tối thiểu để áp dụng mã này.',
-            ]);
-        }
-
-        // ===== Tính giảm giá =====
-        $type = strtolower(trim($voucher->type));
-        $value = (float) $voucher->value;
-        $discount = 0;
-
-        if ($type === 'percent') {
-            if ($value <= 0) {
+            // ===== Đơn tối thiểu =====
+            if (!empty($voucher->min_order_amount) && $total < $voucher->min_order_amount) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Giá trị phần trăm giảm giá không hợp lệ.',
+                    'message' => 'Đơn hàng chưa đạt giá trị tối thiểu để áp dụng mã này.',
                 ]);
             }
-            $discount = (int) round($total * ($value / 100));
-        } elseif ($type === 'fixed') {
-            if ($value <= 0) {
+
+            // ===== Tính giảm giá =====
+            $type = strtolower(trim($voucher->type));
+            $value = (float) $voucher->value;
+            $discount = 0;
+
+            if ($type === 'percent') {
+                if ($value <= 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Giá trị phần trăm giảm giá không hợp lệ.',
+                    ]);
+                }
+                $discount = (int) round($total * ($value / 100));
+            } elseif ($type === 'fixed') {
+                if ($value <= 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Giá trị giảm giá không hợp lệ.',
+                    ]);
+                }
+                $discount = (int) $value;
+            } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Giá trị giảm giá không hợp lệ.',
+                    'message' => 'Loại mã giảm giá không hợp lệ (chỉ hỗ trợ percent hoặc fixed).',
                 ]);
             }
-            $discount = (int) $value;
-        } else {
+
+            if ($discount > $total) {
+                $discount = $total;
+            }
+
+            $finalTotal = $total - $discount;
+
+            // Tiền cọc = 50% của tổng mới
+            $deposit = (int) round($finalTotal * 0.5);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Áp dụng mã giảm giá thành công.',
+                'voucher_id'   => $voucher->id,
+                'voucher_code' => $voucher->code,
+                'voucher_name' => $voucher->name,
+                'type' => $type,
+                'value' => $value,
+                'discount' => $discount,
+                'final_total' => $finalTotal,
+                'deposit' => $deposit,
+                'discount_display' => number_format($discount, 0, ',', '.'),
+                'final_total_display' => number_format($finalTotal, 0, ',', '.'),
+                'deposit_display' => number_format($deposit, 0, ',', '.'),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('applyVoucher error', [
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Loại mã giảm giá không hợp lệ (chỉ hỗ trợ percent hoặc fixed).',
-            ]);
+                'message' => 'Có lỗi nội bộ khi áp dụng mã giảm giá.',
+            ], 500);
         }
-
-        if ($discount > $total) {
-            $discount = $total;
-        }
-
-        $finalTotal = $total - $discount;
-
-        // Tiền cọc = 50% của tổng mới
-        $deposit = (int) round($finalTotal * 0.5);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Áp dụng mã giảm giá thành công.',
-            'voucher_id'   => $voucher->id,
-            'voucher_code' => $voucher->code,
-            'voucher_name' => $voucher->name,
-            'type' => $type,
-            'value' => $value,
-            'discount' => $discount,
-            'final_total' => $finalTotal,
-            'deposit' => $deposit,
-            'discount_display' => number_format($discount, 0, ',', '.'),
-            'final_total_display' => number_format($finalTotal, 0, ',', '.'),
-            'deposit_display' => number_format($deposit, 0, ',', '.'),
-        ]);
-    } catch (\Throwable $e) {
-        Log::error('applyVoucher error', [
-            'message' => $e->getMessage(),
-            'trace'   => $e->getTraceAsString(),
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Có lỗi nội bộ khi áp dụng mã giảm giá.',
-        ], 500);
     }
-}
 
 
 
@@ -1785,16 +1980,115 @@ class BookingController extends Controller
             $now = Carbon::now();
             $daysUntilCheckIn = $now->diffInDays($checkInDateTime, false); // Calculates full days until 14:00 check-in time
 
-            // Determine deposit type from snapshot_meta
+            // Determine ACTUAL deposit type based on what user has actually paid
+            // After room changes, user may have paid MORE than original deposit percentage!
             $meta = $booking->snapshot_meta ?? [];
-            $depositType = $meta['deposit_percentage'] ?? 50;
+            $originalDepositPct = $meta['deposit_percentage'] ?? 50;
+
+            // Calculate actual deposit percentage user has paid
+            $currentTotal = $booking->tong_tien ?? 0;
+            $paidAmount = $booking->deposit_amount ?? 0;
+
+            // CRITICAL: If user has unused downgrade vouchers, subtract from paid amount
+            // Vouchers represent overpayment that will be returned, so effective payment is less
+            $unusedVoucherValue = 0;
+            $unusedVouchers = \App\Models\Voucher::where('code', 'LIKE', 'DOWNGRADE%')
+                ->whereHas('users', function($q) use ($booking) {
+                    $q->where('user_id', $booking->nguoi_dung_id);
+                })
+                ->where('active', true)
+                ->where('end_date', '>=', now())
+                ->get();
+
+            foreach ($unusedVouchers as $voucher) {
+                $isUsed = \App\Models\VoucherUsage::where('voucher_id', $voucher->id)
+                    ->where('nguoi_dung_id', $booking->nguoi_dung_id)
+                    ->exists();
+
+                if (!$isUsed) {
+                    $unusedVoucherValue += $voucher->value;
+                }
+            }
+
+            // Calculate EFFECTIVE payment (after accounting for vouchers)
+            $effectivePaidAmount = $paidAmount - $unusedVoucherValue;
+
+            $actualDepositPct = 50; // Default
+            if ($currentTotal > 0) {
+                $actualDepositPct = ($effectivePaidAmount / $currentTotal) * 100;
+            }
+
+            // Determine refund tier: If paid >= 95% consider as 100% payment tier
+            // This handles room changes where user upgraded and paid more
+            $depositType = ($actualDepositPct >= 95) ? 100 : $originalDepositPct;
+
+            Log::info('💵 Refund calculation - deposit type determination', [
+                'booking_id' => $booking->id,
+                'original_deposit_pct' => $originalDepositPct,
+                'current_total' => $currentTotal,
+                'paid_amount' => $paidAmount,
+                'unused_voucher_value' => $unusedVoucherValue,
+                'effective_paid_amount' => $effectivePaidAmount,
+                'actual_deposit_pct' => round($actualDepositPct, 2),
+                'refund_tier_used' => $depositType
+            ]);
 
             // Calculate refund percentage using Option B logic
             $refundPercentage = $this->calculateRefundPercentage($daysUntilCheckIn, $depositType);
 
-            // Calculate refund amount
-            $paidAmount = $booking->deposit_amount ?? 0;
+            // Calculate refund amount based on CURRENT deposit
             $refundAmount = $paidAmount * ($refundPercentage / 100);
+
+            // ===== DEACTIVATE VOUCHERS FROM ROOM CHANGES =====
+            // When canceling a booking that had room changes, we need to deactivate any vouchers
+            // to prevent loopholes where users could keep vouchers after cancellation
+
+            $deactivatedVouchers = [];
+
+            // Find downgrade vouchers for this booking
+            $roomChangeVouchers = \App\Models\Voucher::where('code', 'LIKE', 'DOWNGRADE%')
+                ->where(function($query) use ($booking) {
+                    // Find vouchers that belong to this user AND are related to this booking's room changes
+                    $query->whereHas('users', function($q) use ($booking) {
+                        $q->where('user_id', $booking->nguoi_dung_id);
+                    });
+                })
+                ->where('active', true)
+                ->get();
+
+            // Filter to only vouchers from THIS booking's room changes
+            foreach ($roomChangeVouchers as $voucher) {
+                // Check if voucher was created around the time of a room change for this booking
+                $relatedRoomChange = \App\Models\RoomChange::where('dat_phong_id', $booking->id)
+                    ->where('status', 'completed')
+                    ->whereRaw('price_difference < 0') // Downgrade
+                    ->where('created_at', '<=', $voucher->created_at)
+                    ->where('created_at', '>=', $voucher->created_at->subMinutes(5)) // Within 5 min window
+                    ->first();
+
+                if ($relatedRoomChange) {
+                    // Deactivate the voucher
+                    $voucher->update([
+                        'active' => false,
+                        'note' => ($voucher->note ?? '') . ' | Deactivated due to booking cancellation on ' . now()->format('Y-m-d H:i:s')
+                    ]);
+
+                    $deactivatedVouchers[] = [
+                        'code' => $voucher->code,
+                        'value' => $voucher->value,
+                        'room_change_id' => $relatedRoomChange->id
+                    ];
+
+                    Log::info('Voucher deactivated due to booking cancellation', [
+                        'voucher_id' => $voucher->id,
+                        'voucher_code' => $voucher->code,
+                        'voucher_value' => $voucher->value,
+                        'booking_id' => $booking->id,
+                        'room_change_id' => $relatedRoomChange->id,
+                        'reason' => 'Booking cancelled by customer'
+                    ]);
+                }
+            }
 
             // Update booking status to cancelled with refund info
             $booking->update([
@@ -1878,6 +2172,8 @@ class BookingController extends Controller
                 'deposit_type' => $depositType,
                 'refund_percentage' => $refundPercentage,
                 'refund_amount' => $refundAmount,
+                'deactivated_vouchers' => $deactivatedVouchers,
+                'vouchers_count' => count($deactivatedVouchers)
             ]);
 
             // Build success message
@@ -1891,6 +2187,12 @@ class BookingController extends Controller
                 );
             } else {
                 $message .= 'Không được hoàn tiền do hủy muộn (< 24 giờ trước check-in).';
+            }
+
+            // Add voucher deactivation notice if applicable
+            if (count($deactivatedVouchers) > 0) {
+                $voucherCodes = array_column($deactivatedVouchers, 'code');
+                $message .= ' | Voucher(s) từ đổi phòng đã bị hủy: ' . implode(', ', $voucherCodes);
             }
 
             return back()->with('success', $message);
@@ -2009,7 +2311,6 @@ class BookingController extends Controller
                 ]);
 
                 return redirect()->away($paymentData['payUrl']);
-
             } else {
                 // Redirect to VNPay with NEW transaction ID
                 $vnp_Url = env('VNPAY_URL');
@@ -2049,7 +2350,6 @@ class BookingController extends Controller
 
                 return redirect()->away($redirectUrl);
             }
-
         } catch (\Exception $e) {
             Log::error('Error retrying payment', [
                 'booking_id' => $id,
