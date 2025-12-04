@@ -2279,24 +2279,34 @@
                 const listEl = document.getElementById('availableVouchersList');
                 const noVouchersEl = document.getElementById('noVouchersMessage');
                 
+                // Always show section when loading
+                voucherSection.classList.remove('d-none');
+                
                 try {
                     const response = await fetch(`/account/bookings/${bookingId}/available-vouchers`);
                     const data = await response.json();
+                    
+                    console.log('🎫 Vouchers loaded:', data);
                     
                     loadingEl.style.display = 'none';
                     
                     if (data.success && data.vouchers.length > 0) {
                         availableVouchers = data.vouchers;
                         renderVouchers(data.vouchers);
-                        voucherSection.classList.remove('d-none');
+                        listEl.style.display = 'block';
                         noVouchersEl.classList.add('d-none');
                     } else {
+                        // No vouchers available
+                        listEl.style.display = 'none';
                         noVouchersEl.classList.remove('d-none');
-                        voucherSection.classList.add('d-none');
                     }
                 } catch (error) {
                     console.error('Error loading vouchers:', error);
+                    loadingEl.style.display = 'none';
                     loadingEl.innerHTML = '<p class="text-danger small">Lỗi tải voucher</p>';
+                    // Still show section to display error
+                    listEl.style.display = 'none';
+                    noVouchersEl.classList.add('d-none');
                 }
             }
             
