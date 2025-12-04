@@ -1815,7 +1815,7 @@ class BookingController extends Controller
                     'phone' => $request->input('phone'),
                     'ghi_chu' => $request->input('ghi_chu'),
                     'amount' => $request->input('deposit_amount'),
-                    'total_amount' => $request->input('tong_tien'),
+                    'total_amount' => $finalTotalAfterVoucher, // CRITICAL FIX: Use discounted total, not raw input
                     'deposit_percentage' => $request->input('deposit_percentage', 50),
                     'phuong_thuc' => $phuongThuc,
                     'final_per_night' => $request->input('final_per_night'),
