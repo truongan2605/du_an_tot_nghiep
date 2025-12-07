@@ -563,7 +563,10 @@
 
                                     <div class="col-md-4 text-end">
                                         <strong class="text-success">{{ number_format($unitPrice, 0) }} ₫</strong>/đêm
-                                    </div>
+                                    
+                                    <div class="col-md-4 text-end"><a href="{{ route('admin.change-room.form', $item->id) }}" class="btn btn-warning">
+    Đổi phòng
+</a></div></div>
                                 </div>
                             </div>
                         </div>

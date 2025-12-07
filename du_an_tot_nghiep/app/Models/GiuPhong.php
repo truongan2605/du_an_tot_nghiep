@@ -66,4 +66,5 @@ class GiuPhong extends Model
     {
         return $query->where('het_han_luc', '<', now());
     }
+    
 }

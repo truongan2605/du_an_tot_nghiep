@@ -403,5 +403,10 @@ public function danhGiaspace()
         });
 
     }
+    public function giuPhong()
+{
+    return $this->hasMany(GiuPhong::class, 'phong_id', 'id');
+}
+
     
 }
