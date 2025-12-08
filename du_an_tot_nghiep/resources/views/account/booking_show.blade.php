@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', 'Chi tiết đặt phòng')
 
@@ -33,7 +33,7 @@
         $hoursUntilCheckIn = (int) $now->diffInHours($checkInDateTime, false);
         
         // Calculate refund if cancelled now
-        $totalAmount = $booking->snapshot_total ?? ($booking->tong_tien ?? 0);
+        $totalAmount = $booking->tong_tien ?? ($booking->snapshot_total ?? 0);
         $paidAmount = $booking->deposit_amount ?? 0;
         
         // CRITICAL: Subtract unused voucher values (same logic as backend)
@@ -217,7 +217,7 @@
                                                 <i class="bi {{ in_array($booking->trang_thai, ['dang_su_dung', 'hoan_thanh']) ? 'bi-check-circle-fill' : 'bi-circle' }}"></i>
                                             </div>
                                             <div class="timeline-content">
-                                                <h6>Check-in</h6>
+                                                <h6>Nhận Phòng</h6>
                                                 <small class="text-muted">{{ $formatDateVi($booking->ngay_nhan_phong, 'd M Y') }} 14:00</small>
                                             </div>
                                         </div>
@@ -227,7 +227,7 @@
                                                 <i class="bi {{ $booking->trang_thai === 'hoan_thanh' ? 'bi-check-circle-fill' : 'bi-circle' }}"></i>
                                             </div>
                                             <div class="timeline-content">
-                                                <h6>Check-out</h6>
+                                                <h6>Trả phòng</h6>
                                                 <small class="text-muted">{{ $formatDateVi($booking->ngay_tra_phong, 'd M Y') }} 12:00</small>
                                             </div>
                                         </div>
@@ -254,7 +254,7 @@
                                 <div class="col-md-4">
                                     <div class="text-center text-md-end">
                                         <div class="text-muted small mb-1"><i class="bi bi-currency-dollar me-1"></i> Tổng tiền</div>
-                                        <div class="h5 mb-0 fw-bold text-primary">{{ number_format($booking->snapshot_total ?? ($booking->tong_tien ?? 0), 0, ',', '.') }} VND</div>
+                                        <div class="h5 mb-0 fw-bold text-primary">{{ number_format($booking->tong_tien ?? ($booking->snapshot_total ?? 0), 0, ',', '.') }} VND</div>
                                     </div>
                                 </div>
                             </div>
@@ -552,7 +552,7 @@
                                     $adults = $meta['adults_input'] ?? ($meta['computed_adults'] ?? ($meta['guests_adults'] ?? 0));
                                     $children = $meta['children_input'] ?? ($meta['chargeable_children'] ?? 0);
                                     $nights = $meta['nights'] ?? ($booking->datPhongItems->first()->so_dem ?? 1);
-                                    $total = $booking->snapshot_total ?? ($booking->tong_tien ?? 0);
+                                    $total = $booking->tong_tien ?? ($booking->snapshot_total ?? 0);
                                 @endphp
                                 <div class="col-md-3 col-6">
                                     <div class="card border-0 bg-light h-100 text-center p-3">
@@ -724,285 +724,310 @@
     {{-- Room Change Modal --}}
     @if(in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']) && $daysUntilCheckIn >= 1)
         <div class="modal fade" id="changeRoomModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary bg-opacity-10 border-0">
-                        <h5 class="modal-title text-primary">
-                            <i class="bi bi-arrow-left-right me-2"></i>
-                            Đổi Phòng - {{ $booking->ma_tham_chieu }}
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+                <div class="modal-content border-0 shadow-lg">
+                    {{-- Header with Gradient --}}
+                    <div class="modal-header border-0 py-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div>
+                            <h5 class="modal-title text-white fw-bold mb-1">
+                                <i class="bi bi-arrow-left-right me-2"></i>
+                                Đổi Phòng
+                            </h5>
+                            <p class="text-white-50 small mb-0">{{ $booking->ma_tham_chieu }}</p>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="modal-body p-4">
-                        {{-- Room Change Policy --}}
-                        <div class="alert alert-info border-info mb-4">
+
+                    {{-- Body --}}
+                    <div class="modal-body p-4" style="max-height: 70vh; overflow-y: auto;">
+                        {{-- Policy Alert - Compact --}}
+                        <div class="alert alert-info border-0 shadow-sm mb-4">
                             <div class="d-flex align-items-start">
-                                <i class="bi bi-info-circle-fill fs-4 me-3 text-info"></i>
-                                <div class="flex-grow-1">
-                                    <h6 class="alert-heading mb-2">
-                                        <i class="bi bi-shield-check me-1"></i> Chính sách đổi phòng
-                                    </h6>
-                                    <ul class="mb-0 small">
-                                        <li class="mb-1">
-                                            <strong>Thời gian:</strong> Chỉ áp dụng trước <strong>24 giờ</strong> check-in
-                                        </li>
-                                        <li class="mb-1">
-                                            <strong>Phòng đắt hơn:</strong> Thanh toán chênh lệch qua VNPay
-                                        </li>
-                                        <li class="mb-1">
-                                            <strong>Phòng rẻ hơn:</strong> Nhận voucher (hạn 6 tháng) hoặc hoàn tiền về ví VNPay
-                                        </li>
-                                        <li class="mb-1">
-                                            <strong>Giới hạn:</strong> Tối đa <strong>2 lần</strong> đổi phòng cho mỗi booking
-                                        </li>
-                                        <li class="mb-0">
-                                            <strong>Miễn phí:</strong> Không mất phí nếu đổi sang phòng cùng giá
-                                        </li>
-                                    </ul>
+                                <i class="bi bi-info-circle-fill fs-5 me-3 flex-shrink-0 text-info"></i>
+                                <div class="small">
+                                    <strong>Chính sách:</strong> Trước 24h Nhận phòng • Đổi phòng tăng giá: Thanh toán chênh lệch • Đổi phòng dưới giá: Nhận voucher • Giới hạn 2 lần/Đổi phòng • Miễn phí nếu cùng giá
                                 </div>
                             </div>
                         </div>
 
-                        {{-- Current Room Section --}}
+                        {{-- Current Rooms - COMPACT GRID --}}
                         <div class="mb-4">
-                            <h6 class="text-muted mb-3">
-                                <i class="bi bi-pin-fill me-2"></i>Phòng hiện tại
+                            <h6 class="text-muted mb-3 d-flex align-items-center">
+                                <i class="bi bi-pin-fill me-2 text-primary"></i>
+                                Phòng hiện tại
                                 @if($booking->datPhongItems && $booking->datPhongItems->count() > 1)
-                                    <span class="badge bg-info">{{ $booking->datPhongItems->count() }} phòng</span>
+                                    <span class="badge bg-primary ms-2">{{ $booking->datPhongItems->count() }} phòng</span>
                                 @endif
                             </h6>
                             
                             @if($booking->datPhongItems && $booking->datPhongItems->count() > 0)
-                                @foreach($booking->datPhongItems as $index => $currentItem)
-                                    @php
-                                        $currentRoom = $currentItem->phong;
-                                        $currentRoomType = $currentItem->loaiPhong;
-                                    @endphp
-                                    
-                                    <div class="card border-primary bg-light {{ $index > 0 ? 'mt-3' : '' }}">
-                                        <div class="card-body p-3">
-                                            <div class="row align-items-center">
-                                                <div class="col-md-2">
-                                                    @if($currentRoom && $currentRoom->images && $currentRoom->images->count() > 0)
-                                                        <img src="{{ \Illuminate\Support\Facades\Storage::url($currentRoom->images->first()->image_path) }}" 
-                                                             alt="Room" class="img-thumbnail" style="height: 80px; object-fit: cover;">
-                                                    @else
-                                                        <div class="bg-secondary text-white d-flex align-items-center justify-content-center" 
-                                                             style="height: 80px; border-radius: 8px;">
-                                                            <i class="bi bi-image fs-3"></i>
+                                <div class="row g-3">
+                                    @foreach($booking->datPhongItems as $index => $currentItem)
+                                        @php
+                                            $currentRoom = $currentItem->phong;
+                                            $currentRoomType = $currentItem->loaiPhong;
+                                            $meta = is_array($booking->snapshot_meta) 
+                                                ? $booking->snapshot_meta 
+                                                : json_decode($booking->snapshot_meta, true);
+                                            $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
+                                            $guestsPerRoom = $currentItem->so_nguoi_o ?? 0;
+                                            
+                                            if ($guestsPerRoom == 0) {
+                                                $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+                                                $guestsPerRoom = $totalRooms > 0 ? ceil($totalGuests / $totalRooms) : $totalGuests;
+                                            }
+                                            
+                                            $extraAdults = $currentItem->number_adult ?? 0;
+                                            $extraChildren = $currentItem->number_child ?? 0;
+                                            $extraAdultsCharge = $extraAdults * 150000;
+                                            $extraChildrenCharge = $extraChildren * 60000;
+                                            $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
+                                            $basePrice = $currentRoom->gia_cuoi_cung ?? 0;
+                                        @endphp
+                                        
+                                        <div class="col-lg-6">
+                                            <div class="card border-2 border-primary h-100 shadow-sm hover-shadow transition">
+                                                <div class="card-body p-3">
+                                                    <div class="d-flex gap-3">
+                                                        {{-- Image --}}
+                                                        <div class="flex-shrink-0">
+                                                            @if($currentRoom && $currentRoom->images && $currentRoom->images->count() > 0)
+                                                                <img src="{{ \Illuminate\Support\Facades\Storage::url($currentRoom->images->first()->image_path) }}" 
+                                                                     alt="Room" class="rounded shadow-sm" style="width: 90px; height: 90px; object-fit: cover;">
+                                                            @else
+                                                                <div class="bg-light text-secondary d-flex align-items-center justify-content-center rounded shadow-sm" 
+                                                                     style="width: 90px; height: 90px;">
+                                                                    <i class="bi bi-image fs-4"></i>
+                                                                </div>
+                                                            @endif
                                                         </div>
-                                                    @endif
-                                                </div>
-                                                <div class="col-md-5">
-                                                    <h6 class="mb-1">
-                                                        <strong class="text-primary">#{{ $currentRoom->ma_phong ?? 'N/A' }}</strong>
-                                                        - {{ $currentRoomType->ten ?? 'N/A' }}
-                                                    </h6>
-                                                    <small class="text-muted">
-                                                        <i class="bi bi-people me-1"></i>{{ $currentRoomType->so_nguoi ?? 2 }} người
-                                                        <span class="mx-2">•</span>
-                                                        <i class="bi bi-star-fill text-warning me-1"></i>{{ $currentRoomType->hang ?? 'Standard' }}
-                                                    </small>
-                                                </div>
-                                                <div class="col-md-3 text-center">
-                                                    <div class="text-muted small mb-1">Giá hiện tại</div>
-                                                    <div class="h6 mb-0 text-success fw-bold">
-                                                        {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }} ₫<small class="text-muted">/đêm</small>
+                                                        
+                                                        {{-- Info --}}
+                                                        <div class="flex-grow-1 min-width-0">
+                                                            <h6 class="mb-2 fw-bold text-truncate">
+                                                                <span class="text-primary">#{{ $currentRoom->ma_phong ?? 'N/A' }}</span>
+                                                                <span class="text-muted small">{{ $currentRoomType->ten ?? 'N/A' }}</span>
+                                                            </h6>
+                                                            
+                                                            <div class="small text-muted mb-2">
+                                                                <div class="mb-1">
+                                                                    <i class="bi bi-people me-1"></i>{{ $currentRoomType->suc_chua ?? 2 }} người
+                                                                    <span class="mx-1">•</span>
+                                                                    <i class="bi bi-person-check-fill text-info me-1"></i>
+                                                                    <strong class="text-dark">{{ $guestsPerRoom }}</strong> đặt
+                                                                </div>
+                                                                @if($extraAdults > 0 || $extraChildren > 0)
+                                                                    <small class="text-warning">
+                                                                        <i class="bi bi-exclamation-circle me-1"></i>
+                                                                        ({{ $extraAdults > 0 ? $extraAdults . ' NL' : '' }}{{ $extraAdults > 0 && $extraChildren > 0 ? ', ' : '' }}{{ $extraChildren > 0 ? $extraChildren . ' TE' : '' }} vượt)
+                                                                    </small>
+                                                                @endif
+                                                            </div>
+                                                            
+                                                            {{-- Price --}}
+                                                            <div class="d-flex justify-content-between align-items-end">
+                                                                <div class="small">
+                                                                    @if($extraCharge > 0)
+                                                                        <div class="text-muted">Gốc: {{ number_format($basePrice, 0, ',', '.') }}đ</div>
+                                                                        <div class="text-danger">+{{ number_format($extraCharge, 0, ',', '.') }}đ phụ thu</div>
+                                                                    @else
+                                                                        <div class="text-success">
+                                                                            <i class="bi bi-check-circle me-1"></i>Không phụ thu
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                                <div class="text-end">
+                                                                    <small class="text-muted d-block">Tổng/đêm</small>
+                                                                    <strong class="text-success fs-6">{{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }}đ</strong>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div class="col-md-2 text-end">
+                                                    
+                                                    {{-- Change Button --}}
                                                     <button type="button" 
-                                                            class="btn btn-sm btn-outline-primary"
+                                                            class="btn btn-outline-primary btn-sm w-100 mt-3"
                                                             onclick="openChangeRoomModal('{{ $currentRoom->id }}', '{{ $currentRoom->ma_phong }}')">
-                                                        <i class="bi bi-shuffle me-1"></i>Đổi phòng
+                                                        <i class="bi bi-shuffle me-1"></i>Đổi phòng này
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                @endforeach
+                                    @endforeach
+                                </div>
                             @endif
                         </div>
 
                         <hr class="my-4">
 
-                        {{-- Available Rooms Section (Hidden by default, shows when clicking change room) --}}
-                        <div class="mb-4" id="availableRoomsSection" style="display: none;">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="text-muted mb-0">
-                                    <i class="bi bi-house-door me-2"></i>
+                        {{-- Available Rooms Section --}}
+                        <div id="availableRoomsSection" style="display: none;">
+                            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-house-door me-2 text-primary"></i>
                                     <span id="changeRoomTitle">Chọn phòng mới</span>
                                 </h6>
-                                <div class="d-flex gap-2">
+                                <div class="d-flex gap-2 flex-wrap">
                                     <select class="form-select form-select-sm" id="filterRoomType" style="width: auto;">
-                                        <option value="">Tất cả loại phòng</option>
-                                        {{-- Options will be populated dynamically --}}
+                                        <option value="">Tất cả loại</option>
                                     </select>
                                     <select class="form-select form-select-sm" id="filterPrice" style="width: auto;">
-                                        <option value="">Mọi mức giá</option>
+                                        <option value="">Mọi giá</option>
                                         <option value="same">Cùng giá</option>
-                                        <option value="cheaper">Rẻ hơn (Downgrade)</option>
-                                        <option value="expensive">Đắt hơn (Upgrade)</option>
+                                        <option value="cheaper">Rẻ hơn</option>
+                                        <option value="expensive">Đắt hơn</option>
                                     </select>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="hideAvailableRooms()">
-                                        <i class="bi bi-x-lg me-1"></i>Hủy
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="hideAvailableRooms()">
+                                        <i class="bi bi-x-lg"></i>
                                     </button>
                                 </div>
                             </div>
 
-                            {{-- Available Rooms Grid (Template - will be populated via AJAX) --}}
+                            {{-- Available Rooms Grid --}}
                             <div class="row g-3" id="availableRoomsGrid">
-                                {{-- Loading State --}}
                                 <div class="col-12 text-center py-5" id="loadingRooms">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Đang tải...</span>
-                                    </div>
-                                    <p class="text-muted mt-3">Đang tìm phòng trống...</p>
+                                    <div class="spinner-border text-primary"></div>
+                                    <p class="text-muted mt-3 mb-0">Đang tìm phòng trống...</p>
                                 </div>
-
-                                {{-- Sample Room Cards (These will be generated dynamically) --}}
-                                {{-- Example structure for JavaScript to replicate:
-                                <div class="col-md-4 room-card-wrapper" data-room-id="123" data-price="2000000" data-type="suite">
-                                    <div class="card room-card h-100 border-2">
-                                        <div class="position-relative">
-                                            <img src="..." class="card-img-top" style="height: 150px; object-fit: cover;">
-                                            <span class="position-absolute top-0 end-0 m-2 badge bg-success">+500,000đ</span>
-                                        </div>
-                                        <div class="card-body">
-                                            <h6 class="card-title mb-2">#305 - Suite Room</h6>
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <span class="text-muted small">Giá/đêm</span>
-                                                <strong class="text-success">2,000,000đ</strong>
-                                            </div>
-                                            <button class="btn btn-outline-primary btn-sm w-100 select-room-btn">
-                                                <i class="bi bi-check-circle me-1"></i>Chọn phòng
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                --}}
                             </div>
                         </div>
 
-                        {{-- Price Summary Section (Hidden by default, shown when room selected) --}}
-                        <div id="priceSummarySection" class="d-none">
-                            <hr class="my-4">
-                            <div class="alert alert-light border">
-                                <h6 class="mb-3 fw-bold text-dark">
-                                    <i class="bi bi-calculator me-2"></i>Chi tiết giá cả
-                                </h6>
-                                
-                                {{-- Room Comparison --}}
-                                <div class="card bg-white border mb-3">
-                                    <div class="card-body p-3">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <div class="border-end pe-3">
-                                                    <div class="text-muted small mb-1">
-                                                        <i class="bi bi-door-closed me-1"></i>Phòng hiện tại
-                                                    </div>
-                                                    <div class="fw-bold text-dark" id="oldRoomName">{{ $currentRoom->loaiPhong->ten ?? 'N/A' }}</div>
-                                                    <div class="text-muted small" id="oldRoomCode">#{{ $currentRoom->ma_phong ?? 'N/A' }}</div>
+                        {{-- Price Summary --}}
+                        <div id="priceSummarySection" class="d-none mt-4">
+                            <div class="card border-0 shadow-sm bg-light">
+                                <div class="card-body p-4">
+                                    <h6 class="mb-3 fw-bold">
+                                        <i class="bi bi-calculator me-2 text-primary"></i>Chi tiết giá
+                                    </h6>
+                                    
+                                    {{-- Room Comparison --}}
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-6">
+                                            <div class="card bg-white border h-100">
+                                                <div class="card-body p-3">
+                                                    <small class="text-muted d-block mb-1"><i class="bi bi-door-closed"></i> Hiện tại</small>
+                                                    <div class="fw-bold small" id="oldRoomName">{{ $currentRoom->loaiPhong->ten ?? 'N/A' }}</div>
+                                                    <small class="text-muted" id="oldRoomCode">#{{ $currentRoom->ma_phong ?? 'N/A' }}</small>
                                                     <div class="mt-2">
-                                                        <span class="badge bg-secondary" id="oldRoomPricePerNight">
+                                                        <span class="badge bg-secondary small" id="oldRoomPricePerNight">
                                                             {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }}đ/đêm
                                                         </span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-6">
-                                                <div class="ps-3">
-                                                    <div class="text-muted small mb-1">
-                                                        <i class="bi bi-door-open me-1"></i>Phòng mới
-                                                    </div>
-                                                    <div class="fw-bold text-primary" id="newRoomName">Chưa chọn</div>
-                                                    <div class="text-muted small" id="newRoomCode">-</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="card bg-white border-primary border-2 h-100">
+                                                <div class="card-body p-3">
+                                                    <small class="text-muted d-block mb-1"><i class="bi bi-door-open"></i> Mới</small>
+                                                    <div class="fw-bold text-primary small" id="newRoomName">Chưa chọn</div>
+                                                    <small class="text-muted" id="newRoomCode">-</small>
                                                     <div class="mt-2">
-                                                        <span class="badge bg-primary" id="newRoomPricePerNight">0đ/đêm</span>
+                                                        <span class="badge bg-primary small" id="newRoomPricePerNight">0đ/đêm</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {{-- Calculation --}}
+                                    <div class="small">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Booking hiện tại:</span>
+                                            <strong>{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }}đ</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Số đêm còn lại:</span>
+                                            <strong id="nightsDisplay">{{ $meta['nights'] ?? 1 }} đêm</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-3">
+                                            <span class="text-muted">Chênh lệch/đêm:</span>
+                                            <strong id="priceDiffPerNight" class="text-primary">0đ</strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr class="my-3">
+                                    
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="fw-semibold">Tổng chênh lệch:</span>
+                                        <h5 class="mb-0" id="totalDifference">0đ</h5>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center p-3 bg-white rounded">
+                                        <span class="fw-bold">Tổng booking mới:</span>
+                                        <h4 class="mb-0 text-success" id="newTotal">{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }}đ</h4>
+                                    </div>
+
+                                    {{-- Payment/Voucher Info --}}
+                                    <div id="paymentInfoSection" class="mt-3 d-none">
+                                        <div class="alert alert-warning mb-0 small">
+                                            <h6 class="fw-semibold mb-2 small"><i class="bi bi-wallet2"></i> Thanh toán</h6>
+                                            <div class="d-flex justify-content-between">
+                                                <span>Đã cọc:</span>
+                                                <strong>{{ number_format($booking->deposit_amount ?? 0, 0, ',', '.') }}đ</strong>
+                                            </div>
+                                            <div id="paymentNeededInfo"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="voucherInfoSection" class="mt-3 d-none">
+                                        <div class="alert alert-success mb-0 small">
+                                            <h6 class="fw-semibold mb-2 small"><i class="bi bi-gift"></i> Hoàn voucher</h6>
+                                            <p class="mb-2">Số tiền chênh lệch hoàn qua voucher:</p>
+                                            <div id="expectedVoucherValue" class="fs-5 fw-bold text-success"></div>
+                                            <small class="text-muted">
+                                                <i class="bi bi-info-circle"></i> Hạn 30 ngày
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    {{-- NEW: Manual Voucher Selection Section (only show for upgrades) --}}
+                                    <div id="voucherSelectionSection" class="mt-3 d-none">
+                                        <div class="card border-success">
+                                            <div class="card-header bg-success bg-opacity-10 border-success">
+                                                <h6 class="mb-0 fw-semibold small text-success">
+                                                    <i class="bi bi-gift-fill me-2"></i>
+                                                    Sử dụng Voucher (Tùy chọn)
+                                                </h6>
+                                            </div>
+                                            <div class="card-body p-3">
+                                                <p class="text-muted small mb-3">
+                                                    <i class="bi bi-info-circle me-1"></i>
+                                                    Bạn có voucher hoàn tiề từ lần downgrade trước. Chọn voucher để giảm chi phí nâng cấp.
+                                                </p>
+                                                
+                                                {{-- Voucher list container --}}
+                                                <div id="availableVouchersList">
+                                                    {{-- Vouchers will be loaded here via JS --}}
+                                                    <div class="text-center py-3" id="loadingVouchers">
+                                                        <div class="spinner-border spinner-border-sm text-success"></div>
+                                                        <p class="text-muted small mt-2 mb-0">Đang tải voucher...</p>
+                                                    </div>
+                                                </div>
+                                                
+                                                {{-- No vouchers message --}}
+                                                <div id="noVouchersMessage" class="text-center py-3 d-none">
+                                                    <i class="bi bi-inbox text-muted fs-3 d-block mb-2"></i>
+                                                    <p class="text-muted small mb-0">Không có voucher khả dụng</p>
+                                                </div>
+                                                
+                                                {{-- Selected vouchers summary --}}
+                                                <div id="selectedVouchersSummary" class="mt-3 d-none">
+                                                    <hr>
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <span class="fw-semibold small">Tổng giảm giá:</span>
+                                                        <span class="badge bg-success fs-6" id="totalVoucherDiscount">0đ</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-
-                                {{-- Price Breakdown --}}
-                                <div class="row g-3">
-                                    <div class="col-md-12">
-                                        <div class="bg-white border rounded p-3">
-                                            <h6 class="fw-semibold mb-3">
-                                                <i class="bi bi-receipt me-1"></i>Tổng quan thanh toán
-                                            </h6>
-                                            
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span class="text-muted">Booking hiện tại:</span>
-                                                <strong>{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }}đ</strong>
-                                            </div>
-                                            
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span class="text-muted">Số đêm còn lại:</span>
-                                                <strong id="nightsDisplay">{{ $meta['nights'] ?? 1 }} đêm</strong>
-                                            </div>
-                                            
-                                            <div class="d-flex justify-content-between mb-2">
-                                                <span class="text-muted">Chênh lệch mỗi đêm:</span>
-                                                <strong id="priceDiffPerNight" class="text-primary">0đ</strong>
-                                            </div>
-                                            
-                                            <hr class="my-2">
-                                            
-                                            <div class="d-flex justify-content-between mb-3">
-                                                <span class="fw-semibold">Tổng chênh lệch:</span>
-                                                <h5 class="mb-0" id="totalDifference">0đ</h5>
-                                            </div>
-                                            
-                                            <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded">
-                                                <span class="fw-bold">Tổng booking mới:</span>
-                                                <h4 class="mb-0 text-success" id="newTotal">{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }}đ</h4>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {{-- Payment Info (will be shown dynamically) --}}
-                                <div id="paymentInfoSection" class="mt-3 d-none">
-                                    <div class="alert alert-warning mb-0">
-                                        <h6 class="fw-semibold mb-2">
-                                            <i class="bi bi-wallet2 me-1"></i>Thông tin thanh toán
-                                        </h6>
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span>Đã cọc:</span>
-                                            <strong>{{ number_format($booking->deposit_amount ?? 0, 0, ',', '.') }}đ</strong>
-                                        </div>
-                                        <div id="paymentNeededInfo"></div>
-                                    </div>
-                                </div>
-
-                                {{-- Voucher Info (for downgrade) --}}
-                                <div id="voucherInfoSection" class="mt-3 d-none">
-                                    <div class="alert alert-success mb-0">
-                                        <h6 class="fw-semibold mb-2">
-                                            <i class="bi bi-gift me-1"></i>Hoàn tiền qua Voucher
-                                        </h6>
-                                        <p class="mb-2 small">Bạn đang chọn phòng rẻ hơn! Số tiền chênh lệch sẽ được hoàn qua voucher:</p>
-                                        <div id="expectedVoucherValue" class="fs-5 fw-bold text-success"></div>
-                                        <small class="text-muted">
-                                            <i class="bi bi-info-circle me-1"></i>
-                                            Voucher có thời hạn 30 ngày và có thể sử dụng cho booking tiếp theo
-                                        </small>
-                                    </div>
-                                </div>
-
-                                <div class="mt-3">
-                                    <small class="text-muted d-block">
-                                        <i class="bi bi-info-circle me-1"></i>
-                                        Giá được tính dựa trên <strong>số đêm còn lại</strong> của kỳ nghỉ hiện tại
-                                    </small>
-                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer border-0">
+
+                    {{-- Footer --}}
+                    <div class="modal-footer border-0 bg-light">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-circle me-1"></i>Hủy
                         </button>
@@ -1013,14 +1038,7 @@
                 </div>
             </div>
         </div>
-    @endif
-
-    {{-- Room Changes History --}}
-    @if($booking->roomChanges && $booking->roomChanges->count() > 0)
-        <div class="container mt-5">
-            <div class="card border-0 shadow-sm rounded-4">
-                <div class="card-header bg-light py-3">
-                    <h6 class="mb-0 fw-bold">
+                    <div class="modal-body p-4">
                         <i class="bi bi-clock-history me-2 text-info"></i>
                         Lịch Sử Đổi Phòng
                         <span class="badge bg-info ms-2">{{ $booking->roomChanges->count() }}</span>
@@ -1557,6 +1575,26 @@
                         badgeText = '-' + priceDiffFormatted + 'đ';
                     }
 
+                    // Build surcharge info if applicable
+                    let surchargeHtml = '';
+                    if (room.extra_charge && room.extra_charge > 0) {
+                        surchargeHtml = `
+                            <div class="alert alert-warning alert-sm p-2 mb-2" style="font-size: 0.75rem;">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="text-muted">Giá gốc:</span>
+                                    <strong>${room.base_price.toLocaleString('vi-VN')}đ</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">
+                                        <i class="bi bi-info-circle me-1"></i>Phụ thu số người vượt:
+                                    </span>
+                                    <strong class="text-danger">+${room.extra_charge.toLocaleString('vi-VN')}đ</strong>
+                                </div>
+                                <small class="text-muted">(số người vượt sức chứa )</small>
+                            </div>
+                        `;
+                    }
+
                     const cardHtml = `
                         <div class="col-md-4 room-card-wrapper" data-room-id="${room.id}" data-price="${room.price}" data-type="${room.type}">
                             <div class="card room-card h-100">
@@ -1567,8 +1605,9 @@
                                 <div class="card-body">
                                     <h6 class="card-title mb-2 text-primary fw-bold">#${room.code} - ${room.name}</h6>
                                     <div class="text-muted small mb-2">
-                                        <i class="bi bi-people me-1"></i>${room.capacity} người
+                                        <i class="bi bi-people me-1"></i>Sức chứa: ${room.capacity} người
                                     </div>
+                                    ${surchargeHtml}
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span class="text-muted small">Giá/đêm</span>
                                         <strong class="text-success">${room.price.toLocaleString('vi-VN')}đ</strong>
@@ -1695,6 +1734,9 @@
                     
                     document.getElementById('paymentNeededInfo').innerHTML = paymentInfoHtml;
                     
+                    // ===== NEW: Load vouchers for upgrade =====
+                    loadAvailableVouchers();
+                    
                 } else if (totalDifference < 0) {
                     // Downgrade - show voucher info
                     diffElement.classList.remove('text-danger');
@@ -1737,7 +1779,7 @@
                 }
 
                 // TODO: Submit room change request
-                alert(`Đang xử lý đổi sang phòng #${selectedRoomId}...\n(Chức năng backend đang được phát triển)`);
+                alert(`Đang xử lý đổi sang phòng #${selectedRoomId}...\n`);
                 
                 // Will be replaced with actual form submission:
                 // const form = document.createElement('form');
@@ -2208,12 +2250,145 @@
                 roomInput.value = selectedRoomId;
                 form.appendChild(roomInput);
                 
+                // ===== NEW: Add selected vouchers =====
+                const selectedVouchers = document.querySelectorAll('.voucher-checkbox:checked');
+                selectedVouchers.forEach(checkbox => {
+                    const voucherInput = document.createElement('input');
+                    voucherInput.type = 'hidden';
+                    voucherInput.name = 'voucher_ids[]';
+                    voucherInput.value = checkbox.value;
+                    form.appendChild(voucherInput);
+                });
+                
                 document.body.appendChild(form);
                 form.submit();
             }
             
             function formatMoney(amount) {
                 return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
+            }
+            
+            // ===== NEW: Voucher handling functions =====
+            let availableVouchers = [];
+            let selectedVoucherIds = [];
+            
+            async function loadAvailableVouchers() {
+                const bookingId = {{ $booking->id }};
+                const voucherSection = document.getElementById('voucherSelectionSection');
+                const loadingEl = document.getElementById('loadingVouchers');
+                const listEl = document.getElementById('availableVouchersList');
+                const noVouchersEl = document.getElementById('noVouchersMessage');
+                
+                // Always show section when loading
+                voucherSection.classList.remove('d-none');
+                
+                try {
+                    const response = await fetch(`/account/bookings/${bookingId}/available-vouchers`);
+                    const data = await response.json();
+                    
+                    console.log('🎫 Vouchers loaded:', data);
+                    
+                    loadingEl.style.display = 'none';
+                    
+                    if (data.success && data.vouchers.length > 0) {
+                        availableVouchers = data.vouchers;
+                        renderVouchers(data.vouchers);
+                        listEl.style.display = 'block';
+                        noVouchersEl.classList.add('d-none');
+                    } else {
+                        // No vouchers available
+                        listEl.style.display = 'none';
+                        noVouchersEl.classList.remove('d-none');
+                    }
+                } catch (error) {
+                    console.error('Error loading vouchers:', error);
+                    loadingEl.style.display = 'none';
+                    loadingEl.innerHTML = '<p class="text-danger small">Lỗi tải voucher</p>';
+                    // Still show section to display error
+                    listEl.style.display = 'none';
+                    noVouchersEl.classList.add('d-none');
+                }
+            }
+            
+            function renderVouchers(vouchers) {
+                const listEl = document.getElementById('availableVouchersList');
+                
+                listEl.innerHTML = vouchers.map(v => `
+                    <div class="form-check border rounded p-3 mb-2 voucher-item" style="transition: all 0.2s;">
+                        <input class="form-check-input voucher-checkbox" 
+                               type="checkbox" 
+                               value="${v.id}" 
+                               id="voucher_${v.id}"
+                               data-value="${v.value}"
+                               onchange="recalculateWithVouchers()">
+                        <label class="form-check-label w-100 cursor-pointer" for="voucher_${v.id}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <strong class="text-primary">${v.code}</strong>
+                                    <p class="text-muted small mb-0 mt-1">${v.note || ''}</p>
+                                </div>
+                                <div class="text-end ms-3">
+                                    <span class="badge bg-success fs-6">
+                                        -${new Intl.NumberFormat('vi-VN').format(v.value)}đ
+                                    </span>
+                                    <small class="text-muted d-block mt-1">HSD: ${v.end_date}</small>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                `).join('');
+            }
+            
+            function recalculateWithVouchers() {
+                const checkboxes = document.querySelectorAll('.voucher-checkbox:checked');
+                let totalVoucherDiscount = 0;
+                
+                checkboxes.forEach(cb => {
+                    totalVoucherDiscount += parseFloat(cb.dataset.value) || 0;
+                });
+                
+                // Update summary section
+                const summaryEl = document.getElementById('selectedVouchersSummary');
+                const totalDiscountEl = document.getElementById('totalVoucherDiscount');
+                
+                if (totalVoucherDiscount > 0) {
+                    summaryEl.classList.remove('d-none');
+                    totalDiscountEl.textContent = formatMoney(totalVoucherDiscount);
+                } else {
+                    summaryEl.classList.add('d-none');
+                }
+                
+                // Update payment info with voucher discount
+                const paymentInfoEl = document.getElementById('paymentNeededInfo');
+                if (paymentInfoEl && paymentInfoEl.textContent.includes('Cần thanh toán')) {
+                    // Recalculate payment needed
+                    const depositPct = {{ $meta['deposit_percentage'] ?? 50 }};
+                    const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
+                    const newTotal = parseFloat(document.getElementById('newTotal').textContent.replace(/[^0-9]/g, '')) || 0;
+                    const newDepositRequired = newTotal * (depositPct / 100);
+                    const basePaymentNeeded = Math.max(0, newDepositRequired - currentDeposit);
+                    const finalPaymentNeeded = Math.max(0, basePaymentNeeded - totalVoucherDiscount);
+                    
+                    const paymentInfoHtml = finalPaymentNeeded > 0 
+                        ? `<div class="d-flex justify-content-between">
+                               <span class="text-danger fw-semibold">Cần thanh toán:</span>
+                               <h5 class="mb-0 text-danger">${formatMoney(finalPaymentNeeded)}</h5>
+                           </div>
+                           ${totalVoucherDiscount > 0 ? `<small class="text-success d-block mt-1">
+                               <i class="bi bi-check-circle me-1"></i>
+                               Đã giảm ${formatMoney(totalVoucherDiscount)} từ voucher
+                           </small>` : ''}
+                           <small class="text-muted d-block mt-2">
+                               <i class="bi bi-info-circle me-1"></i>
+                               Bạn sẽ được chuyển đến cổng thanh toán VNPay
+                           </small>`
+                         : `<div class="alert alert-success mb-0">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Miễn phí! Voucher đã cover toàn bộ chi phí.
+                            </div>`;
+                    
+                    paymentInfoEl.innerHTML = paymentInfoHtml;
+                }
             }
             
             // Check for room change success and show notification
@@ -2321,4 +2496,18 @@
             @endif
         });
     </script>
-@endpush
+@endpush<style>
+    .hover-shadow {
+        transition: all 0.3s ease;
+    }
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-2px);
+    }
+    .transition {
+        transition: all 0.3s ease;
+    }
+    .min-width-0 {
+        min-width: 0;
+    }
+</style>

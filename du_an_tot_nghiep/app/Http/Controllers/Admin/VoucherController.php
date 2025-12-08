@@ -10,31 +10,40 @@ class VoucherController extends Controller
 {
     public function index()
     {
-        $vouchers = Voucher::all();
+        // Lấy thêm số user đã nhận để tính "số lượng còn lại" ở view
+        $vouchers = Voucher::withCount('users')->get();
+
         return view('admin.voucher.index', compact('vouchers'));
     }
 
     public function create()
     {
+        // Form dùng chung: sẽ không có biến $voucher
         return view('admin.voucher.create');
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|unique:voucher,name',
-            'code' => 'required|unique:voucher,code',
-            'type' => 'required|in:fixed,percent',
-            'value' => 'required|numeric|min:0',
-            'qty' => 'required|integer|min:1',
+        $validated = $request->validate([
+            'name'                 => 'required|unique:voucher,name',
+            'code'                 => 'required|unique:voucher,code',
+            'type'                 => 'required|in:fixed,percent',
+            'value'                => 'required|numeric|min:0',
+            'qty'                  => 'required|integer|min:1',
             'usage_limit_per_user' => 'required|integer|min:1',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'start_date'           => 'required|date',
+            'end_date'             => 'required|date|after_or_equal:start_date',
+            'active'               => 'nullable|boolean',
         ]);
 
-        Voucher::create($request->all());
+        // Checkbox: nếu không tick thì không gửi; ép về 0/1
+        $validated['active'] = $request->has('active') ? 1 : 0;
 
-        return redirect()->route('admin.voucher.index')->with('success', 'Thêm voucher thành công!');
+        Voucher::create($validated);
+
+        return redirect()
+            ->route('admin.voucher.index')
+            ->with('success', 'Thêm voucher thành công!');
     }
 
     public function show(Voucher $voucher)
@@ -49,25 +58,37 @@ class VoucherController extends Controller
 
     public function update(Request $request, Voucher $voucher)
     {
-        $request->validate([
-            'name' => 'required|unique:voucher,name,' ,
-            'code' => 'required|unique:voucher,code,' . $voucher->id,
-            'type' => 'required|in:fixed,percent',
-            'value' => 'required|numeric|min:0',
-            'qty' => 'required|integer|min:1',
+        $validated = $request->validate([
+            'name'                 => 'required|unique:voucher,name,' . $voucher->id,
+            'code'                 => 'required|unique:voucher,code,' . $voucher->id,
+            'type'                 => 'required|in:fixed,percent',
+            'value'                => 'required|numeric|min:0',
+            'qty'                  => 'required|integer|min:1',
             'usage_limit_per_user' => 'required|integer|min:1',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'start_date'           => 'required|date',
+            'end_date'             => 'required|date|after_or_equal:start_date',
+            'active'               => 'nullable|boolean',
         ]);
 
-        $voucher->update($request->all());
+        $validated['active'] = $request->has('active') ? 1 : 0;
 
-        return redirect()->route('admin.voucher.index')->with('success', 'Cập nhật voucher thành công!');
+        $voucher->update($validated);
+
+        return redirect()
+            ->route('admin.voucher.index')
+            ->with('success', 'Cập nhật voucher thành công!');
     }
 
+    /**
+     * Vô hiệu hóa voucher (không xóa khỏi CSDL).
+     */
     public function destroy(Voucher $voucher)
     {
-        $voucher->delete();
-        return redirect()->route('admin.voucher.index')->with('success', 'Xóa voucher thành công!');
+        $voucher->active = 0;
+        $voucher->save();
+
+        return redirect()
+            ->route('admin.voucher.index')
+            ->with('success', 'Đã vô hiệu hóa voucher thành công!');
     }
 }

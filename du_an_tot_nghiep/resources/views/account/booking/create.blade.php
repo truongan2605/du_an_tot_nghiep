@@ -586,7 +586,8 @@
                     </div>
 
                     <aside class="col-xl-4">
-                        <div class="row g-4">
+    <div class="position-sticky" style="top: 80px;">
+        <div class="row g-4">
                             <!-- Price summary START -->
                             <div class="col-md-6 col-xl-12">
                                 <div class="card shadow rounded-3 border-0">
@@ -667,7 +668,7 @@
                                                         Voucher của bạn:
                                                     </small>
 
-                                                    @foreach (Auth::user()->vouchers as $voucher)
+                                                    @foreach ($vouchers as $voucher)
                                                         @php
                                                             $isExpired = \Carbon\Carbon::parse(
                                                                 $voucher->end_date,
@@ -734,10 +735,12 @@
                             </div>
                             <!-- Price summary END -->
                         </div>
+    </div>
 
                     </aside>
                 </div>
             </div>
+
         </section>
     </main>
 @endsection
@@ -1334,6 +1337,8 @@
                 const countedPersons = computedAdults + chargeableChildren;
 
                 const totalMaxAllowed = (baseCapacity + 2) * roomsCount;
+                
+                // Calculate extra guests (DEV branch logic)
                 const extraCountTotal = Math.max(0, countedPersons - (baseCapacity * roomsCount));
                 const adultsBeyondBaseTotal = Math.max(0, computedAdults - (baseCapacity * roomsCount));
                 const adultExtraTotal = Math.min(adultsBeyondBaseTotal, extraCountTotal);

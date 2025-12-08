@@ -27,18 +27,28 @@
                 <td>{{ $voucher->type }}</td>
                 <td>{{ $voucher->value }}</td>
                 <td>{{ $voucher->qty }}</td>
-                <td>{{ max(0, $voucher->qty - $voucher->users_count) }}</td>
+                <td>{{ max(0, $voucher->qty - ($voucher->users_count ?? 0)) }}</td>
                 <td>{{ $voucher->usage_limit_per_user }}</td>
                 <td>{{ $voucher->start_date }}</td>
                 <td>{{ $voucher->end_date }}</td>
                 <td>
                     <a href="{{ route('admin.voucher.show', $voucher->id) }}" class="btn btn-info btn-sm">Xem</a>
                     <a href="{{ route('admin.voucher.edit', $voucher->id) }}" class="btn btn-warning btn-sm">Sửa</a>
-                    <form action="{{ route('admin.voucher.destroy', $voucher->id) }}" method="POST" style="display:inline-block;">
-                        @csrf
-                        @method('DELETE')
-                        <button class="btn btn-danger btn-sm" onclick="return confirm('Bạn có chắc muốn xóa voucher này?')">Xóa</button>
-                    </form>
+
+                    @if($voucher->active)
+                        {{-- Nút vô hiệu hóa (gọi destroy, nhưng controller chỉ set active = 0) --}}
+                        <form action="{{ route('admin.voucher.destroy', $voucher->id) }}" method="POST" style="display:inline-block;">
+                            @csrf
+                            @method('DELETE')
+                            <button class="btn btn-danger btn-sm"
+                                onclick="return confirm('Bạn có chắc muốn vô hiệu hóa voucher này?')">
+                                Vô hiệu hóa
+                            </button>
+                        </form>
+                    @else
+                        {{-- Đã bị vô hiệu hóa, chỉ hiển thị trạng thái --}}
+                        <button class="btn btn-secondary btn-sm" disabled>Đã vô hiệu hóa</button>
+                    @endif
                 </td>
             </tr>
             @endforeach
