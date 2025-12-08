@@ -1962,10 +1962,6 @@ class BookingController extends Controller
             'message' => 'Voucher áp dụng thành công! Giảm ' . number_format($discountAmount) . ' VND.',
         ]);
     }
-<<<<<<< HEAD
-=======
-
->>>>>>> dev
 
     private function calculateNights($from, $to)
     {
