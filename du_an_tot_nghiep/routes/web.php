@@ -74,6 +74,7 @@ Route::post('/booking/apply-voucher', [BookingController::class, 'applyVoucher']
 // ==================== ROOM COMPARISON ====================
 Route::get('/compare', [RoomController::class, 'compare'])->name('rooms.compare');
 Route::get('/api/rooms/compare-data', [RoomController::class, 'getCompareData'])->name('rooms.compare-data');
+Route::get('/api/room-types/{id}/quick-view', [RoomController::class, 'getRoomTypeQuickView'])->name('room-types.quick-view');
 
 // ==================== ADMIN ====================
 Route::prefix('admin')

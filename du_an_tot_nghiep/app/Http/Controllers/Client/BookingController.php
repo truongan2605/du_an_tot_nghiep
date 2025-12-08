@@ -262,6 +262,7 @@ class BookingController extends Controller
                     'code' => $room->ma_phong,
                     'name' => $room->loaiPhong->ten ?? 'Room',
                     'type' => $room->loaiPhong->slug ?? 'standard',
+                    'type_id' => $room->loai_phong_id, // NEW: Room type ID for quick view API
                     'price' => $roomPrice,
                     'base_price' => $roomBasePrice,
                     'extra_charge' => $extraCharge,

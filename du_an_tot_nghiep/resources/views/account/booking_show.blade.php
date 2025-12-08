@@ -1530,7 +1530,156 @@
             function resetFilters() {
                 document.getElementById('filterRoomType').value = '';
                 document.getElementById('filterPrice').value = '';
-                renderRoomCards(allAvailableRooms);
+                applyFilters();
+            }
+
+            /**
+             * Show room type quick view modal with details
+             */
+            async function showRoomTypeQuickView(roomTypeId, roomTypeName) {
+                try {
+                    // Show loading
+                    Swal.fire({
+                        title: 'Đang tải thông tin...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Fetch room type details
+                    const response = await fetch(`/api/room-types/${roomTypeId}/quick-view`);
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        throw new Error('Không thể tải thông tin loại phòng');
+                    }
+
+                    const data = result.data;
+
+                    // Build images carousel
+                    let imagesHtml = '';
+                    if (data.images && data.images.length > 0) {
+                        imagesHtml = `
+                            <div id="roomTypeCarousel" class="carousel slide mb-3" data-bs-ride="carousel">
+                                <div class="carousel-inner">
+                                    ${data.images.map((img, idx) => `
+                                        <div class="carousel-item ${idx === 0 ? 'active' : ''}">
+                                            <img src="${img.url}" class="d-block w-100" alt="${img.alt}" style="height: 300px; object-fit: cover; border-radius: 8px;">
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                ${data.images.length > 1 ? `
+                                    <button class="carousel-control-prev" type="button" data-bs-target="#roomTypeCarousel" data-bs-slide="prev">
+                                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    </button>
+                                    <button class="carousel-control-next" type="button" data-bs-target="#roomTypeCarousel" data-bs-slide="next">
+                                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        `;
+                    }
+
+                    // Build amenities list
+                    let amenitiesHtml = '';
+                    if (data.amenities && data.amenities.length > 0) {
+                        amenitiesHtml = `
+                            <div class="mb-3">
+                                <h6 class="fw-bold mb-2"><i class="bi bi-stars me-1"></i>Tiện nghi</h6>
+                                <div class="row g-2">
+                                    ${data.amenities.map(amenity => `
+                                        <div class="col-6">
+                                            <i class="bi ${amenity.icon} text-primary me-1"></i>
+                                            <span class="small">${amenity.name}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Build bed types
+                    let bedTypesHtml = '';
+                    if (data.bed_types && data.bed_types.length > 0) {
+                        bedTypesHtml = `
+                            <div class="mb-3">
+                                <h6 class="fw-bold mb-2"><i class="bi bi-door-open me-1"></i>Loại giường</h6>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    ${data.bed_types.map(bed => `
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="bi ${bed.icon || 'bi-door-open'} me-1"></i>
+                                            ${bed.quantity}x ${bed.name}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Show modal with room type details
+                    Swal.fire({
+                        title: `<i class="bi bi-house-door me-2"></i>${data.name}`,
+                        width: '700px',
+                        html: `
+                            <div class="text-start">
+                                ${imagesHtml}
+                                
+                                <div class="card border-0 bg-light mb-3">
+                                    <div class="card-body p-3">
+                                        <div class="row g-3">
+                                            <div class="col-4 text-center">
+                                                <i class="bi bi-people fs-4 text-primary"></i>
+                                                <div class="small text-muted mt-1">Sức chứa</div>
+                                                <div class="fw-bold">${data.capacity} người</div>
+                                            </div>
+                                            ${data.area ? `
+                                                <div class="col-4 text-center">
+                                                    <i class="bi bi-rulers fs-4 text-primary"></i>
+                                                    <div class="small text-muted mt-1">Diện tích</div>
+                                                    <div class="fw-bold">${data.area} m²</div>
+                                                </div>
+                                            ` : ''}
+                                            <div class="col-4 text-center">
+                                                <i class="bi bi-cash-coin fs-4 text-success"></i>
+                                                <div class="small text-muted mt-1">Giá từ</div>
+                                                <div class="fw-bold text-success">${data.base_price.toLocaleString('vi-VN')}đ</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                ${data.description ? `
+                                    <div class="mb-3">
+                                        <h6 class="fw-bold mb-2"><i class="bi bi-file-text me-1"></i>Mô tả</h6>
+                                        <p class="text-muted small mb-0">${data.description}</p>
+                                    </div>
+                                ` : ''}
+
+                                ${bedTypesHtml}
+                                ${amenitiesHtml}
+
+                                <div class="alert alert-info small mb-0">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Khách sạn sẽ tự động chọn phòng tốt nhất còn trống cho bạn
+                                </div>
+                            </div>
+                        `,
+                        showCloseButton: true,
+                        showConfirmButton: false,
+                        customClass: {
+                            popup: 'room-type-quick-view-modal'
+                        }
+                    });
+
+                } catch (error) {
+                    console.error('Error loading room type details:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi',
+                        text: 'Không thể tải thông tin loại phòng. Vui lòng thử lại!'
+                    });
+                }
             }
 
             function showNoRoomsMessage() {
@@ -1646,9 +1795,16 @@
                                         <span class="text-muted small">Giá/đêm</span>
                                         <strong class="text-success">${room.price.toLocaleString('vi-VN')}đ</strong>
                                     </div>
-                                    <button class="btn btn-outline-primary btn-sm w-100 select-room-btn" data-room-id="${room.id}">
-                                        <i class="bi bi-check-circle me-1"></i>Chọn loại phòng này
-                                    </button>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-info btn-sm flex-fill view-room-type-btn" 
+                                                data-room-type-id="${room.type_id}" 
+                                                data-room-type-name="${roomType.type_name}">
+                                            <i class="bi bi-info-circle me-1"></i>Chi tiết
+                                        </button>
+                                        <button class="btn btn-outline-primary btn-sm flex-fill select-room-btn" data-room-id="${room.id}">
+                                            <i class="bi bi-check-circle me-1"></i>Chọn loại phòng này
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1662,6 +1818,7 @@
             }
 
             function attachRoomSelectionHandlers() {
+                // Attach select room button handlers
                 const roomCards = document.querySelectorAll('.select-room-btn');
                 
                 roomCards.forEach(btn => {
@@ -1671,6 +1828,16 @@
                         const price = parseFloat(wrapper.getAttribute('data-price'));
                         
                         selectRoom(roomId, price, wrapper);
+                    });
+                });
+
+                // Attach quick view button handlers
+                const viewBtns = document.querySelectorAll('.view-room-type-btn');
+                viewBtns.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const roomTypeId = this.getAttribute('data-room-type-id');
+                        const roomTypeName = this.getAttribute('data-room-type-name');
+                        showRoomTypeQuickView(roomTypeId, roomTypeName);
                     });
                 });
             }
