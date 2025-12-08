@@ -1663,7 +1663,7 @@ class BookingController extends Controller
                     ]);
 
                     $meta = [
-                        'final_per_night' => (float)($finalPerNightServer / max(1, $roomsCount)), // Per-room price
+                        'final_per_night' => (float)($finalTotalAfterVoucher / max(1, $nights * $roomsCount)), // CRITICAL: Use discounted total
                         'snapshot_total' => (float)$snapshotTotalServer,
                         'nights' => $nights,
                         'rooms_count' => $roomsCount,
@@ -1819,7 +1819,7 @@ class BookingController extends Controller
                     'total_amount' => $finalTotalAfterVoucher, // CRITICAL FIX: Use discounted total, not raw input
                     'deposit_percentage' => $request->input('deposit_percentage', 50),
                     'phuong_thuc' => $phuongThuc,
-                    'final_per_night' => $request->input('final_per_night'),
+                    'final_per_night' => ($finalTotalAfterVoucher / max(1, $nights * $roomsCount)), // CRITICAL: Use discounted total
                     'snapshot_total' => $request->input('snapshot_total'),
                     'dat_phong_id' => $datPhongId,
                     // Voucher data - ensures both MoMo and VNPay receive voucher information
