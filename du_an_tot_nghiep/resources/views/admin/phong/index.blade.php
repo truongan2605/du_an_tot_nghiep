@@ -97,11 +97,11 @@
                             <a href="{{ route('admin.phong.show', $p->id) }}" class="btn btn-info btn-sm">Xem</a>
                             <a href="{{ route('admin.phong.edit', $p->id) }}" class="btn btn-sm btn-warning">Sửa</a>
 
-                            <form action="{{ route('admin.phong.destroy', $p->id) }}" method="POST" class="d-inline"
+                            {{-- <form action="{{ route('admin.phong.destroy', $p->id) }}" method="POST" class="d-inline"
                                 onsubmit="return confirm('Xóa phòng?')">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-sm btn-danger">Xóa</button>
-                            </form>
+                            </form> --}}
 
                             @php
                                 $bookingIdForThis = $latestBookingIds[$p->id] ?? null;
