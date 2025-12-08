@@ -249,6 +249,10 @@
                         data-url="{{ route('admin.bed-types.index') }}" data-section="section-coso">
                         <i class="fas fa-bed"></i>Loại Giường
                     </a>
+                     <a class="nav-link {{ request()->routeIs('admin.danhgia.*') ? 'active' : '' }}"
+                        data-url="{{ route('admin.danhgia.index') }}" data-section="section-coso">
+                        <i class="fas fa-bed"></i>Đánh giá
+                    </a>
                 </div>
             </div>
 

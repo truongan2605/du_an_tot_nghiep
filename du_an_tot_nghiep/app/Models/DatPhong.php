@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+
 use App\Traits\Auditable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 class DatPhong extends Model
 {
     use HasFactory;
-     use Auditable;
+    use Auditable;
     protected $table = 'dat_phong';
 
     protected $fillable = [
@@ -126,6 +127,16 @@ class DatPhong extends Model
     public function danhGias(): HasMany
     {
         return $this->hasMany(DanhGia::class, 'dat_phong_id');
+    }
+
+    public function phongs()
+    {
+        return $this->belongsToMany(
+            Phong::class,
+            'dat_phong_items_history',
+            'dat_phong_id',
+            'phong_id'
+        );
     }
 
     public function consumptions()
@@ -347,5 +358,15 @@ class DatPhong extends Model
     public function scopeDaHuy($query)
     {
         return $query->where('trang_thai', 'da_huy');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(DatPhongItem::class, 'dat_phong_id');
+    }
+
+    public function phongitems()
+    {
+        return $this->belongsToMany(Phong::class, 'dat_phong_items', 'dat_phong_id', 'phong_id');
     }
 }
