@@ -321,10 +321,18 @@ Route::middleware('auth')
         ->name('rewards');
 
  
-    
-    // Room change callback (outside auth middleware to accept VNPay callback)
-    Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
+    });
 
+// ==================== ROOM CHANGE CALLBACK (outside auth for VNPay) ====================
+// VNPay callback for room change - must be outside auth middleware
+Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])
+    ->name('booking.change-room.callback');
+
+// ==================== ACCOUNT (continued after callback route) ====================  
+Route::middleware('auth')
+    ->prefix('account')
+    ->name('account.')
+    ->group(function () {
 
         // Danh sách đặt phòng
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');

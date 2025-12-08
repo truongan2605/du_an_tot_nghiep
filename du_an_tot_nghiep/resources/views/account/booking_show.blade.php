@@ -1560,7 +1560,35 @@
                 const grid = document.getElementById('availableRoomsGrid');
                 grid.innerHTML = '';
 
+                // ⭐ Group rooms by type (hide specific room numbers from customers)
+                const roomsByType = {};
                 rooms.forEach(room => {
+                    const typeKey = room.name; // "Deluxe Room", "Suite Room", etc.
+                    if (!roomsByType[typeKey]) {
+                        roomsByType[typeKey] = {
+                            type_name: room.name,
+                            type_slug: room.type,
+                            rooms: [],
+                            min_price: room.price,
+                            max_price: room.price,
+                            total_available: 0,
+                            sample_room: null // Store first room for submission
+                        };
+                    }
+                    roomsByType[typeKey].rooms.push(room);
+                    roomsByType[typeKey].total_available++;
+                    roomsByType[typeKey].min_price = Math.min(roomsByType[typeKey].min_price, room.price);
+                    roomsByType[typeKey].max_price = Math.max(roomsByType[typeKey].max_price, room.price);
+                    
+                    // Use first room as sample for submission
+                    if (!roomsByType[typeKey].sample_room) {
+                        roomsByType[typeKey].sample_room = room;
+                    }
+                });
+
+                // Render each room type (not individual rooms)
+                Object.values(roomsByType).forEach(roomType => {
+                    const room = roomType.sample_room; // Use sample room for prices
                     const priceDiff = room.price - currentRoomPrice;
                     const priceDiffFormatted = Math.abs(priceDiff).toLocaleString('vi-VN');
                     
@@ -1590,7 +1618,7 @@
                                     </span>
                                     <strong class="text-danger">+${room.extra_charge.toLocaleString('vi-VN')}đ</strong>
                                 </div>
-                                <small class="text-muted">(số người vượt sức chứa )</small>
+                                <small class="text-muted">(số người vượt sức chứa)</small>
                             </div>
                         `;
                     }
@@ -1599,11 +1627,17 @@
                         <div class="col-md-4 room-card-wrapper" data-room-id="${room.id}" data-price="${room.price}" data-type="${room.type}">
                             <div class="card room-card h-100">
                                 <div class="position-relative overflow-hidden">
-                                    <img src="${room.image}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="${room.name}">
+                                    <img src="${room.image}" class="card-img-top" style="height: 150px; object-fit: cover;" alt="${roomType.type_name}">
                                     <span class="position-absolute top-0 end-0 m-2 badge ${badgeClass}">${badgeText}</span>
                                 </div>
                                 <div class="card-body">
-                                    <h6 class="card-title mb-2 text-primary fw-bold">#${room.code} - ${room.name}</h6>
+                                    <h6 class="card-title mb-2 text-primary fw-bold">${roomType.type_name}</h6>
+                                    
+                                    <div class="alert alert-info p-2 mb-2" style="font-size: 0.85rem; background-color: #e7f3ff; border-color: #b8daff;">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <strong>${roomType.total_available}</strong> phòng trống
+                                    </div>
+                                    
                                     <div class="text-muted small mb-2">
                                         <i class="bi bi-people me-1"></i>Sức chứa: ${room.capacity} người
                                     </div>
@@ -1613,7 +1647,7 @@
                                         <strong class="text-success">${room.price.toLocaleString('vi-VN')}đ</strong>
                                     </div>
                                     <button class="btn btn-outline-primary btn-sm w-100 select-room-btn" data-room-id="${room.id}">
-                                        <i class="bi bi-check-circle me-1"></i>Chọn phòng
+                                        <i class="bi bi-check-circle me-1"></i>Chọn loại phòng này
                                     </button>
                                 </div>
                             </div>
@@ -1647,7 +1681,7 @@
                     card.classList.remove('selected');
                 });
                 document.querySelectorAll('.select-room-btn').forEach(btn => {
-                    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Chọn phòng';
+                    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Chọn loại phòng này';
                 });
 
                 // Mark new selection
@@ -1675,20 +1709,15 @@
                 // Show price summary section
                 document.getElementById('priceSummarySection').classList.remove('d-none');
 
-                // Update room comparison - We need to get room info from selected card
+                // Update room comparison - Get room type name from selected card
                 const selectedCard = document.querySelector('.room-card.selected');
                 if (selectedCard) {
-                    // Title format: "#CODE - ROOM NAME"
+                    // NEW: Title is just room type name (e.g. "Deluxe Room")
                     const titleElement = selectedCard.querySelector('.card-title');
-                    const fullTitle = titleElement ? titleElement.textContent.trim() : '';
+                    const roomTypeName = titleElement ? titleElement.textContent.trim() : 'N/A';
                     
-                    // Split by " - " to get code and name
-                    const titleParts = fullTitle.split(' - ');
-                    const roomCode = titleParts[0] || 'N/A'; // e.g. "#305"
-                    const roomName = titleParts[1] || fullTitle; // e.g. "Suite Room"
-                    
-                    document.getElementById('newRoomName').textContent = roomName;
-                    document.getElementById('newRoomCode').textContent = roomCode;
+                    document.getElementById('newRoomName').textContent = roomTypeName;
+                    document.getElementById('newRoomCode').textContent = '-'; // Hide room code
                     document.getElementById('newRoomPricePerNight').textContent = Math.round(newRoomPrice).toLocaleString('vi-VN') + 'đ/đêm';
                 }
 
@@ -1825,7 +1854,7 @@
             // Confirm change button handler
             document.getElementById('confirmChangeBtn').addEventListener('click', function() {
                 if (!selectedRoomId) {
-                    alert('Vui lòng chọn phòng!');
+                    alert('Vui lòng chọn loại phòng!');
                     return;
                 }
                 
@@ -1949,9 +1978,9 @@
                             <div class="alert alert-primary border-0 mb-3">
                                 <h6 class="mb-2">
                                     <i class="bi bi-arrow-up-circle me-1"></i>
-                                    Bạn đang nâng cấp lên phòng tốt hơn! 🌟
+                                    Bạn đang nâng cấp lên loại phòng tốt hơn! 🌟
                                 </h6>
-                                <p class="mb-0 small">Trải nghiệm hạng phòng cao cấp hơn với mức giá hợp lý</p>
+                                <p class="mb-0 small">Khách sạn sẽ tự động chọn phòng tốt nhất còn trống cho bạn</p>
                             </div>
                             
                             {{-- Room Comparison --}}
@@ -1961,9 +1990,9 @@
                                     <div class="row g-3">
                                         <div class="col-6">
                                             <div class="border-end pe-2">
-                                                <div class="text-muted small mb-1">Phòng hiện tại</div>
+                                                <div class="text-muted small mb-1">Loại phòng hiện tại</div>
                                                 <div class="fw-bold">{{ $currentRoom->loaiPhong->ten ?? 'N/A' }}</div>
-                                                <div class="text-muted small">#{{ $currentRoom->ma_phong ?? 'N/A' }}</div>
+                                                <div class="text-muted small">Phòng của bạn</div>
                                                 <div class="mt-2">
                                                     <span class="badge bg-secondary">${formatMoney(oldRoomTotal)}</span>
                                                 </div>
@@ -1971,9 +2000,9 @@
                                         </div>
                                         <div class="col-6">
                                             <div class="ps-2">
-                                                <div class="text-muted small mb-1">Phòng mới</div>
+                                                <div class="text-muted small mb-1">Loại phòng mới</div>
                                                 <div class="fw-bold text-primary">${roomCode}</div>
-                                                <div class="text-muted small">-</div>
+                                                <div class="text-muted small">Khách sạn sẽ chọn phòng tốt nhất</div>
                                                 <div class="mt-2">
                                                     <span class="badge bg-primary">${formatMoney(newRoomTotal)}</span>
                                                 </div>
@@ -2433,12 +2462,12 @@
                             <div class="table-responsive">
                                 <table class="table table-sm table-borderless">
                                     <tr>
-                                        <td class="text-muted">Phòng cũ:</td>
-                                        <td><strong class="text-danger">#{{ $changeInfo['old_room'] }}</strong></td>
+                                        <td class="text-muted">Loại phòng cũ:</td>
+                                        <td><strong class="text-danger">{{ $changeInfo['old_room'] }}</strong></td>
                                     </tr>
                                     <tr>
-                                        <td class="text-muted">Phòng mới:</td>
-                                        <td><strong class="text-success">#{{ $changeInfo['new_room'] }}</strong></td>
+                                        <td class="text-muted">Loại phòng mới:</td>
+                                        <td><strong class="text-success">{{ $changeInfo['new_room'] }}</strong></td>
                                     </tr>
                                     @if(!isset($changeInfo['voucher_code']))
                                         <tr>

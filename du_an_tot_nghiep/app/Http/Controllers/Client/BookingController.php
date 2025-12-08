@@ -587,8 +587,8 @@ class BookingController extends Controller
 
                     return redirect('/account/bookings/' . $roomChange->dat_phong_id)
                         ->with('room_change_success', [
-                            'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                            'new_room' => $newRoom->ma_phong ?? 'N/A',
+                            'old_room' => $oldRoom->loaiPhong->ten ?? 'N/A',
+                            'new_room' => $newRoom->loaiPhong->ten ?? 'N/A',
                             'price_difference' => $priceDiff,
                             'payment_amount' => 0,
                             'applied_vouchers' => $appliedVouchers,
@@ -618,8 +618,8 @@ class BookingController extends Controller
 
                 return redirect('/account/bookings/' . $roomChange->dat_phong_id)
                     ->with('room_change_success', [
-                        'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                        'new_room' => $newRoom->ma_phong ?? 'N/A',
+                        'old_room' => $oldRoom->loaiPhong->ten ?? 'N/A',
+                        'new_room' => $newRoom->loaiPhong->ten ?? 'N/A',
                         'price_difference' => $priceDiff,
                         'refund_amount' => $refundAmount,
                         'voucher_code' => $voucher->code
@@ -638,8 +638,8 @@ class BookingController extends Controller
 
                 return redirect('/account/bookings/' . $roomChange->dat_phong_id)
                     ->with('room_change_success', [
-                        'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                        'new_room' => $newRoom->ma_phong ?? 'N/A',
+                        'old_room' => $oldRoom->loaiPhong->ten ?? 'N/A',
+                        'new_room' => $newRoom->loaiPhong->ten ?? 'N/A',
                         'price_difference' => 0,
                         'payment_amount' => 0
                     ])
@@ -810,8 +810,8 @@ class BookingController extends Controller
                 $priceDiff = $roomChange->price_difference;
 
                 $successData = [
-                    'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                    'new_room' => $newRoom->ma_phong ?? 'N/A',
+                    'old_room' => $oldRoom->loaiPhong->ten ?? 'N/A',
+                    'new_room' => $newRoom->loaiPhong->ten ?? 'N/A',
                     'price_difference' => $priceDiff,
                     'payment_amount' => $roomChange->payment_info['vnp_Amount'] ?? 0
                 ];
