@@ -1185,7 +1185,40 @@ class BookingController extends Controller
             }
         }
 
-        $occupiedSpecificIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
+        // ----  consider dat_phong with blocks_checkin = true on the requested start date ----
+        $requestedStartDate = $requestedStart->toDateString();
+        $blockedSpecificIds = [];
+        $blockedAggregateCount = 0;
+
+        if (Schema::hasTable('dat_phong') && Schema::hasTable('dat_phong_item')) {
+            $blockedQuery = DB::table('dat_phong')
+                ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                ->whereDate('dat_phong.ngay_tra_phong', $requestedStartDate)
+                ->where('dat_phong.blocks_checkin', true)
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->where('dat_phong_item.loai_phong_id', $loaiPhongId);
+
+            // specific phong_id rows from blocked bookings
+            if (Schema::hasColumn('dat_phong_item', 'phong_id')) {
+                $blockedSpecificIds = $blockedQuery
+                    ->whereNotNull('dat_phong_item.phong_id')
+                    ->pluck('dat_phong_item.phong_id')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+            }
+
+            // aggregate rows (no phong_id) -> count them into blockedAggregateCount
+            $blockedAggQuery = (clone $blockedQuery)->whereNull('dat_phong_item.phong_id');
+            if (Schema::hasColumn('dat_phong_item', 'so_luong')) {
+                $blockedAggregateCount = (int) $blockedAggQuery->sum('dat_phong_item.so_luong');
+            } else {
+                $blockedAggregateCount = (int) $blockedAggQuery->count();
+            }
+        }
+
+        // merge all specific occupied ids (booked, held, blocked due to late checkout)
+        $occupiedSpecificIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds, $blockedSpecificIds));
         $matchingAvailableIds = array_values(array_diff($matchingRoomIds, $occupiedSpecificIds));
         $matchingAvailableCount = count($matchingAvailableIds);
 
@@ -1205,6 +1238,8 @@ class BookingController extends Controller
                 $aggregateBooked = (int) $q->count();
             }
         }
+
+        $aggregateBooked += $blockedAggregateCount;
 
         // 5) Aggregate holds (giu_phong rows without phong_id) that overlap the same dat_phong interval and match signature when available
         $aggregateHoldsForSignature = 0;
@@ -1313,7 +1348,43 @@ class BookingController extends Controller
             }
         }
 
-        $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
+        // ---- blocked by late-checkout bookings that have blocks_checkin = true on requested start date ----
+        $requestedStartDate = $requestedStart->toDateString();
+        $blockedSpecificIds = [];
+        $blockedAggregateCount = 0;
+
+        if (Schema::hasTable('dat_phong') && Schema::hasTable('dat_phong_item')) {
+            $blockedQuery = DB::table('dat_phong')
+                ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                ->whereDate('dat_phong.ngay_tra_phong', $requestedStartDate)
+                ->where('dat_phong.blocks_checkin', true)
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->where('dat_phong_item.loai_phong_id', $loaiPhongId);
+
+            if (Schema::hasColumn('dat_phong_item', 'phong_id')) {
+                $blockedSpecificIds = $blockedQuery
+                    ->whereNotNull('dat_phong_item.phong_id')
+                    ->pluck('dat_phong_item.phong_id')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+            }
+
+            $blockedAggQuery = (clone $blockedQuery)->whereNull('dat_phong_item.phong_id');
+            if (Schema::hasColumn('dat_phong_item', 'so_luong')) {
+                $blockedAggregateCount = (int) $blockedAggQuery->sum('dat_phong_item.so_luong');
+            } else {
+                $blockedAggregateCount = (int) $blockedAggQuery->count();
+            }
+        }
+
+        // combine exclusions
+        $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds, $blockedSpecificIds));
+
+        $adjustedLimit = max(0, (int)$limit - (int)$blockedAggregateCount);
+        if ($adjustedLimit <= 0) {
+            return [];
+        }
 
         $query = Phong::where('loai_phong_id', $loaiPhongId)
             ->where('spec_signature_hash', $requiredSignature)
@@ -1322,7 +1393,7 @@ class BookingController extends Controller
                 $q->whereNotIn('id', $excluded);
             })
             ->lockForUpdate()
-            ->limit((int)$limit);
+            ->limit($adjustedLimit);
 
         $rows = $query->get(['id']);
 
