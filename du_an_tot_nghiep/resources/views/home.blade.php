@@ -270,7 +270,7 @@
                             <!-- Rating -->
                             <div>
                                 <h6 class="fw-light mb-3">Rating</h6>
-                                <h6 class="m-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
+                                <h6 class="m-0">4.4<i class="fa-solid fa-star text-warning ms-1"></i></h6>
                             </div>
                         </div>
                     </div>
@@ -381,7 +381,11 @@
                                     <h6 class="text-success mb-0">
                                         {{ number_format($phong->gia_cuoi_cung, 0, '.', ',') }} VND
                                     </h6>
-                                    <h6 class="mb-0">4.5<i class="fa-solid fa-star text-warning ms-1"></i></h6>
+                                   <h6 class="mb-0">
+    4.8
+    <i class="fa-solid fa-star text-warning ms-1"></i>
+</h6>
+
                                 </div>
                             </div>
                         </div>

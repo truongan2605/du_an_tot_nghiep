@@ -138,16 +138,16 @@
                 <div class="row mb-2 align-items-center">
                     <div class="col-md-4">
                         <strong>{{ $bt->name }}</strong>
-                        <div class="small text-muted">capacity: {{ $bt->capacity }} / default price:
+                        <div class="small text-muted">số lượng: {{ $bt->capacity }} / Giá mặc định:
                             {{ number_format($bt->price, 0, ',', '.') }} đ</div>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label small">Quantity</label>
+                        <label class="form-label small">Chất lượng</label>
                         <input type="number" name="bed_types[{{ $bt->id }}][quantity]" min="0"
                             class="form-control" value="{{ $qty }}">
                     </div>
                     <div class="col-md-5">
-                        <label class="form-label small">Price per bed (optional override)</label>
+                        <label class="form-label small">Giá mỗi giường (Ghi đè)</label>
                         <input type="number" step="0.01" name="bed_types[{{ $bt->id }}][price]"
                             class="form-control" value="{{ $price }}">
                     </div>

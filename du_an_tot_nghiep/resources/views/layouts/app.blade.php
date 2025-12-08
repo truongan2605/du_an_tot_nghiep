@@ -64,17 +64,17 @@
             }
         })
     </script>
+    <!-- AI chatbox -->
+<script data-name-bot="huy"
+	src="https://app.preny.ai/embed-global.js"
+	data-button-style="width:300px;height:300px;"
+	data-language="vi"
+	async
+	defer
+	data-preny-bot-id="692bcf49a98b11e2f6c759c8"
+></script>
 
-    <script data-name-bot="huy"
-        src="https://app.preny.ai/embed-global.js"
-        data-button-style="width:300px;height:300px;"
-        data-language="vi"
-        async
-        defer
-        data-preny-bot-id="692bcf49a98b11e2f6c759c8"
-    >
-    </script>
-
+<!-- end chat -->
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{ asset('template/stackbros/assets/images/favicon.ico') }}">
 
@@ -242,6 +242,11 @@
             border: none;
             box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
         }
+        .sticky-sidebar {
+    position: sticky;
+    top: 80px; /* chỉnh tùy độ cao header */
+}
+
 
         .btn-wishlist i {
             color: #fff;

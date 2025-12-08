@@ -79,6 +79,7 @@ class Phong extends Model
     }
 
 
+
     public function computeConsumableCharges(): float
     {
         $this->loadMissing(['vatDungs']);
@@ -163,6 +164,10 @@ class Phong extends Model
     {
         return $this->hasMany(Wishlist::class, 'phong_id');
     }
+public function danhGiaspace()
+{
+    return $this->hasMany(DanhGiaSpace::class, 'phong_id');
+}
 
     public function getTongGiaAttribute()
     {
@@ -383,10 +388,10 @@ class Phong extends Model
         $sig = $this->specSignatureArray();
         return md5(json_encode($sig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
-    public function danhGias()
-    {
-        return $this->hasManyThrough(DanhGia::class, DatPhong::class, 'phong_id', 'dat_phong_id', 'id', 'id');
-    }
+  public function danhGias()
+{
+    return $this->hasMany(DanhGiaSpace::class, 'phong_id');
+}
     protected static function booted()
     {
         static::saving(function ($phong) {
@@ -396,5 +401,7 @@ class Phong extends Model
                 Log::warning('Could not compute spec_signature_hash for Phong id=' . ($phong->id ?? 'new') . ': ' . $e->getMessage());
             }
         });
+
     }
+    
 }
