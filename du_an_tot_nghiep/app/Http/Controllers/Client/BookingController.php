@@ -167,7 +167,8 @@ class BookingController extends Controller
         $checkOut = Carbon::parse($booking->ngay_tra_phong);
 
         // Get ALL available rooms (not limited to same type - allow upgrade/downgrade)
-        $allRooms = Phong::where('trang_thai', '!=', 'bao_tri')
+        // Exclude rooms with status 'bao_tri' (maintenance) and 'khong_su_dung' (not in use)
+        $allRooms = Phong::whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
             ->pluck('id')
             ->toArray();
 
