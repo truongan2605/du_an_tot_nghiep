@@ -93,12 +93,28 @@ class BookingController extends Controller
         $paidAmount = $dat_phong->deposit_amount ?? 0;
         $refundAmount = $paidAmount * ($refundPercentage / 100);
 
+        
+        // VOUCHER FIX: Calculate original price for frontend modal
+        $nights = Carbon::parse($dat_phong->ngay_nhan_phong)->diffInDays(Carbon::parse($dat_phong->ngay_tra_phong));
+        $originalTotal = $dat_phong->tong_tien + ($dat_phong->voucher_discount ?? 0);
+        $currentPriceOriginal = $originalTotal / max(1, $nights);
+        
+        \Log::info('🔎 SHOW Method Calculation', [
+            'booking_id' => $dat_phong->id,
+            'tong_tien' => $dat_phong->tong_tien,
+            'voucher_discount' => $dat_phong->voucher_discount,
+            'nights' => $nights,
+            'originalTotal' => $originalTotal,
+            'currentPriceOriginal' => $currentPriceOriginal,
+        ]);
+        
         return view('account.booking_show', [
             'booking' => $dat_phong,
             'meta' => $meta,
             'user' => $user,
             'daysUntilCheckIn' => $daysUntilCheckIn,
             'refundAmount' => $refundAmount,
+            'currentPriceOriginal' => $currentPriceOriginal,
         ]);
     }
 
@@ -160,7 +176,21 @@ class BookingController extends Controller
 
         $currentRoom = $currentItem->phong;
         $currentRoomType = $currentItem->loaiPhong;
-        $currentPrice = $currentItem->gia_tren_dem ?? 0;
+        // VOUCHER FIX: Calculate original price (before voucher) to preserve discount
+        $nights = Carbon::parse($booking->ngay_nhan_phong)->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+        $originalTotal = $booking->tong_tien + ($booking->voucher_discount ?? 0);
+        $currentPrice = $originalTotal / max(1, $nights);
+        
+        // DEBUG LOG
+        \Log::info('🔧 Voucher Calculation', [
+            'booking_id' => $booking->id,
+            'tong_tien' => $booking->tong_tien,
+            'voucher_discount' => $booking->voucher_discount,
+            'originalTotal' => $originalTotal,
+            'nights' => $nights,
+            'currentPrice' => $currentPrice,
+            'old_gia_tren_dem' => $currentItem->gia_tren_dem,
+        ]);
 
         // Get dates
         $checkIn = Carbon::parse($booking->ngay_nhan_phong);
@@ -392,7 +422,10 @@ class BookingController extends Controller
 
         // 7. Get current room info (already have $currentItem from step 5)
         $currentRoom = $currentItem->phong;
-        $currentPrice = $currentItem->gia_tren_dem;
+        // VOUCHER FIX: Calculate original price (before voucher) to preserve discount
+        $nights = Carbon::parse($booking->ngay_nhan_phong)->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+        $originalTotal = $booking->tong_tien + ($booking->voucher_discount ?? 0);
+        $currentPrice = $originalTotal / max(1, $nights);
 
         // 8. Calculate prices with extra charges
         // Get guest count from CURRENT ROOM ITEM (accurate from DB)

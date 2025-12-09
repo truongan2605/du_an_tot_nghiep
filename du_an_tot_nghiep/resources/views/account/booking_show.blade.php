@@ -1300,7 +1300,9 @@
             if (!changeRoomModal) return;
 
             // Data for demo purposes - will be replaced with AJAX call
-            let currentRoomPrice = {{ $booking->datPhongItems->first()->gia_tren_dem ?? 0 }};  // Default to first, will be updated
+            // VOUCHER FIX: Use original price (before voucher) from backend
+            let currentRoomPrice = {{ $currentPriceOriginal ?? 0 }};  // Preserves voucher discount
+            console.log('🔍 DEBUG currentRoomPrice from backend:', currentRoomPrice);
             const nightsRemaining = {{ $meta['nights'] ?? 1 }};
             const oldTotal = {{ $booking->tong_tien ?? 0 }};
             
@@ -1321,8 +1323,8 @@
                 oldRoomId = roomId;
                 oldRoomCode = roomCode;
                 
-                // CRITICAL: Update currentRoomPrice based on which room is being changed
-                currentRoomPrice = roomPrices[roomId] || 0;
+                // VOUCHER FIX: Don't override! Use backend's original price
+                // currentRoomPrice = roomPrices[roomId] || 0;  // This used gia_tren_dem (discounted!)
                 
                 console.log('Changing room:', roomCode, 'ID:', roomId, 'Price:', currentRoomPrice);
                 
