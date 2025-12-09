@@ -21,34 +21,28 @@ class DanhGiaSpace extends Model
         'is_new',
         'status',
     ];
-public function datPhong()
-{
-    return $this->belongsTo(DatPhong::class, 'dat_phong_id');
-}
+    public function datPhong()
+    {
+        return $this->belongsTo(DatPhong::class, 'dat_phong_id');
+    }
 
-public function phong()
-{
-    return $this->belongsTo(Phong::class, 'phong_id');
-}
-
-
+    public function phong()
+    {
+        return $this->belongsTo(Phong::class, 'phong_id');
+    }
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-   
+    public function replies()
+    {
+        return $this->hasMany(DanhGiaSpace::class, 'parent_id');
+    }
 
-  public function replies()
-{
-    return $this->hasMany(DanhGiaSpace::class, 'parent_id');
-}
-
-public function parent()
-{
-    return $this->belongsTo(DanhGiaSpace::class, 'parent_id');
-}
-
-
+    public function parent()
+    {
+        return $this->belongsTo(DanhGiaSpace::class, 'parent_id');
+    }
 }
