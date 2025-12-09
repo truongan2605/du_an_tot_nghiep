@@ -857,12 +857,25 @@
                                                             {{-- Price --}}
                                                             <div class="d-flex justify-content-between align-items-end">
                                                                 <div class="small">
+                                                                    {{-- Always show base price --}}
+                                                                    <div class="text-muted">
+                                                                        <i class="bi bi-tag me-1"></i>Giá gốc: <strong>{{ number_format($basePrice, 0, ',', '.') }}đ</strong>
+                                                                    </div>
                                                                     @if($extraCharge > 0)
-                                                                        <div class="text-muted">Gốc: {{ number_format($basePrice, 0, ',', '.') }}đ</div>
-                                                                        <div class="text-danger">+{{ number_format($extraCharge, 0, ',', '.') }}đ phụ thu</div>
+                                                                        <div class="text-warning">
+                                                                            <i class="bi bi-person-plus me-1"></i>+{{ number_format($extraCharge, 0, ',', '.') }}đ phụ thu
+                                                                        </div>
                                                                     @else
                                                                         <div class="text-success">
-                                                                            <i class="bi bi-check-circle me-1"></i>Không phụ thu
+                                                                            <i class="bi bi-check-circle me-1"></i>Không phụ thu khách
+                                                                        </div>
+                                                                    @endif
+                                                                    @php
+                                                                        $weekendNights = $meta['weekend_nights'] ?? 0;
+                                                                    @endphp
+                                                                    @if($weekendNights > 0)
+                                                                        <div class="text-info">
+                                                                            <i class="bi bi-calendar-event me-1"></i>{{ $weekendNights }} đêm cuối tuần (+10%)
                                                                         </div>
                                                                     @endif
                                                                 </div>
@@ -943,12 +956,43 @@
                                         <div class="col-6">
                                             <div class="card bg-white border h-100">
                                                 <div class="card-body p-3">
-                                                    <small class="text-muted d-block mb-1"><i class="bi bi-door-closed"></i> Hiện tại</small>
+                                                    <small class="text-muted d-block mb-1"><i class="bi bi-door-closed"></i> Phòng hiện tại</small>
                                                     <div class="fw-bold small" id="oldRoomName">{{ $currentRoom->loaiPhong->ten ?? 'N/A' }}</div>
                                                     <small class="text-muted" id="oldRoomCode">#{{ $currentRoom->ma_phong ?? 'N/A' }}</small>
+                                                    
+                                                    {{-- Detailed price breakdown --}}
+                                                    <div class="mt-2 pt-2 border-top" style="font-size: 0.75rem;">
+                                                        <div class="d-flex justify-content-between text-muted mb-1">
+                                                            <span>Giá TB/đêm:</span>
+                                                            <span>{{ number_format($currentPriceOriginal ?? 0, 0, ',', '.') }}đ</span>
+                                                        </div>
+                                                        @if(isset($meta['weekend_nights']) && $meta['weekend_nights'] > 0)
+                                                        <div class="d-flex justify-content-between text-info mb-1">
+                                                            <span><i class="bi bi-calendar-event"></i> Cuối tuần:</span>
+                                                            <span>{{ $meta['weekend_nights'] }} đêm (+10%)</span>
+                                                        </div>
+                                                        @endif
+                                                        @php
+                                                            $currentExtraAdults = $currentItem->number_adult ?? 0;
+                                                            $currentExtraChildren = $currentItem->number_child ?? 0;
+                                                        @endphp
+                                                        @if($currentExtraAdults > 0)
+                                                        <div class="d-flex justify-content-between text-warning mb-1">
+                                                            <span><i class="bi bi-person-plus"></i> NL thêm:</span>
+                                                            <span>{{ $currentExtraAdults }} ({{ number_format($currentExtraAdults * 150000) }}đ)</span>
+                                                        </div>
+                                                        @endif
+                                                        @if($currentExtraChildren > 0)
+                                                        <div class="d-flex justify-content-between text-warning mb-1">
+                                                            <span><i class="bi bi-person"></i> TE thêm:</span>
+                                                            <span>{{ $currentExtraChildren }} ({{ number_format($currentExtraChildren * 60000) }}đ)</span>
+                                                        </div>
+                                                        @endif
+                                                    </div>
+                                                    
                                                     <div class="mt-2">
                                                         <span class="badge bg-secondary small" id="oldRoomPricePerNight">
-                                                            {{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }}đ/đêm
+                                                            {{ number_format($currentPriceOriginal ?? 0, 0, ',', '.') }}đ/đêm
                                                         </span>
                                                     </div>
                                                 </div>
@@ -957,9 +1001,17 @@
                                         <div class="col-6">
                                             <div class="card bg-white border-primary border-2 h-100">
                                                 <div class="card-body p-3">
-                                                    <small class="text-muted d-block mb-1"><i class="bi bi-door-open"></i> Mới</small>
+                                                    <small class="text-muted d-block mb-1"><i class="bi bi-door-open"></i> Phòng mới</small>
                                                     <div class="fw-bold text-primary small" id="newRoomName">Chưa chọn</div>
                                                     <small class="text-muted" id="newRoomCode">-</small>
+                                                    
+                                                    {{-- New room price breakdown (will be updated by JS) --}}
+                                                    <div class="mt-2 pt-2 border-top" style="font-size: 0.75rem;" id="newRoomBreakdown">
+                                                        <div class="text-muted text-center py-2">
+                                                            <i class="bi bi-arrow-left-circle"></i> Chọn phòng bên trái
+                                                        </div>
+                                                    </div>
+                                                    
                                                     <div class="mt-2">
                                                         <span class="badge bg-primary small" id="newRoomPricePerNight">0đ/đêm</span>
                                                     </div>
@@ -1833,22 +1885,13 @@
                         badgeText = '-' + priceDiffFormatted + 'đ';
                     }
 
-                    // Build surcharge info if applicable
+                    // Build surcharge info if applicable (only show extra charges, base price is shown above)
                     let surchargeHtml = '';
                     if (room.extra_charge && room.extra_charge > 0) {
                         surchargeHtml = `
-                            <div class="alert alert-warning alert-sm p-2 mb-2" style="font-size: 0.75rem;">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="text-muted">Giá gốc:</span>
-                                    <strong>${room.base_price.toLocaleString('vi-VN')}đ</strong>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted">
-                                        <i class="bi bi-info-circle me-1"></i>Phụ thu số người vượt:
-                                    </span>
-                                    <strong class="text-danger">+${room.extra_charge.toLocaleString('vi-VN')}đ</strong>
-                                </div>
-                                <small class="text-muted">(số người vượt sức chứa)</small>
+                            <div class="small text-warning mb-1">
+                                <i class="bi bi-person-plus me-1"></i>Phụ thu khách thêm: <strong>+${room.extra_charge.toLocaleString('vi-VN')}đ</strong>
+                                <span class="text-muted">(${room.extra_adults || 0} NL, ${room.extra_children || 0} TE)</span>
                             </div>
                         `;
                     }
@@ -1886,9 +1929,15 @@
                                     <div class="text-muted small mb-2">
                                         <i class="bi bi-people me-1"></i>Sức chứa: ${room.capacity} người
                                     </div>
+                                    
+                                    {{-- Always show base price --}}
+                                    <div class="small text-muted mb-1">
+                                        <i class="bi bi-tag me-1"></i>Giá gốc: <strong>${room.base_price.toLocaleString('vi-VN')}đ/đêm</strong>
+                                    </div>
+                                    
                                     ${surchargeHtml}
                                     ${weekendHtml}
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-3 pt-2 border-top">
                                         <span class="text-muted small">Giá TB/đêm</span>
                                         <strong class="text-success">${room.price.toLocaleString('vi-VN')}đ</strong>
                                     </div>
@@ -1958,14 +2007,18 @@
                 selectedRoomId = roomId;
                 selectedRoomPrice = price;
 
-                // Update price summary
-                updatePriceSummary(price);
+                // Find full room data from allAvailableRooms
+                const roomData = allAvailableRooms.find(r => r.id == roomId) || { price: price };
+
+                // Update price summary with full room data
+                updatePriceSummary(roomData);
 
                 // Enable confirm button
                 document.getElementById('confirmChangeBtn').disabled = false;
             }
 
-            function updatePriceSummary(newRoomPrice) {
+            function updatePriceSummary(roomData) {
+                const newRoomPrice = roomData.price || 0;
                 const priceDiffPerNight = newRoomPrice - currentRoomPrice;
                 const totalDifference = priceDiffPerNight * nightsRemaining;
                 const newTotal = oldTotal + totalDifference;
@@ -1983,6 +2036,57 @@
                     document.getElementById('newRoomName').textContent = roomTypeName;
                     document.getElementById('newRoomCode').textContent = '-'; // Hide room code
                     document.getElementById('newRoomPricePerNight').textContent = Math.round(newRoomPrice).toLocaleString('vi-VN') + 'đ/đêm';
+                    
+                    // Update new room breakdown
+                    const breakdownEl = document.getElementById('newRoomBreakdown');
+                    if (breakdownEl) {
+                        let breakdownHtml = '';
+                        
+                        // Base price
+                        if (roomData.base_price) {
+                            breakdownHtml += `
+                                <div class="d-flex justify-content-between text-muted mb-1">
+                                    <span>Giá gốc:</span>
+                                    <span>${roomData.base_price.toLocaleString('vi-VN')}đ</span>
+                                </div>`;
+                        }
+                        
+                        // Extra adults
+                        if (roomData.extra_adults && roomData.extra_adults > 0) {
+                            breakdownHtml += `
+                                <div class="d-flex justify-content-between text-warning mb-1">
+                                    <span><i class="bi bi-person-plus"></i> NL thêm:</span>
+                                    <span>${roomData.extra_adults} (+${roomData.extra_adults_charge.toLocaleString('vi-VN')}đ)</span>
+                                </div>`;
+                        }
+                        
+                        // Extra children
+                        if (roomData.extra_children && roomData.extra_children > 0) {
+                            breakdownHtml += `
+                                <div class="d-flex justify-content-between text-warning mb-1">
+                                    <span><i class="bi bi-person"></i> TE thêm:</span>
+                                    <span>${roomData.extra_children} (+${roomData.extra_children_charge.toLocaleString('vi-VN')}đ)</span>
+                                </div>`;
+                        }
+                        
+                        // Weekend surcharge
+                        if (roomData.weekend_nights && roomData.weekend_nights > 0) {
+                            breakdownHtml += `
+                                <div class="d-flex justify-content-between text-info mb-1">
+                                    <span><i class="bi bi-calendar-event"></i> Cuối tuần:</span>
+                                    <span>${roomData.weekend_nights} đêm (+10%)</span>
+                                </div>`;
+                        }
+                        
+                        // Average per night
+                        breakdownHtml += `
+                            <div class="d-flex justify-content-between text-primary fw-bold mt-2 pt-2 border-top">
+                                <span>Giá TB/đêm:</span>
+                                <span>${Math.round(newRoomPrice).toLocaleString('vi-VN')}đ</span>
+                            </div>`;
+                        
+                        breakdownEl.innerHTML = breakdownHtml;
+                    }
                 }
 
                 // Update basic price info
