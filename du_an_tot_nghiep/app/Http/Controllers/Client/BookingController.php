@@ -240,11 +240,15 @@ class BookingController extends Controller
             $guestsInCurrentRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
         }
 
+        // Get weekend nights from booking's snapshot for accurate pricing
+        $weekendNights = $meta['weekend_nights'] ?? 0;
+        $weekdayNights = max(0, $nights - $weekendNights);
+
         // Load room details
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem) {
+            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem, $nights, $weekendNights, $weekdayNights) {
                 // Get base price from ROOM's final price (not total or type default)
                 $roomBasePrice = $room->gia_cuoi_cung ?? 0;
 
@@ -276,9 +280,14 @@ class BookingController extends Controller
                 $extraChildrenCharge = $extraChildren * 60000;
                 $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
 
-                // Final price with extra charges
-                $roomPrice = $roomBasePrice + $extraCharge;
-                $priceDiff = $roomPrice - $currentPrice;
+                // Calculate total with weekend pricing (+10% for weekend nights)
+                $weekdayTotal = ($roomBasePrice + $extraCharge) * $weekdayNights;
+                $weekendTotal = ($roomBasePrice + $extraCharge) * self::WEEKEND_MULTIPLIER * $weekendNights;
+                $roomTotalForStay = $weekdayTotal + $weekendTotal;
+                
+                // Per-night average price (for display consistency)
+                $roomPricePerNight = $nights > 0 ? $roomTotalForStay / $nights : ($roomBasePrice + $extraCharge);
+                $priceDiff = $roomPricePerNight - $currentPrice;
 
                 // Get image - try multiple sources
                 $imagePath = '/images/room-placeholder.jpg'; // Default fallback
@@ -297,13 +306,16 @@ class BookingController extends Controller
                     'name' => $room->loaiPhong->ten ?? 'Room',
                     'type' => $room->loaiPhong->slug ?? 'standard',
                     'type_id' => $room->loai_phong_id, // NEW: Room type ID for quick view API
-                    'price' => $roomPrice,
+                    'price' => $roomPricePerNight,
+                    'price_total' => $roomTotalForStay,        // NEW: Total for entire stay
                     'base_price' => $roomBasePrice,
                     'extra_charge' => $extraCharge,
-                    'extra_adults' => $extraAdults,           // NEW: Extra adults count
-                    'extra_adults_charge' => $extraAdultsCharge, // NEW: Adult surcharge
-                    'extra_children' => $extraChildren,       // NEW: Extra children count
-                    'extra_children_charge' => $extraChildrenCharge, // NEW: Child surcharge
+                    'extra_adults' => $extraAdults,
+                    'extra_adults_charge' => $extraAdultsCharge,
+                    'extra_children' => $extraChildren,
+                    'extra_children_charge' => $extraChildrenCharge,
+                    'weekend_nights' => $weekendNights,        // NEW: Weekend nights count
+                    'weekend_surcharge' => $weekendTotal - (($roomBasePrice + $extraCharge) * $weekendNights), // NEW: Weekend premium
                     'price_difference' => $priceDiff,
                     'image' => $imagePath,
                     'capacity' => $roomCapacity
@@ -471,16 +483,30 @@ class BookingController extends Controller
         }
 
         $extraChargeNew = ($extraAdultsNew * 150000) + ($extraChildrenNew * 60000);
-        $newPrice = $newRoomBasePrice + $extraChargeNew;
+        $newPricePerNight = $newRoomBasePrice + $extraChargeNew;
 
         $checkIn = Carbon::parse($booking->ngay_nhan_phong);
         $checkOut = Carbon::parse($booking->ngay_tra_phong);
         $nights = $checkIn->diffInDays($checkOut);
 
+        // Get weekend nights from booking's snapshot for accurate pricing
+        $meta = is_array($booking->snapshot_meta)
+            ? $booking->snapshot_meta
+            : json_decode($booking->snapshot_meta, true);
+        $weekendNights = $meta['weekend_nights'] ?? 0;
+        $weekdayNights = max(0, $nights - $weekendNights);
+
+        // Calculate new room total WITH weekend pricing (+10%)
+        $newWeekdayTotal = $newPricePerNight * $weekdayNights;
+        $newWeekendTotal = $newPricePerNight * self::WEEKEND_MULTIPLIER * $weekendNights;
+        $newRoomTotal = $newWeekdayTotal + $newWeekendTotal;
+
         // Calculate for THIS room change only
-        $oldRoomTotal = $currentPrice * $nights;
-        $newRoomTotal = $newPrice * $nights;
+        $oldRoomTotal = $currentPrice * $nights;  // currentPrice already includes weekend from original booking
         $priceDiff = $newRoomTotal - $oldRoomTotal;
+
+        // Calculate new per-night average price (for display)
+        $newPrice = $nights > 0 ? $newRoomTotal / $nights : $newPricePerNight;
 
         // CRITICAL: Calculate FULL BOOKING total after change (for multi-room support)
         $currentBookingTotal = $booking->tong_tien;  // Current total of ALL rooms
@@ -491,7 +517,10 @@ class BookingController extends Controller
             'new_room_total' => $newRoomTotal,
             'price_diff' => $priceDiff,
             'current_booking_total' => $currentBookingTotal,
-            'new_booking_total' => $newBookingTotal
+            'new_booking_total' => $newBookingTotal,
+            'weekend_nights' => $weekendNights,
+            'weekday_nights' => $weekdayNights,
+            'new_price_per_night' => $newPrice
         ]);
 
         // 9. Create room change record

@@ -1853,6 +1853,21 @@
                         `;
                     }
 
+                    // Build weekend surcharge info if applicable
+                    let weekendHtml = '';
+                    if (room.weekend_nights && room.weekend_nights > 0) {
+                        weekendHtml = `
+                            <div class="alert alert-info alert-sm p-2 mb-2" style="font-size: 0.75rem;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">
+                                        <i class="bi bi-calendar-event me-1"></i>Phụ thu cuối tuần (${room.weekend_nights} đêm):
+                                    </span>
+                                    <strong class="text-primary">+10%</strong>
+                                </div>
+                            </div>
+                        `;
+                    }
+
                     const cardHtml = `
                         <div class="col-md-4 room-card-wrapper" data-room-id="${room.id}" data-price="${room.price}" data-type="${room.type}">
                             <div class="card room-card h-100">
@@ -1872,8 +1887,9 @@
                                         <i class="bi bi-people me-1"></i>Sức chứa: ${room.capacity} người
                                     </div>
                                     ${surchargeHtml}
+                                    ${weekendHtml}
                                     <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <span class="text-muted small">Giá/đêm</span>
+                                        <span class="text-muted small">Giá TB/đêm</span>
                                         <strong class="text-success">${room.price.toLocaleString('vi-VN')}đ</strong>
                                     </div>
                                     <div class="d-flex gap-2">
