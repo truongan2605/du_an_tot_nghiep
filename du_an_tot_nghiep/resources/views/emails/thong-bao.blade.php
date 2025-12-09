@@ -31,7 +31,19 @@
 
                             @if(!empty($thongBao->payload['link']))
                             <div style="margin-top: 30px; text-align: center;">
-                                <a href="{{ url($thongBao->payload['link']) }}" 
+                                @php
+                                    // Nếu có booking_id và là thông báo checkout/checkin cho admin/staff, sử dụng route
+                                    $isStaffNotification = !empty($thongBao->payload['booking_id']) && 
+                                        (in_array($thongBao->ten_template, ['checkout_completed', 'early_checkout_completed', 'checkin_completed']) ||
+                                         str_contains($thongBao->payload['link'] ?? '', '/staff/bookings/'));
+                                    
+                                    if ($isStaffNotification) {
+                                        $linkUrl = route('staff.bookings.show', $thongBao->payload['booking_id']);
+                                    } else {
+                                        $linkUrl = url($thongBao->payload['link']);
+                                    }
+                                @endphp
+                                <a href="{{ $linkUrl }}" 
                                    style="display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
                                     Xem chi tiết
                                 </a>
