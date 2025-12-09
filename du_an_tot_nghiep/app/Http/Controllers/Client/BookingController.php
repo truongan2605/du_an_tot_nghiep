@@ -94,18 +94,20 @@ class BookingController extends Controller
         $refundAmount = $paidAmount * ($refundPercentage / 100);
 
         
-        // VOUCHER FIX: Calculate original price for frontend modal
+        // VOUCHER FIX: Calculate original price PER ROOM for frontend modal
         $nights = Carbon::parse($dat_phong->ngay_nhan_phong)->diffInDays(Carbon::parse($dat_phong->ngay_tra_phong));
+        $totalRooms = $dat_phong->datPhongItems ? $dat_phong->datPhongItems->count() : 1;  // FIX FOR MULTI-ROOM
         $originalTotal = $dat_phong->tong_tien + ($dat_phong->voucher_discount ?? 0);
-        $currentPriceOriginal = $originalTotal / max(1, $nights);
+        $currentPriceOriginal = $originalTotal / max(1, $totalRooms) / max(1, $nights);  // Per-room per-night
         
         \Log::info('🔎 SHOW Method Calculation', [
             'booking_id' => $dat_phong->id,
             'tong_tien' => $dat_phong->tong_tien,
             'voucher_discount' => $dat_phong->voucher_discount,
+            'totalRooms' => $totalRooms,  // NEW: Multi-room support
             'nights' => $nights,
             'originalTotal' => $originalTotal,
-            'currentPriceOriginal' => $currentPriceOriginal,
+            'currentPriceOriginal' => $currentPriceOriginal,  // Now per-room price
         ]);
         
         return view('account.booking_show', [
@@ -176,10 +178,11 @@ class BookingController extends Controller
 
         $currentRoom = $currentItem->phong;
         $currentRoomType = $currentItem->loaiPhong;
-        // VOUCHER FIX: Calculate original price (before voucher) to preserve discount
+        // VOUCHER FIX: Calculate original price PER ROOM (before voucher) to preserve discount
         $nights = Carbon::parse($booking->ngay_nhan_phong)->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;  // FIX FOR MULTI-ROOM
         $originalTotal = $booking->tong_tien + ($booking->voucher_discount ?? 0);
-        $currentPrice = $originalTotal / max(1, $nights);
+        $currentPrice = $originalTotal / max(1, $totalRooms) / max(1, $nights);  // Per-room per-night price
         
         // DEBUG LOG
         \Log::info('🔧 Voucher Calculation', [
@@ -187,8 +190,9 @@ class BookingController extends Controller
             'tong_tien' => $booking->tong_tien,
             'voucher_discount' => $booking->voucher_discount,
             'originalTotal' => $originalTotal,
+            'totalRooms' => $totalRooms,  // NEW: Multi-room support
             'nights' => $nights,
-            'currentPrice' => $currentPrice,
+            'currentPrice' => $currentPrice,  // Now per-room price
             'old_gia_tren_dem' => $currentItem->gia_tren_dem,
         ]);
 
@@ -422,10 +426,11 @@ class BookingController extends Controller
 
         // 7. Get current room info (already have $currentItem from step 5)
         $currentRoom = $currentItem->phong;
-        // VOUCHER FIX: Calculate original price (before voucher) to preserve discount
+        // VOUCHER FIX: Calculate original price PER ROOM (before voucher) to preserve discount
         $nights = Carbon::parse($booking->ngay_nhan_phong)->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;  // FIX FOR MULTI-ROOM
         $originalTotal = $booking->tong_tien + ($booking->voucher_discount ?? 0);
-        $currentPrice = $originalTotal / max(1, $nights);
+        $currentPrice = $originalTotal / max(1, $totalRooms) / max(1, $nights);  // Per-room per-night
 
         // 8. Calculate prices with extra charges
         // Get guest count from CURRENT ROOM ITEM (accurate from DB)

@@ -254,6 +254,12 @@
                                 <div class="col-md-4">
                                     <div class="text-center text-md-end">
                                         <div class="text-muted small mb-1"><i class="bi bi-currency-dollar me-1"></i> Tổng tiền</div>
+                                        @if(($booking->voucher_discount ?? 0) > 0)
+                                            @php
+                                                $originalTotal = $booking->tong_tien + $booking->voucher_discount;
+                                            @endphp
+                                            <div class="small text-muted text-decoration-line-through">{{ number_format($originalTotal, 0, ',', '.') }}đ</div>
+                                        @endif
                                         <div class="h5 mb-0 fw-bold text-primary">{{ number_format($booking->tong_tien ?? ($booking->snapshot_total ?? 0), 0, ',', '.') }} VND</div>
                                     </div>
                                 </div>
@@ -361,6 +367,16 @@
                                                         $qty = $it->so_luong ?? 1;
                                                         // Always calculate from current price (handles room changes)
                                                         $subtotal = $pricePer * $nights * $qty;
+                                                        
+                                                        // Calculate original price (before voucher) - FIX FOR MULTI-ROOM
+                                                        $hasVoucher = ($booking->voucher_discount ?? 0) > 0;
+                                                        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+                                                        $originalPricePerNight = $hasVoucher 
+                                                            ? (($booking->tong_tien + $booking->voucher_discount) / max(1, $totalRooms) / max(1, $nights))
+                                                            : $pricePer;
+                                                        $originalSubtotal = $hasVoucher
+                                                            ? (($booking->tong_tien + $booking->voucher_discount) / max(1, $totalRooms))
+                                                            : $subtotal;
                                                     @endphp
                                                     <tr>
                                                         <td>
@@ -372,9 +388,23 @@
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td class="text-end text-muted small">{{ number_format($pricePer, 0, ',', '.') }} VND</td>
+                                                        <td class="text-end">
+                                                            @if($hasVoucher)
+                                                                <small class="text-muted text-decoration-line-through">{{ number_format($originalPricePerNight, 0, ',', '.') }}đ</small><br>
+                                                                <span class="text-success fw-semibold">{{ number_format($pricePer, 0, ',', '.') }} VND</span>
+                                                            @else
+                                                                <span class="text-muted small">{{ number_format($pricePer, 0, ',', '.') }} VND</span>
+                                                            @endif
+                                                        </td>
                                                         <td class="text-end fw-semibold">{{ $nights }}</td>
-                                                        <td class="text-end fw-semibold text-primary">{{ number_format($subtotal, 0, ',', '.') }} VND</td>
+                                                        <td class="text-end">
+                                                            @if($hasVoucher)
+                                                                <small class="text-muted text-decoration-line-through">{{ number_format($originalSubtotal, 0, ',', '.') }}đ</small><br>
+                                                                <span class="fw-semibold text-primary">{{ number_format($subtotal, 0, ',', '.') }} VND</span>
+                                                            @else
+                                                                <span class="fw-semibold text-primary">{{ number_format($subtotal, 0, ',', '.') }} VND</span>
+                                                            @endif
+                                                        </td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
@@ -838,6 +868,14 @@
                                                                 </div>
                                                                 <div class="text-end">
                                                                     <small class="text-muted d-block">Tổng/đêm</small>
+                                                                    @if(($booking->voucher_discount ?? 0) > 0)
+                                                                        @php
+                                                                            $nights = $currentItem->so_dem ?? 1;
+                                                                            $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+                                                                            $originalPricePerNight = ($booking->tong_tien + $booking->voucher_discount) / max(1, $totalRooms) / max(1, $nights);
+                                                                        @endphp
+                                                                        <small class="text-muted text-decoration-line-through d-block">{{ number_format($originalPricePerNight, 0, ',', '.') }}đ</small>
+                                                                    @endif
                                                                     <strong class="text-success fs-6">{{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }}đ</strong>
                                                                 </div>
                                                             </div>
@@ -952,6 +990,23 @@
                                         <span class="fw-semibold">Tổng chênh lệch:</span>
                                         <h5 class="mb-0" id="totalDifference">0đ</h5>
                                     </div>
+                                    
+                                    {{-- Voucher preservation indicator --}}
+                                    @if($booking->voucher_discount > 0)
+                                    <div class="mb-2 p-2 bg-success bg-opacity-10 rounded border border-success border-opacity-25">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="text-muted small">Tổng chưa áp voucher:</span>
+                                            <span class="text-muted" id="priceBeforeVoucher">0đ</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="text-success fw-semibold">
+                                                <i class="bi bi-gift me-1"></i>Voucher giảm:
+                                            </span>
+                                            <strong class="text-success">-{{ number_format($booking->voucher_discount, 0, ',', '.') }}đ</strong>
+                                        </div>
+                                    </div>
+                                    @endif
+                                    
                                     <div class="d-flex justify-content-between align-items-center p-3 bg-white rounded">
                                         <span class="fw-bold">Tổng booking mới:</span>
                                         <h4 class="mb-0 text-success" id="newTotal">{{ number_format($booking->tong_tien ?? 0, 0, ',', '.') }}đ</h4>
@@ -1894,6 +1949,16 @@
                 document.getElementById('priceDiffPerNight').textContent = formatCurrency(priceDiffPerNight);
                 document.getElementById('totalDifference').textContent = formatCurrency(totalDifference);
                 document.getElementById('newTotal').textContent = Math.round(newTotal).toLocaleString('vi-VN') + 'đ';
+                
+                // VOUCHER: Show pre-voucher total
+                const voucherDiscount = {{ $booking->voucher_discount ?? 0 }};
+                if (voucherDiscount > 0) {
+                    const priceBeforeVoucher = newTotal + voucherDiscount;
+                    const beforeVoucherElement = document.getElementById('priceBeforeVoucher');
+                    if (beforeVoucherElement) {
+                        beforeVoucherElement.textContent = Math.round(priceBeforeVoucher).toLocaleString('vi-VN') + 'đ';
+                    }
+                }
 
                 // Color coding for difference
                 const diffElement = document.getElementById('totalDifference');
@@ -2064,6 +2129,7 @@
             function showUpgradeConfirmation(roomCode, priceDiff, nights, oldRoomTotal, newRoomTotal, currentBookingTotal, newBookingTotal) {
                 const depositPct = {{ $booking->snapshot_meta['deposit_percentage'] ?? 50 }};
                 const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
+                const voucherDiscount = {{ $booking->voucher_discount ?? 0 }};  // Voucher được giữ lại
                 
                 // Calculate based on FULL BOOKING total (not just changed room)
                 const newDepositRequired = newBookingTotal * (depositPct / 100);
@@ -2198,6 +2264,15 @@
                                         <strong class="text-primary">${formatMoney(newBookingTotal)}</strong>
                                     </div>
                                     
+                                    ${voucherDiscount > 0 ? `
+                                    <div class="d-flex justify-content-between mb-2 bg-success bg-opacity-10 p-2 rounded">
+                                        <span class="text-success">
+                                            <i class="bi bi-ticket-perforated me-1"></i>Voucher được giữ lại:
+                                        </span>
+                                        <strong class="text-success">-${formatMoney(voucherDiscount)}</strong>
+                                    </div>
+                                    ` : ''}
+                                    
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="text-muted">Số đêm:</span>
                                         <strong>${nights} đêm</strong>
@@ -2280,6 +2355,7 @@
             function showDowngradeConfirmation(roomCode, priceDiff, nights, oldRoomTotal, newRoomTotal, currentBookingTotal, newBookingTotal) {
                 const depositPct = {{ $booking->snapshot_meta['deposit_percentage'] ?? 50 }};
                 const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
+                const voucherDiscount = {{ $booking->voucher_discount ?? 0 }};  // Voucher được giữ lại
                 
                 const newDepositRequired = newBookingTotal * (depositPct / 100);
                 const refundAmount = currentDeposit - newDepositRequired;
@@ -2343,6 +2419,15 @@
                                         <span class="text-muted">Booking mới:</span>
                                         <strong class="text-success">${formatMoney(newBookingTotal)}</strong>
                                     </div>
+                                    
+                                    ${voucherDiscount > 0 ? `
+                                    <div class="d-flex justify-content-between mb-2 bg-success bg-opacity-10 p-2 rounded">
+                                        <span class="text-success">
+                                            <i class="bi bi-ticket-perforated me-1"></i>Voucher được giữ lại:
+                                        </span>
+                                        <strong class="text-success">-${formatMoney(voucherDiscount)}</strong>
+                                    </div>
+                                    ` : ''}
                                     
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="text-muted">Số đêm:</span>
