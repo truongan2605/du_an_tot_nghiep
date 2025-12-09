@@ -991,18 +991,42 @@
                                         <h5 class="mb-0" id="totalDifference">0đ</h5>
                                     </div>
                                     
-                                    {{-- Voucher preservation indicator --}}
+                                    {{-- Voucher preservation indicator - ENHANCED DETAIL --}}
                                     @if($booking->voucher_discount > 0)
-                                    <div class="mb-2 p-2 bg-success bg-opacity-10 rounded border border-success border-opacity-25">
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <span class="text-muted small">Tổng chưa áp voucher:</span>
-                                            <span class="text-muted" id="priceBeforeVoucher">0đ</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <span class="text-success fw-semibold">
-                                                <i class="bi bi-gift me-1"></i>Voucher giảm:
+                                    @php
+                                        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true);
+                                        $voucherCode = $meta['ma_voucher'] ?? 'Voucher';
+                                    @endphp
+                                    <div class="mb-3 p-3 bg-success bg-opacity-10 rounded border border-success border-opacity-25">
+                                        {{-- Voucher header with code badge --}}
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="text-success fw-bold">
+                                                <i class="bi bi-ticket-perforated-fill me-1"></i>Voucher được giữ lại
                                             </span>
-                                            <strong class="text-success">-{{ number_format($booking->voucher_discount, 0, ',', '.') }}đ</strong>
+                                            <span class="badge bg-success">{{ $voucherCode }}</span>
+                                        </div>
+                                        
+                                        <hr class="my-2 border-success border-opacity-25">
+                                        
+                                        {{-- Breakdown details --}}
+                                        <div class="small">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span class="text-muted">Giá phòng mới (trước voucher):</span>
+                                                <span class="text-muted" id="priceBeforeVoucher">0đ</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span class="text-success fw-semibold">
+                                                    <i class="bi bi-dash-circle me-1"></i>Giảm từ voucher:
+                                                </span>
+                                                <strong class="text-success">-{{ number_format($booking->voucher_discount, 0, ',', '.') }}đ</strong>
+                                            </div>
+                                        </div>
+                                        
+                                        <hr class="my-2 border-success border-opacity-25">
+                                        
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="fw-semibold">Tổng sau voucher:</span>
+                                            <strong class="text-success" id="priceAfterVoucher">0đ</strong>
                                         </div>
                                     </div>
                                     @endif
@@ -1950,13 +1974,18 @@
                 document.getElementById('totalDifference').textContent = formatCurrency(totalDifference);
                 document.getElementById('newTotal').textContent = Math.round(newTotal).toLocaleString('vi-VN') + 'đ';
                 
-                // VOUCHER: Show pre-voucher total
+                // VOUCHER: Show pre-voucher and post-voucher totals
                 const voucherDiscount = {{ $booking->voucher_discount ?? 0 }};
                 if (voucherDiscount > 0) {
                     const priceBeforeVoucher = newTotal + voucherDiscount;
                     const beforeVoucherElement = document.getElementById('priceBeforeVoucher');
                     if (beforeVoucherElement) {
                         beforeVoucherElement.textContent = Math.round(priceBeforeVoucher).toLocaleString('vi-VN') + 'đ';
+                    }
+                    // Also update post-voucher total
+                    const afterVoucherElement = document.getElementById('priceAfterVoucher');
+                    if (afterVoucherElement) {
+                        afterVoucherElement.textContent = Math.round(newTotal).toLocaleString('vi-VN') + 'đ';
                     }
                 }
 
