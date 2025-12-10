@@ -1125,7 +1125,15 @@ public function handleMoMoIPN(Request $request)
             ]);
         }
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $snapshotMeta = $dat_phong->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use (
@@ -1545,7 +1553,15 @@ public function handleMoMoIPN(Request $request)
         }
 
         // Kiểm tra CCCD trước khi thanh toán
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $snapshotMeta = $booking->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $cccdList = $meta['checkin_cccd_list'] ?? [];
         $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
 

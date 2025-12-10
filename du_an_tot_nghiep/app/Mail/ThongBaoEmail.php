@@ -20,7 +20,11 @@ class ThongBaoEmail extends Mailable
 
     public function build()
     {
-        $subject = $this->thongBao->payload['subject'] ?? ('Thông báo: ' . $this->thongBao->ten_template);
+        // Lấy subject từ payload hoặc tạo từ title/template
+        $subject = $this->thongBao->payload['subject'] 
+            ?? $this->thongBao->payload['title'] 
+            ?? ('Thông báo: ' . $this->thongBao->ten_template);
+        
         return $this->subject($subject)
             ->view('emails.thong-bao')
             ->with([

@@ -176,22 +176,21 @@ class ThongBaoController extends Controller
 
         $thong_bao->update($data);
 
-        if ($thong_bao->kenh === 'email' && $thong_bao->trang_thai !== 'read') {
+        // Gửi email về Gmail nếu có thay đổi và chưa đọc
+        if ($thong_bao->trang_thai !== 'read') {
             try {
                 $user = User::find($thong_bao->nguoi_nhan_id);
-                if ($user) {
+                if ($user && $user->email) {
                     Mail::to($user->email)->send(new ThongBaoEmail($thong_bao));
-                    $thong_bao->update([
-                        'trang_thai' => 'sent',
-                        'so_lan_thu' => ($thong_bao->so_lan_thu ?? 0) + 1,
-                        'lan_thu_cuoi' => now(),
+                    \Illuminate\Support\Facades\Log::info('ThongBao notification email sent after update', [
+                        'notification_id' => $thong_bao->id,
+                        'user_id' => $user->id,
                     ]);
                 }
             } catch (\Throwable $e) {
-                $thong_bao->update([
-                    'trang_thai' => 'failed',
-                    'so_lan_thu' => ($thong_bao->so_lan_thu ?? 0) + 1,
-                    'lan_thu_cuoi' => now(),
+                \Illuminate\Support\Facades\Log::warning('Failed to send ThongBao notification email after update', [
+                    'notification_id' => $thong_bao->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -255,20 +254,26 @@ class ThongBaoController extends Controller
             'lan_thu_cuoi' => now()
         ]);
 
-        // Send email if channel is email
-        if ($thong_bao->kenh === 'email') {
-            try {
-                $user = $thong_bao->nguoiNhan;
-                if ($user && $user->email) {
-                    Mail::to($user->email)->send(new ThongBaoEmail($thong_bao));
-                    $thong_bao->update(['trang_thai' => 'sent']);
-                } else {
-                    $thong_bao->update(['trang_thai' => 'failed']);
-                }
-            } catch (\Exception $e) {
+        // Gửi email về Gmail (gửi trực tiếp, đồng bộ)
+        try {
+            $user = $thong_bao->nguoiNhan;
+            if ($user && $user->email) {
+                Mail::to($user->email)->send(new ThongBaoEmail($thong_bao));
+                $thong_bao->update(['trang_thai' => 'sent']);
+                \Illuminate\Support\Facades\Log::info('ThongBao notification email sent on resend', [
+                    'notification_id' => $thong_bao->id,
+                    'user_id' => $user->id,
+                ]);
+            } else {
                 $thong_bao->update(['trang_thai' => 'failed']);
-                return back()->with('error', 'Gửi lại thất bại: ' . $e->getMessage());
             }
+        } catch (\Exception $e) {
+            $thong_bao->update(['trang_thai' => 'failed']);
+            \Illuminate\Support\Facades\Log::error('Failed to send ThongBao notification email on resend', [
+                'notification_id' => $thong_bao->id,
+                'error' => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Gửi lại thất bại: ' . $e->getMessage());
         }
 
         return back()->with('success', 'Đã gửi lại thông báo thành công.');

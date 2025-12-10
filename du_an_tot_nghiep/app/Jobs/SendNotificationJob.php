@@ -47,8 +47,8 @@ class SendNotificationJob implements ShouldQueue
                 return;
             }
 
-            // Send email
-            if ($thongBao->kenh === 'email') {
+            // Gửi email về Gmail (gửi trực tiếp, đồng bộ)
+            if ($thongBao->kenh === 'email' || $thongBao->kenh === 'in_app') {
                 Mail::to($user->email)->send(new ThongBaoEmail($thongBao));
             }
 

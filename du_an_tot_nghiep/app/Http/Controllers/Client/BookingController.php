@@ -144,7 +144,7 @@ class BookingController extends Controller
             $oldRoomId = (int) $oldRoomId;
         }
 
-        Log::info('🔍 Available rooms API called', [
+        Log::info(' Available rooms API called', [
             'booking_id' => $booking->id,
             'old_room_id_param' => $oldRoomId,
             'old_room_id_type' => gettype($oldRoomId),
@@ -157,7 +157,7 @@ class BookingController extends Controller
                 ->where('phong_id', $oldRoomId)
                 ->first();
 
-            Log::info('🎯 Found specific room', [
+            Log::info(' Found specific room', [
                 'current_item_id' => $currentItem ? $currentItem->id : null,
                 'current_room_id' => $currentItem ? $currentItem->phong_id : null,
                 'query_phong_id' => $oldRoomId
@@ -166,7 +166,7 @@ class BookingController extends Controller
             // Fallback to first room for backward compatibility
             $currentItem = $booking->datPhongItems->first();
 
-            Log::info('⚠️ No old_room_id, using first room', [
+            Log::info(' No old_room_id, using first room', [
                 'current_item_id' => $currentItem ? $currentItem->id : null,
                 'current_room_id' => $currentItem ? $currentItem->phong_id : null
             ]);
@@ -395,7 +395,7 @@ class BookingController extends Controller
         }
 
         // 2. Status check
-        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+        if (!in_array($booking->trang_thai, ['da_xac_nhan'])) {
             return back()->with('error', 'Không thể đổi phòng với trạng thái hiện tại.');
         }
 
@@ -512,7 +512,7 @@ class BookingController extends Controller
         $currentBookingTotal = $booking->tong_tien;  // Current total of ALL rooms
         $newBookingTotal = $currentBookingTotal - $oldRoomTotal + $newRoomTotal;  // Remove old, add new
 
-        Log::info('💰 Room change payment calculation', [
+        Log::info(' Room change payment calculation', [
             'old_room_total' => $oldRoomTotal,
             'new_room_total' => $newRoomTotal,
             'price_diff' => $priceDiff,
@@ -530,7 +530,7 @@ class BookingController extends Controller
             'new_room_id' => $newRoom->id,
             'old_price' => $currentPrice,
             'new_price' => $newPrice,
-            'price_difference' => $newPrice - $currentPrice,  // Per-night difference (not total)
+            'price_difference' => $newPrice - $currentPrice,
             'nights' => $nights,
             'changed_by_type' => 'customer',
             'changed_by_user_id' => $user->id,
@@ -634,7 +634,7 @@ class BookingController extends Controller
                         'amount' => $voucherInfo['value']
                     ]);
 
-                    Log::info('🎫 Voucher auto-applied', [
+                    Log::info(' Voucher auto-applied', [
                         'voucher_code' => $voucherInfo['code'],
                         'value' => $voucherInfo['value'],
                         'booking_id' => $booking->id
@@ -846,7 +846,7 @@ class BookingController extends Controller
                     }
 
                     if (!$voucher->active) {
-                        Log::warning('⚠️ Voucher inactive, skipping usage record', [
+                        Log::warning(' Voucher inactive, skipping usage record', [
                             'voucher_id' => $voucher->id,
                             'voucher_code' => $voucher->code,
                             'booking_id' => $roomChange->dat_phong_id
@@ -861,7 +861,7 @@ class BookingController extends Controller
                         'amount' => $voucherInfo['value']
                     ]);
 
-                    Log::info('🎫 Voucher applied after payment', [
+                    Log::info(' Voucher applied after payment', [
                         'voucher_code' => $voucherInfo['code'],
                         'value' => $voucherInfo['value'],
                         'booking_id' => $roomChange->dat_phong_id
@@ -1047,7 +1047,7 @@ class BookingController extends Controller
             'claimed_at' => Carbon::now()
         ]);
 
-        Log::info('🎫 Refund voucher created for downgrade', [
+        Log::info(' Refund voucher created for downgrade', [
             'voucher_code' => $code,
             'amount' => $refundAmount,
             'booking_id' => $booking->id,
@@ -1254,7 +1254,40 @@ class BookingController extends Controller
             }
         }
 
-        $occupiedSpecificIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
+        // ----  consider dat_phong with blocks_checkin = true on the requested start date ----
+        $requestedStartDate = $requestedStart->toDateString();
+        $blockedSpecificIds = [];
+        $blockedAggregateCount = 0;
+
+        if (Schema::hasTable('dat_phong') && Schema::hasTable('dat_phong_item')) {
+            $blockedQuery = DB::table('dat_phong')
+                ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                ->whereDate('dat_phong.ngay_tra_phong', $requestedStartDate)
+                ->where('dat_phong.blocks_checkin', true)
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->where('dat_phong_item.loai_phong_id', $loaiPhongId);
+
+            // specific phong_id rows from blocked bookings
+            if (Schema::hasColumn('dat_phong_item', 'phong_id')) {
+                $blockedSpecificIds = $blockedQuery
+                    ->whereNotNull('dat_phong_item.phong_id')
+                    ->pluck('dat_phong_item.phong_id')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+            }
+
+            // aggregate rows (no phong_id) -> count them into blockedAggregateCount
+            $blockedAggQuery = (clone $blockedQuery)->whereNull('dat_phong_item.phong_id');
+            if (Schema::hasColumn('dat_phong_item', 'so_luong')) {
+                $blockedAggregateCount = (int) $blockedAggQuery->sum('dat_phong_item.so_luong');
+            } else {
+                $blockedAggregateCount = (int) $blockedAggQuery->count();
+            }
+        }
+
+        // merge all specific occupied ids (booked, held, blocked due to late checkout)
+        $occupiedSpecificIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds, $blockedSpecificIds));
         $matchingAvailableIds = array_values(array_diff($matchingRoomIds, $occupiedSpecificIds));
         $matchingAvailableCount = count($matchingAvailableIds);
 
@@ -1274,6 +1307,8 @@ class BookingController extends Controller
                 $aggregateBooked = (int) $q->count();
             }
         }
+
+        $aggregateBooked += $blockedAggregateCount;
 
         // 5) Aggregate holds (giu_phong rows without phong_id) that overlap the same dat_phong interval and match signature when available
         $aggregateHoldsForSignature = 0;
@@ -1382,7 +1417,43 @@ class BookingController extends Controller
             }
         }
 
-        $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
+        // ---- blocked by late-checkout bookings that have blocks_checkin = true on requested start date ----
+        $requestedStartDate = $requestedStart->toDateString();
+        $blockedSpecificIds = [];
+        $blockedAggregateCount = 0;
+
+        if (Schema::hasTable('dat_phong') && Schema::hasTable('dat_phong_item')) {
+            $blockedQuery = DB::table('dat_phong')
+                ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                ->whereDate('dat_phong.ngay_tra_phong', $requestedStartDate)
+                ->where('dat_phong.blocks_checkin', true)
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->where('dat_phong_item.loai_phong_id', $loaiPhongId);
+
+            if (Schema::hasColumn('dat_phong_item', 'phong_id')) {
+                $blockedSpecificIds = $blockedQuery
+                    ->whereNotNull('dat_phong_item.phong_id')
+                    ->pluck('dat_phong_item.phong_id')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+            }
+
+            $blockedAggQuery = (clone $blockedQuery)->whereNull('dat_phong_item.phong_id');
+            if (Schema::hasColumn('dat_phong_item', 'so_luong')) {
+                $blockedAggregateCount = (int) $blockedAggQuery->sum('dat_phong_item.so_luong');
+            } else {
+                $blockedAggregateCount = (int) $blockedAggQuery->count();
+            }
+        }
+
+        // combine exclusions
+        $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds, $blockedSpecificIds));
+
+        $adjustedLimit = max(0, (int)$limit - (int)$blockedAggregateCount);
+        if ($adjustedLimit <= 0) {
+            return [];
+        }
 
         $query = Phong::where('loai_phong_id', $loaiPhongId)
             ->where('spec_signature_hash', $requiredSignature)
@@ -1391,7 +1462,7 @@ class BookingController extends Controller
                 $q->whereNotIn('id', $excluded);
             })
             ->lockForUpdate()
-            ->limit((int)$limit);
+            ->limit($adjustedLimit);
 
         $rows = $query->get(['id']);
 
@@ -2032,7 +2103,6 @@ class BookingController extends Controller
         ]);
     }
 
-
     private function calculateNights($from, $to)
     {
         return Carbon::parse($from)->diffInDays(Carbon::parse($to));
@@ -2101,10 +2171,9 @@ class BookingController extends Controller
             if (!empty($voucher->usage_limit_per_user) && $userId) {
                 if (class_exists(VoucherUsage::class)) {
                     $usageModel = new VoucherUsage();
-                    $table = $usageModel->getTable(); // -> voucher_usage
+                    $table = $usageModel->getTable();
 
                     if (Schema::hasTable($table)) {
-                        // cột user là nguoi_dung_id (theo hình bạn gửi)
                         $userCol = Schema::hasColumn($table, 'nguoi_dung_id')
                             ? 'nguoi_dung_id'
                             : (Schema::hasColumn($table, 'user_id') ? 'user_id' : null);
@@ -2275,7 +2344,7 @@ class BookingController extends Controller
             // This handles room changes where user upgraded and paid more
             $depositType = ($actualDepositPct >= 95) ? 100 : $originalDepositPct;
 
-            Log::info('💵 Refund calculation - deposit type determination', [
+            Log::info('Refund calculation - deposit type determination', [
                 'booking_id' => $booking->id,
                 'original_deposit_pct' => $originalDepositPct,
                 'current_total' => $currentTotal,
