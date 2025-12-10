@@ -291,20 +291,21 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
         Route::post('/bookings/{id}/change-room', [BookingController::class, 'changeRoom'])
     ->name('booking.changeRoom');
 
-    // đổi phòng 
-   // Đổi phòng – Hiển thị form
+// Đổi phòng – Hiển thị form
 Route::get('/admin/change-room/{id}', 
     [AdminChangeRoomController::class, 'form']
 )->name('admin.change-room.form');
 
-// Đổi phòng – Xử lý đổi
+// Đổi phòng – Xử lý
 Route::post('/admin/change-room/{id}', 
     [AdminChangeRoomController::class, 'change']
 )->name('admin.change-room.apply');
 
+// Ajax tính giá
 Route::get('/admin/dat-phong/change-room/{id}/calculate',
     [AdminChangeRoomController::class, 'calculate']
 )->name('admin.change-room.calculate');
+
 
 });
 
