@@ -121,7 +121,21 @@ class StaffController extends Controller
         $totalDeposit = GiaoDich::where('trang_thai', 'thanh_cong')
             ->where('nha_cung_cap', 'like', '%coc%')
             ->sum('so_tien');
+        
+        // ========== CÁC CHỈ SỐ KPI ==========
         $availableRooms = Phong::where('trang_thai', 'trong')->count();
+        $soPhongDangCoKhach = Phong::where('trang_thai', 'dang_o')->count();
+        $soPhongChoDon = Phong::where('don_dep', true)->count();
+        $soPhongBaoTri = Phong::where('trang_thai', 'bao_tri')->count();
+        $soPhongChoDonBaoTri = $soPhongChoDon + $soPhongBaoTri;
+        
+        $todayDate = $today->toDateString();
+        $soDatPhongHomNay = DatPhong::where(function($query) use ($todayDate) {
+                $query->whereDate('ngay_nhan_phong', $todayDate)
+                      ->orWhereDate('created_at', $todayDate);
+            })
+            ->where('trang_thai', '!=', 'da_huy')
+            ->count();
         
         // === Room Analytics Overview (Current Month) ===
         // IMPORTANT: Use HoaDonItems instead of dat_phong_item because dat_phong_item gets deleted after checkout!
@@ -179,24 +193,109 @@ class StaffController extends Controller
         $analyticsChartLabels = $roomTypeStats->pluck('ten')->toArray();
         $analyticsChartData = $roomTypeStats->pluck('total_bookings')->toArray();
 
-        // === Dữ liệu cho biểu đồ doanh thu 7 ngày ===
+        // === Dữ liệu cho biểu đồ doanh thu ===
+        // 1. Doanh thu 7 ngày gần nhất
         $chartLabels = [];
         $revenueData = [];
-
         for ($i = 6; $i >= 0; $i--) {
             $date = $today->copy()->subDays($i);
             $chartLabels[] = $date->format('d/m');
-
-            $dailyRevenue = GiaoDich::where('trang_thai', 'thanh_cong')
+            $dailyPaid = GiaoDich::where('trang_thai', 'thanh_cong')
                 ->whereDate('created_at', $date->toDateString())
                 ->sum('so_tien');
-
-            $dailyRefund = GiaoDich::where('trang_thai', 'da_hoan')
-                ->whereDate('created_at', $date->toDateString())
-                ->sum('so_tien');
-
-            $revenueData[] = (int) ($dailyRevenue - $dailyRefund);
+            $dailyInvoiced = HoaDon::whereDate('created_at', $date->toDateString())
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->sum('tong_thuc_thu');
+            $revenueData[] = (int) ($dailyPaid + $dailyInvoiced);
         }
+        
+        // 2. Doanh thu theo ngày trong tuần (7 ngày của tuần này)
+        $weekChartLabels = [];
+        $weekRevenueData = [];
+        $startOfWeek = $today->copy()->startOfWeek();
+        for ($i = 0; $i < 7; $i++) {
+            $date = $startOfWeek->copy()->addDays($i);
+            $weekChartLabels[] = $date->format('d/m');
+            $dayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+                ->whereDate('created_at', $date->toDateString())
+                ->sum('so_tien');
+            $dayInvoiced = HoaDon::whereDate('created_at', $date->toDateString())
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->sum('tong_thuc_thu');
+            $weekRevenueData[] = (int) ($dayPaid + $dayInvoiced);
+        }
+        
+        // 3. Doanh thu theo ngày trong tháng
+        $monthChartLabels = [];
+        $monthRevenueData = [];
+        $daysInMonth = $today->daysInMonth;
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $date = Carbon::create($year, $month, $day);
+            $monthChartLabels[] = $day . '/' . $month;
+            $dayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+                ->whereDate('created_at', $date->toDateString())
+                ->sum('so_tien');
+            $dayInvoiced = HoaDon::whereDate('created_at', $date->toDateString())
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->sum('tong_thuc_thu');
+            $monthRevenueData[] = (int) ($dayPaid + $dayInvoiced);
+        }
+        
+        // 4. Doanh thu theo từng loại phòng (hôm nay, tuần này, tháng này)
+        // Hôm nay
+        $roomTypeRevenueToday = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->leftJoin('loai_phong as lp', 'hdi.loai_phong_id', '=', 'lp.id')
+            ->whereDate('hd.created_at', $todayDate)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.loai_phong_id')
+            ->where('hdi.type', 'room_booking')
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+        
+        // Tuần này
+        $roomTypeRevenueWeek = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->leftJoin('loai_phong as lp', 'hdi.loai_phong_id', '=', 'lp.id')
+            ->whereBetween(DB::raw('DATE(hd.created_at)'), $weekRange)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.loai_phong_id')
+            ->where('hdi.type', 'room_booking')
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+        
+        // Tháng này
+        $roomTypeRevenueMonth = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->leftJoin('loai_phong as lp', 'hdi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('hd.created_at', $year)
+            ->whereMonth('hd.created_at', $month)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.loai_phong_id')
+            ->where('hdi.type', 'room_booking')
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
 
         $events = DatPhong::select('id', 'ma_tham_chieu', 'trang_thai', 'ngay_nhan_phong', 'ngay_tra_phong')
             ->whereIn('trang_thai', $activeStatus)
@@ -268,6 +367,8 @@ class StaffController extends Controller
         return view('staff.index', compact(
             'pendingBookings',
             'todayRevenue',
+            'todayPaid',
+            'todayInvoiced',
             'todayRefund',
             'todayNetRevenue',
             'weeklyRevenue',
@@ -281,6 +382,9 @@ class StaffController extends Controller
             'totalRefund',
             'totalNetRevenue',
             'availableRooms',
+            'soPhongDangCoKhach',
+            'soPhongChoDonBaoTri',
+            'soDatPhongHomNay',
             'cancelledBookings',
             'todayCheckins',
             'todayCheckouts',
@@ -288,6 +392,13 @@ class StaffController extends Controller
             'recentActivities',
             'chartLabels',
             'revenueData',
+            'weekChartLabels',
+            'weekRevenueData',
+            'monthChartLabels',
+            'monthRevenueData',
+            'roomTypeRevenueToday',
+            'roomTypeRevenueWeek',
+            'roomTypeRevenueMonth',
             'roomTypeStats',
             'analyticsChartLabels',
             'analyticsChartData',
@@ -302,74 +413,156 @@ class StaffController extends Controller
     public function reports()
     {
         $today = now();
+        $todayDate = $today->toDateString(); // Đảm bảo so sánh đúng ngày
         $month = $today->month;
         $year = $today->year;
         $startOfMonth = $today->copy()->startOfMonth();
+        $endOfMonth = $today->copy()->endOfMonth();
 
-
-        $activeStatus = ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'];
-        $activeQuery = DatPhong::whereIn('trang_thai', $activeStatus)
-            ->where('trang_thai', '!=', 'da_huy');
-
-
-        $monthlyRevenue = $activeQuery->clone()
-            ->whereRaw('YEAR(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$year])
-            ->whereRaw('MONTH(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$month])
-            ->sum('tong_tien');
-
-
-        $bookingsThisMonth = $activeQuery->clone()
-            ->whereRaw('YEAR(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$year])
-            ->whereRaw('MONTH(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$month])
+        // ========== I. CÁC CHỈ SỐ KPI ==========
+        
+        // 1. Số phòng trống
+        $soPhongTrong = Phong::where('trang_thai', 'trong')->count();
+        
+        // 2. Số phòng đang có khách
+        $soPhongDangCoKhach = Phong::where('trang_thai', 'dang_o')->count();
+        
+        // 3. Số phòng chờ dọn / bảo trì
+        $soPhongChoDon = Phong::where('don_dep', true)->count();
+        $soPhongBaoTri = Phong::where('trang_thai', 'bao_tri')->count();
+        $soPhongChoDonBaoTri = $soPhongChoDon + $soPhongBaoTri;
+        
+        // 4. Số đặt phòng hôm nay (đơn có ngày nhận phòng hôm nay hoặc được tạo hôm nay)
+        $soDatPhongHomNay = DatPhong::where(function($query) use ($todayDate) {
+                $query->whereDate('ngay_nhan_phong', $todayDate)
+                      ->orWhereDate('created_at', $todayDate);
+            })
+            ->where('trang_thai', '!=', 'da_huy')
             ->count();
+        
+        // 5. Tổng doanh thu hôm nay
+        $todayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+            ->whereDate('created_at', $today)
+            ->sum('so_tien');
+        $todayInvoiced = HoaDon::whereDate('created_at', $today)
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $tongDoanhThuHomNay = $todayPaid + $todayInvoiced;
+        
+        // 6. Doanh thu tháng này
+        $monthlyPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+            ->whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->sum('so_tien');
+        $monthlyInvoiced = HoaDon::whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $doanhThuThangNay = $monthlyPaid + $monthlyInvoiced;
 
-
-        $availableRooms = Phong::where('trang_thai', 'trong')->count();
-
-
-        $monthlyDeposit = $activeQuery->clone()
-            ->whereRaw('YEAR(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$year])
-            ->whereRaw('MONTH(COALESCE(checked_in_at, ngay_nhan_phong)) = ?', [$month])
-            ->sum(DB::raw('COALESCE(deposit_amount, 0)'));
-
-
-        $weeklyRevenue = [];
-        $weeklyBookings = [];
-        $weeklyDeposit = [];
-        for ($i = 0; $i < 4; $i++) {
-            $weekStart = $startOfMonth->copy()->addDays(7 * $i)->startOfWeek();
-            $weekEnd = $weekStart->copy()->endOfWeek();
-            $weekRange = [$weekStart->toDateString(), $weekEnd->toDateString()];
-
-            $weeklyRevenue[] = $activeQuery->clone()
-                ->whereRaw('COALESCE(checked_in_at, ngay_nhan_phong) BETWEEN ? AND ?', $weekRange)
-                ->sum('tong_tien');
-
-            $weeklyBookings[] = $activeQuery->clone()
-                ->whereRaw('COALESCE(checked_in_at, ngay_nhan_phong) BETWEEN ? AND ?', $weekRange)
-                ->count();
-
-            $weeklyDeposit[] = $activeQuery->clone()
-                ->whereRaw('COALESCE(checked_in_at, ngay_nhan_phong) BETWEEN ? AND ?', $weekRange)
-                ->sum(DB::raw('COALESCE(deposit_amount, 0)'));
+        // ========== II. DỮ LIỆU CHO BIỂU ĐỒ ==========
+        
+        // 1. Biểu đồ doanh thu theo ngày trong tháng (Line Chart)
+        $revenueByDay = [];
+        $revenueLabels = [];
+        $daysInMonth = $today->daysInMonth;
+        for ($day = 1; $day <= $daysInMonth; $day++) {
+            $date = Carbon::create($year, $month, $day);
+            $dayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+                ->whereDate('created_at', $date)
+                ->sum('so_tien');
+            $dayInvoiced = HoaDon::whereDate('created_at', $date)
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->sum('tong_thuc_thu');
+            $revenueByDay[] = $dayPaid + $dayInvoiced;
+            $revenueLabels[] = $day . '/' . $month;
+        }
+        
+        // 2. Biểu đồ loại phòng được đặt nhiều nhất (Bar Chart)
+        $roomTypeBookings = DB::table('dat_phong_item as dpi')
+            ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
+            ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
+            ->whereYear('dp.created_at', $year)
+            ->whereMonth('dp.created_at', $month)
+            ->where('dp.trang_thai', '!=', 'da_huy')
+            ->select(
+                'lp.ten as loai_phong',
+                DB::raw('COUNT(DISTINCT dp.id) as so_luong_dat')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->orderByDesc('so_luong_dat')
+            ->limit(10)
+            ->get();
+        
+        $roomTypeLabels = $roomTypeBookings->pluck('loai_phong')->toArray();
+        $roomTypeData = $roomTypeBookings->pluck('so_luong_dat')->toArray();
+        
+        // 3. Biểu đồ trạng thái phòng (Pie Chart)
+        $roomStatusStats = Phong::select('trang_thai', DB::raw('COUNT(*) as so_luong'))
+            ->groupBy('trang_thai')
+            ->get();
+        
+        $roomStatusLabels = [];
+        $roomStatusData = [];
+        $roomStatusColors = [
+            'trong' => '#28a745',
+            'dang_o' => '#007bff',
+            'bao_tri' => '#ffc107',
+            'da_dat' => '#6c757d',
+            'khong_su_dung' => '#dc3545'
+        ];
+        
+        foreach ($roomStatusStats as $stat) {
+            $label = match($stat->trang_thai) {
+                'trong' => 'Trống',
+                'dang_o' => 'Đang ở',
+                'bao_tri' => 'Bảo trì',
+                'da_dat' => 'Đã đặt',
+                'khong_su_dung' => 'Không sử dụng',
+                default => $stat->trang_thai
+            };
+            $roomStatusLabels[] = $label;
+            $roomStatusData[] = $stat->so_luong;
         }
 
-
-        Log::info('Reports Stats - ' . $today->format('Y-m-d'), [
-            'monthlyRevenue' => $monthlyRevenue,
-            'monthlyDeposit' => $monthlyDeposit,
-            'weeklyRevenue' => $weeklyRevenue,
-            'activeBookingsCount' => $activeQuery->count()
-        ]);
+        // ========== III. DỮ LIỆU CHO BẢNG ==========
+        
+        // 1. Danh sách đặt phòng hôm nay (đơn có ngày nhận phòng hôm nay hoặc được tạo hôm nay)
+        $datPhongHomNay = DatPhong::with(['nguoiDung', 'datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->where(function($query) use ($todayDate) {
+                $query->whereDate('ngay_nhan_phong', $todayDate)
+                      ->orWhereDate('created_at', $todayDate);
+            })
+            ->where('trang_thai', '!=', 'da_huy')
+            ->orderByRaw('CASE WHEN DATE(ngay_nhan_phong) = ? THEN 0 ELSE 1 END', [$todayDate])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
+        // 2. Danh sách phòng theo trạng thái
+        $phongTheoTrangThai = Phong::with(['loaiPhong', 'tang'])
+            ->orderBy('trang_thai')
+            ->orderBy('ma_phong')
+            ->get();
 
         return view('staff.reports', compact(
-            'monthlyRevenue',
-            'bookingsThisMonth',
-            'availableRooms',
-            'weeklyRevenue',
-            'weeklyBookings',
-            'monthlyDeposit',
-            'weeklyDeposit'
+            // KPI
+            'soPhongTrong',
+            'soPhongDangCoKhach',
+            'soPhongChoDonBaoTri',
+            'soDatPhongHomNay',
+            'tongDoanhThuHomNay',
+            'doanhThuThangNay',
+            // Biểu đồ
+            'revenueLabels',
+            'revenueByDay',
+            'roomTypeLabels',
+            'roomTypeData',
+            'roomStatusLabels',
+            'roomStatusData',
+            'roomStatusColors',
+            // Bảng
+            'datPhongHomNay',
+            'phongTheoTrangThai'
         ));
     }
 
@@ -935,6 +1128,51 @@ class StaffController extends Controller
 
     public function bookings()
     {
+        $today = now();
+        $todayDate = $today->toDateString();
+        
+        // Tính toán các chỉ số thống kê
+        // 1. Số phòng trống
+        $soPhongTrong = Phong::where('trang_thai', 'trong')->count();
+        
+        // 2. Số phòng đang có khách
+        $soPhongDangCoKhach = Phong::where('trang_thai', 'dang_o')->count();
+        
+        // 3. Số phòng chờ dọn / bảo trì
+        $soPhongChoDon = Phong::where('don_dep', true)->count();
+        $soPhongBaoTri = Phong::where('trang_thai', 'bao_tri')->count();
+        $soPhongChoDonBaoTri = $soPhongChoDon + $soPhongBaoTri;
+        
+        // 4. Số đặt phòng hôm nay
+        $soDatPhongHomNay = DatPhong::where(function($query) use ($todayDate) {
+                $query->whereDate('ngay_nhan_phong', $todayDate)
+                      ->orWhereDate('created_at', $todayDate);
+            })
+            ->where('trang_thai', '!=', 'da_huy')
+            ->count();
+        
+        // 5. Tổng doanh thu hôm nay
+        $todayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+            ->whereDate('created_at', $todayDate)
+            ->sum('so_tien');
+        $todayInvoiced = HoaDon::whereDate('created_at', $todayDate)
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $tongDoanhThuHomNay = $todayPaid + $todayInvoiced;
+        
+        // 6. Doanh thu tháng này
+        $month = $today->month;
+        $year = $today->year;
+        $monthlyPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+            ->whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->sum('so_tien');
+        $monthlyInvoiced = HoaDon::whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->whereNotIn('trang_thai', ['da_huy'])
+            ->sum('tong_thuc_thu');
+        $doanhThuThangNay = $monthlyPaid + $monthlyInvoiced;
+
         $bookings = DatPhong::with([
             'nguoiDung',
             'datPhongItems.loaiPhong',
@@ -947,7 +1185,15 @@ class StaffController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        return view('staff.bookings', compact('bookings'));
+        return view('staff.bookings', compact(
+            'bookings',
+            'soPhongTrong',
+            'soPhongDangCoKhach',
+            'soPhongChoDonBaoTri',
+            'soDatPhongHomNay',
+            'tongDoanhThuHomNay',
+            'doanhThuThangNay'
+        ));
     }
 
     /**
