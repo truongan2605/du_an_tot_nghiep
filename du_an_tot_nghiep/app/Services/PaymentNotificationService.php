@@ -15,6 +15,41 @@ use App\Mail\ThongBaoEmail;
 class PaymentNotificationService
 {
     /**
+     * Helper method để gửi email thông báo về Gmail
+     * Gửi trực tiếp (đồng bộ) giống như email hóa đơn khi checkout
+     */
+    private function sendNotificationEmail(ThongBao $notification, User $user): void
+    {
+        if (!$user || !$user->email) {
+            Log::warning('Cannot send notification email: missing user or email', [
+                'notification_id' => $notification->id,
+                'user_id' => $user?->id,
+            ]);
+            return;
+        }
+
+        try {
+            // Gửi email trực tiếp (đồng bộ) giống như email hóa đơn
+            Mail::to($user->email)->send(new ThongBaoEmail($notification));
+            
+            Log::info('Notification email sent successfully', [
+                'notification_id' => $notification->id,
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+        } catch (\Throwable $e) {
+            // Log lỗi nhưng không làm gián đoạn quá trình xử lý
+            Log::error('Failed to send notification email', [
+                'notification_id' => $notification->id,
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+        }
+    }
+
+    /**
      * Gửi thông báo khi thanh toán tiền cọc thành công
      */
     public function sendDepositPaymentNotification(DatPhong $booking, GiaoDich $transaction): void
@@ -48,23 +83,10 @@ class PaymentNotificationService
                 'lan_thu_cuoi' => now(),
             ]);
 
-            // Gửi email cho khách hàng (nếu có lỗi email, chỉ log, không đổi trạng thái)
+            // Gửi email cho khách hàng về Gmail
             $user = User::find($booking->nguoi_dung_id);
-            if ($user && $user->email) {
-                try {
-                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
-                    Log::info('Deposit payment email sent to customer', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('Failed to send deposit payment email to customer (notification still sent)', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                    // Không cập nhật trạng thái thành 'failed' vì thông báo in-app đã thành công
-                }
+            if ($user) {
+                $this->sendNotificationEmail($customerNotification, $user);
             }
 
             // Thông báo cho nhân viên/admin
@@ -102,23 +124,8 @@ class PaymentNotificationService
                     'lan_thu_cuoi' => now(),
                 ]);
 
-                // Gửi email cho nhân viên (nếu có lỗi email, chỉ log, không đổi trạng thái)
-                if ($staff->email) {
-                    try {
-                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
-                        Log::info('Deposit payment email sent to staff', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                        ]);
-                    } catch (\Throwable $e) {
-                        Log::warning('Failed to send deposit payment email to staff (notification still sent)', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                        // Không cập nhật trạng thái thành 'failed' vì thông báo in-app đã thành công
-                    }
-                }
+                // Gửi email cho nhân viên về Gmail
+                $this->sendNotificationEmail($staffNotification, $staff);
             }
 
             Log::info('Deposit payment notification sent', [
@@ -182,23 +189,10 @@ class PaymentNotificationService
                 'lan_thu_cuoi' => now(),
             ]);
 
-            // Gửi email cho khách hàng (nếu có lỗi email, chỉ log, không đổi trạng thái)
+            // Gửi email cho khách hàng về Gmail
             $user = User::find($booking->nguoi_dung_id);
-            if ($user && $user->email) {
-                try {
-                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
-                    Log::info('Room payment email sent to customer', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('Failed to send room payment email to customer (notification still sent)', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                    // Không cập nhật trạng thái thành 'failed' vì thông báo in-app đã thành công
-                }
+            if ($user) {
+                $this->sendNotificationEmail($customerNotification, $user);
             }
 
             // Thông báo cho nhân viên/admin
@@ -241,23 +235,8 @@ class PaymentNotificationService
                     'lan_thu_cuoi' => now(),
                 ]);
 
-                // Gửi email cho nhân viên (nếu có lỗi email, chỉ log, không đổi trạng thái)
-                if ($staff->email) {
-                    try {
-                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
-                        Log::info('Room payment email sent to staff', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                        ]);
-                    } catch (\Throwable $e) {
-                        Log::warning('Failed to send room payment email to staff (notification still sent)', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                        // Không cập nhật trạng thái thành 'failed' vì thông báo in-app đã thành công
-                    }
-                }
+                // Gửi email cho nhân viên về Gmail
+                $this->sendNotificationEmail($staffNotification, $staff);
             }
 
             Log::info('Room payment notification sent', [
@@ -310,22 +289,10 @@ class PaymentNotificationService
                 'lan_thu_cuoi' => now(),
             ]);
 
-            // Gửi email cho khách hàng
+            // Gửi email cho khách hàng về Gmail
             $user = User::find($booking->nguoi_dung_id);
-            if ($user && $user->email) {
-                try {
-                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
-                    Log::info('Checkin email sent to customer', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('Failed to send checkin email to customer (notification still sent)', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            if ($user) {
+                $this->sendNotificationEmail($customerNotification, $user);
             }
 
             // Thông báo cho nhân viên/admin
@@ -358,21 +325,8 @@ class PaymentNotificationService
                     'lan_thu_cuoi' => now(),
                 ]);
 
-                if ($staff->email) {
-                    try {
-                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
-                        Log::info('Checkin email sent to staff', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                        ]);
-                    } catch (\Throwable $e) {
-                        Log::warning('Failed to send checkin email to staff (notification still sent)', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                }
+                // Gửi email cho nhân viên về Gmail
+                $this->sendNotificationEmail($staffNotification, $staff);
             }
 
             Log::info('Checkin notification sent', [
@@ -423,22 +377,10 @@ class PaymentNotificationService
                 'lan_thu_cuoi' => now(),
             ]);
 
-            // Gửi email cho khách hàng
+            // Gửi email cho khách hàng về Gmail
             $user = User::find($booking->nguoi_dung_id);
-            if ($user && $user->email) {
-                try {
-                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
-                    Log::info('Checkout email sent to customer', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('Failed to send checkout email to customer (notification still sent)', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            if ($user) {
+                $this->sendNotificationEmail($customerNotification, $user);
             }
 
             // Thông báo cho nhân viên/admin
@@ -472,21 +414,8 @@ class PaymentNotificationService
                     'lan_thu_cuoi' => now(),
                 ]);
 
-                if ($staff->email) {
-                    try {
-                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
-                        Log::info('Checkout email sent to staff', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                        ]);
-                    } catch (\Throwable $e) {
-                        Log::warning('Failed to send checkout email to staff (notification still sent)', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                }
+                // Gửi email cho nhân viên về Gmail
+                $this->sendNotificationEmail($staffNotification, $staff);
             }
 
             Log::info('Checkout notification sent', [
@@ -549,24 +478,10 @@ class PaymentNotificationService
                 'lan_thu_cuoi' => now(),
             ]);
 
-            // Gửi email cho khách hàng
+            // Gửi email cho khách hàng về Gmail
             $user = User::find($booking->nguoi_dung_id);
-            if ($user && $user->email) {
-                try {
-                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
-                    Log::info('Early checkout email sent to customer', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                        'early_days' => $earlyDays,
-                        'refund_amount' => $refundAmount,
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('Failed to send early checkout email to customer (notification still sent)', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            if ($user) {
+                $this->sendNotificationEmail($customerNotification, $user);
             }
 
             // Thông báo cho nhân viên/admin
@@ -604,23 +519,8 @@ class PaymentNotificationService
                     'lan_thu_cuoi' => now(),
                 ]);
 
-                if ($staff->email) {
-                    try {
-                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
-                        Log::info('Early checkout email sent to staff', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                            'early_days' => $earlyDays,
-                            'refund_amount' => $refundAmount,
-                        ]);
-                    } catch (\Throwable $e) {
-                        Log::warning('Failed to send early checkout email to staff (notification still sent)', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                }
+                // Gửi email cho nhân viên về Gmail
+                $this->sendNotificationEmail($staffNotification, $staff);
             }
 
             Log::info('Early checkout notification sent', [
@@ -676,22 +576,10 @@ class PaymentNotificationService
                 'lan_thu_cuoi' => now(),
             ]);
 
-            // Gửi email cho khách hàng
+            // Gửi email cho khách hàng về Gmail
             $user = User::find($booking->nguoi_dung_id);
-            if ($user && $user->email) {
-                try {
-                    Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
-                    Log::info('Full payment email sent to customer', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::warning('Failed to send full payment email to customer (notification still sent)', [
-                        'user_id' => $user->id,
-                        'booking_id' => $booking->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+            if ($user) {
+                $this->sendNotificationEmail($customerNotification, $user);
             }
 
             // Thông báo cho nhân viên/admin
@@ -726,21 +614,8 @@ class PaymentNotificationService
                     'lan_thu_cuoi' => now(),
                 ]);
 
-                if ($staff->email) {
-                    try {
-                        Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
-                        Log::info('Full payment email sent to staff', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                        ]);
-                    } catch (\Throwable $e) {
-                        Log::warning('Failed to send full payment email to staff (notification still sent)', [
-                            'staff_id' => $staff->id,
-                            'booking_id' => $booking->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                }
+                // Gửi email cho nhân viên về Gmail
+                $this->sendNotificationEmail($staffNotification, $staff);
             }
 
             Log::info('Full payment notification sent', [

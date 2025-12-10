@@ -16,13 +16,12 @@
     <main>
         <!-- Modal Xác Nhận Thanh Toán VNPAY -->
         <div class="modal fade" id="vnpayConfirmModal" tabindex="-1" aria-labelledby="vnpayConfirmModalLabel"
-             aria-hidden="true">
+            aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="vnpayConfirmModalLabel">Xác Nhận Thanh Toán VNPAY</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <h6 class="fw-bold">Thông Tin Nội Dung Cần Thanh Toán - Tóm Tắt Thanh Toán</h6>
@@ -76,8 +75,7 @@
                         <p>Được sử dụng thuốc lá.</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary"
-                                data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
                         <button type="button" class="btn btn-primary" id="vnpayProceedBtn">
                             Xác Nhận
                         </button>
@@ -111,7 +109,7 @@
 
                         <div class="col-sm-3 text-end d-none d-sm-block">
                             <img src="{{ $phong->firstImageUrl() }}" class="mb-n4"
-                                 alt="{{ $phong->name ?? $phong->ma_phong }}" style="max-width:100px;">
+                                alt="{{ $phong->name ?? $phong->ma_phong }}" style="max-width:100px;">
                         </div>
                     </div>
                 </div>
@@ -131,27 +129,24 @@
                                 </div>
 
                                 <div class="card-body p-4">
-                                    <form action="{{ route('account.booking.store') }}" method="POST"
-                                          id="bookingForm">
+                                    <form action="{{ route('account.booking.store') }}" method="POST" id="bookingForm">
                                         @csrf
 
                                         {{-- Server-side messages --}}
                                         <div id="server_message_container" class="mb-3">
                                             @if (session('success'))
-                                                <div id="server_success"
-                                                     data-message="{{ e(session('success')) }}"
-                                                     data-datphong="{{ session('dat_phong_id') ?? '' }}"></div>
+                                                <div id="server_success" data-message="{{ e(session('success')) }}"
+                                                    data-datphong="{{ session('dat_phong_id') ?? '' }}"></div>
                                             @endif
 
                                             @if ($errors->any())
-                                                <div id="server_error"
-                                                     data-message="{{ e($errors->first()) }}"></div>
+                                                <div id="server_error" data-message="{{ e($errors->first()) }}"></div>
                                             @endif
                                         </div>
 
                                         <input type="hidden" name="phong_id" value="{{ $phong->id }}">
                                         <input type="hidden" name="spec_signature_hash"
-                                               value="{{ $phong->spec_signature_hash ?? $phong->specSignatureHash() }}">
+                                            value="{{ $phong->spec_signature_hash ?? $phong->specSignatureHash() }}">
 
                                         <div class="row g-4">
                                             <div class="col-lg-6">
@@ -160,32 +155,27 @@
                                                     <div
                                                         class="form-control-border form-control-transparent form-fs-md w-100">
                                                         <label class="form-label">Nhận phòng - Trả phòng</label>
-                                                        <input id="date_range" type="text"
-                                                               class="form-control flatpickr"
-                                                               placeholder="Chọn khoảng thời gian" readonly>
-                                                        <input type="hidden" name="ngay_nhan_phong"
-                                                               id="ngay_nhan_phong"
-                                                               value="{{ old('ngay_nhan_phong', \Carbon\Carbon::today()->format('Y-m-d')) }}">
-                                                        <input type="hidden" name="ngay_tra_phong"
-                                                               id="ngay_tra_phong"
-                                                               value="{{ old('ngay_tra_phong', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}">
+                                                        <input id="date_range" type="text" class="form-control flatpickr"
+                                                            placeholder="Chọn khoảng thời gian" readonly>
+                                                        <input type="hidden" name="ngay_nhan_phong" id="ngay_nhan_phong"
+                                                            value="{{ old('ngay_nhan_phong', \Carbon\Carbon::today()->format('Y-m-d')) }}">
+                                                        <input type="hidden" name="ngay_tra_phong" id="ngay_tra_phong"
+                                                            value="{{ old('ngay_tra_phong', \Carbon\Carbon::tomorrow()->format('Y-m-d')) }}">
                                                         <small class="text-muted">
                                                             Giờ nhận phòng: 14:00 – Giờ trả phòng: 12:00
                                                         </small>
                                                         {{-- Thông báo tăng giá cuối tuần --}}
-                                                        <div id="weekend_notice"
-                                                             class="small mt-1 text-danger"
-                                                             style="display:none;">
+                                                        <div id="weekend_notice" class="small mt-1 text-danger"
+                                                            style="display:none;">
                                                             Lưu ý: Giá phòng tăng 10% cho các đêm cuối tuần
                                                             (Thứ 6, Thứ 7, Chủ nhật).
                                                         </div>
-                                                        <div id="availability_message"
-                                                             class="small mt-2"></div>
+                                                        <div id="availability_message" class="small mt-2"></div>
                                                         @error('ngay_nhan_phong')
-                                                        <div class="text-danger small">{{ $message }}</div>
+                                                            <div class="text-danger small">{{ $message }}</div>
                                                         @enderror
                                                         @error('ngay_tra_phong')
-                                                        <div class="text-danger small">{{ $message }}</div>
+                                                            <div class="text-danger small">{{ $message }}</div>
                                                         @enderror
                                                     </div>
                                                 </div>
@@ -199,11 +189,10 @@
                                                         <div class="col-6">
                                                             <label class="form-label">Người lớn</label>
                                                             <input type="number" name="adults" id="adults"
-                                                                   class="form-control" min="1"
-                                                                   max="{{ max(1, $roomCapacity + 2) }}"
-                                                                   value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
-                                                            <small id="adults_help"
-                                                                   class="text-muted d-block">
+                                                                class="form-control" min="1"
+                                                                max="{{ max(1, $roomCapacity + 2) }}"
+                                                                value="{{ old('adults', min(2, max(1, $roomCapacity))) }}">
+                                                            <small id="adults_help" class="text-muted d-block">
                                                                 Số người tối đa:
                                                                 <strong
                                                                     id="room_capacity_display">{{ $roomCapacity + 2 }}</strong>
@@ -213,21 +202,19 @@
                                                         <div class="col-6">
                                                             <label class="form-label">Trẻ em</label>
                                                             <input type="number" name="children" id="children"
-                                                                   class="form-control" min="0" max="2"
-                                                                   value="{{ old('children', 0) }}">
-                                                            <small id="children_help"
-                                                                   class="text-muted d-block">
+                                                                class="form-control" min="0" max="2"
+                                                                value="{{ old('children', 0) }}">
+                                                            <small id="children_help" class="text-muted d-block">
                                                                 Tối đa 2 trẻ em mỗi phòng.
                                                             </small>
                                                         </div>
 
                                                         <div class="col-6">
                                                             <label class="form-label">Số phòng</label>
-                                                            <input type="number" name="rooms_count"
-                                                                   id="rooms_count"
-                                                                   class="form-control" min="1"
-                                                                   max="{{ $availableRoomsDefault ?? 1 }}"
-                                                                   value="{{ old('rooms_count', 1) }}">
+                                                            <input type="number" name="rooms_count" id="rooms_count"
+                                                                class="form-control" min="1"
+                                                                max="{{ $availableRoomsDefault ?? 1 }}"
+                                                                value="{{ old('rooms_count', 1) }}">
                                                             <small class="text-muted d-block">
                                                                 Có sẵn cho ngày đã chọn:
                                                                 <strong
@@ -274,7 +261,7 @@
                                                     </div>
 
                                                     <input type="hidden" name="so_khach" id="so_khach"
-                                                           value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
+                                                        value="{{ old('so_khach', $phong->suc_chua ?? 1) }}">
                                                     <div class="small text">
                                                         Phòng cho:
                                                         {{ $phong->suc_chua ?? ($roomCapacity ?? '-') }}
@@ -285,8 +272,7 @@
                                         </div>
 
                                         <div class="card border mt-4">
-                                            <div
-                                                class="card-header border-bottom d-md-flex justify-content-md-between">
+                                            <div class="card-header border-bottom d-md-flex justify-content-md-between">
                                                 <h5 class="card-title mb-0">
                                                     {{ $phong->name ?? ($phong->loaiPhong->ten ?? 'Room') }}
                                                 </h5>
@@ -315,18 +301,15 @@
                                                         <ul class="list-unstyled">
                                                             @foreach ($availableAddons as $addon)
                                                                 <li class="mb-2" hidden>
-                                                                    <label
-                                                                        class="d-flex align-items-center">
-                                                                        <input type="checkbox"
-                                                                               name="addons[]"
-                                                                               value="{{ $addon->id }}"
-                                                                               data-price="{{ $addon->gia }}"
-                                                                               class="me-2 addon-checkbox"
-                                                                               {{ in_array($addon->id, old('addons', [])) ? 'checked' : '' }}>
+                                                                    <label class="d-flex align-items-center">
+                                                                        <input type="checkbox" name="addons[]"
+                                                                            value="{{ $addon->id }}"
+                                                                            data-price="{{ $addon->gia }}"
+                                                                            class="me-2 addon-checkbox"
+                                                                            {{ in_array($addon->id, old('addons', [])) ? 'checked' : '' }}>
                                                                         <span>
                                                                             <strong>{{ $addon->ten }}</strong>
-                                                                            <div
-                                                                                class="small text-muted">
+                                                                            <div class="small text-muted">
                                                                                 {{ \Illuminate\Support\Str::limit($addon->mo_ta ?? '', 100) }}
                                                                             </div>
                                                                             <div class="small text">
@@ -364,22 +347,20 @@
                                                 <div class="mb-3">
                                                     <label class="form-label">Họ và tên</label>
                                                     <input type="text" name="name"
-                                                           class="form-control form-control-lg"
-                                                           value="{{ old('name', $u->name ?? '') }}"
-                                                           required>
+                                                        class="form-control form-control-lg"
+                                                        value="{{ old('name', $u->name ?? '') }}" required>
                                                     @error('name')
-                                                    <div class="text-danger small">{{ $message }}</div>
+                                                        <div class="text-danger small">{{ $message }}</div>
                                                     @enderror
                                                 </div>
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Địa chỉ</label>
                                                     <input type="text" name="address"
-                                                           class="form-control form-control-lg"
-                                                           value="{{ old('address', $u->address ?? '') }}"
-                                                           required>
+                                                        class="form-control form-control-lg"
+                                                        value="{{ old('address', $u->address ?? '') }}" required>
                                                     @error('address')
-                                                    <div class="text-danger small">{{ $message }}</div>
+                                                        <div class="text-danger small">{{ $message }}</div>
                                                     @enderror
                                                 </div>
 
@@ -387,38 +368,34 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label">Email</label>
                                                         <input type="email" class="form-control"
-                                                               value="{{ $u->email ?? '' }}" readonly>
+                                                            value="{{ $u->email ?? '' }}" readonly>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label">Số điện thoại</label>
                                                         <input type="text" name="phone" class="form-control"
-                                                               value="{{ old('phone', $u->so_dien_thoai ?? '') }}"
-                                                               required>
+                                                            value="{{ old('phone', $u->so_dien_thoai ?? '') }}" required>
                                                     </div>
                                                 </div>
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Ghi chú</label>
-                                                    <textarea name="ghi_chu" class="form-control" rows="3"
-                                                              placeholder="Ghi chú đặc biệt cho khách sạn">{{ old('ghi_chu') }}</textarea>
+                                                    <textarea name="ghi_chu" class="form-control" rows="3" placeholder="Ghi chú đặc biệt cho khách sạn">{{ old('ghi_chu') }}</textarea>
                                                 </div>
 
                                                 <div class="mb-3">
-                                                    <input type="hidden" name="phong_id"
-                                                           value="{{ $phong->id }}">
-                                                    <input type="hidden" name="tong_tien"
-                                                           id="hidden_tong_tien"
-                                                           value="{{ $phong->tong_gia ?? ($phong->tong_tien ?? ($phong->gia_mac_dinh ?? 0)) }}">
-                                                    <input type="hidden" name="deposit_amount"
-                                                           id="hidden_deposit" value="0">
+                                                    <input type="hidden" name="phong_id" value="{{ $phong->id }}">
+                                                    <input type="hidden" name="tong_tien" id="hidden_tong_tien"
+                                                        value="{{ $phong->tong_gia ?? ($phong->tong_tien ?? ($phong->gia_mac_dinh ?? 0)) }}">
+                                                    <input type="hidden" name="deposit_amount" id="hidden_deposit"
+                                                        value="0">
 
                                                     {{-- voucher gửi lên server --}}
-                                                    <input type="hidden" name="voucher_id"
-                                                           id="voucher_id_input" value="">
+                                                    <input type="hidden" name="voucher_id" id="voucher_id_input"
+                                                        value="">
                                                     <input type="hidden" name="voucher_discount"
-                                                           id="voucher_discount_input" value="">
-                                                    <input type="hidden" name="ma_voucher"
-                                                           id="voucher_code_input" value="">
+                                                        id="voucher_discount_input" value="">
+                                                    <input type="hidden" name="ma_voucher" id="voucher_code_input"
+                                                        value="">
 
                                                     {{-- GIÁ GỐC (KHÔNG VOUCHER) ĐỂ RESET / APPLY VOUCHER --}}
                                                     <input type="hidden" id="original_total" value="0">
@@ -432,33 +409,25 @@
                                                         <div class="card border">
                                                             <div class="card-body p-3">
                                                                 <div class="form-check mb-2">
-                                                                    <input type="radio"
-                                                                           name="deposit_percentage"
-                                                                           value="50"
-                                                                           class="form-check-input"
-                                                                           id="deposit_50" checked>
-                                                                    <label for="deposit_50"
-                                                                           class="form-check-label">
+                                                                    <input type="radio" name="deposit_percentage"
+                                                                        value="50" class="form-check-input"
+                                                                        id="deposit_50" checked>
+                                                                    <label for="deposit_50" class="form-check-label">
                                                                         <strong>Đặt cọc 50%</strong>
-                                                                        <small
-                                                                            class="text-muted d-block">
+                                                                        <small class="text-muted d-block">
                                                                             Thanh toán phần còn lại khi
                                                                             check-in
                                                                         </small>
                                                                     </label>
                                                                 </div>
                                                                 <div class="form-check">
-                                                                    <input type="radio"
-                                                                           name="deposit_percentage"
-                                                                           value="100"
-                                                                           class="form-check-input"
-                                                                           id="deposit_100">
-                                                                    <label for="deposit_100"
-                                                                           class="form-check-label">
+                                                                    <input type="radio" name="deposit_percentage"
+                                                                        value="100" class="form-check-input"
+                                                                        id="deposit_100">
+                                                                    <label for="deposit_100" class="form-check-label">
                                                                         <strong>Thanh toán toàn bộ
                                                                             100%</strong>
-                                                                        <small
-                                                                            class="text-muted d-block">
+                                                                        <small class="text-muted d-block">
                                                                             Thanh toán ngay - Không cần
                                                                             thanh toán thêm
                                                                         </small>
@@ -475,66 +444,62 @@
                                                             Chính sách hủy phòng &amp; hoàn tiền
                                                         </h6>
                                                         <div class="table-responsive">
-                                                            <table
-                                                                class="table table-sm table-bordered mb-2">
+                                                            <table class="table table-sm table-bordered mb-2">
                                                                 <thead class="table-light">
-                                                                <tr>
-                                                                    <th class="small">Thời gian hủy</th>
-                                                                    <th class="small text-center">
-                                                                        Đặt cọc 50%
-                                                                    </th>
-                                                                    <th class="small text-center">
-                                                                        Thanh toán 100%
-                                                                    </th>
-                                                                </tr>
+                                                                    <tr>
+                                                                        <th class="small">Thời gian hủy</th>
+                                                                        <th class="small text-center">
+                                                                            Đặt cọc 50%
+                                                                        </th>
+                                                                        <th class="small text-center">
+                                                                            Thanh toán 100%
+                                                                        </th>
+                                                                    </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                <tr>
-                                                                    <td class="small">≥ 7 ngày trước
-                                                                        check-in
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        <span
-                                                                            class="badge bg-success">Hoàn 100%</span>
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        <span
-                                                                            class="badge bg-success">Hoàn 90%</span>
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td class="small">3-6 ngày trước</td>
-                                                                    <td class="text-center">
-                                                                        <span
-                                                                            class="badge bg-warning text-dark">Hoàn 70%</span>
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        <span
-                                                                            class="badge bg-warning text-dark">Hoàn 60%</span>
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td class="small">1-2 ngày trước</td>
-                                                                    <td class="text-center">
-                                                                        <span
-                                                                            class="badge bg-warning text-dark">Hoàn 30%</span>
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        <span
-                                                                            class="badge bg-warning text-dark">Hoàn 40%</span>
-                                                                    </td>
-                                                                </tr>
-                                                                <tr>
-                                                                    <td class="small">&lt; 24 giờ</td>
-                                                                    <td class="text-center">
-                                                                        <span
-                                                                            class="badge bg-danger">Không hoàn</span>
-                                                                    </td>
-                                                                    <td class="text-center">
-                                                                        <span
-                                                                            class="badge bg-warning text-dark">Hoàn 20%</span>
-                                                                    </td>
-                                                                </tr>
+                                                                    <tr>
+                                                                        <td class="small">≥ 7 ngày trước
+                                                                            check-in
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-success">Hoàn 100%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-success">Hoàn 90%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">3-6 ngày trước</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn
+                                                                                70%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn
+                                                                                60%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">1-2 ngày trước</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn
+                                                                                30%</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn
+                                                                                40%</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td class="small">&lt; 24 giờ</td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-danger">Không hoàn</span>
+                                                                        </td>
+                                                                        <td class="text-center">
+                                                                            <span class="badge bg-warning text-dark">Hoàn
+                                                                                20%</span>
+                                                                        </td>
+                                                                    </tr>
                                                                 </tbody>
                                                             </table>
                                                         </div>
@@ -546,16 +511,18 @@
                                                     </div>
 
                                                     <div class="mt-3">
-                                                        <label for="phuong_thuc"
-                                                               class="form-label">Phương thức thanh toán</label>
-                                                        <select name="phuong_thuc" id="phuong_thuc"
-                                                                class="form-select" required>
+                                                        <label for="phuong_thuc" class="form-label">Phương thức thanh
+                                                            toán</label>
+                                                        <select name="phuong_thuc" id="phuong_thuc" class="form-select"
+                                                            required>
                                                             <option value="">Chọn phương thức</option>
                                                             <option value="vnpay"
-                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Thanh toán
+                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>Thanh
+                                                                toán
                                                                 bằng VNPAY</option>
                                                             <option value="momo"
-                                                                {{ old('phuong_thuc') == 'momo' ? 'selected' : '' }}>Thanh toán
+                                                                {{ old('phuong_thuc') == 'momo' ? 'selected' : '' }}>Thanh
+                                                                toán
                                                                 bằng MoMo</option>
                                                             {{-- <option value="chuyen_khoan"
                                                                 {{ old('phuong_thuc') == 'chuyen_khoan' ? 'selected' : '' }}>
@@ -564,17 +531,17 @@
                                                     </div>
                                                 </div>
 
-                                                <input type="hidden" name="final_per_night"
-                                                       id="final_per_night_input" value="">
-                                                <input type="hidden" name="snapshot_total"
-                                                       id="snapshot_total_input" value="">
+                                                <input type="hidden" name="final_per_night" id="final_per_night_input"
+                                                    value="">
+                                                <input type="hidden" name="snapshot_total" id="snapshot_total_input"
+                                                    value="">
 
                                                 <div class="mt-3">
                                                     <button type="submit" class="btn btn-lg btn-primary">
                                                         Xác nhận
                                                     </button>
                                                     <a href="{{ route('rooms.show', $phong->id) }}"
-                                                       class="btn btn-secondary ms-2">Hủy</a>
+                                                        class="btn btn-secondary ms-2">Hủy</a>
                                                 </div>
                                             </div>
                                         </div>
@@ -586,156 +553,148 @@
                     </div>
 
                     <aside class="col-xl-4">
-    <div class="position-sticky" style="top: 80px;">
-        <div class="row g-4">
-                            <!-- Price summary START -->
-                            <div class="col-md-6 col-xl-12">
-                                <div class="card shadow rounded-3 border-0">
-                                    <div class="card-header bg-light border-bottom py-3">
-                                        <h5 class="card-title mb-0 fw-bold text-primary">
-                                            <i class="bi bi-cash-stack me-2"></i>Tóm tắt giá
-                                        </h5>
-                                    </div>
+                        <div class="position-sticky" style="top: 80px;">
+                            <div class="row g-4">
+                                <!-- Price summary START -->
+                                <div class="col-md-6 col-xl-12">
+                                    <div class="card shadow rounded-3 border-0">
+                                        <div class="card-header bg-light border-bottom py-3">
+                                            <h5 class="card-title mb-0 fw-bold text-primary">
+                                                <i class="bi bi-cash-stack me-2"></i>Tóm tắt giá
+                                            </h5>
+                                        </div>
 
-                                    <div class="card-body">
-                                        <ul class="list-group list-group-borderless mb-3">
-                                            <li class="list-group-item d-flex justify-content-between">
-                                                <span class="fw-light">Căn phòng / đêm</span>
-                                                <span class="fw-semibold" id="price_base_display">
-                                                    {{ number_format($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0), 0, ',', '.') }}
-                                                    đ
-                                                </span>
-                                            </li>
+                                        <div class="card-body">
+                                            <ul class="list-group list-group-borderless mb-3">
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span class="fw-light">Căn phòng / đêm</span>
+                                                    <span class="fw-semibold" id="price_base_display">
+                                                        {{ number_format($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0), 0, ',', '.') }}
+                                                        đ
+                                                    </span>
+                                                </li>
 
-                                            <li class="list-group-item d-flex justify-content-between">
-                                                <span class="fw-light">Người lớn thêm / đêm</span>
-                                                <span id="price_adults_display">-</span>
-                                            </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span class="fw-light">Người lớn thêm / đêm</span>
+                                                    <span id="price_adults_display">-</span>
+                                                </li>
 
-                                            <li class="list-group-item d-flex justify-content-between">
-                                                <span class="fw-light">Trẻ em thêm / đêm</span>
-                                                <span id="price_children_display">-</span>
-                                            </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span class="fw-light">Trẻ em thêm / đêm</span>
+                                                    <span id="price_children_display">-</span>
+                                                </li>
 
-                                            <li class="list-group-item d-flex justify-content-between">
-                                                <span class="fw-light">Dịch vụ bổ sung / đêm</span>
-                                                <span id="price_addons_display">0 đ</span>
-                                            </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span class="fw-light">Dịch vụ bổ sung / đêm</span>
+                                                    <span id="price_addons_display">0 đ</span>
+                                                </li>
 
-                                            <li class="list-group-item d-flex justify-content-between">
-                                                <span class="fw-light">Giá cuối cùng / đêm</span>
-                                                <span id="final_per_night_display">-</span>
-                                            </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span class="fw-light">Giá cuối cùng / đêm</span>
+                                                    <span id="final_per_night_display">-</span>
+                                                </li>
 
-                                            <li class="list-group-item d-flex justify-content-between">
-                                                <span class="fw-light">Đêm</span>
-                                                <span class="fw-semibold"
-                                                      id="nights_count_display">-</span>
-                                            </li>
+                                                <li class="list-group-item d-flex justify-content-between">
+                                                    <span class="fw-light">Đêm</span>
+                                                    <span class="fw-semibold" id="nights_count_display">-</span>
+                                                </li>
 
-                                            <li
-                                                class="list-group-item d-flex justify-content-between border-top pt-2 mt-1">
-                                                <span class="fw-bold text-dark">Tổng</span>
-                                                <span class="fs-5 fw-bold text-dark"
-                                                      id="total_snapshot_display">-</span>
-                                            </li>
-                                        </ul>
+                                                <li
+                                                    class="list-group-item d-flex justify-content-between border-top pt-2 mt-1">
+                                                    <span class="fw-bold text-dark">Tổng</span>
+                                                    <span class="fs-5 fw-bold text-dark"
+                                                        id="total_snapshot_display">-</span>
+                                                </li>
+                                            </ul>
 
-                                        {{-- Áp dụng mã giảm giá --}}
-                                        <div class="voucher-section mt-4">
-                                            <h6 class="fw-bold mb-3">
-                                                <i class="bi bi-ticket-perforated me-1 text-success"></i>
-                                                Áp dụng mã giảm giá
-                                            </h6>
+                                            {{-- Áp dụng mã giảm giá --}}
+                                            <div class="voucher-section mt-4">
+                                                <h6 class="fw-bold mb-3">
+                                                    <i class="bi bi-ticket-perforated me-1 text-success"></i>
+                                                    Áp dụng mã giảm giá
+                                                </h6>
 
-                                            {{-- Ô nhập và nút áp dụng --}}
-                                            <div class="input-group mb-3">
-                                                <input type="text" id="voucher_code"
-                                                       class="form-control rounded-start"
-                                                       placeholder="Nhập hoặc chọn mã giảm giá">
-                                                <button class="btn btn-success rounded-end px-4"
-                                                        id="applyVoucherBtn">
-                                                    Áp dụng
-                                                </button>
-                                            </div>
-
-                                            {{-- Danh sách voucher --}}
-                                            @if (Auth::check() && Auth::user()->vouchers->count() > 0)
-                                                <div class="border rounded p-3 bg-light"
-                                                     style="max-height: 180px; overflow-y: auto;">
-                                                    <small
-                                                        class="text-muted fw-bold d-block mb-2">
-                                                        Voucher của bạn:
-                                                    </small>
-
-                                                    @foreach ($vouchers as $voucher)
-                                                        @php
-                                                            $isExpired = \Carbon\Carbon::parse(
-                                                                $voucher->end_date,
-                                                            )->isPast();
-                                                        @endphp
-                                                        <label
-                                                            class="d-flex justify-content-between align-items-center p-2 mb-2 rounded border {{ $isExpired ? 'bg-light text-muted' : 'bg-white shadow-sm' }}"
-                                                            style="cursor: pointer; transition: 0.2s">
-                                                            <div class="form-check">
-                                                                <input
-                                                                    class="form-check-input voucher-checkbox"
-                                                                    type="checkbox"
-                                                                    value="{{ $voucher->code }}"
-                                                                    data-code="{{ $voucher->code }}"
-                                                                    {{ $isExpired ? 'disabled' : '' }}>
-                                                                <div class="ms-2">
-                                                                    <span
-                                                                        class="fw-semibold text-primary d-block">{{ $voucher->name }}</span>
-                                                                    <small
-                                                                        class="text-muted d-block">
-                                                                        Mã:
-                                                                        {{ $voucher->code }}
-                                                                    </small>
-                                                                    <small class="text-muted">
-                                                                        {{ \Carbon\Carbon::parse($voucher->start_date)->format('d/m') }}
-                                                                        -
-                                                                        {{ \Carbon\Carbon::parse($voucher->end_date)->format('d/m') }}
-                                                                    </small>
-                                                                </div>
-                                                            </div>
-                                                            <span
-                                                                class="badge {{ $isExpired ? 'bg-secondary' : 'bg-success' }} px-2 py-1 rounded-pill">
-                                                                {{ $isExpired ? 'Hết hạn' : 'Dùng được' }}
-                                                            </span>
-                                                        </label>
-                                                    @endforeach
-
+                                                {{-- Ô nhập và nút áp dụng --}}
+                                                <div class="input-group mb-3">
+                                                    <input type="text" id="voucher_code"
+                                                        class="form-control rounded-start"
+                                                        placeholder="Nhập hoặc chọn mã giảm giá">
+                                                    <button class="btn btn-success rounded-end px-4" id="applyVoucherBtn">
+                                                        Áp dụng
+                                                    </button>
                                                 </div>
-                                            @else
-                                                <p class="text-muted small">
-                                                    Bạn chưa nhận mã giảm giá nào.
-                                                </p>
-                                            @endif
 
-                                            {{-- Kết quả áp dụng --}}
-                                            <div id="voucherResult" class="mt-3"></div>
-                                        </div>
-                                    </div>
+                                                {{-- Danh sách voucher --}}
+                                                @if (Auth::check() && Auth::user()->vouchers->count() > 0)
+                                                    <div class="border rounded p-3 bg-light"
+                                                        style="max-height: 180px; overflow-y: auto;">
+                                                        <small class="text-muted fw-bold d-block mb-2">
+                                                            Voucher của bạn:
+                                                        </small>
 
-                                    <div class="card-footer border-top bg-light">
-                                        <div
-                                            class="d-flex justify-content-between align-items-center">
-                                            <span class="h6 mb-0 fw-bold"
-                                                  id="deposit_percentage_label">Đặt cọc (50%)</span>
-                                            <span class="h6 mb-0 fw-bold text-primary"
-                                                  id="payable_now_display">-</span>
+                                                        @foreach ($vouchers as $voucher)
+                                                            @php
+                                                                $isExpired = \Carbon\Carbon::parse(
+                                                                    $voucher->end_date,
+                                                                )->isPast();
+                                                            @endphp
+                                                            <label
+                                                                class="d-flex justify-content-between align-items-center p-2 mb-2 rounded border {{ $isExpired ? 'bg-light text-muted' : 'bg-white shadow-sm' }}"
+                                                                style="cursor: pointer; transition: 0.2s">
+                                                                <div class="form-check">
+                                                                    <input class="form-check-input voucher-checkbox"
+                                                                        type="checkbox" value="{{ $voucher->code }}"
+                                                                        data-code="{{ $voucher->code }}"
+                                                                        {{ $isExpired ? 'disabled' : '' }}>
+                                                                    <div class="ms-2">
+                                                                        <span
+                                                                            class="fw-semibold text-primary d-block">{{ $voucher->name }}</span>
+                                                                        <small class="text-muted d-block">
+                                                                            Mã:
+                                                                            {{ $voucher->code }}
+                                                                        </small>
+                                                                        <small class="text-muted">
+                                                                            {{ \Carbon\Carbon::parse($voucher->start_date)->format('d/m') }}
+                                                                            -
+                                                                            {{ \Carbon\Carbon::parse($voucher->end_date)->format('d/m') }}
+                                                                        </small>
+                                                                    </div>
+                                                                </div>
+                                                                <span
+                                                                    class="badge {{ $isExpired ? 'bg-secondary' : 'bg-success' }} px-2 py-1 rounded-pill">
+                                                                    {{ $isExpired ? 'Hết hạn' : 'Dùng được' }}
+                                                                </span>
+                                                            </label>
+                                                        @endforeach
+
+                                                    </div>
+                                                @else
+                                                    <p class="text-muted small">
+                                                        Bạn chưa nhận mã giảm giá nào.
+                                                    </p>
+                                                @endif
+
+                                                {{-- Kết quả áp dụng --}}
+                                                <div id="voucherResult" class="mt-3"></div>
+                                            </div>
                                         </div>
-                                        <small class="text-muted d-block mt-1 fst-italic"
-                                               id="remaining_info">
-                                            Phần còn lại (50%) thanh toán tại khách sạn khi check in
-                                        </small>
+
+                                        <div class="card-footer border-top bg-light">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="h6 mb-0 fw-bold" id="deposit_percentage_label">Đặt cọc
+                                                    (50%)</span>
+                                                <span class="h6 mb-0 fw-bold text-primary"
+                                                    id="payable_now_display">-</span>
+                                            </div>
+                                            <small class="text-muted d-block mt-1 fst-italic" id="remaining_info">
+                                                Phần còn lại (50%) thanh toán tại khách sạn khi check in
+                                            </small>
+                                        </div>
                                     </div>
                                 </div>
+                                <!-- Price summary END -->
                             </div>
-                            <!-- Price summary END -->
                         </div>
-    </div>
 
                     </aside>
                 </div>
@@ -849,16 +808,16 @@
                     }
 
                     fetch('{{ route('booking.apply-voucher') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({
-                            code: code,
-                            total: total
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                code: code,
+                                total: total
+                            })
                         })
-                    })
                         .then(res => res.json())
                         .then(data => {
                             if (!resultBox) return;
@@ -868,9 +827,9 @@
 
                             if (data.success) {
                                 const discountAmount = Number(data.discount || 0);
-                                const discountText = discountAmount > 0
-                                    ? fmtVndLocal(discountAmount)
-                                    : '0 đ';
+                                const discountText = discountAmount > 0 ?
+                                    fmtVndLocal(discountAmount) :
+                                    '0 đ';
 
                                 const finalTotalLocal = Math.max(0, total - discountAmount);
                                 const finalTextLocal = fmtVndLocal(finalTotalLocal);
@@ -889,12 +848,14 @@
                                     voucherIdInput.value = data.voucher_id;
                                 }
 
-                                const voucherDiscountInput = document.getElementById('voucher_discount_input');
+                                const voucherDiscountInput = document.getElementById(
+                                    'voucher_discount_input');
                                 if (voucherDiscountInput && typeof data.discount !== 'undefined') {
                                     voucherDiscountInput.value = data.discount;
                                 }
 
-                                const voucherCodeHiddenInput = document.getElementById('voucher_code_input');
+                                const voucherCodeHiddenInput = document.getElementById(
+                                    'voucher_code_input');
                                 if (voucherCodeHiddenInput) {
                                     voucherCodeHiddenInput.value = data.voucher_code || code;
                                 }
@@ -910,8 +871,10 @@
                                     </div>`;
 
                                 const voucherIdInput = document.getElementById('voucher_id_input');
-                                const voucherDiscountInput = document.getElementById('voucher_discount_input');
-                                const voucherCodeHiddenInput = document.getElementById('voucher_code_input');
+                                const voucherDiscountInput = document.getElementById(
+                                    'voucher_discount_input');
+                                const voucherCodeHiddenInput = document.getElementById(
+                                    'voucher_code_input');
                                 if (voucherIdInput) voucherIdInput.value = '';
                                 if (voucherDiscountInput) voucherDiscountInput.value = '';
                                 if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
@@ -927,8 +890,10 @@
                                     `<div class="alert alert-danger p-2">Có lỗi xảy ra khi áp dụng mã giảm giá.</div>`;
                             }
                             const voucherIdInput = document.getElementById('voucher_id_input');
-                            const voucherDiscountInput = document.getElementById('voucher_discount_input');
-                            const voucherCodeHiddenInput = document.getElementById('voucher_code_input');
+                            const voucherDiscountInput = document.getElementById(
+                                'voucher_discount_input');
+                            const voucherCodeHiddenInput = document.getElementById(
+                            'voucher_code_input');
                             if (voucherIdInput) voucherIdInput.value = '';
                             if (voucherDiscountInput) voucherDiscountInput.value = '';
                             if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
@@ -1119,9 +1084,9 @@
                     const wrapper = document.createElement('div');
                     wrapper.className = 'mb-2 child-age-wrapper';
                     const initialVal = (Array.isArray(initialChildrenAges) &&
-                        typeof initialChildrenAges[i] !== 'undefined')
-                        ? Number(initialChildrenAges[i])
-                        : 0;
+                            typeof initialChildrenAges[i] !== 'undefined') ?
+                        Number(initialChildrenAges[i]) :
+                        0;
                     wrapper.innerHTML = `
                         <label class="form-label">Tuổi trẻ em ${i + 1}</label>
                         <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
@@ -1132,7 +1097,8 @@
 
                 document.querySelectorAll('.child-age-input').forEach((el) => {
                     el.addEventListener('input', function() {
-                        const min = 0, max = 12;
+                        const min = 0,
+                            max = 12;
                         let v = Number(this.value);
                         if (isNaN(v)) v = min;
                         if (v < min) {
@@ -1145,7 +1111,8 @@
                         updateSummary();
                     });
                     el.addEventListener('blur', function() {
-                        const min = 0, max = 12;
+                        const min = 0,
+                            max = 12;
                         let v = Number(this.value);
                         if (isNaN(v) || v < min) this.value = min;
                         if (v > max) this.value = max;
@@ -1337,6 +1304,8 @@
                 const countedPersons = computedAdults + chargeableChildren;
 
                 const totalMaxAllowed = (baseCapacity + 2) * roomsCount;
+
+                // Calculate extra guests (DEV branch logic)
                 const extraCountTotal = Math.max(0, countedPersons - (baseCapacity * roomsCount));
                 const adultsBeyondBaseTotal = Math.max(0, computedAdults - (baseCapacity * roomsCount));
                 const adultExtraTotal = Math.min(adultsBeyondBaseTotal, extraCountTotal);
@@ -1392,15 +1361,15 @@
 
                 // Lấy phần trăm đặt cọc
                 const selectedDepositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
-                const depositPercentageValue = selectedDepositRadio
-                    ? parseInt(selectedDepositRadio.value, 10)
-                    : 50;
+                const depositPercentageValue = selectedDepositRadio ?
+                    parseInt(selectedDepositRadio.value, 10) :
+                    50;
                 const depositPercent = depositPercentageValue / 100;
-                
+
                 // ✅ FIX: Khi 100%, deposit = total (không làm tròn). Khi 50%, làm tròn lên đến hàng nghìn
-                let deposit = depositPercent === 1 
-                    ? total 
-                    : Math.ceil(total * depositPercent / 1000) * 1000;
+                let deposit = depositPercent === 1 ?
+                    total :
+                    Math.ceil(total * depositPercent / 1000) * 1000;
 
 
                 const percentageText = depositPercent * 100 + '%';
@@ -1409,14 +1378,14 @@
                 const remainingInfo = document.getElementById('remaining_info');
 
                 if (depositLabel) {
-                    depositLabel.innerText = depositPercent === 1
-                        ? 'Thanh toán toàn bộ (100%)'
-                        : `Đặt cọc (${percentageText})`;
+                    depositLabel.innerText = depositPercent === 1 ?
+                        'Thanh toán toàn bộ (100%)' :
+                        `Đặt cọc (${percentageText})`;
                 }
                 if (modalDepositLabel) {
-                    modalDepositLabel.innerText = depositPercent === 1
-                        ? 'Thanh toán toàn bộ (100%)'
-                        : `Đặt cọc (${percentageText})`;
+                    modalDepositLabel.innerText = depositPercent === 1 ?
+                        'Thanh toán toàn bộ (100%)' :
+                        `Đặt cọc (${percentageText})`;
                 }
                 if (remainingInfo) {
                     if (depositPercent === 1) {
@@ -1430,16 +1399,16 @@
 
                 // Giá hiển thị (base / extra chưa trừ voucher; final per night đã trừ voucher)
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom); // giá cơ bản / phòng / đêm
-                priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0
-                    ? fmtVnd(adultsChargePerNightTotal)
-                    : '0 đ';
-                priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0
-                    ? fmtVnd(childrenChargePerNightTotal)
-                    : '0 đ';
+                priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ?
+                    fmtVnd(adultsChargePerNightTotal) :
+                    '0 đ';
+                priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ?
+                    fmtVnd(childrenChargePerNightTotal) :
+                    '0 đ';
                 const existingAddonsEl = document.getElementById('price_addons_display');
-                if (existingAddonsEl) existingAddonsEl.innerText = addonsPerNight > 0
-                    ? fmtVnd(addonsPerNight)
-                    : '0 đ';
+                if (existingAddonsEl) existingAddonsEl.innerText = addonsPerNight > 0 ?
+                    fmtVnd(addonsPerNight) :
+                    '0 đ';
 
                 finalPerNightDisplay.innerText = fmtVnd(finalPerNight);
                 totalDisplay.innerText = fmtVnd(total);
@@ -1457,9 +1426,9 @@
                 if (originalTotalInput) originalTotalInput.value = rawTotal;
                 if (originalDepositInput) {
                     // ✅ FIX: Khi 100%, deposit = rawTotal (không làm tròn). Khi 50%, làm tròn lên đến hàng nghìn
-                    const depositRaw = depositPercent === 1 
-                        ? rawTotal 
-                        : Math.ceil(rawTotal * depositPercent / 1000) * 1000;
+                    const depositRaw = depositPercent === 1 ?
+                        rawTotal :
+                        Math.ceil(rawTotal * depositPercent / 1000) * 1000;
                     originalDepositInput.value = depositRaw;
                 }
             }
@@ -1587,7 +1556,8 @@
                     const phuongThuc = 'vnpay';
 
                     const voucherId = document.getElementById('voucher_id_input')?.value || null;
-                    const voucherDiscount = document.getElementById('voucher_discount_input')?.value || null;
+                    const voucherDiscount = document.getElementById('voucher_discount_input')?.value ||
+                    null;
                     const voucherCodeHidden = document.getElementById('voucher_code_input')?.value || null;
 
                     const depositRadio = document.querySelector('input[name="deposit_percentage"]:checked');

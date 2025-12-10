@@ -126,7 +126,7 @@ class BookingController extends Controller
             $oldRoomId = (int) $oldRoomId;
         }
 
-        Log::info('🔍 Available rooms API called', [
+        Log::info(' Available rooms API called', [
             'booking_id' => $booking->id,
             'old_room_id_param' => $oldRoomId,
             'old_room_id_type' => gettype($oldRoomId),
@@ -139,7 +139,7 @@ class BookingController extends Controller
                 ->where('phong_id', $oldRoomId)
                 ->first();
 
-            Log::info('🎯 Found specific room', [
+            Log::info(' Found specific room', [
                 'current_item_id' => $currentItem ? $currentItem->id : null,
                 'current_room_id' => $currentItem ? $currentItem->phong_id : null,
                 'query_phong_id' => $oldRoomId
@@ -148,7 +148,7 @@ class BookingController extends Controller
             // Fallback to first room for backward compatibility
             $currentItem = $booking->datPhongItems->first();
 
-            Log::info('⚠️ No old_room_id, using first room', [
+            Log::info(' No old_room_id, using first room', [
                 'current_item_id' => $currentItem ? $currentItem->id : null,
                 'current_room_id' => $currentItem ? $currentItem->phong_id : null
             ]);
@@ -167,7 +167,7 @@ class BookingController extends Controller
         $checkOut = Carbon::parse($booking->ngay_tra_phong);
 
         // Get ALL available rooms (not limited to same type - allow upgrade/downgrade)
-        $allRooms = Phong::where('trang_thai', '!=', 'bao_tri')
+        $allRooms = Phong::where('trang_thai', '!=', 'bao_tri', 'khong_su_dung')
             ->pluck('id')
             ->toArray();
 
@@ -186,12 +186,63 @@ class BookingController extends Controller
         // Available = All - Booked - Current
         $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
 
+        // Get guest count from booking to calculate extra charges
+        $meta = is_array($booking->snapshot_meta)
+            ? $booking->snapshot_meta
+            : json_decode($booking->snapshot_meta, true);
+
+        $computedAdults = $meta['computed_adults'] ?? 0;
+        $chargeableChildren = $meta['chargeable_children'] ?? 0;
+        $totalGuests = $computedAdults + $chargeableChildren;
+
+        // Get guest count from CURRENT ROOM (accurate from DB)
+        $guestsInCurrentRoom = $currentItem->so_nguoi_o ?? 0;
+
+        // If no so_nguoi_o (old bookings), fall back to calculation
+        if ($guestsInCurrentRoom == 0) {
+            $allBookingRoomIds = $booking->datPhongItems->pluck('phong_id')->toArray();
+            $totalRoomsInBooking = count($allBookingRoomIds);
+            $guestsInCurrentRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
+        }
+
         // Load room details
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentPrice) {
-                $roomPrice = $room->tong_gia ?? $room->gia_mac_dinh ?? 0;
+            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem) {
+                // Get base price from ROOM's final price (not total or type default)
+                $roomBasePrice = $room->gia_cuoi_cung ?? 0;
+
+                // Calculate room capacity
+                $roomCapacity = $room->suc_chua ?? ($room->loaiPhong->suc_chua ?? 2);
+
+                // CRITICAL FIX: Calculate extra charges based on CURRENT ROOM's guest count
+                // For multi-room bookings, each room should be priced independently
+                $extraGuests = max(0, $guestsInCurrentRoom - $roomCapacity);
+
+                // Use actual adult/child ratio from current room for accurate pricing
+                // number_adult and number_child in DB store EXTRA guests beyond capacity
+                $currentExtraAdults = $currentItem->number_adult ?? 0;
+                $currentExtraChildren = $currentItem->number_child ?? 0;
+                $currentTotalExtra = $currentExtraAdults + $currentExtraChildren;
+
+                if ($extraGuests > 0 && $currentTotalExtra > 0) {
+                    // Maintain the same adult/child ratio for new room
+                    $adultRatio = $currentExtraAdults / $currentTotalExtra;
+                    $extraAdults = round($extraGuests * $adultRatio);
+                    $extraChildren = $extraGuests - $extraAdults;
+                } else {
+                    // Fallback: assume all extra guests are adults
+                    $extraAdults = $extraGuests;
+                    $extraChildren = 0;
+                }
+
+                $extraAdultsCharge = $extraAdults * 150000;
+                $extraChildrenCharge = $extraChildren * 60000;
+                $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
+
+                // Final price with extra charges
+                $roomPrice = $roomBasePrice + $extraCharge;
                 $priceDiff = $roomPrice - $currentPrice;
 
                 // Get image - try multiple sources
@@ -208,12 +259,18 @@ class BookingController extends Controller
                 return [
                     'id' => $room->id,
                     'code' => $room->ma_phong,
-                    'name' => $room->loaiPhong->ten ?? 'Room', // Changed 'name' to 'ten'
+                    'name' => $room->loaiPhong->ten ?? 'Room',
                     'type' => $room->loaiPhong->slug ?? 'standard',
-                    'price' => $roomPrice, // Using 'price' to match frontend
+                    'price' => $roomPrice,
+                    'base_price' => $roomBasePrice,
+                    'extra_charge' => $extraCharge,
+                    'extra_adults' => $extraAdults,           // NEW: Extra adults count
+                    'extra_adults_charge' => $extraAdultsCharge, // NEW: Adult surcharge
+                    'extra_children' => $extraChildren,       // NEW: Extra children count
+                    'extra_children_charge' => $extraChildrenCharge, // NEW: Child surcharge
                     'price_difference' => $priceDiff,
                     'image' => $imagePath,
-                    'capacity' => $room->loaiPhong->so_nguoi ?? 2
+                    'capacity' => $roomCapacity
                 ];
             })
             ->values();
@@ -225,9 +282,61 @@ class BookingController extends Controller
     }
 
     /**
+     * Get available downgrade vouchers for current user
+     * Returns list of unused downgrade vouchers that can be used for room upgrades
+     * GET /account/bookings/{booking}/available-vouchers
+     */
+    public function getAvailableVouchers(Request $request, DatPhong $booking)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        // Verify ownership
+        if ($booking->nguoi_dung_id !== $user->id) {
+            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+        }
+
+        // Get all unused downgrade vouchers for this user
+        $vouchers = Voucher::where('code', 'LIKE', 'DOWNGRADE%')
+            ->whereHas('users', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+            })
+            ->where('active', true)
+            ->where('end_date', '>=', now())
+            ->whereDoesntHave('usages', function ($q) use ($user) {
+                $q->where('nguoi_dung_id', $user->id);
+            })
+            ->orderBy('value', 'desc') // Show highest value first
+            ->get()
+            ->map(function ($voucher) {
+                return [
+                    'id' => $voucher->id,
+                    'code' => $voucher->code,
+                    'value' => $voucher->value,
+                    'end_date' => $voucher->end_date->format('d/m/Y'),
+                    'note' => $voucher->note ?? "Voucher hoàn tiền đổi phòng"
+                ];
+            });
+
+        Log::info('🎫 Available vouchers fetched', [
+            'user_id' => $user->id,
+            'booking_id' => $booking->id,
+            'voucher_count' => $vouchers->count()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'vouchers' => $vouchers
+        ]);
+    }
+
+    /**
      * Process room change request
      * POST /account/bookings/{booking}/change-room
      */
+
     public function changeRoom(Request $request, DatPhong $booking)
     {
         $user = $request->user();
@@ -238,7 +347,7 @@ class BookingController extends Controller
         }
 
         // 2. Status check
-        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+        if (!in_array($booking->trang_thai, ['da_xac_nhan'])) {
             return back()->with('error', 'Không thể đổi phòng với trạng thái hiện tại.');
         }
 
@@ -283,8 +392,47 @@ class BookingController extends Controller
         $currentRoom = $currentItem->phong;
         $currentPrice = $currentItem->gia_tren_dem;
 
-        // 8. Calculate prices
-        $newPrice = $newRoom->tong_gia ?? $newRoom->gia_mac_dinh ?? 0;
+        // 8. Calculate prices with extra charges
+        // Get guest count from CURRENT ROOM ITEM (accurate from DB)
+        $guestsInRoom = $currentItem->so_nguoi_o ?? 0;
+
+        // If no so_nguoi_o (old bookings), fall back to calculation
+        if ($guestsInRoom == 0) {
+            $meta = is_array($booking->snapshot_meta)
+                ? $booking->snapshot_meta
+                : json_decode($booking->snapshot_meta, true);
+
+            $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
+            $allBookingRoomIds = $booking->datPhongItems->pluck('phong_id')->toArray();
+            $totalRoomsInBooking = count($allBookingRoomIds);
+            $guestsInRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
+        }
+
+        // CRITICAL FIX: Calculate new room price using CURRENT ROOM's guest count
+        // and maintain adult/child ratio for accurate pricing
+        $newRoomBasePrice = $newRoom->gia_cuoi_cung ?? 0;
+        $newRoomCapacity = $newRoom->suc_chua ?? ($newRoom->loaiPhong->suc_chua ?? 2);
+        $extraGuestsNew = max(0, $guestsInRoom - $newRoomCapacity);
+
+        // Use actual adult/child ratio from current room
+        $currentExtraAdults = $currentItem->number_adult ?? 0;
+        $currentExtraChildren = $currentItem->number_child ?? 0;
+        $currentTotalExtra = $currentExtraAdults + $currentExtraChildren;
+
+        if ($extraGuestsNew > 0 && $currentTotalExtra > 0) {
+            // Maintain the same adult/child ratio
+            $adultRatio = $currentExtraAdults / $currentTotalExtra;
+            $extraAdultsNew = round($extraGuestsNew * $adultRatio);
+            $extraChildrenNew = $extraGuestsNew - $extraAdultsNew;
+        } else {
+            // Fallback: all extra as adults
+            $extraAdultsNew = $extraGuestsNew;
+            $extraChildrenNew = 0;
+        }
+
+        $extraChargeNew = ($extraAdultsNew * 150000) + ($extraChildrenNew * 60000);
+        $newPrice = $newRoomBasePrice + $extraChargeNew;
+
         $checkIn = Carbon::parse($booking->ngay_nhan_phong);
         $checkOut = Carbon::parse($booking->ngay_tra_phong);
         $nights = $checkIn->diffInDays($checkOut);
@@ -298,7 +446,7 @@ class BookingController extends Controller
         $currentBookingTotal = $booking->tong_tien;  // Current total of ALL rooms
         $newBookingTotal = $currentBookingTotal - $oldRoomTotal + $newRoomTotal;  // Remove old, add new
 
-        Log::info('💰 Room change payment calculation', [
+        Log::info(' Room change payment calculation', [
             'old_room_total' => $oldRoomTotal,
             'new_room_total' => $newRoomTotal,
             'price_diff' => $priceDiff,
@@ -313,7 +461,7 @@ class BookingController extends Controller
             'new_room_id' => $newRoom->id,
             'old_price' => $currentPrice,
             'new_price' => $newPrice,
-            'price_difference' => $newPrice - $currentPrice,  // Per-night difference (not total)
+            'price_difference' => $newPrice - $currentPrice,
             'nights' => $nights,
             'changed_by_type' => 'customer',
             'changed_by_user_id' => $user->id,
@@ -329,40 +477,55 @@ class BookingController extends Controller
             $newDepositRequired = $newBookingTotal * ($depositPct / 100);
             $basePaymentNeeded = $newDepositRequired - $booking->deposit_amount;
 
-            // 🎁 CRITICAL: Check for unused downgrade vouchers to AUTO-APPLY (not reclaim!)
-            $unusedVouchers = \App\Models\Voucher::where('code', 'LIKE', 'DOWNGRADE%')
-                ->whereHas('users', function($q) use ($booking) {
-                    $q->where('user_id', $booking->nguoi_dung_id);
-                })
-                ->where('active', true)
-                ->where('end_date', '>=', now())
-                ->get();
-
+            // ===== NEW: Manual voucher selection (user chooses which vouchers to use) =====
+            $selectedVoucherIds = $request->input('voucher_ids', []); // Array of voucher IDs from user
             $voucherDiscount = 0;
             $appliedVouchers = [];
 
-            foreach ($unusedVouchers as $voucher) {
-                // Check if voucher was used
-                $isUsed = \App\Models\VoucherUsage::where('voucher_id', $voucher->id)
-                    ->where('nguoi_dung_id', $booking->nguoi_dung_id)
-                    ->exists();
+            if (!empty($selectedVoucherIds) && is_array($selectedVoucherIds)) {
+                // Validate and apply user-selected vouchers
+                $vouchers = \App\Models\Voucher::whereIn('id', $selectedVoucherIds)
+                    ->where('code', 'LIKE', 'DOWNGRADE%')
+                    ->whereHas('users', function ($q) use ($booking) {
+                        $q->where('user_id', $booking->nguoi_dung_id);
+                    })
+                    ->where('active', true)
+                    ->where('end_date', '>=', now())
+                    ->get();
 
-                if (!$isUsed) {
-                    // ✨ AUTO-APPLY voucher (not deactivate!)
-                    $voucherDiscount += $voucher->value;
-                    $appliedVouchers[] = [
-                        'id' => $voucher->id,
-                        'code' => $voucher->code,
-                        'value' => $voucher->value
-                    ];
+                foreach ($vouchers as $voucher) {
+                    // Check if voucher was already used
+                    $isUsed = \App\Models\VoucherUsage::where('voucher_id', $voucher->id)
+                        ->where('nguoi_dung_id', $booking->nguoi_dung_id)
+                        ->exists();
+
+                    if (!$isUsed) {
+                        // Apply voucher - user chose to use it
+                        $voucherDiscount += $voucher->value;
+                        $appliedVouchers[] = [
+                            'id' => $voucher->id,
+                            'code' => $voucher->code,
+                            'value' => $voucher->value
+                        ];
+
+                        Log::info('🎫 User selected voucher', [
+                            'voucher_code' => $voucher->code,
+                            'value' => $voucher->value,
+                            'booking_id' => $booking->id
+                        ]);
+                    } else {
+                        Log::warning('⚠️ User tried to use already-used voucher', [
+                            'voucher_id' => $voucher->id,
+                            'voucher_code' => $voucher->code,
+                            'booking_id' => $booking->id
+                        ]);
+                    }
                 }
             }
 
-            // Calculate final payment after applying vouchers
-            // If basePaymentNeeded is negative (overpaid), add voucher value back
-            // If basePaymentNeeded is positive (need more), subtract voucher discount
-            $finalPaymentNeeded = $basePaymentNeeded + max(0, -$basePaymentNeeded);
-            $finalPaymentNeeded = max(0, $finalPaymentNeeded - $voucherDiscount);
+            // Calculate final payment after applying selected vouchers
+            $finalPaymentNeeded = max(0, $basePaymentNeeded - $voucherDiscount);
+
 
             Log::info('📊 Upgrade payment calculation', [
                 'deposit_pct' => $depositPct,
@@ -377,7 +540,10 @@ class BookingController extends Controller
 
             // Store vouchers to apply in session
             if (count($appliedVouchers) > 0) {
-                session(['room_change_vouchers' => $appliedVouchers]);
+                session([
+                    'room_change_vouchers' => $appliedVouchers,
+                    'room_change_voucher_total' => $voucherDiscount  // Store total for callback
+                ]);
             }
 
             // Check if additional payment is actually needed
@@ -387,7 +553,8 @@ class BookingController extends Controller
                 return $this->redirectToVNPayForRoomChange($booking, $roomChange, $finalPaymentNeeded);
             } else {
                 // No payment needed - complete directly and mark vouchers as used
-                $result = $this->completeRoomChange($roomChange);
+                // Pass voucher discount to completeRoomChange
+                $result = $this->completeRoomChange($roomChange, $voucherDiscount);
 
                 // Mark vouchers as used
                 foreach ($appliedVouchers as $voucherInfo) {
@@ -398,7 +565,7 @@ class BookingController extends Controller
                         'amount' => $voucherInfo['value']
                     ]);
 
-                    Log::info('🎫 Voucher auto-applied', [
+                    Log::info(' Voucher auto-applied', [
                         'voucher_code' => $voucherInfo['code'],
                         'value' => $voucherInfo['value'],
                         'booking_id' => $booking->id
@@ -432,10 +599,9 @@ class BookingController extends Controller
                     return back()->with('error', 'Có lỗi khi cập nhật thông tin phòng.');
                 }
             }
-
         } elseif ($priceDiff < 0) {
             // DOWNGRADE - Auto refund via voucher
-            $result = $this->completeRoomChange($roomChange);
+            $result = $this->completeRoomChange($roomChange, 0);  // No voucher used for downgrade
 
             if ($result) {
                 // Calculate refund amount
@@ -463,7 +629,7 @@ class BookingController extends Controller
             }
         } else {
             // SAME PRICE - Direct update
-            $result = $this->completeRoomChange($roomChange);
+            $result = $this->completeRoomChange($roomChange, 0);  // No payment or voucher
 
             if ($result) {
                 $oldRoom = $roomChange->oldRoom;
@@ -590,8 +756,9 @@ class BookingController extends Controller
             ];
             $roomChange->save();
 
-            // Complete room change
-            $result = $this->completeRoomChange($roomChange);
+            // Complete room change - include voucher value from session
+            $voucherTotal = session('room_change_voucher_total', 0);
+            $result = $this->completeRoomChange($roomChange, $voucherTotal);
 
             // 🎫 Mark vouchers as used if any
             $appliedVouchers = session('room_change_vouchers', []);
@@ -610,7 +777,7 @@ class BookingController extends Controller
                     }
 
                     if (!$voucher->active) {
-                        Log::warning('⚠️ Voucher inactive, skipping usage record', [
+                        Log::warning(' Voucher inactive, skipping usage record', [
                             'voucher_id' => $voucher->id,
                             'voucher_code' => $voucher->code,
                             'booking_id' => $roomChange->dat_phong_id
@@ -625,7 +792,7 @@ class BookingController extends Controller
                         'amount' => $voucherInfo['value']
                     ]);
 
-                    Log::info('🎫 Voucher applied after payment', [
+                    Log::info(' Voucher applied after payment', [
                         'voucher_code' => $voucherInfo['code'],
                         'value' => $voucherInfo['value'],
                         'booking_id' => $roomChange->dat_phong_id
@@ -633,8 +800,8 @@ class BookingController extends Controller
                 }
             }
 
-            // Clear session
-            session()->forget(['room_change_id', 'room_change_vouchers']);
+            // Clear session - include voucher_total
+            session()->forget(['room_change_id', 'room_change_vouchers', 'room_change_voucher_total']);
 
             if ($result) {
                 $oldRoom = $roomChange->oldRoom;
@@ -678,8 +845,9 @@ class BookingController extends Controller
 
     /**
      * Complete room change (update booking)
+     * @param $voucherValue Amount paid via vouchers (should be added to deposit)
      */
-    private function completeRoomChange($roomChange)
+    private function completeRoomChange($roomChange, $voucherValue = 0)
     {
         try {
             DB::beginTransaction();
@@ -723,16 +891,19 @@ class BookingController extends Controller
             // Update booking totals
             $booking->tong_tien = $newBookingTotal;
             $booking->snapshot_total = $newBookingTotal;
-            $booking->deposit_amount = $booking->deposit_amount + $paymentMade;  // Add payment to existing deposit
+
+            // CRITICAL FIX: Add BOTH VNPay payment AND voucher value to deposit
+            $booking->deposit_amount = $booking->deposit_amount + $paymentMade + $voucherValue;
             $booking->save();
 
-            Log::info(' Booking totals updated after room change', [
+            Log::info('💰 Booking totals updated after room change', [
                 'old_room_total' => $oldRoomTotal,
                 'new_room_total' => $newRoomTotal,
                 'current_booking_total' => $currentBookingTotal,
                 'new_booking_total' => $newBookingTotal,
-                'old_deposit' => $booking->deposit_amount - $paymentMade,
-                'payment_made' => $paymentMade,
+                'old_deposit' => $booking->deposit_amount - $paymentMade - $voucherValue,
+                'vnpay_payment' => $paymentMade,
+                'voucher_value' => $voucherValue,
                 'new_deposit' => $booking->deposit_amount
             ]);
 
@@ -807,7 +978,7 @@ class BookingController extends Controller
             'claimed_at' => Carbon::now()
         ]);
 
-        Log::info('🎫 Refund voucher created for downgrade', [
+        Log::info(' Refund voucher created for downgrade', [
             'voucher_code' => $code,
             'amount' => $refundAmount,
             'booking_id' => $booking->id,
@@ -818,82 +989,82 @@ class BookingController extends Controller
     }
 
     public function create(Phong $phong)
-{
-    $phong->load(['loaiPhong', 'tienNghis', 'images', 'bedTypes', 'activeOverrides']);
-    $user = Auth::user();
+    {
+        $phong->load(['loaiPhong', 'tienNghis', 'images', 'bedTypes', 'activeOverrides']);
+        $user = Auth::user();
 
-    /**
-     * 1. Lấy tất cả voucher còn hiệu lực theo ngày cho user
-     */
-    $baseVouchers = $user->vouchers()
-        ->where('active', 1)
-        ->whereDate('start_date', '<=', now())
-        ->whereDate('end_date', '>=', now())
-        ->get();
+        /**
+         * 1. Lấy tất cả voucher còn hiệu lực theo ngày cho user
+         */
+        $baseVouchers = $user->vouchers()
+            ->where('active', 1)
+            ->whereDate('start_date', '<=', now())
+            ->whereDate('end_date', '>=', now())
+            ->get();
 
-    /**
-     * 2. Đếm số lần user đã dùng từng voucher trong bảng voucher_usage
-     *    và LOẠI BỎ những voucher đã dùng HẾT LƯỢT
-     *    (dùng cùng quy tắc với trang ví: nếu usage_limit_per_user null/0 thì mặc định = 1)
-     */
-    $vouchers = collect();
+        /**
+         * 2. Đếm số lần user đã dùng từng voucher trong bảng voucher_usage
+         *    và LOẠI BỎ những voucher đã dùng HẾT LƯỢT
+         *    (dùng cùng quy tắc với trang ví: nếu usage_limit_per_user null/0 thì mặc định = 1)
+         */
+        $vouchers = collect();
 
-    if ($baseVouchers->isNotEmpty()) {
-        $usageModel = new VoucherUsage();
-        $usageTable = $usageModel->getTable(); // thường là voucher_usage
+        if ($baseVouchers->isNotEmpty()) {
+            $usageModel = new VoucherUsage();
+            $usageTable = $usageModel->getTable(); // thường là voucher_usage
 
-        // Xác định cột user trong voucher_usage: nguoi_dung_id hoặc user_id
-        $userCol = Schema::hasColumn($usageTable, 'nguoi_dung_id')
-            ? 'nguoi_dung_id'
-            : (Schema::hasColumn($usageTable, 'user_id') ? 'user_id' : null);
+            // Xác định cột user trong voucher_usage: nguoi_dung_id hoặc user_id
+            $userCol = Schema::hasColumn($usageTable, 'nguoi_dung_id')
+                ? 'nguoi_dung_id'
+                : (Schema::hasColumn($usageTable, 'user_id') ? 'user_id' : null);
 
-        // Đếm số lần user này đã dùng từng voucher
-        $usageCounts = VoucherUsage::query()
-            ->when($userCol, function ($q) use ($userCol, $user) {
-                $q->where($userCol, $user->id);
-            })
-            ->whereIn('voucher_id', $baseVouchers->pluck('id'))
-            ->groupBy('voucher_id')
-            ->selectRaw('voucher_id, COUNT(*) as used_count')
-            ->pluck('used_count', 'voucher_id');
+            // Đếm số lần user này đã dùng từng voucher
+            $usageCounts = VoucherUsage::query()
+                ->when($userCol, function ($q) use ($userCol, $user) {
+                    $q->where($userCol, $user->id);
+                })
+                ->whereIn('voucher_id', $baseVouchers->pluck('id'))
+                ->groupBy('voucher_id')
+                ->selectRaw('voucher_id, COUNT(*) as used_count')
+                ->pluck('used_count', 'voucher_id');
 
-        // Chỉ giữ voucher CÒN LƯỢT (used < limitPerUser)
-        $vouchers = $baseVouchers->filter(function ($voucher) use ($usageCounts) {
-            $used = (int) ($usageCounts[$voucher->id] ?? 0);
+            // Chỉ giữ voucher CÒN LƯỢT (used < limitPerUser)
+            $vouchers = $baseVouchers->filter(function ($voucher) use ($usageCounts) {
+                $used = (int) ($usageCounts[$voucher->id] ?? 0);
 
-            // Nếu usage_limit_per_user null/0 => xem như 1 lượt (giống trang ví)
-            $limitPerUser = (int) ($voucher->usage_limit_per_user ?: 1);
+                // Nếu usage_limit_per_user null/0 => xem như 1 lượt (giống trang ví)
+                $limitPerUser = (int) ($voucher->usage_limit_per_user ?: 1);
 
-            return $used < $limitPerUser;
-        })->values();
+                return $used < $limitPerUser;
+            })->values();
+        }
+
+        // ===== PHẦN CÒN LẠI GIỮ NGUYÊN NHƯ CŨ =====
+
+        $typeAmenityIds = $phong->loaiPhong ? $phong->loaiPhong->tienNghis->pluck('id')->toArray() : [];
+        $roomAmenityIds = $phong->tienNghis ? $phong->tienNghis->pluck('id')->toArray() : [];
+        $allAmenityIds = array_values(array_unique(array_merge($typeAmenityIds, $roomAmenityIds)));
+
+        $availableAddons = \App\Models\TienNghi::where('active', true)
+            ->when(!empty($allAmenityIds), function ($q) use ($allAmenityIds) {
+                $q->whereNotIn('id', $allAmenityIds);
+            })->orderBy('ten')->get();
+
+        $fromDefault = Carbon::today();
+        $toDefault   = Carbon::tomorrow();
+
+        $availableRoomsDefault = $this->computeAvailableRoomsCount(
+            $phong->loai_phong_id,
+            $fromDefault,
+            $toDefault,
+            $phong->spec_signature_hash ?? $phong->specSignatureHash()
+        );
+
+        return view(
+            'account.booking.create',
+            compact('vouchers', 'phong', 'user', 'availableAddons', 'availableRoomsDefault', 'fromDefault', 'toDefault')
+        );
     }
-
-    // ===== PHẦN CÒN LẠI GIỮ NGUYÊN NHƯ CŨ =====
-
-    $typeAmenityIds = $phong->loaiPhong ? $phong->loaiPhong->tienNghis->pluck('id')->toArray() : [];
-    $roomAmenityIds = $phong->tienNghis ? $phong->tienNghis->pluck('id')->toArray() : [];
-    $allAmenityIds = array_values(array_unique(array_merge($typeAmenityIds, $roomAmenityIds)));
-
-    $availableAddons = \App\Models\TienNghi::where('active', true)
-        ->when(!empty($allAmenityIds), function ($q) use ($allAmenityIds) {
-            $q->whereNotIn('id', $allAmenityIds);
-        })->orderBy('ten')->get();
-
-    $fromDefault = Carbon::today();
-    $toDefault   = Carbon::tomorrow();
-
-    $availableRoomsDefault = $this->computeAvailableRoomsCount(
-        $phong->loai_phong_id,
-        $fromDefault,
-        $toDefault,
-        $phong->spec_signature_hash ?? $phong->specSignatureHash()
-    );
-
-    return view(
-        'account.booking.create',
-        compact('vouchers', 'phong', 'user', 'availableAddons', 'availableRoomsDefault', 'fromDefault', 'toDefault')
-    );
-}
 
 
 
@@ -1014,7 +1185,40 @@ class BookingController extends Controller
             }
         }
 
-        $occupiedSpecificIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
+        // ----  consider dat_phong with blocks_checkin = true on the requested start date ----
+        $requestedStartDate = $requestedStart->toDateString();
+        $blockedSpecificIds = [];
+        $blockedAggregateCount = 0;
+
+        if (Schema::hasTable('dat_phong') && Schema::hasTable('dat_phong_item')) {
+            $blockedQuery = DB::table('dat_phong')
+                ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                ->whereDate('dat_phong.ngay_tra_phong', $requestedStartDate)
+                ->where('dat_phong.blocks_checkin', true)
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->where('dat_phong_item.loai_phong_id', $loaiPhongId);
+
+            // specific phong_id rows from blocked bookings
+            if (Schema::hasColumn('dat_phong_item', 'phong_id')) {
+                $blockedSpecificIds = $blockedQuery
+                    ->whereNotNull('dat_phong_item.phong_id')
+                    ->pluck('dat_phong_item.phong_id')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+            }
+
+            // aggregate rows (no phong_id) -> count them into blockedAggregateCount
+            $blockedAggQuery = (clone $blockedQuery)->whereNull('dat_phong_item.phong_id');
+            if (Schema::hasColumn('dat_phong_item', 'so_luong')) {
+                $blockedAggregateCount = (int) $blockedAggQuery->sum('dat_phong_item.so_luong');
+            } else {
+                $blockedAggregateCount = (int) $blockedAggQuery->count();
+            }
+        }
+
+        // merge all specific occupied ids (booked, held, blocked due to late checkout)
+        $occupiedSpecificIds = array_unique(array_merge($bookedRoomIds, $heldRoomIds, $blockedSpecificIds));
         $matchingAvailableIds = array_values(array_diff($matchingRoomIds, $occupiedSpecificIds));
         $matchingAvailableCount = count($matchingAvailableIds);
 
@@ -1034,6 +1238,8 @@ class BookingController extends Controller
                 $aggregateBooked = (int) $q->count();
             }
         }
+
+        $aggregateBooked += $blockedAggregateCount;
 
         // 5) Aggregate holds (giu_phong rows without phong_id) that overlap the same dat_phong interval and match signature when available
         $aggregateHoldsForSignature = 0;
@@ -1142,7 +1348,43 @@ class BookingController extends Controller
             }
         }
 
-        $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds));
+        // ---- blocked by late-checkout bookings that have blocks_checkin = true on requested start date ----
+        $requestedStartDate = $requestedStart->toDateString();
+        $blockedSpecificIds = [];
+        $blockedAggregateCount = 0;
+
+        if (Schema::hasTable('dat_phong') && Schema::hasTable('dat_phong_item')) {
+            $blockedQuery = DB::table('dat_phong')
+                ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                ->whereDate('dat_phong.ngay_tra_phong', $requestedStartDate)
+                ->where('dat_phong.blocks_checkin', true)
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->where('dat_phong_item.loai_phong_id', $loaiPhongId);
+
+            if (Schema::hasColumn('dat_phong_item', 'phong_id')) {
+                $blockedSpecificIds = $blockedQuery
+                    ->whereNotNull('dat_phong_item.phong_id')
+                    ->pluck('dat_phong_item.phong_id')
+                    ->filter()
+                    ->unique()
+                    ->toArray();
+            }
+
+            $blockedAggQuery = (clone $blockedQuery)->whereNull('dat_phong_item.phong_id');
+            if (Schema::hasColumn('dat_phong_item', 'so_luong')) {
+                $blockedAggregateCount = (int) $blockedAggQuery->sum('dat_phong_item.so_luong');
+            } else {
+                $blockedAggregateCount = (int) $blockedAggQuery->count();
+            }
+        }
+
+        // combine exclusions
+        $excluded = array_unique(array_merge($bookedRoomIds, $heldRoomIds, $blockedSpecificIds));
+
+        $adjustedLimit = max(0, (int)$limit - (int)$blockedAggregateCount);
+        if ($adjustedLimit <= 0) {
+            return [];
+        }
 
         $query = Phong::where('loai_phong_id', $loaiPhongId)
             ->where('spec_signature_hash', $requiredSignature)
@@ -1151,7 +1393,7 @@ class BookingController extends Controller
                 $q->whereNotIn('id', $excluded);
             })
             ->lockForUpdate()
-            ->limit((int)$limit);
+            ->limit($adjustedLimit);
 
         $rows = $query->get(['id']);
 
@@ -1197,17 +1439,6 @@ class BookingController extends Controller
             'voucher_id' => 'nullable|integer',
             'voucher_discount' => 'nullable|numeric|min:0',
         ]);
-
-        // Support both 50% and 100% deposit
-        $depositPercentage = $request->input('deposit_percentage', 50);
-        if (!in_array($depositPercentage, [50, 100])) {
-            return back()->withErrors(['deposit_percentage' => 'Deposit phải là 50% hoặc 100%']);
-        }
-
-        $expectedDeposit = $validated['tong_tien'] * ($depositPercentage / 100);
-        if (abs($validated['deposit_amount'] - $expectedDeposit) > 1000) {
-            return back()->withErrors(['deposit_amount' => "Deposit không hợp lệ (phải là {$depositPercentage}% tổng tiền)"]);
-        }
 
         Log::debug('Booking: validation passed');
 
@@ -1301,14 +1532,29 @@ class BookingController extends Controller
         $voucherId = $request->input('voucher_id');
         $voucherDiscount = (float) $request->input('voucher_discount', 0);
 
+        // CRITICAL: Apply voucher discount to the total amount
+        // This ensures tong_tien reflects the final price after discount
+        $finalTotalAfterVoucher = $snapshotTotalServer - $voucherDiscount;
+        $finalTotalAfterVoucher = max(0, $finalTotalAfterVoucher); // Ensure non-negative
+
+        // Validate deposit AFTER calculating final total with voucher
+        $depositPercentage = $request->input('deposit_percentage', 50);
+        if (!in_array($depositPercentage, [50, 100])) {
+            return back()->withErrors(['deposit_percentage' => 'Deposit phải là 50% hoặc 100%']);
+        }
+
+        $expectedDeposit = $finalTotalAfterVoucher * ($depositPercentage / 100);
+        if (abs($validated['deposit_amount'] - $expectedDeposit) > 1000) {
+            return back()->withErrors(['deposit_amount' => "Deposit không hợp lệ (phải là {$depositPercentage}% tổng tiền sau giảm giá)"]);
+        }
 
         // Áp dụng giảm giá theo hạng thành viên
         // $memberDiscountAmount = 0;
         // if ($user && $user->member_level) {
         //     $memberDiscountPercent = $user->getMemberDiscountPercent();
         //     if ($memberDiscountPercent > 0) {
-        //         $memberDiscountAmount = ($snapshotTotalServer * $memberDiscountPercent / 100);
-        //         $snapshotTotalServer = $snapshotTotalServer - $memberDiscountAmount;
+        //         $memberDiscountAmount = ($finalTotalAfterVoucher * $memberDiscountPercent / 100);
+        //         $finalTotalAfterVoucher = $finalTotalAfterVoucher - $memberDiscountAmount;
         //     }
         // }
 
@@ -1322,8 +1568,8 @@ class BookingController extends Controller
             'ngay_tra_phong' => $to->toDateString(),
             'so_khach' => ($adultsInput + $childrenInput),
             'trang_thai' => 'dang_cho',
-            'tong_tien' => $snapshotTotalServer,
-            'snapshot_total' => $snapshotTotalServer,
+            'tong_tien' => $finalTotalAfterVoucher, // Use final price after voucher discount
+            'snapshot_total' => $snapshotTotalServer, // Keep original price for reference
             'ghi_chu' => $request->input('ghi_chu', null),
             'phuong_thuc' => $request->input('phuong_thuc'),
             'created_at' => now(),
@@ -1371,7 +1617,7 @@ class BookingController extends Controller
 
         try {
             $datPhongId = null;
-            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $nights, $request, $user) {
+            DB::transaction(function () use ($phong, $from, $to, $roomsCount, &$datPhongId, $payload, $selectedAddons, $finalPerNightServer, $snapshotTotalServer, $finalTotalAfterVoucher, $nights, $request, $user) {
 
                 if (Schema::hasTable('loai_phong')) {
                     DB::table('loai_phong')->where('id', $phong->loai_phong_id)->lockForUpdate()->first();
@@ -1390,7 +1636,7 @@ class BookingController extends Controller
                 }
                 $allowedPayload['deposit_amount'] = $request->deposit_amount;
                 $allowedPayload['trang_thai'] = 'dang_cho'; // Fixed: 'deposited' is not valid, use 'dang_cho'
-                $allowedPayload['tong_tien'] = $snapshotTotalServer;
+                $allowedPayload['tong_tien'] = $finalTotalAfterVoucher; // Use final price after voucher discount
                 // if (Schema::hasColumn('dat_phong', 'member_discount_amount')) {
                 //     $allowedPayload['member_discount_amount'] = $memberDiscountAmount;
                 // }
@@ -1409,6 +1655,11 @@ class BookingController extends Controller
                                 'created_at' => now(),
                                 'updated_at' => now(),
                             ];
+
+                            // Add amount field if column exists
+                            if (Schema::hasColumn($usageTable, 'amount')) {
+                                $usageData['amount'] = $voucherDiscount; // The voucher discount amount
+                            }
 
                             // gắn user cho usage nếu có cột
                             $userLocal = $request->user();
@@ -1634,12 +1885,16 @@ class BookingController extends Controller
                     'phone' => $request->input('phone'),
                     'ghi_chu' => $request->input('ghi_chu'),
                     'amount' => $request->input('deposit_amount'),
-                    'total_amount' => $request->input('tong_tien'),
+                    'total_amount' => $finalTotalAfterVoucher, // CRITICAL FIX: Use discounted total, not raw input
                     'deposit_percentage' => $request->input('deposit_percentage', 50),
                     'phuong_thuc' => $phuongThuc,
                     'final_per_night' => $request->input('final_per_night'),
                     'snapshot_total' => $request->input('snapshot_total'),
                     'dat_phong_id' => $datPhongId,
+                    // Voucher data - ensures both MoMo and VNPay receive voucher information
+                    'voucher_id' => $request->input('voucher_id'),
+                    'voucher_discount' => $request->input('voucher_discount'),
+                    'ma_voucher' => $request->input('ma_voucher'),
                 ];
 
                 $routeName = $phuongThuc === 'momo' ? 'payment.momo.initiate' : 'payment.vnpay.initiate';
@@ -1779,7 +2034,6 @@ class BookingController extends Controller
         ]);
     }
 
-
     private function calculateNights($from, $to)
     {
         return Carbon::parse($from)->diffInDays(Carbon::parse($to));
@@ -1848,10 +2102,9 @@ class BookingController extends Controller
             if (!empty($voucher->usage_limit_per_user) && $userId) {
                 if (class_exists(VoucherUsage::class)) {
                     $usageModel = new VoucherUsage();
-                    $table = $usageModel->getTable(); // -> voucher_usage
+                    $table = $usageModel->getTable();
 
                     if (Schema::hasTable($table)) {
-                        // cột user là nguoi_dung_id (theo hình bạn gửi)
                         $userCol = Schema::hasColumn($table, 'nguoi_dung_id')
                             ? 'nguoi_dung_id'
                             : (Schema::hasColumn($table, 'user_id') ? 'user_id' : null);
@@ -1993,7 +2246,7 @@ class BookingController extends Controller
             // Vouchers represent overpayment that will be returned, so effective payment is less
             $unusedVoucherValue = 0;
             $unusedVouchers = \App\Models\Voucher::where('code', 'LIKE', 'DOWNGRADE%')
-                ->whereHas('users', function($q) use ($booking) {
+                ->whereHas('users', function ($q) use ($booking) {
                     $q->where('user_id', $booking->nguoi_dung_id);
                 })
                 ->where('active', true)
@@ -2022,7 +2275,7 @@ class BookingController extends Controller
             // This handles room changes where user upgraded and paid more
             $depositType = ($actualDepositPct >= 95) ? 100 : $originalDepositPct;
 
-            Log::info('💵 Refund calculation - deposit type determination', [
+            Log::info('Refund calculation - deposit type determination', [
                 'booking_id' => $booking->id,
                 'original_deposit_pct' => $originalDepositPct,
                 'current_total' => $currentTotal,
@@ -2047,9 +2300,9 @@ class BookingController extends Controller
 
             // Find downgrade vouchers for this booking
             $roomChangeVouchers = \App\Models\Voucher::where('code', 'LIKE', 'DOWNGRADE%')
-                ->where(function($query) use ($booking) {
+                ->where(function ($query) use ($booking) {
                     // Find vouchers that belong to this user AND are related to this booking's room changes
-                    $query->whereHas('users', function($q) use ($booking) {
+                    $query->whereHas('users', function ($q) use ($booking) {
                         $q->where('user_id', $booking->nguoi_dung_id);
                     });
                 })
