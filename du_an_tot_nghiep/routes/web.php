@@ -75,6 +75,7 @@ Route::post('/booking/apply-voucher', [BookingController::class, 'applyVoucher']
 // ==================== ROOM COMPARISON ====================
 Route::get('/compare', [RoomController::class, 'compare'])->name('rooms.compare');
 Route::get('/api/rooms/compare-data', [RoomController::class, 'getCompareData'])->name('rooms.compare-data');
+Route::get('/api/room-types/{id}/quick-view', [RoomController::class, 'getRoomTypeQuickView'])->name('room-types.quick-view');
 
 // ==================== ADMIN ====================
 Route::prefix('admin')
@@ -348,7 +349,19 @@ Route::middleware('auth')
 
         // Room change callback (outside auth middleware to accept VNPay callback)
         Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
+ 
+    });
 
+// ==================== ROOM CHANGE CALLBACK (outside auth for VNPay) ====================
+// VNPay callback for room change - must be outside auth middleware
+Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])
+    ->name('booking.change-room.callback');
+
+// ==================== ACCOUNT (continued after callback route) ====================  
+Route::middleware('auth')
+    ->prefix('account')
+    ->name('account.')
+    ->group(function () {
 
         // Danh sách đặt phòng
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');

@@ -365,4 +365,72 @@ class RoomController extends Controller
 
         return response()->json($rooms);
     }
+
+    /**
+     * Get room type quick view data for room change modal
+     * GET /api/room-types/{id}/quick-view
+     */
+    public function getRoomTypeQuickView($id)
+    {
+        $loaiPhong = LoaiPhong::with(['tienNghis'])->findOrFail($id);
+        
+        // Get a sample room of this type to show additional details
+        $sampleRoom = Phong::where('loai_phong_id', $id)
+            ->with(['images', 'bedTypes'])
+            ->first();
+        
+        // Prepare bed types data
+        $bedTypes = [];
+        if ($sampleRoom && $sampleRoom->relationLoaded('bedTypes') && $sampleRoom->bedTypes->count()) {
+            foreach ($sampleRoom->bedTypes as $bt) {
+                $qty = (int)($bt->pivot->quantity ?? 0);
+                if ($qty > 0) {
+                    $bedTypes[] = [
+                        'name' => $bt->name ?? ($bt->title ?? 'Bed'),
+                        'quantity' => $qty,
+                        'capacity' => $bt->capacity ?? null,
+                        'icon' => $bt->icon ?? null,
+                    ];
+                }
+            }
+        }
+        
+        // Prepare images from sample room only (LoaiPhong doesn't have images)
+        $images = [];
+        if ($sampleRoom && $sampleRoom->relationLoaded('images') && $sampleRoom->images->count()) {
+            $images = $sampleRoom->images->map(function ($img) {
+                return [
+                    'url' => $img->image_url ?? asset('storage/' . $img->image_path),
+                    'alt' => $img->alt_text ?? 'Room image'
+                ];
+            })->toArray();
+        }
+        
+        // Prepare amenities
+        $amenities = [];
+        if ($loaiPhong->relationLoaded('tienNghis')) {
+            $amenities = $loaiPhong->tienNghis->map(function ($tn) {
+                return [
+                    'name' => $tn->ten,
+                    'icon' => $tn->icon ?? 'bi-check-circle'
+                ];
+            })->toArray();
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $loaiPhong->id,
+                'name' => $loaiPhong->ten,
+                'slug' => $loaiPhong->slug,
+                'capacity' => $loaiPhong->suc_chua ?? 2,
+                'area' => $loaiPhong->dien_tich ?? null,
+                'description' => $loaiPhong->mo_ta ?? '',
+                'base_price' => $loaiPhong->gia_mac_dinh ?? 0,
+                'images' => $images,
+                'amenities' => $amenities,
+                'bed_types' => $bedTypes,
+            ]
+        ]);
+    }
 }
