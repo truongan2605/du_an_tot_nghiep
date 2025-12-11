@@ -74,8 +74,10 @@
     $oldRoomPrice = (float)$item->gia_tren_dem * $soDem;
 
     // PHỤ THU CŨ
-    $extraFee = (float)$item->tong_item - $oldRoomPrice;
-    if ($extraFee < 0) $extraFee = 0;
+$adultExtra = (int)$item->number_adult;
+$childExtra = (int)$item->number_child;
+$extraFee = ($adultExtra * 150000) + ($childExtra * 60000);
+if ($extraFee < 0) $extraFee = 0;
 
     // CHIA VOUCHER THEO SỐ PHÒNG
     $roomCount = $booking->items->count() ?: 1;
@@ -114,7 +116,7 @@
                 <div class="room-type-section">
 
                     <div class="room-type-title">
-                        {{ optional(\App\Models\LoaiPhong::find($typeId))->name ?? 'Không xác định' }}
+                        {{ optional(\App\Models\LoaiPhong::find($typeId))->ten ?? 'Không xác định' }}
                     </div>
 
                     <div class="rooms-slider">
