@@ -123,12 +123,10 @@ if ($extraFee < 0) $extraFee = 0;
 
                         @foreach($roomsOfType as $room)
 
-                            @php
-                                $newRoomPrice = (float)$room->tong_gia * $soDem;
-                                $totalNew = $newRoomPrice + $extraFee;
-                                $finalNew = max(0, $totalNew - $voucherItem);
-                                $diff = $finalNew - $payableOld;
-                            @endphp
+                          @php
+    $newRoomPrice = (float)$room->tong_gia * $soDem;
+    $diff = $newRoomPrice - $oldRoomPrice;
+@endphp
 
                             <div class="room-card" id="room-{{ $room->id }}"
                                  onclick="selectRoom({{ $room->id }})">
@@ -258,10 +256,17 @@ function selectRoom(roomId) {
     document.getElementById('confirm-btn').disabled = false;
 
     fetch("{{ route('admin.change-room.calculate', $item->id) }}?room_id=" + roomId)
-        .then(res => res.json())
-        .then(data => {
+    .then(res => res.json())
+    .then(data => {
+        
+        // ← THÊM DEBUG Ở ĐÂY
+        console.log('=== API DATA ===', data);
+        console.log('bookingOriginal:', {{ $booking->tong_tien }});
+        console.log('diff:', data.total_diff);
+        console.log('result:', {{ $booking->tong_tien }} + Number(data.total_diff));
 
-            document.getElementById('new-room-summary').style.display = 'block';
+        document.getElementById('new-room-summary').style.display = 'block';
+        // ... code cũ tiếp tục
 
             document.getElementById('new-room-name').textContent = data.room_name;
             document.getElementById('new-room-total').textContent = data.new_total_format;
