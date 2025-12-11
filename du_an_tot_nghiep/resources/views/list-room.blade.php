@@ -63,6 +63,71 @@
                             <input type="text" class="form-control flatpickr mb-3" data-mode="range"
                                 placeholder="Chọn ngày" name="date_range" value="{{ request('date_range') }}">
 
+                            {{-- Guests (giống giao diện home) --}}
+                            <h6>Khách</h6>
+                            <div class="mb-3 position-relative">
+                                <div id="guestSelectorSidebar" class="guest-selector-box w-100">
+                                    <i class="bi bi-people me-2"></i>
+                                    <span id="guestSummarySidebar">
+                                        {{ request('adults', 1) }} Người lớn,
+                                        {{ request('children', 0) }} Trẻ em
+                                    </span>
+                                    <i class="bi bi-chevron-down ms-auto"></i>
+                                </div>
+                                <small class="text-muted small d-block mt-1">Mỗi phòng tối đa 2 trẻ em.</small>
+
+                                <div id="guestPopupSidebar" class="guest-popup shadow">
+                                    <div class="guest-row">
+                                        <div class="guest-info">
+                                            <i class="bi bi-person icon"></i>
+                                            <div>
+                                                <div class="fw-bold">Người lớn</div>
+                                                <small class="text-muted">Từ 13 tuổi</small>
+                                            </div>
+                                        </div>
+                                        <div class="guest-control">
+                                            <button type="button" class="btn-minus" data-target="adultsSidebar">−</button>
+                                            <span id="adultsCountSidebar">{{ request('adults', 1) }}</span>
+                                            <button type="button" class="btn-plus" data-target="adultsSidebar">+</button>
+                                        </div>
+                                    </div>
+
+                                    <div class="guest-row">
+                                        <div class="guest-info">
+                                            <i class="bi bi-emoji-smile icon"></i>
+                                            <div>
+                                                <div class="fw-bold">Trẻ em</div>
+                                                <small class="text-muted">Dưới 13 tuổi</small>
+                                            </div>
+                                        </div>
+                                        <div class="guest-control">
+                                            <button type="button" class="btn-minus" data-target="childrenSidebar">−</button>
+                                            <span id="childrenCountSidebar">{{ request('children', 0) }}</span>
+                                            <button type="button" class="btn-plus" data-target="childrenSidebar">+</button>
+                                        </div>
+                                    </div>
+
+                                    <button type="button" id="guestPopupSidebarDone"
+                                            class="btn btn-primary w-100 mt-3 rounded-pill">
+                                        Xong
+                                    </button>
+                                </div>
+
+                                {{-- Hidden fields --}}
+                                <input type="hidden" name="adults" id="adultsInputSidebar"
+                                       value="{{ request('adults', 1) }}">
+                                <input type="hidden" name="children" id="childrenInputSidebar"
+                                       value="{{ request('children', 0) }}">
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small mb-1">Số phòng</label>
+                                <input type="number" name="rooms_count" id="filter_rooms_count"
+                                       class="form-control form-control-sm" min="1"
+                                       value="{{ request('rooms_count', 1) }}">
+                            </div>
+
+                            {{-- Giá --}}
                             <h6>Giá (VNĐ)</h6>
                             @if ($weekendSearch)
                                 <small class="text-muted d-block mb-2">
@@ -151,6 +216,16 @@
                                 if ($weekendSearch) {
                                     $displayPrice = ceil($displayPrice * 1.1); // làm tròn lên cho chắc
                                 }
+
+                                // Sức chứa cơ bản của loại phòng (tùy vào cấu trúc DB, dùng field nào có)
+                                $baseCapacity =
+                                    $phong->suc_chua_toi_da
+                                        ?? $phong->so_nguoi_toi_da
+                                        ?? $phong->so_nguoi
+                                        ?? ($loaiPhong->so_nguoi_toi_da ?? $loaiPhong->so_nguoi ?? 0);
+
+                                // Logic dự án: mỗi loại phòng tối đa thêm 2 người
+                                $maxCapacityAdults = $baseCapacity ? $baseCapacity + 2 : null;
                             @endphp
 
                             <div class="col-12">
@@ -234,6 +309,16 @@
                                                     @endif
                                                 </p>
 
+                                                {{-- Sức chứa tối đa --}}
+                                                @if ($maxCapacityAdults)
+                                                    <p class="text-muted mb-2">
+                                                        <i class="bi bi-people me-1"></i>
+                                                        Sức chứa tối đa: {{ $maxCapacityAdults }} người
+                                                        (người lớn + trẻ em từ 7 tuổi trở lên)
+                                                        và thêm tối đa 2 trẻ em dưới 7 tuổi.
+                                                    </p>
+                                                @endif
+
                                                 {{-- Tiện nghi --}}
                                                 <div class="small text-muted mb-2">
                                                     @if ($phong->tienNghis && $phong->tienNghis->count())
@@ -270,7 +355,7 @@
 
                                                     <div class="d-flex gap-2">
                                                         {{-- Compare Button --}}
-                                                        <button type="button" 
+                                                        <button type="button"
                                                                 class="btn btn-outline-primary rounded-pill px-3 py-2 compare-btn"
                                                                 data-room-id="{{ $phong->id }}"
                                                                 data-room-name="{{ $loaiPhong->ten ?? $phong->name }}"
@@ -280,9 +365,17 @@
                                                             <i class="bi bi-plus-circle me-1"></i>
                                                             <span class="compare-text">So sánh</span>
                                                         </button>
-                                                        
-                                                        {{-- Select Room Button --}}
-                                                        <a href="{{ route('rooms.show', $phong->id) }}"
+
+                                                        {{-- Select Room Button: giữ lại tham số tìm kiếm --}}
+                                                        @php
+                                                            $searchParams = http_build_query(request()->only([
+                                                                'date_range',
+                                                                'adults',
+                                                                'children',
+                                                                'rooms_count',
+                                                            ]));
+                                                        @endphp
+                                                        <a href="{{ route('rooms.show', $phong->id) }}@if($searchParams)?{{ $searchParams }}@endif"
                                                             class="btn btn-dark rounded-pill px-4 py-2">
                                                             Chọn phòng
                                                         </a>
@@ -341,39 +434,131 @@
 
         <script>
             document.addEventListener('DOMContentLoaded', function() {
+                // Price slider
                 var priceSlider = document.getElementById('price-slider');
                 var minInput = document.getElementById('gia_min');
                 var maxInput = document.getElementById('gia_max');
                 var minLabel = document.getElementById('min-price');
                 var maxLabel = document.getElementById('max-price');
 
-                var minVal = parseInt(minInput.value || '{{ $giaMin }}', 10);
-                var maxVal = parseInt(maxInput.value || '{{ $giaMax }}', 10);
+                if (priceSlider && minInput && maxInput && minLabel && maxLabel) {
+                    var minVal = parseInt(minInput.value || '{{ $giaMin }}', 10);
+                    var maxVal = parseInt(maxInput.value || '{{ $giaMax }}', 10);
 
-                noUiSlider.create(priceSlider, {
-                    start: [minVal, maxVal],
-                    connect: true,
-                    range: {
-                        'min': {{ (int) $giaMin }},
-                        'max': {{ (int) $giaMax }}
-                    },
-                    step: 50000,
-                    format: {
-                        to: value => Math.round(value),
-                        from: value => Math.round(value)
-                    }
-                });
+                    noUiSlider.create(priceSlider, {
+                        start: [minVal, maxVal],
+                        connect: true,
+                        range: {
+                            'min': {{ (int) $giaMin }},
+                            'max': {{ (int) $giaMax }}
+                        },
+                        step: 50000,
+                        format: {
+                            to: value => Math.round(value),
+                            from: value => Math.round(value)
+                        }
+                    });
 
-                priceSlider.noUiSlider.on('update', function(values) {
-                    var vMin = values[0];
-                    var vMax = values[1];
+                    priceSlider.noUiSlider.on('update', function(values) {
+                        var vMin = values[0];
+                        var vMax = values[1];
 
-                    minInput.value = vMin;
-                    maxInput.value = vMax;
+                        minInput.value = vMin;
+                        maxInput.value = vMax;
 
-                    minLabel.textContent = new Intl.NumberFormat('vi-VN').format(vMin) + 'đ';
-                    maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(vMax) + 'đ';
-                });
+                        minLabel.textContent = new Intl.NumberFormat('vi-VN').format(vMin) + 'đ';
+                        maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(vMax) + 'đ';
+                    });
+                }
+
+                // Guest popup logic (sidebar, giống home nhưng chỉ Người lớn / Trẻ em)
+                const popup = document.getElementById("guestPopupSidebar");
+                const btn = document.getElementById("guestSelectorSidebar");
+
+                const adults = document.getElementById("adultsCountSidebar");
+                const children = document.getElementById("childrenCountSidebar");
+
+                const inputAdults = document.getElementById("adultsInputSidebar");
+                const inputChildren = document.getElementById("childrenInputSidebar");
+
+                const summary = document.getElementById("guestSummarySidebar");
+                const roomsInput = document.getElementById("filter_rooms_count");
+
+                function getMaxChildren() {
+                    let rooms = parseInt(roomsInput ? roomsInput.value : 1, 10);
+                    if (isNaN(rooms) || rooms < 1) rooms = 1;
+                    return rooms * 2;
+                }
+
+                if (roomsInput) {
+                    roomsInput.addEventListener('input', function () {
+                        const maxChildren = getMaxChildren();
+                        let currentChildren = parseInt(children.textContent || '0', 10);
+                        if (currentChildren > maxChildren) {
+                            children.textContent = maxChildren;
+                        }
+                    });
+                }
+
+                if (popup && btn && adults && children && inputAdults && inputChildren && summary) {
+                    // Toggle popup
+                    btn.addEventListener("click", () => {
+                        popup.style.display = popup.style.display === "block" ? "none" : "block";
+                    });
+
+                    const updateText = () => {
+                        summary.textContent =
+                            `${adults.textContent} Người lớn, ${children.textContent} Trẻ em`;
+                    };
+
+                    // chỉ bắt các nút trong popup
+                    popup.querySelectorAll(".btn-plus").forEach(button => {
+                        button.addEventListener("click", () => {
+                            const target = button.dataset.target;
+
+                            if (target === 'adultsSidebar') {
+                                adults.textContent = parseInt(adults.textContent || '0', 10) + 1;
+                            } else if (target === 'childrenSidebar') {
+                                const current = parseInt(children.textContent || '0', 10);
+                                const maxChildren = getMaxChildren();
+                                if (current >= maxChildren) {
+                                    alert("Mỗi phòng tối đa 2 trẻ em.");
+                                    return;
+                                }
+                                children.textContent = current + 1;
+                            }
+                        });
+                    });
+
+                    popup.querySelectorAll(".btn-minus").forEach(button => {
+                        button.addEventListener("click", () => {
+                            const target = button.dataset.target;
+
+                            if (target === 'adultsSidebar') {
+                                let val = parseInt(adults.textContent || '0', 10);
+                                if (val > 1) adults.textContent = val - 1; // ít nhất 1 người lớn
+                            } else if (target === 'childrenSidebar') {
+                                let val = parseInt(children.textContent || '0', 10);
+                                if (val > 0) children.textContent = val - 1;
+                            }
+                        });
+                    });
+
+                    document.getElementById("guestPopupSidebarDone").addEventListener("click", () => {
+                        inputAdults.value = adults.textContent;
+                        inputChildren.value = children.textContent;
+
+                        updateText();
+                        popup.style.display = "none";
+                    });
+
+                    // Click ngoài để đóng
+                    document.addEventListener("click", (e) => {
+                        if (!popup.contains(e.target) && !btn.contains(e.target)) {
+                            popup.style.display = "none";
+                        }
+                    });
+                }
             });
         </script>
 
@@ -383,23 +568,20 @@
                 const MAX_COMPARE = 4;
                 const STORAGE_KEY = 'compareRooms';
 
-                // Get compared rooms from localStorage
                 function getComparedRooms() {
                     const stored = localStorage.getItem(STORAGE_KEY);
                     return stored ? JSON.parse(stored) : [];
                 }
 
-                // Save compared rooms to localStorage
                 function saveComparedRooms(rooms) {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
                 }
 
-                // Update compare bar visibility and count
                 function updateCompareBar() {
                     const rooms = getComparedRooms();
                     const compareBar = document.getElementById('compareBar');
                     const compareCount = document.getElementById('compareCount');
-                    
+
                     if (rooms.length > 0) {
                         compareBar.style.display = 'block';
                         compareCount.textContent = rooms.length;
@@ -407,11 +589,10 @@
                         compareBar.style.display = 'none';
                     }
 
-                    // Update all compare buttons state
                     document.querySelectorAll('.compare-btn').forEach(btn => {
                         const roomId = parseInt(btn.dataset.roomId);
                         const isCompared = rooms.some(r => r.id === roomId);
-                        
+
                         if (isCompared) {
                             btn.classList.remove('btn-outline-primary');
                             btn.classList.add('btn-success');
@@ -428,40 +609,36 @@
                     });
                 }
 
-                // Add/Remove room from compare
                 document.querySelectorAll('.compare-btn').forEach(btn => {
                     btn.addEventListener('click', function() {
                         const roomId = parseInt(this.dataset.roomId);
                         let rooms = getComparedRooms();
-                        
+
                         const existingIndex = rooms.findIndex(r => r.id === roomId);
-                        
+
                         if (existingIndex !== -1) {
-                            // Remove from compare
                             rooms.splice(existingIndex, 1);
                             saveComparedRooms(rooms);
                             updateCompareBar();
                         } else {
-                            // Add to compare
                             if (rooms.length >= MAX_COMPARE) {
                                 alert(`Bạn chỉ có thể so sánh tối đa ${MAX_COMPARE} phòng cùng lúc!`);
                                 return;
                             }
-                            
+
                             rooms.push({
                                 id: roomId,
                                 name: this.dataset.roomName,
                                 price: parseFloat(this.dataset.roomPrice),
                                 image: this.dataset.roomImage
                             });
-                            
+
                             saveComparedRooms(rooms);
                             updateCompareBar();
                         }
                     });
                 });
 
-                // Clear all comparisons
                 document.getElementById('clearCompare').addEventListener('click', function() {
                     if (confirm('Bạn có chắc muốn xóa tất cả phòng đã chọn?')) {
                         localStorage.removeItem(STORAGE_KEY);
@@ -469,7 +646,6 @@
                     }
                 });
 
-                // Initial update
                 updateCompareBar();
             });
         </script>
@@ -479,6 +655,81 @@
 
 @push('styles')
     <style>
+        /* Popup chọn khách (dùng chung với home) */
+        .guest-selector-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #dadce0;
+            background: #fff;
+            padding: 10px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .guest-selector-box:hover {
+            border-color: #5E3EFF;
+        }
+
+        .guest-popup {
+            position: absolute;
+            top: 110%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            display: none;
+            z-index: 50;
+        }
+
+        .guest-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .guest-row:last-child {
+            border-bottom: none;
+        }
+
+        .guest-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .guest-info .icon {
+            font-size: 22px;
+            color: #5E3EFF;
+        }
+
+        .guest-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-minus,
+        .btn-plus {
+            width: 28px;
+            height: 28px;
+            background: #f2f2f2;
+            border: none;
+            border-radius: 50%;
+            font-size: 18px;
+            line-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-minus:hover,
+        .btn-plus:hover {
+            background: #e0e0e0;
+        }
+
         /* Tùy chỉnh thanh trượt giá */
         .noUi-target,
         .noUi-target * {
@@ -645,11 +896,11 @@
                 flex-direction: column;
                 gap: 0.5rem;
             }
-            
+
             .compare-bar .gap-2 {
                 width: 100%;
             }
-            
+
             .compare-bar .btn {
                 width: 100%;
             }
