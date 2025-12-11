@@ -11,118 +11,148 @@ use App\Models\GiuPhong;
 
 class AdminChangeRoomController extends Controller
 {
-    // ======================================
-    // FORM HIỂN THỊ DANH SÁCH PHÒNG TRỐNG
-    // ======================================
-    public function form($id)
-    {
-        $item = DatPhongItem::findOrFail($id);
-        $booking = $item->datPhong;
+    // ============================
+    // FORM — DANH SÁCH PHÒNG TRỐNG
+    // ============================
+  public function form($id)
+{
+    $item = DatPhongItem::findOrFail($id);
+    $booking = $item->datPhong;
 
-        $checkIn  = $booking->ngay_nhan_phong;
-        $checkOut = $booking->ngay_tra_phong;
+    $checkIn  = $booking->ngay_nhan_phong;
+    $checkOut = $booking->ngay_tra_phong;
 
-        if (!$checkIn || !$checkOut) {
-            return back()->with('error', 'Booking thiếu ngày nhận/trả.');
-        }
-
-        // Lọc phòng trống
-        $availableRooms = Phong::whereDoesntHave('giuPhong', function($q) use ($checkIn, $checkOut) {
-            $q->where('released', false)
-              ->where('created_at', '<', $checkOut)
-              ->where('het_han_luc', '>', $checkIn);
-        })->get();
-
-        return view('admin.dat-phong.change-room', [
-            'item' => $item,
-            'booking' => $booking,
-            'availableRooms' => $availableRooms
-        ]);
+    if (!$checkIn || !$checkOut) {
+        return back()->with('error', 'Booking thiếu ngày nhận/trả.');
     }
 
+    // Lọc phòng trống
+    $availableRooms = Phong::whereDoesntHave('giuPhong', function($q) use ($checkIn, $checkOut) {
+        $q->where('released', false)
+          ->where('created_at', '<', $checkOut)
+          ->where('het_han_luc', '>', $checkIn);
+    })->get();
 
-    // ======================================
-    // AJAX TÍNH GIÁ (KHÔNG TRỪ VOUCHER LẦN 2)
-    // ======================================
-    public function calculate(Request $request, $id)
-    {
-        $item = DatPhongItem::findOrFail($id);
-        $booking = $item->datPhong;
-        $room = Phong::findOrFail($request->room_id);
+    // 👉 GROUP ROOM THEO LOẠI PHÒNG
+    $groupedRooms = $availableRooms->groupBy('loai_phong_id');
 
-        $soDem = (int)$item->so_dem;
+    return view('admin.dat-phong.change-room', [
+        'item' => $item,
+        'booking' => $booking,
+        'availableRooms' => $availableRooms,
+        'groupedRooms' => $groupedRooms, // 👈 TRUYỀN XUỐNG BLADE
+    ]);
+}
 
-        // Tổng giá cũ và mới
-        $oldTotal = $item->gia_tren_dem * $soDem;
-        $newTotal = $room->tong_gia * $soDem;
 
-        // Voucher chỉ HIỂN THỊ – KHÔNG tác động vào diff
-        $voucher = (float) ($booking->voucher_discount ?? 0);
 
-        // Chênh lệch đúng (không trừ voucher)
-        $diff = $newTotal - $oldTotal;
+    // ============================
+    // AJAX TÍNH GIÁ KHI CLICK PHÒNG
+    // ============================
+public function calculate(Request $request, $id)
+{
+    $item = DatPhongItem::findOrFail($id);
+    $booking = $item->datPhong;
+    $room = Phong::findOrFail($request->room_id);
 
-        // Tổng booking mới = tổng hiện tại + chênh lệch
-        $bookingNew = $booking->tong_tien + $diff;
+    $soDem = $item->so_dem;
 
-        return response()->json([
-            'room_name' => $room->name,
-            'new_total_format' => number_format($newTotal).'đ',
-            'old_total_format' => number_format($oldTotal).'đ',
-            'voucher_amount_format' => number_format($voucher).'đ',
-            'total_diff_format' => number_format($diff).'đ',
-            'total_diff' => $diff,
-            'booking_new_total_format' => number_format($bookingNew).'đ',
-        ]);
+    // Giá cũ & mới
+    $oldRoomPrice = $item->gia_tren_dem * $soDem;
+    $newRoomPrice = $room->tong_gia * $soDem;
+
+    // Voucher chia đều mỗi phòng (DÙNG discount_amount — tiền)
+    $voucherItem = 0.0;
+    $roomCount = $booking->items->count() ?: 1;
+    // Prioritize discount_amount (tiền). If not, fallback to voucher_discount if it's also a fixed amount in your system.
+    if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
+        $voucherItem = (float) $booking->discount_amount / $roomCount;
+    } elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
+        // fallback (in case your DB sometimes stores money in voucher_discount)
+        $voucherItem = (float) $booking->voucher_discount / $roomCount;
     }
 
+    // Phụ thu: lấy từ item.tong_item - oldRoomPrice (giữ nguyên)
+    $extraFee = (float)$item->tong_item - $oldRoomPrice;
+    if ($extraFee < 0) $extraFee = 0.0;
 
-    // ======================================
-    // XỬ LÝ ĐỔI PHÒNG (KHÔNG TRỪ VOUCHER LẦN 2)
-    // ======================================
+    // Tổng giá trước/sau voucher
+    $payableOld = max(0, ($oldRoomPrice + $extraFee) - $voucherItem);
+    $payableNew = max(0, ($newRoomPrice + $extraFee) - $voucherItem);
+
+    $diff = $payableNew - $payableOld;
+    $bookingNewTotal = $booking->tong_tien + $diff;
+
+    return response()->json([
+        'room_name' => $room->name,
+        'new_total_format' => number_format($newRoomPrice + $extraFee).'đ',
+        'payable_old_format' => number_format($payableOld).'đ',
+        'payable_new_format' => number_format($payableNew).'đ',
+        // numeric voucher (số) và format (chuỗi) — JS sẽ dùng numeric để tính
+        'voucher_amount' => $voucherItem,
+        'voucher_amount_format' => number_format($voucherItem).'đ',
+        'diff_format' => number_format($diff).'đ',
+        'total_diff' => $diff,
+        'booking_new_total_after_voucher_format' => number_format($bookingNewTotal).'đ',
+    ]);
+}
+
+
+
+    // ============================
+    // ÁP DỤNG ĐỔI PHÒNG
+    // ============================
     public function change(Request $request, $id)
     {
         $item = DatPhongItem::findOrFail($id);
         $booking = $item->datPhong;
-        $newRoom = Phong::findOrFail($request->new_room_id);
+        $room = Phong::findOrFail($request->new_room_id);
 
-        $soDem = (int)$item->so_dem;
+        $soDem = $item->so_dem;
 
-        // Giá cũ & mới
-        $oldTotal = $item->gia_tren_dem * $soDem;
-        $newTotal = $newRoom->tong_gia * $soDem;
+        // Giá phòng mới
+        $newRoomPrice = $room->tong_gia * $soDem;
 
-        // Voucher chỉ để hiển thị — không dùng tính toán
-        $voucher = (float) ($booking->voucher_discount ?? 0);
+        // Tính phụ thu mới
+        $totalAdult = $item->number_adult;
+        $totalChild = $item->number_child;
+        $capacity   = $room->suc_chua;
 
-        // Chênh lệch chuẩn
-        $diff = $newTotal - $oldTotal;
+        $overAdult = max(0, $totalAdult - $capacity);
+        $overChild = 0;
+        if ($overAdult == 0) {
+            $remain = $capacity - $totalAdult;
+            $overChild = max(0, $totalChild - $remain);
+        }
 
-        // Cập nhật tổng booking
-        $booking->tong_tien = $booking->tong_tien + $diff;
+        $extraFee = $overAdult * 150000 + $overChild * 50000;
+
+        // Voucher chia đều
+        $voucherItem = 0;
+        $roomCount = $booking->items->count();
+        if ($roomCount > 0 && $booking->discount_amount > 0) {
+            $voucherItem = $booking->discount_amount / $roomCount;
+        }
+
+        // Tổng mới
+        $payableNew = max(0, ($newRoomPrice + $extraFee) - $voucherItem);
+
+        // Tổng cũ
+        $oldRoomPrice = $item->gia_tren_dem * $soDem;
+        $payableOld = max(0, ($oldRoomPrice + $extraFee) - $voucherItem);
+
+        $diff = $payableNew - $payableOld;
+
+        // Update tổng booking
+        $booking->tong_tien += $diff;
         $booking->save();
 
-        // Cập nhật item
-        $oldRoomID = $item->phong_id;
-
-        $item->phong_id = $newRoom->id;
-        $item->loai_phong_id = $newRoom->loai_phong_id;
-        $item->gia_tren_dem = $newRoom->tong_gia;
-        $item->tong_item = $newTotal;
+        // Lưu phòng
+        $item->phong_id = $room->id;
+        $item->loai_phong_id = $room->loai_phong_id;
+        $item->gia_tren_dem = $room->tong_gia;
+        $item->tong_item = $newRoomPrice + $extraFee;
         $item->save();
-
-        // Cập nhật giữ phòng
-        GiuPhong::where('dat_phong_id', $booking->id)
-                ->where('phong_id', $oldRoomID)
-                ->delete();
-
-        GiuPhong::create([
-            'dat_phong_id' => $booking->id,
-            'phong_id' => $newRoom->id,
-            'so_luong' => $item->so_luong,
-            'het_han_luc' => $booking->ngay_tra_phong,
-            'released' => false
-        ]);
 
         return back()->with('success', 'Đổi phòng thành công!');
     }
