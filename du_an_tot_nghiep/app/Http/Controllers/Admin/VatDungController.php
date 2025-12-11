@@ -43,7 +43,7 @@ class VatDungController extends Controller
             'ten' => 'required|string|max:255',
             'mo_ta' => 'nullable|string',
             'gia' => 'nullable|numeric|min:0',
-            'loai' => 'required|in:do_an,do_dung',
+            'loai' => 'required|in:do_an,do_dung,dich_vu_khac',
             'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'active' => 'nullable|boolean',
         ]);
@@ -53,6 +53,11 @@ class VatDungController extends Controller
         $data['gia'] = $request->filled('gia') ? (float)$request->gia : ($data['gia'] ?? 0);
 
         $data['tracked_instances'] = ($data['loai'] === VatDung::LOAI_DO_DUNG);
+        
+        // Dịch vụ khác không cần tracked instances
+        if ($data['loai'] === VatDung::LOAI_DICH_VU_KHAC) {
+            $data['tracked_instances'] = false;
+        }
 
         $data['active'] = $request->boolean('active', true);
 
@@ -88,11 +93,16 @@ class VatDungController extends Controller
             'gia' => $request->gia ? str_replace('.', '', $request->gia) : null
         ]);
 
+        // Không cho phép thay đổi loại nếu là dich_vu_khac
+        if ($vatDung->loai === VatDung::LOAI_DICH_VU_KHAC) {
+            $request->merge(['loai' => VatDung::LOAI_DICH_VU_KHAC]);
+        }
+
         $request->validate([
             'ten' => 'required|string|max:255',
             'mo_ta' => 'nullable|string',
             'gia' => 'nullable|numeric|min:0',
-            'loai' => 'required|in:do_an,do_dung',
+            'loai' => 'required|in:do_an,do_dung,dich_vu_khac',
             'icon' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:2048',
             'active' => 'nullable|boolean',
         ]);
@@ -207,6 +217,13 @@ class VatDungController extends Controller
 
     public function destroy(VatDung $vatDung)
     {
+        // Không cho phép xóa dịch vụ khác từ đây, phải xóa từ Quản lý dịch vụ
+        if ($vatDung->loai === VatDung::LOAI_DICH_VU_KHAC) {
+            return redirect()->back()->withErrors([
+                'error' => 'Không thể xóa dịch vụ này từ đây. Vui lòng xóa từ phần "Quản lý dịch vụ" để đồng bộ dữ liệu.'
+            ]);
+        }
+
         DB::beginTransaction();
         try {
             if ($vatDung->loai === VatDung::LOAI_DO_DUNG) {
