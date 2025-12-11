@@ -26,6 +26,10 @@ class BookingController extends Controller
     // Hệ số tăng giá cuối tuần (T6, T7, CN)
     public const WEEKEND_MULTIPLIER = 1.10;
 
+    // Số khách thêm tối đa cho mỗi phòng (có phụ thu)
+    // Sức chứa tối đa = suc_chua + MAX_EXTRA_GUESTS_PER_ROOM
+    public const MAX_EXTRA_GUESTS_PER_ROOM = 2;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -254,10 +258,24 @@ class BookingController extends Controller
         $weekendNights = $meta['weekend_nights'] ?? 0;
         $weekdayNights = max(0, $nights - $weekendNights);
 
+        // Log capacity filter info
+        Log::info('🚪 Room change capacity filter', [
+            'booking_id' => $booking->id,
+            'guests_in_current_room' => $guestsInCurrentRoom,
+            'available_room_ids_before_filter' => count($availableRoomIds),
+        ]);
+
         // Load room details
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
+            // CAPACITY FIX: Filter out rooms with MAX capacity less than current guests
+            // MAX capacity = base capacity + MAX_EXTRA_GUESTS_PER_ROOM
+            ->filter(function ($room) use ($guestsInCurrentRoom) {
+                $baseCapacity = $room->suc_chua ?? ($room->loaiPhong->suc_chua ?? 2);
+                $maxCapacity = $baseCapacity + self::MAX_EXTRA_GUESTS_PER_ROOM;
+                return $maxCapacity >= $guestsInCurrentRoom;  // Only show rooms that can fit all guests (with extra surcharge)
+            })
             ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem, $nights, $weekendNights, $weekdayNights, $inheritedVoucher) {
                 // Get base price from ROOM's final price (not total or type default)
                 $roomBasePrice = $room->gia_cuoi_cung ?? 0;
@@ -452,6 +470,36 @@ class BookingController extends Controller
         if ($changeCount >= 2) {
             return back()->with('error', 'Đã đạt giới hạn đổi phòng (tối đa 2 lần).');
         }
+
+        // 6.5. CAPACITY VALIDATION: Check new room can fit all guests
+        $guestsInRoom = $currentItem->so_nguoi_o ?? 0;
+        
+        // Fallback for old bookings without so_nguoi_o
+        if ($guestsInRoom == 0) {
+            $meta = is_array($booking->snapshot_meta)
+                ? $booking->snapshot_meta
+                : json_decode($booking->snapshot_meta, true);
+            $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
+            $totalRoomsInBooking = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+            $guestsInRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
+        }
+        
+        // MAX capacity = base capacity + MAX_EXTRA_GUESTS_PER_ROOM (same as booking form and getAvailableRooms filter)
+        $baseCapacity = $newRoom->suc_chua ?? ($newRoom->loaiPhong->suc_chua ?? 2);
+        $maxCapacity = $baseCapacity + self::MAX_EXTRA_GUESTS_PER_ROOM;
+        
+        if ($maxCapacity < $guestsInRoom) {
+            Log::warning('🚫 Room change blocked - insufficient capacity', [
+                'booking_id' => $booking->id,
+                'new_room_id' => $newRoom->id,
+                'base_capacity' => $baseCapacity,
+                'max_capacity' => $maxCapacity,
+                'guests_in_room' => $guestsInRoom,
+            ]);
+            $extraLabel = self::MAX_EXTRA_GUESTS_PER_ROOM;
+            return back()->with('error', "Phòng mới chỉ chứa tối đa {$maxCapacity} người (cơ bản {$baseCapacity} + {$extraLabel} thêm), không đủ cho {$guestsInRoom} khách đang đặt.");
+        }
+
 
         // 7. Get current room info (already have $currentItem from step 5)
         $currentRoom = $currentItem->phong;
