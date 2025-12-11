@@ -988,31 +988,25 @@ public function handleMoMoIPN(Request $request)
 
                 $nights = $meta_item['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
                 
+                // Calculate price per night from discounted total (same as VNPay)
+                // This ensures voucher discount is distributed across all rooms
+                $price_per_night = $meta_item['final_per_night']
+                    ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+                
                 // Calculate guests for THIS room
                 $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
                 $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
                 $guestsInRoom = $adultsInRoom + $childrenInRoom;
                 
-                // Get room and its base price (SAME AS VNPAY)
+                // Get room capacity for guest tracking
                 $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
                 $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
-                $basePrice = $phong ? ($phong->gia_cuoi_cung ?? 0) : 0;
                 
-                // Adults fill capacity FIRST (no surcharge)
-                // Children overflow to extra slots (with surcharge)
+                // Calculate extra guests beyond capacity (for tracking only)
                 $adultsInCapacity = min($adultsInRoom, $capacity);
                 $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
-                
-                // Calculate extra guests beyond capacity
                 $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
                 $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
-                
-                $extraAdultsCharge = $extraAdultsThisRoom * self::ADULT_PRICE;
-                $extraChildrenCharge = $extraChildrenThisRoom * self::CHILD_PRICE;
-                $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
-                
-                // Final price = base + surcharge (NO VOUCHER - voucher applied at booking level)
-                $price_per_night = $basePrice + $extraCharge;
 
                 $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
 
@@ -1023,9 +1017,9 @@ public function handleMoMoIPN(Request $request)
                     'so_dem' => $nights,
                     'so_luong' => $giu_phong->so_luong ?? 1,
                     'so_nguoi_o' => $guestsInRoom,
-                    'number_child' => $extraChildrenThisRoom,   // Extra children with surcharge
-                    'number_adult' => $extraAdultsThisRoom,      // Extra adults with surcharge
-                    'gia_tren_dem' => $price_per_night,          // Base price + surcharge (no voucher)
+                    'number_child' => $extraChildrenThisRoom,   // Extra children count
+                    'number_adult' => $extraAdultsThisRoom,      // Extra adults count
+                    'gia_tren_dem' => $price_per_night,          // Discounted price (includes voucher)
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
                     'spec_signature_hash' => $specSignatureHash,
                 ];
@@ -1131,7 +1125,15 @@ public function handleMoMoIPN(Request $request)
             ]);
         }
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $snapshotMeta = $dat_phong->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use (
@@ -1551,7 +1553,15 @@ public function handleMoMoIPN(Request $request)
         }
 
         // Kiểm tra CCCD trước khi thanh toán
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $snapshotMeta = $booking->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $cccdList = $meta['checkin_cccd_list'] ?? [];
         $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
 

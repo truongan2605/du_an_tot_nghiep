@@ -42,23 +42,30 @@ class SendPaymentNotification implements ShouldQueue
         // Broadcast notification to customer
         broadcast(new NotificationCreated($customerNotification));
 
-        // Send email to customer
+        // Cập nhật trạng thái thông báo in-app
+        $customerNotification->update([
+            'trang_thai' => 'sent',
+            'so_lan_thu' => 1,
+            'lan_thu_cuoi' => now(),
+        ]);
+
+        // Gửi email về Gmail (gửi trực tiếp, đồng bộ)
         try {
             $user = User::find($booking->nguoi_dung_id);
             if ($user && $user->email) {
                 Mail::to($user->email)->send(new ThongBaoEmail($customerNotification));
-                $customerNotification->update([
-                    'trang_thai' => 'sent',
-                    'so_lan_thu' => 1,
-                    'lan_thu_cuoi' => now(),
+                \Illuminate\Support\Facades\Log::info('Payment notification email sent to customer', [
+                    'user_id' => $user->id,
+                    'booking_id' => $booking->id,
                 ]);
             }
         } catch (\Throwable $e) {
-            $customerNotification->update([
-                'trang_thai' => 'failed',
-                'so_lan_thu' => 1,
-                'lan_thu_cuoi' => now(),
+            \Illuminate\Support\Facades\Log::warning('Failed to send payment notification email to customer', [
+                'user_id' => $user?->id,
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
             ]);
+            // Không cập nhật trạng thái thành 'failed' vì thông báo in-app đã thành công
         }
 
         // Notification for accounting staff/manager
@@ -87,22 +94,29 @@ class SendPaymentNotification implements ShouldQueue
             // Broadcast notification to staff
             broadcast(new NotificationCreated($staffNotification));
 
-            // Send email to staff
+            // Cập nhật trạng thái thông báo in-app
+            $staffNotification->update([
+                'trang_thai' => 'sent',
+                'so_lan_thu' => 1,
+                'lan_thu_cuoi' => now(),
+            ]);
+
+            // Gửi email về Gmail (gửi trực tiếp, đồng bộ)
             try {
                 if ($staff->email) {
                     Mail::to($staff->email)->send(new ThongBaoEmail($staffNotification));
-                    $staffNotification->update([
-                        'trang_thai' => 'sent',
-                        'so_lan_thu' => 1,
-                        'lan_thu_cuoi' => now(),
+                    \Illuminate\Support\Facades\Log::info('Payment notification email sent to staff', [
+                        'staff_id' => $staff->id,
+                        'booking_id' => $booking->id,
                     ]);
                 }
             } catch (\Throwable $e) {
-                $staffNotification->update([
-                    'trang_thai' => 'failed',
-                    'so_lan_thu' => 1,
-                    'lan_thu_cuoi' => now(),
+                \Illuminate\Support\Facades\Log::warning('Failed to send payment notification email to staff', [
+                    'staff_id' => $staff->id,
+                    'booking_id' => $booking->id,
+                    'error' => $e->getMessage(),
                 ]);
+                // Không cập nhật trạng thái thành 'failed' vì thông báo in-app đã thành công
             }
         }
     }

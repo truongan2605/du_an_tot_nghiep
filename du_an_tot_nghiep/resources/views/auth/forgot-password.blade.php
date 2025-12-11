@@ -25,7 +25,10 @@
                                             alt="logo">
                                     </a>
                                     <h1 class="mb-2 h3">Quên mật khẩu?</h1>
-                                    <p class="mb-sm-0">Nhập địa chỉ email liên kết với tài khoản của bạn.</p>
+                                    <p class="mb-sm-0">
+                                        Nhập địa chỉ email liên kết với tài khoản của bạn. 
+                                        Chúng tôi sẽ gửi <strong>mã xác thực 6 số</strong> để đặt lại mật khẩu.
+                                    </p>
 
                                     @if (session('status'))
                                         <div class="alert alert-success">
@@ -52,8 +55,18 @@
                                         </div>
 
                                         <!-- Button -->
-                                        <div class="d-grid"><button type="submit" class="btn btn-primary">Đặt lại
-                                                mật khẩu</button></div>
+                                        <div class="d-grid">
+                                            <button type="submit" class="btn btn-primary">
+                                                Gửi mã xác thực
+                                            </button>
+                                        </div>
+
+                                        <div class="mt-3 text-center">
+                                            <small>
+                                                Đã có mã? 
+                                                <a href="{{ route('password.otp.form') }}">Nhập mã để đặt lại mật khẩu</a>
+                                            </small>
+                                        </div>
 
                                     </form>
                                     <!-- Form END -->

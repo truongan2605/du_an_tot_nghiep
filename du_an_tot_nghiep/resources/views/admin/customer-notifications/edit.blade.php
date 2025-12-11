@@ -79,7 +79,6 @@
                                                     <i class="fas fa-bell me-1"></i>In-app
                                                     @break
                                             @endswitch
-                                            {{ ucfirst($channel) }}
                                         </option>
                                     @endforeach
                                 </select>

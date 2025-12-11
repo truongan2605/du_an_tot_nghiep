@@ -20,10 +20,10 @@
     <!-- Stats Cards -->
     <div class="row mb-4">
         @php
-            $totalCount = $notifications->total();
-            $sentCount = $notifications->where('trang_thai', 'sent')->count();
-            $pendingCount = $notifications->where('trang_thai', 'pending')->count();
-            $failedCount = $notifications->where('trang_thai', 'failed')->count();
+            $totalCount = $stats['total'] ?? $notifications->total();
+            $sentCount = $stats['sent'] ?? 0;
+            $pendingCount = $stats['pending'] ?? 0;
+            $failedCount = $stats['failed'] ?? 0;
         @endphp
         
         <div class="col-md-3">
