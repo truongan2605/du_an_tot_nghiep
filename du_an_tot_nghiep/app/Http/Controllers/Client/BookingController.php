@@ -716,10 +716,10 @@ class BookingController extends Controller
             $result = $this->completeRoomChange($roomChange, 0);  // No voucher used for downgrade
 
             if ($result) {
-                // Calculate refund amount
+                // Calculate refund amount (with rounding to avoid decimal issues)
                 $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
-                $newDepositRequired = $newBookingTotal * ($depositPct / 100);
-                $refundAmount = $booking->deposit_amount - $newDepositRequired;
+                $newDepositRequired = round($newBookingTotal * ($depositPct / 100));
+                $refundAmount = round($booking->deposit_amount - $newDepositRequired);
 
                 // Create voucher for refund
                 $voucher = $this->createRefundVoucher($booking, $refundAmount, $roomChange);

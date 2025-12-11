@@ -2258,20 +2258,30 @@
                 }
                 
                 const nights = {{ $meta['nights'] ?? 1 }};
-                const oldRoomTotal = currentRoomPrice * nights;  // This room only
-                const newRoomTotal = selectedRoomPrice * nights;  // New room only
-                const priceDiff = newRoomTotal - oldRoomTotal;
                 
-                // CRITICAL: Calculate FULL BOOKING total (for multi-room support)
-                const currentBookingTotal = {{ $booking->tong_tien }};  // All rooms
-                const newBookingTotal = currentBookingTotal - oldRoomTotal + newRoomTotal;
+                // Find selected room data from allAvailableRooms (contains API data)
+                const roomData = allAvailableRooms.find(r => r.id == selectedRoomId) || {};
                 
-                console.log('💰 Payment calculation:', {
-                    oldRoomTotal,
-                    newRoomTotal,
+                // CRITICAL FIX: Use price_difference from API (server-side calculated)
+                // This ensures consistency with updatePriceSummary() display
+                const priceDiffPerNight = roomData.price_difference ?? (selectedRoomPrice - currentRoomPrice);
+                const priceDiff = Math.round(priceDiffPerNight * nights);  // Total difference
+                
+                // Use same formula as updatePriceSummary() to ensure consistency
+                const newBookingTotal = Math.round(oldTotal + priceDiff);
+                const currentBookingTotal = oldTotal;
+                
+                // For display purposes
+                const oldRoomTotal = Math.round(currentRoomPrice * nights);
+                const newRoomTotal = Math.round(selectedRoomPrice * nights);
+                
+                console.log('💰 Payment calculation (consistent with preview):', {
+                    priceDiffPerNight,
                     priceDiff,
-                    currentBookingTotal,
-                    newBookingTotal
+                    oldTotal,
+                    newBookingTotal,
+                    currentRoomPrice,
+                    selectedRoomPrice
                 });
                 
                 // Get selected room info
@@ -2522,8 +2532,9 @@
                 const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
                 const voucherDiscount = {{ $booking->voucher_discount ?? 0 }};  // Voucher được giữ lại
                 
-                const newDepositRequired = newBookingTotal * (depositPct / 100);
-                const refundAmount = currentDeposit - newDepositRequired;
+                // CRITICAL FIX: Use Math.round() to avoid decimal issues (e.g., 904.999,5đ)
+                const newDepositRequired = Math.round(newBookingTotal * (depositPct / 100));
+                const refundAmount = Math.round(currentDeposit - newDepositRequired);
                 
                 Swal.fire({
                     icon: 'success',
