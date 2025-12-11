@@ -37,7 +37,7 @@
             <div class="mb-3">
                 <label>Giá mặc định (VND / night)</label>
                 <input type="text" id="gia_mac_dinh" name="gia_mac_dinh" class="form-control"
-                    value="{{ number_format(old('gia_mac_dinh', $loaiphong->gia_mac_dinh), 0, ',', '.') }}"
+                    value="{{ old('gia_mac_dinh') ?? number_format($loaiphong->gia_mac_dinh ?? 0, 0, ',', '.') }}"
                     oninput="formatMoney(this)">
             </div>
 
@@ -48,40 +48,54 @@
                 <div class="form-text">Sẽ được cập nhật tự động nếu bạn thay đổi cấu hình giường bên dưới.</div>
             </div>
 
-            {{-- Tiện nghi --}}
+            {{-- Dịch vụ & Tiện nghi - GIÁ RIÊNG CHO LOẠI PHÒNG --}}
             <div class="mb-3">
-                <label class="form-label">Dịch vụ</label>
-                <div class="card">
-                    <div class="card-body" style="max-height:260px; overflow-y:auto;">
-                        @php
-                            $selectedTienNghi = old(
-                                'tien_nghi_ids',
-                                isset($loaiphong) ? $loaiphong->tienNghis->pluck('id')->toArray() : [],
-                            );
-                        @endphp
-
+                <label class="form-label fw-bold text-primary">Dịch vụ & Tiện nghi</label>
+                <div class="card border shadow-sm">
+                    <div class="card-body" style="max-height: 380px; overflow-y: auto;">
                         @if ($tienNghis->count() > 0)
                             <div class="row">
                                 @foreach ($tienNghis as $tn)
-                                    <div class="col-md-6 mb-2">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="tien_nghi_ids[]"
-                                                id="tn{{ $tn->id }}" value="{{ $tn->id }}"
-                                                {{ in_array($tn->id, (array) $selectedTienNghi) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="tn{{ $tn->id }}">
-                                                <strong>{{ $tn->ten }}</strong>
-                                                @if (isset($tn->gia))
-                                                    <small
-                                                        class="text-muted ms-2">({{ number_format($tn->gia, 0, ',', '.') }}
-                                                        đ)</small>
-                                                @endif
-                                            </label>
+                                    @php
+                                        $checked = $loaiphong->tienNghis->contains($tn->id);
+                                        $pivotPrice =
+                                            $loaiphong->tienNghis->where('id', $tn->id)->first()?->pivot?->price ??
+                                            null;
+                                        $oldPrice = old("tien_nghi_prices.{$tn->id}", $pivotPrice);
+                                    @endphp
+
+                                    <div class="col-md-6 mb-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="form-check me-3">
+                                                <input class="form-check-input" type="checkbox" name="tien_nghi_ids[]"
+                                                    value="{{ $tn->id }}" id="tn{{ $tn->id }}"
+                                                    {{ $checked ? 'checked' : '' }}>
+                                                <label class="form-check-label fw-bold" for="tn{{ $tn->id }}">
+                                                    {{ $tn->ten }}
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div class="row ms-4">
+                                            <div class="col-5">
+                                                <small class="text-muted d-block">Giá mặc định:</small>
+                                                <strong class="text-success">{{ number_format($tn->gia, 0, ',', '.') }}
+                                                    ₫</strong>
+                                            </div>
+                                            <div class="col-7">
+                                                <input type="text" name="tien_nghi_prices[{{ $tn->id }}]"
+                                                    class="form-control form-control-sm"
+                                                    placeholder="Giá riêng (trống = dùng mặc định)"
+                                                    value="{{ $oldPrice ? number_format($oldPrice, 0, ',', '.') : '' }}"
+                                                    oninput="formatMoney(this)">
+                                                <small class="text-muted">Để trống = dùng giá mặc định</small>
+                                            </div>
                                         </div>
                                     </div>
                                 @endforeach
                             </div>
                         @else
-                            <p class="text-muted mb-0">Chưa có dịch vụ nào.</p>
+                            <p class="text-muted mb-0">Chưa có dịch vụ nào được kích hoạt.</p>
                         @endif
                     </div>
                 </div>

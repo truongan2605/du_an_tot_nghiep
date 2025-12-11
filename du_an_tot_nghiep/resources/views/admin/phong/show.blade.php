@@ -223,10 +223,26 @@
                                     @if ($tienNghiLoaiPhong->count())
                                         <ul class="list-unstyled mb-0">
                                             @foreach ($tienNghiLoaiPhong as $tn)
+                                                @php
+                                                    $giaHienThi = $tn->pivot->price ?? ($tn->gia ?? 0);
+                                                    $coGiaRieng =
+                                                        $tn->pivot->price !== null && $tn->pivot->price != $tn->gia;
+                                                @endphp
                                                 <li>
-                                                    ✔ {{ $tn->ten }}
+                                                    {{ $tn->ten }}
                                                     <small class="text-muted"> —
-                                                        {{ number_format($tn->gia ?? 0, 0, ',', '.') }} đ</small>
+                                                        @if ($coGiaRieng)
+                                                            <del>{{ number_format($tn->gia, 0, ',', '.') }} đ</del>
+                                                            <span class="text-success fw-bold">
+                                                                → {{ number_format($giaHienThi, 0, ',', '.') }} đ
+                                                            </span>
+                                                            <span class="badge bg-success text-white ms-1">giá riêng</span>
+                                                        @else
+                                                            <span
+                                                                class="text-success">{{ number_format($giaHienThi, 0, ',', '.') }}
+                                                                đ</span>
+                                                        @endif
+                                                    </small>
                                                 </li>
                                             @endforeach
                                         </ul>

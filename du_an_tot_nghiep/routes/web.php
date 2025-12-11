@@ -94,7 +94,9 @@ Route::prefix('admin')
         Route::get('/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
         Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])->name('loai_phong.disable');
         Route::post('loai-phong/{id}/enable', [LoaiPhongController::class, 'enable'])->name('loai_phong.enable');
-        Route::resource('loai_phong', LoaiPhongController::class);
+        Route::resource('loai_phong', LoaiPhongController::class)
+        ->parameters(['loai_phong' => 'loaiphong']);
+
 
         // Rooms
         Route::resource('phong', PhongController::class);
