@@ -837,6 +837,10 @@ public function handleMoMoCallback(Request $request)
 
                 $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
 
+                // Calculate voucher amount allocated to THIS room (evenly distributed)
+                $totalVoucherDiscount = $dat_phong->voucher_discount ?? 0;
+                $voucherAllocated = $roomsCount > 0 ? ($totalVoucherDiscount / $roomsCount) : 0;
+
                 $itemPayload = [
                     'dat_phong_id' => $dat_phong->id,
                     'phong_id' => $giu_phong->phong_id ?? null,
@@ -848,6 +852,7 @@ public function handleMoMoCallback(Request $request)
                     'number_adult' => $extraAdultsThisRoom,      // Extra adults count
                     'gia_tren_dem' => $price_per_night,          // Discounted price (includes voucher)
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                    'voucher_allocated' => $voucherAllocated,    // NEW: Voucher discount for this room
                     'spec_signature_hash' => $specSignatureHash,
                 ];
 
@@ -1010,6 +1015,10 @@ public function handleMoMoIPN(Request $request)
 
                 $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
 
+                // Calculate voucher amount allocated to THIS room (evenly distributed)
+                $totalVoucherDiscount = $dat_phong->voucher_discount ?? 0;
+                $voucherAllocated = $roomsCount > 0 ? ($totalVoucherDiscount / $roomsCount) : 0;
+
                 $itemPayload = [
                     'dat_phong_id' => $dat_phong->id,
                     'phong_id' => $giu_phong->phong_id ?? null,
@@ -1021,6 +1030,7 @@ public function handleMoMoIPN(Request $request)
                     'number_adult' => $extraAdultsThisRoom,      // Extra adults count
                     'gia_tren_dem' => $price_per_night,          // Discounted price (includes voucher)
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                    'voucher_allocated' => $voucherAllocated,    // NEW: Voucher discount for this room
                     'spec_signature_hash' => $specSignatureHash,
                 ];
 
@@ -1214,6 +1224,10 @@ public function handleMoMoIPN(Request $request)
 
                     $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
 
+                    // Calculate voucher amount allocated to THIS room (evenly distributed)
+                    $totalVoucherDiscount = $dat_phong->voucher_discount ?? 0;
+                    $voucherAllocated = $roomsCount > 0 ? ($totalVoucherDiscount / $roomsCount) : 0;
+
                     $itemPayload = [
                         'dat_phong_id'       => $dat_phong->id,
                         'phong_id'           => $giu_phong->phong_id ?? null,
@@ -1225,6 +1239,7 @@ public function handleMoMoIPN(Request $request)
                         'number_adult'       => $extraAdultsThisRoom,      // Extra adults count
                         'gia_tren_dem'       => $price_per_night,          // Discounted price (includes voucher)
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                        'voucher_allocated'  => $voucherAllocated,         // NEW: Voucher discount for this room
                         'spec_signature_hash' => $specSignatureHash,
                     ];
 
@@ -1387,6 +1402,10 @@ public function handleMoMoIPN(Request $request)
 
                     $specSignatureHash = $meta['spec_signature_hash'] ?? $meta['requested_spec_signature'] ?? null;
 
+                    // Calculate voucher amount allocated to THIS room (evenly distributed)
+                    $totalVoucherDiscount = $dat_phong->voucher_discount ?? 0;
+                    $voucherAllocated = $roomsCount > 0 ? ($totalVoucherDiscount / $roomsCount) : 0;
+
                     $itemPayload = [
                         'dat_phong_id'       => $dat_phong->id,
                         'phong_id'           => $giu_phong->phong_id ?? null,
@@ -1395,6 +1414,7 @@ public function handleMoMoIPN(Request $request)
                         'so_luong'           => $giu_phong->so_luong ?? 1,
                         'gia_tren_dem'       => $price_per_night,
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                        'voucher_allocated'  => $voucherAllocated,  // NEW: Voucher discount for this room
                         'spec_signature_hash' => $specSignatureHash,
                     ];
 

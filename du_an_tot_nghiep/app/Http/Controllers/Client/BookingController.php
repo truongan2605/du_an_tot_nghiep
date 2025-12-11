@@ -178,22 +178,32 @@ class BookingController extends Controller
 
         $currentRoom = $currentItem->phong;
         $currentRoomType = $currentItem->loaiPhong;
-        // VOUCHER FIX: Calculate original price PER ROOM (before voucher) to preserve discount
+        
+        // CRITICAL FIX: Use ACTUAL stored price from dat_phong_item (POST-VOUCHER)
+        // This ensures consistency with changeRoom() calculation
         $nights = Carbon::parse($booking->ngay_nhan_phong)->diffInDays(Carbon::parse($booking->ngay_tra_phong));
-        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;  // FIX FOR MULTI-ROOM
-        $originalTotal = $booking->tong_tien + ($booking->voucher_discount ?? 0);
-        $currentPrice = $originalTotal / max(1, $totalRooms) / max(1, $nights);  // Per-room per-night price
+        $currentPrice = $currentItem->gia_tren_dem ?? 0;  // Actual stored per-night price (post-voucher)
+        
+        // Get inherited voucher - with FALLBACK for bookings before migration
+        $inheritedVoucher = $currentItem->voucher_allocated ?? 0;
+        
+        // FALLBACK: If voucher_allocated not set but booking has voucher, calculate it
+        if ($inheritedVoucher == 0 && ($booking->voucher_discount ?? 0) > 0) {
+            $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+            $inheritedVoucher = ($booking->voucher_discount ?? 0) / max(1, $totalRooms);
+        }
         
         // DEBUG LOG
-        \Log::info('🔧 Voucher Calculation', [
+        \Log::info('🔧 getAvailableRooms - Using actual item price', [
             'booking_id' => $booking->id,
+            'current_item_id' => $currentItem->id,
             'tong_tien' => $booking->tong_tien,
             'voucher_discount' => $booking->voucher_discount,
-            'originalTotal' => $originalTotal,
-            'totalRooms' => $totalRooms,  // NEW: Multi-room support
             'nights' => $nights,
-            'currentPrice' => $currentPrice,  // Now per-room price
-            'old_gia_tren_dem' => $currentItem->gia_tren_dem,
+            'currentPrice (gia_tren_dem)' => $currentPrice,  // Actual stored price
+            'inheritedVoucher' => $inheritedVoucher,
+            'voucher_allocated_raw' => $currentItem->voucher_allocated,  // Check if column exists
+            'tong_item' => $currentItem->tong_item,
         ]);
 
         // Get dates
@@ -248,7 +258,7 @@ class BookingController extends Controller
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem, $nights, $weekendNights, $weekdayNights) {
+            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem, $nights, $weekendNights, $weekdayNights, $inheritedVoucher) {
                 // Get base price from ROOM's final price (not total or type default)
                 $roomBasePrice = $room->gia_cuoi_cung ?? 0;
 
@@ -280,13 +290,18 @@ class BookingController extends Controller
                 $extraChildrenCharge = $extraChildren * 60000;
                 $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
 
-                // Calculate total with weekend pricing (+10% for weekend nights)
+                // Calculate total with weekend pricing (+10% for weekend nights) - BEFORE voucher
                 $weekdayTotal = ($roomBasePrice + $extraCharge) * $weekdayNights;
                 $weekendTotal = ($roomBasePrice + $extraCharge) * self::WEEKEND_MULTIPLIER * $weekendNights;
-                $roomTotalForStay = $weekdayTotal + $weekendTotal;
+                $roomTotalBeforeVoucher = $weekdayTotal + $weekendTotal;
                 
-                // Per-night average price (for display consistency)
-                $roomPricePerNight = $nights > 0 ? $roomTotalForStay / $nights : ($roomBasePrice + $extraCharge);
+                // VOUCHER INHERITANCE: Apply same voucher discount to new room
+                $roomTotalAfterVoucher = max(0, $roomTotalBeforeVoucher - $inheritedVoucher);
+                
+                // Per-night average price AFTER voucher (for fair comparison with currentPrice)
+                $roomPricePerNight = $nights > 0 ? $roomTotalAfterVoucher / $nights : ($roomBasePrice + $extraCharge);
+                
+                // Price difference: compare post-voucher prices for fair comparison
                 $priceDiff = $roomPricePerNight - $currentPrice;
 
                 // Get image - try multiple sources
@@ -306,17 +321,19 @@ class BookingController extends Controller
                     'name' => $room->loaiPhong->ten ?? 'Room',
                     'type' => $room->loaiPhong->slug ?? 'standard',
                     'type_id' => $room->loai_phong_id, // NEW: Room type ID for quick view API
-                    'price' => $roomPricePerNight,
-                    'price_total' => $roomTotalForStay,        // NEW: Total for entire stay
-                    'base_price' => $roomBasePrice,
-                    'extra_charge' => $extraCharge,
+                    'price' => round($roomPricePerNight),              // Post-voucher per night (integer)
+                    'price_total' => round($roomTotalAfterVoucher),    // Post-voucher total
+                    'price_total_before_voucher' => round($roomTotalBeforeVoucher),  // NEW: Pre-voucher
+                    'inherited_voucher' => round($inheritedVoucher),   // NEW: Voucher being applied
+                    'base_price' => round($roomBasePrice),
+                    'extra_charge' => round($extraCharge),
                     'extra_adults' => $extraAdults,
-                    'extra_adults_charge' => $extraAdultsCharge,
+                    'extra_adults_charge' => round($extraAdultsCharge),
                     'extra_children' => $extraChildren,
-                    'extra_children_charge' => $extraChildrenCharge,
+                    'extra_children_charge' => round($extraChildrenCharge),
                     'weekend_nights' => $weekendNights,        // NEW: Weekend nights count
-                    'weekend_surcharge' => $weekendTotal - (($roomBasePrice + $extraCharge) * $weekendNights), // NEW: Weekend premium
-                    'price_difference' => $priceDiff,
+                    'weekend_surcharge' => round($weekendTotal - (($roomBasePrice + $extraCharge) * $weekendNights)), // NEW: Weekend premium
+                    'price_difference' => round($priceDiff),
                     'image' => $imagePath,
                     'capacity' => $roomCapacity
                 ];
@@ -496,45 +513,71 @@ class BookingController extends Controller
         $weekendNights = $meta['weekend_nights'] ?? 0;
         $weekdayNights = max(0, $nights - $weekendNights);
 
+
         // Calculate new room total WITH weekend pricing (+10%)
         $newWeekdayTotal = $newPricePerNight * $weekdayNights;
         $newWeekendTotal = $newPricePerNight * self::WEEKEND_MULTIPLIER * $weekendNights;
-        $newRoomTotal = $newWeekdayTotal + $newWeekendTotal;
+        $newRoomTotalBeforeVoucher = $newWeekdayTotal + $newWeekendTotal;  // Pre-voucher price
 
-        // Calculate for THIS room change only
-        $oldRoomTotal = $currentPrice * $nights;  // currentPrice already includes weekend from original booking
+        // VOUCHER INHERITANCE: Get voucher_allocated from old room and apply to new room
+        $inheritedVoucher = $currentItem->voucher_allocated ?? 0;
+        
+        // FALLBACK: If voucher_allocated not set but booking has voucher, calculate it
+        if ($inheritedVoucher == 0 && ($booking->voucher_discount ?? 0) > 0) {
+            $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+            $inheritedVoucher = ($booking->voucher_discount ?? 0) / max(1, $totalRooms);
+        }
+        
+        $newRoomTotal = max(0, $newRoomTotalBeforeVoucher - $inheritedVoucher);  // Apply same voucher discount
+
+        // CRITICAL FIX: Use ACTUAL stored price from dat_phong_item (POST-VOUCHER)
+        // This ensures consistency with currentBookingTotal (which is also post-voucher)
+        $oldRoomTotal = $currentItem->tong_item 
+            ?? (($currentItem->gia_tren_dem ?? 0) * $nights);  // Fallback to gia_tren_dem × nights
+        
+        // For display: actual per-night price of old room
+        $oldPrice = $currentItem->gia_tren_dem ?? ($oldRoomTotal / max(1, $nights));
+        
+        // Calculate price difference for THIS room change (both are post-voucher now)
         $priceDiff = $newRoomTotal - $oldRoomTotal;
 
-        // Calculate new per-night average price (for display)
-        $newPrice = $nights > 0 ? $newRoomTotal / $nights : $newPricePerNight;
+        // Calculate new per-night average price (for display) - also post-voucher
+        $newPrice = $nights > 0 ? $newRoomTotal / $nights : ($newPricePerNight - ($inheritedVoucher / max(1, $nights)));
 
         // CRITICAL: Calculate FULL BOOKING total after change (for multi-room support)
         $currentBookingTotal = $booking->tong_tien;  // Current total of ALL rooms
         $newBookingTotal = $currentBookingTotal - $oldRoomTotal + $newRoomTotal;  // Remove old, add new
 
-        Log::info(' Room change payment calculation', [
+        Log::info('💰 Room change payment calculation (with voucher inheritance)', [
             'old_room_total' => $oldRoomTotal,
-            'new_room_total' => $newRoomTotal,
+            'old_price_per_night' => $oldPrice,
+            'new_room_total_before_voucher' => $newRoomTotalBeforeVoucher,
+            'inherited_voucher' => $inheritedVoucher,
+            'new_room_total' => $newRoomTotal,  // After voucher
+            'new_price_per_night' => $newPrice,
             'price_diff' => $priceDiff,
             'current_booking_total' => $currentBookingTotal,
             'new_booking_total' => $newBookingTotal,
             'weekend_nights' => $weekendNights,
             'weekday_nights' => $weekdayNights,
-            'new_price_per_night' => $newPrice
         ]);
 
-        // 9. Create room change record
+        // 9. Create room change record (with voucher inheritance info)
         $roomChange = \App\Models\RoomChange::create([
             'dat_phong_id' => $booking->id,
             'old_room_id' => $currentRoom->id,
             'new_room_id' => $newRoom->id,
-            'old_price' => $currentPrice,
-            'new_price' => $newPrice,
-            'price_difference' => $newPrice - $currentPrice,
+            'old_price' => $oldPrice,  // FIXED: Use actual gia_tren_dem from item (post-voucher)
+            'new_price' => $newPrice,  // Post-voucher price
+            'price_difference' => $newPrice - $oldPrice,
             'nights' => $nights,
             'changed_by_type' => 'customer',
             'changed_by_user_id' => $user->id,
-            'status' => 'pending'
+            'status' => 'pending',
+            'metadata' => json_encode([
+                'inherited_voucher' => $inheritedVoucher,  // NEW: Track voucher to carry over
+                'new_room_total_before_voucher' => $newRoomTotalBeforeVoucher,
+            ])
         ]);
 
         // 10. Handle payment based on price difference
@@ -932,11 +975,21 @@ class BookingController extends Controller
                 throw new \Exception('Room item not found for room change');
             }
 
-            // 1. Update dat_phong_item
+            // 1. Update dat_phong_item (with voucher inheritance)
             $newRoom = $roomChange->newRoom;
+            
+            // Get inherited voucher from room change metadata
+            $metadata = is_string($roomChange->metadata) 
+                ? json_decode($roomChange->metadata, true) 
+                : ($roomChange->metadata ?? []);
+            $inheritedVoucher = $metadata['inherited_voucher'] ?? ($currentItem->voucher_allocated ?? 0);
+            
+            // Update room item with new room details
             $currentItem->phong_id = $roomChange->new_room_id;
             $currentItem->loai_phong_id = $newRoom->loai_phong_id; // CRITICAL: Update room type
-            $currentItem->gia_tren_dem = $roomChange->new_price;
+            $currentItem->gia_tren_dem = $roomChange->new_price;  // Post-voucher per-night price
+            $currentItem->tong_item = $roomChange->new_price * $roomChange->nights;  // Post-voucher total
+            $currentItem->voucher_allocated = $inheritedVoucher;  // CARRY FORWARD voucher to new room
             $currentItem->save();
 
             // 2. Update dat_phong totals (MULTI-ROOM SUPPORT)
