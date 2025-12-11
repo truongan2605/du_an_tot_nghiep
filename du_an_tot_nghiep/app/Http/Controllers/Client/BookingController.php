@@ -93,12 +93,30 @@ class BookingController extends Controller
         $paidAmount = $dat_phong->deposit_amount ?? 0;
         $refundAmount = $paidAmount * ($refundPercentage / 100);
 
+        
+        // VOUCHER FIX: Calculate original price PER ROOM for frontend modal
+        $nights = Carbon::parse($dat_phong->ngay_nhan_phong)->diffInDays(Carbon::parse($dat_phong->ngay_tra_phong));
+        $totalRooms = $dat_phong->datPhongItems ? $dat_phong->datPhongItems->count() : 1;  // FIX FOR MULTI-ROOM
+        $originalTotal = $dat_phong->tong_tien + ($dat_phong->voucher_discount ?? 0);
+        $currentPriceOriginal = $originalTotal / max(1, $totalRooms) / max(1, $nights);  // Per-room per-night
+        
+        \Log::info('🔎 SHOW Method Calculation', [
+            'booking_id' => $dat_phong->id,
+            'tong_tien' => $dat_phong->tong_tien,
+            'voucher_discount' => $dat_phong->voucher_discount,
+            'totalRooms' => $totalRooms,  // NEW: Multi-room support
+            'nights' => $nights,
+            'originalTotal' => $originalTotal,
+            'currentPriceOriginal' => $currentPriceOriginal,  // Now per-room price
+        ]);
+        
         return view('account.booking_show', [
             'booking' => $dat_phong,
             'meta' => $meta,
             'user' => $user,
             'daysUntilCheckIn' => $daysUntilCheckIn,
             'refundAmount' => $refundAmount,
+            'currentPriceOriginal' => $currentPriceOriginal,
         ]);
     }
 
@@ -160,14 +178,31 @@ class BookingController extends Controller
 
         $currentRoom = $currentItem->phong;
         $currentRoomType = $currentItem->loaiPhong;
-        $currentPrice = $currentItem->gia_tren_dem ?? 0;
+        // VOUCHER FIX: Calculate original price PER ROOM (before voucher) to preserve discount
+        $nights = Carbon::parse($booking->ngay_nhan_phong)->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;  // FIX FOR MULTI-ROOM
+        $originalTotal = $booking->tong_tien + ($booking->voucher_discount ?? 0);
+        $currentPrice = $originalTotal / max(1, $totalRooms) / max(1, $nights);  // Per-room per-night price
+        
+        // DEBUG LOG
+        \Log::info('🔧 Voucher Calculation', [
+            'booking_id' => $booking->id,
+            'tong_tien' => $booking->tong_tien,
+            'voucher_discount' => $booking->voucher_discount,
+            'originalTotal' => $originalTotal,
+            'totalRooms' => $totalRooms,  // NEW: Multi-room support
+            'nights' => $nights,
+            'currentPrice' => $currentPrice,  // Now per-room price
+            'old_gia_tren_dem' => $currentItem->gia_tren_dem,
+        ]);
 
         // Get dates
         $checkIn = Carbon::parse($booking->ngay_nhan_phong);
         $checkOut = Carbon::parse($booking->ngay_tra_phong);
 
         // Get ALL available rooms (not limited to same type - allow upgrade/downgrade)
-        $allRooms = Phong::where('trang_thai', '!=', 'bao_tri', 'khong_su_dung')
+        // Exclude rooms with status 'bao_tri' (maintenance) and 'khong_su_dung' (not in use)
+        $allRooms = Phong::whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
             ->pluck('id')
             ->toArray();
 
@@ -205,11 +240,15 @@ class BookingController extends Controller
             $guestsInCurrentRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
         }
 
+        // Get weekend nights from booking's snapshot for accurate pricing
+        $weekendNights = $meta['weekend_nights'] ?? 0;
+        $weekdayNights = max(0, $nights - $weekendNights);
+
         // Load room details
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem) {
+            ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem, $nights, $weekendNights, $weekdayNights) {
                 // Get base price from ROOM's final price (not total or type default)
                 $roomBasePrice = $room->gia_cuoi_cung ?? 0;
 
@@ -241,9 +280,14 @@ class BookingController extends Controller
                 $extraChildrenCharge = $extraChildren * 60000;
                 $extraCharge = $extraAdultsCharge + $extraChildrenCharge;
 
-                // Final price with extra charges
-                $roomPrice = $roomBasePrice + $extraCharge;
-                $priceDiff = $roomPrice - $currentPrice;
+                // Calculate total with weekend pricing (+10% for weekend nights)
+                $weekdayTotal = ($roomBasePrice + $extraCharge) * $weekdayNights;
+                $weekendTotal = ($roomBasePrice + $extraCharge) * self::WEEKEND_MULTIPLIER * $weekendNights;
+                $roomTotalForStay = $weekdayTotal + $weekendTotal;
+                
+                // Per-night average price (for display consistency)
+                $roomPricePerNight = $nights > 0 ? $roomTotalForStay / $nights : ($roomBasePrice + $extraCharge);
+                $priceDiff = $roomPricePerNight - $currentPrice;
 
                 // Get image - try multiple sources
                 $imagePath = '/images/room-placeholder.jpg'; // Default fallback
@@ -261,13 +305,17 @@ class BookingController extends Controller
                     'code' => $room->ma_phong,
                     'name' => $room->loaiPhong->ten ?? 'Room',
                     'type' => $room->loaiPhong->slug ?? 'standard',
-                    'price' => $roomPrice,
+                    'type_id' => $room->loai_phong_id, // NEW: Room type ID for quick view API
+                    'price' => $roomPricePerNight,
+                    'price_total' => $roomTotalForStay,        // NEW: Total for entire stay
                     'base_price' => $roomBasePrice,
                     'extra_charge' => $extraCharge,
-                    'extra_adults' => $extraAdults,           // NEW: Extra adults count
-                    'extra_adults_charge' => $extraAdultsCharge, // NEW: Adult surcharge
-                    'extra_children' => $extraChildren,       // NEW: Extra children count
-                    'extra_children_charge' => $extraChildrenCharge, // NEW: Child surcharge
+                    'extra_adults' => $extraAdults,
+                    'extra_adults_charge' => $extraAdultsCharge,
+                    'extra_children' => $extraChildren,
+                    'extra_children_charge' => $extraChildrenCharge,
+                    'weekend_nights' => $weekendNights,        // NEW: Weekend nights count
+                    'weekend_surcharge' => $weekendTotal - (($roomBasePrice + $extraCharge) * $weekendNights), // NEW: Weekend premium
                     'price_difference' => $priceDiff,
                     'image' => $imagePath,
                     'capacity' => $roomCapacity
@@ -390,7 +438,11 @@ class BookingController extends Controller
 
         // 7. Get current room info (already have $currentItem from step 5)
         $currentRoom = $currentItem->phong;
-        $currentPrice = $currentItem->gia_tren_dem;
+        // VOUCHER FIX: Calculate original price PER ROOM (before voucher) to preserve discount
+        $nights = Carbon::parse($booking->ngay_nhan_phong)->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;  // FIX FOR MULTI-ROOM
+        $originalTotal = $booking->tong_tien + ($booking->voucher_discount ?? 0);
+        $currentPrice = $originalTotal / max(1, $totalRooms) / max(1, $nights);  // Per-room per-night
 
         // 8. Calculate prices with extra charges
         // Get guest count from CURRENT ROOM ITEM (accurate from DB)
@@ -431,16 +483,30 @@ class BookingController extends Controller
         }
 
         $extraChargeNew = ($extraAdultsNew * 150000) + ($extraChildrenNew * 60000);
-        $newPrice = $newRoomBasePrice + $extraChargeNew;
+        $newPricePerNight = $newRoomBasePrice + $extraChargeNew;
 
         $checkIn = Carbon::parse($booking->ngay_nhan_phong);
         $checkOut = Carbon::parse($booking->ngay_tra_phong);
         $nights = $checkIn->diffInDays($checkOut);
 
+        // Get weekend nights from booking's snapshot for accurate pricing
+        $meta = is_array($booking->snapshot_meta)
+            ? $booking->snapshot_meta
+            : json_decode($booking->snapshot_meta, true);
+        $weekendNights = $meta['weekend_nights'] ?? 0;
+        $weekdayNights = max(0, $nights - $weekendNights);
+
+        // Calculate new room total WITH weekend pricing (+10%)
+        $newWeekdayTotal = $newPricePerNight * $weekdayNights;
+        $newWeekendTotal = $newPricePerNight * self::WEEKEND_MULTIPLIER * $weekendNights;
+        $newRoomTotal = $newWeekdayTotal + $newWeekendTotal;
+
         // Calculate for THIS room change only
-        $oldRoomTotal = $currentPrice * $nights;
-        $newRoomTotal = $newPrice * $nights;
+        $oldRoomTotal = $currentPrice * $nights;  // currentPrice already includes weekend from original booking
         $priceDiff = $newRoomTotal - $oldRoomTotal;
+
+        // Calculate new per-night average price (for display)
+        $newPrice = $nights > 0 ? $newRoomTotal / $nights : $newPricePerNight;
 
         // CRITICAL: Calculate FULL BOOKING total after change (for multi-room support)
         $currentBookingTotal = $booking->tong_tien;  // Current total of ALL rooms
@@ -451,7 +517,10 @@ class BookingController extends Controller
             'new_room_total' => $newRoomTotal,
             'price_diff' => $priceDiff,
             'current_booking_total' => $currentBookingTotal,
-            'new_booking_total' => $newBookingTotal
+            'new_booking_total' => $newBookingTotal,
+            'weekend_nights' => $weekendNights,
+            'weekday_nights' => $weekdayNights,
+            'new_price_per_night' => $newPrice
         ]);
 
         // 9. Create room change record
@@ -586,8 +655,8 @@ class BookingController extends Controller
 
                     return redirect('/account/bookings/' . $roomChange->dat_phong_id)
                         ->with('room_change_success', [
-                            'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                            'new_room' => $newRoom->ma_phong ?? 'N/A',
+                            'old_room' => $oldRoom->loaiPhong->ten ?? 'N/A',
+                            'new_room' => $newRoom->loaiPhong->ten ?? 'N/A',
                             'price_difference' => $priceDiff,
                             'payment_amount' => 0,
                             'applied_vouchers' => $appliedVouchers,
@@ -617,8 +686,8 @@ class BookingController extends Controller
 
                 return redirect('/account/bookings/' . $roomChange->dat_phong_id)
                     ->with('room_change_success', [
-                        'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                        'new_room' => $newRoom->ma_phong ?? 'N/A',
+                        'old_room' => $oldRoom->loaiPhong->ten ?? 'N/A',
+                        'new_room' => $newRoom->loaiPhong->ten ?? 'N/A',
                         'price_difference' => $priceDiff,
                         'refund_amount' => $refundAmount,
                         'voucher_code' => $voucher->code
@@ -637,8 +706,8 @@ class BookingController extends Controller
 
                 return redirect('/account/bookings/' . $roomChange->dat_phong_id)
                     ->with('room_change_success', [
-                        'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                        'new_room' => $newRoom->ma_phong ?? 'N/A',
+                        'old_room' => $oldRoom->loaiPhong->ten ?? 'N/A',
+                        'new_room' => $newRoom->loaiPhong->ten ?? 'N/A',
                         'price_difference' => 0,
                         'payment_amount' => 0
                     ])
@@ -809,8 +878,8 @@ class BookingController extends Controller
                 $priceDiff = $roomChange->price_difference;
 
                 $successData = [
-                    'old_room' => $oldRoom->ma_phong ?? 'N/A',
-                    'new_room' => $newRoom->ma_phong ?? 'N/A',
+                    'old_room' => $oldRoom->loaiPhong->ten ?? 'N/A',
+                    'new_room' => $newRoom->loaiPhong->ten ?? 'N/A',
                     'price_difference' => $priceDiff,
                     'payment_amount' => $roomChange->payment_info['vnp_Amount'] ?? 0
                 ];
@@ -1732,7 +1801,7 @@ class BookingController extends Controller
                     ]);
 
                     $meta = [
-                        'final_per_night' => (float)($finalPerNightServer / max(1, $roomsCount)), // Per-room price
+                        'final_per_night' => (float)($finalTotalAfterVoucher / max(1, $nights * $roomsCount)), // CRITICAL: Use discounted total
                         'snapshot_total' => (float)$snapshotTotalServer,
                         'nights' => $nights,
                         'rooms_count' => $roomsCount,
@@ -1888,7 +1957,7 @@ class BookingController extends Controller
                     'total_amount' => $finalTotalAfterVoucher, // CRITICAL FIX: Use discounted total, not raw input
                     'deposit_percentage' => $request->input('deposit_percentage', 50),
                     'phuong_thuc' => $phuongThuc,
-                    'final_per_night' => $request->input('final_per_night'),
+                    'final_per_night' => ($finalTotalAfterVoucher / max(1, $nights * $roomsCount)), // CRITICAL: Use discounted total
                     'snapshot_total' => $request->input('snapshot_total'),
                     'dat_phong_id' => $datPhongId,
                     // Voucher data - ensures both MoMo and VNPay receive voucher information
