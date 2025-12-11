@@ -297,6 +297,68 @@ class StaffController extends Controller
             ->orderByDesc('revenue')
             ->get();
 
+        // === Doanh thu theo từng phòng cụ thể ===
+        // Hôm nay
+        $roomRevenueToday = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->join('phong as p', 'hdi.phong_id', '=', 'p.id')
+            ->leftJoin('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->whereDate('hd.created_at', $todayDate)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.phong_id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Tuần này
+        $roomRevenueWeek = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->join('phong as p', 'hdi.phong_id', '=', 'p.id')
+            ->leftJoin('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->whereBetween(DB::raw('DATE(hd.created_at)'), $weekRange)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.phong_id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Tháng này
+        $roomRevenueMonth = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->join('phong as p', 'hdi.phong_id', '=', 'p.id')
+            ->leftJoin('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->whereYear('hd.created_at', $year)
+            ->whereMonth('hd.created_at', $month)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.phong_id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
         $events = DatPhong::select('id', 'ma_tham_chieu', 'trang_thai', 'ngay_nhan_phong', 'ngay_tra_phong')
             ->whereIn('trang_thai', $activeStatus)
             ->with('user:id,name')
@@ -335,22 +397,21 @@ class StaffController extends Controller
         $customRefund = null;
         $customNetRevenue = null;
         $customRangeLabel = null;
+        $customChartLabels = [];
+        $customChartData = [];
+        $customPaid = 0;
 
         if ($request->has('start_date') && $request->has('end_date')) {
             try {
                 $startDate = Carbon::parse($request->start_date)->startOfDay();
                 $endDate = Carbon::parse($request->end_date)->endOfDay();
                 
-                // Hybrid model: GiaoDich (paid) + HoaDon (all invoices)
+                // Chỉ tính theo giao dịch thanh toán (GiaoDich)
                 $customPaid = GiaoDich::where('trang_thai', 'thanh_cong')
                     ->whereBetween('created_at', [$startDate, $endDate])
                     ->sum('so_tien');
                 
-                $customInvoiced = HoaDon::whereBetween('created_at', [$startDate, $endDate])
-                    ->whereNotIn('trang_thai', ['da_huy'])
-                    ->sum('tong_thuc_thu');
-                
-                $customRevenue = $customPaid + $customInvoiced;
+                $customRevenue = $customPaid;
                 
                 // Use RefundRequest instead of GiaoDich
                 $customRefund = RefundRequest::where('status', 'completed')
@@ -359,6 +420,17 @@ class StaffController extends Controller
                 
                 $customNetRevenue = $customRevenue - $customRefund;
                 $customRangeLabel = $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y');
+                
+                // Tính doanh thu theo ngày trong khoảng thời gian đã lọc (chỉ tính giao dịch thanh toán)
+                $currentDate = $startDate->copy();
+                while ($currentDate->lte($endDate)) {
+                    $customChartLabels[] = $currentDate->format('d/m');
+                    $dayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+                        ->whereDate('created_at', $currentDate->toDateString())
+                        ->sum('so_tien');
+                    $customChartData[] = (int) $dayPaid;
+                    $currentDate->addDay();
+                }
             } catch (\Exception $e) {
                 Log::error('Error parsing date range', ['error' => $e->getMessage()]);
             }
@@ -399,13 +471,19 @@ class StaffController extends Controller
             'roomTypeRevenueToday',
             'roomTypeRevenueWeek',
             'roomTypeRevenueMonth',
+            'roomRevenueToday',
+            'roomRevenueWeek',
+            'roomRevenueMonth',
             'roomTypeStats',
             'analyticsChartLabels',
             'analyticsChartData',
             'customRevenue',
             'customRefund',
             'customNetRevenue',
-            'customRangeLabel'
+            'customRangeLabel',
+            'customChartLabels',
+            'customChartData',
+            'customPaid'
         ));
     }
 
