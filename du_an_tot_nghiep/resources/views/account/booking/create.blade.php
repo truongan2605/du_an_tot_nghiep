@@ -13,6 +13,15 @@
         $baseCapacity = (int) ($phong->suc_chua ?? ($phong->loaiPhong->suc_chua ?? ($roomCapacity ?: 1)));
     @endphp
 
+    <script>
+        window.LOAI_PHONGS = {!! json_encode($loaiPhongs->keyBy('id')) !!};
+        window.CURRENT_LOAI_ID = {{ (int) $phong->loai_phong_id }};
+        window.CURRENT_PHONG_ID = {{ (int) $phong->id }};
+        // optional debug
+        console.log('LOAI_PHONGS keys:', Object.keys(window.LOAI_PHONGS || {}));
+    </script>
+
+
     <main>
         <!-- Modal Xác Nhận Thanh Toán VNPAY -->
         <div class="modal fade" id="vnpayConfirmModal" tabindex="-1" aria-labelledby="vnpayConfirmModalLabel"
@@ -331,6 +340,39 @@
                                                             này.</em>
                                                     </p>
                                                 @endif
+                                            </div>
+                                        </div>
+
+                                        {{-- MR MULTI-TYPE: duplicate right-side guest/card UI per added room type --}}
+                                        <div class="card mt-3 mr-multiroom-module">
+                                            <div class="card-body">
+                                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                                    <h6 class="mb-0">Thêm loại phòng khác</h6>
+
+                                                    <div class="d-flex align-items-center">
+                                                        <select id="mr_add_type_select"
+                                                            class="form-select form-select-sm me-2"
+                                                            style="min-width:220px;">
+                                                            <option value="">-- Chọn loại phòng --</option>
+                                                            @foreach ($loaiPhongs as $lp)
+                                                                @if ($lp->id != $phong->loai_phong_id)
+                                                                    <option value="{{ $lp->id }}">
+                                                                        {{ $lp->ten }}</option>
+                                                                @endif
+                                                            @endforeach
+                                                        </select>
+
+                                                        <button type="button" id="mr_add_type_btn"
+                                                            class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-plus-lg"></i> Thêm loại phòng
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {{-- container để append các nhóm loại phòng động --}}
+                                                <div id="mr_rooms_container" class="mb-2">
+
+                                                </div>
                                             </div>
                                         </div>
 
@@ -706,9 +748,8 @@
 
 @push('scripts')
     <script>
-        // ====== PHẦN XỬ LÝ VOUCHER (UI) ======
         document.addEventListener('DOMContentLoaded', function() {
-            // Reset voucher: bỏ chọn, clear code, reset hidden, reset hiển thị
+            // ====== VOUCHER (giữ nguyên logic) ======
             function resetVoucherUI() {
                 const codeInput = document.getElementById('voucher_code');
                 const resultBox = document.getElementById('voucherResult');
@@ -726,11 +767,9 @@
                 if (voucherDiscountInput) voucherDiscountInput.value = '';
                 if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
 
-                // Clear input + checkbox
                 if (codeInput) codeInput.value = '';
                 document.querySelectorAll('.voucher-checkbox').forEach(cb => cb.checked = false);
 
-                // Reset hidden giá trị gửi lên server
                 const hiddenTotal = document.getElementById('hidden_tong_tien');
                 const hiddenDeposit = document.getElementById('hidden_deposit');
                 const snapshotTotalInput = document.getElementById('snapshot_total_input');
@@ -739,44 +778,32 @@
                 if (snapshotTotalInput) snapshotTotalInput.value = total;
                 if (hiddenDeposit) hiddenDeposit.value = deposit;
 
-                // Reset hiển thị tổng & tiền cọc ở sidebar
                 const totalDisplayEl = document.getElementById('total_snapshot_display');
                 const payableDisplay = document.getElementById('payable_now_display');
 
                 const fmtVnd = (num) =>
-                    new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
+                    new Intl.NumberFormat('vi-VN').format(Math.round(num || 0)) + ' đ';
 
                 if (totalDisplayEl) totalDisplayEl.innerText = total > 0 ? fmtVnd(total) : '-';
                 if (payableDisplay) payableDisplay.innerText = deposit > 0 ? fmtVnd(deposit) : '-';
 
-                // Xóa kết quả voucher
                 if (resultBox) resultBox.innerHTML = '';
 
-                // Tính lại toàn bộ từ tổng gốc
-                if (window.bookingUpdateSummary) {
-                    window.bookingUpdateSummary();
-                }
+                if (window.bookingUpdateSummary) window.bookingUpdateSummary();
             }
 
-            // Khi tick checkbox voucher: chỉ cho phép 1 voucher, đổ code vào ô nhập
             document.querySelectorAll('.voucher-checkbox').forEach(cb => {
                 cb.addEventListener('change', function() {
                     const codeInput = document.getElementById('voucher_code');
-
                     if (this.checked) {
                         document.querySelectorAll('.voucher-checkbox').forEach(other => {
                             if (other !== this) other.checked = false;
                         });
-                        if (codeInput) {
-                            codeInput.value = this.dataset.code || this.value;
-                        }
-                    } else if (codeInput) {
-                        codeInput.value = '';
-                    }
+                        if (codeInput) codeInput.value = this.dataset.code || this.value;
+                    } else if (codeInput) codeInput.value = '';
                 });
             });
 
-            // Khi nhấn nút "Áp dụng" voucher
             const applyBtn = document.getElementById('applyVoucherBtn');
             if (applyBtn) {
                 applyBtn.addEventListener('click', function() {
@@ -785,8 +812,6 @@
                     const originalTotalInput = document.getElementById('original_total');
 
                     const code = (codeInput?.value || '').trim();
-
-                    // Không có mã => reset
                     if (!code) {
                         resetVoucherUI();
                         return;
@@ -794,15 +819,12 @@
 
                     let total = 0;
                     if (originalTotalInput && originalTotalInput.value) {
-                        total = parseInt(originalTotalInput.value, 10) || 0; // tổng GỐC (chưa voucher)
+                        total = parseInt(originalTotalInput.value, 10) || 0;
                     }
-
                     if (!total || total <= 0) {
                         if (resultBox) {
-                            resultBox.innerHTML = `
-                                <div class="alert alert-danger p-2">
-                                    Giá trị đơn hàng không hợp lệ. Vui lòng chọn ngày, số phòng và khách trước khi áp dụng mã.
-                                </div>`;
+                            resultBox.innerHTML =
+                                `<div class="alert alert-danger p-2">Giá trị đơn hàng không hợp lệ. Vui lòng chọn ngày, số phòng và khách trước khi áp dụng mã.</div>`;
                         }
                         return;
                     }
@@ -821,55 +843,33 @@
                         .then(res => res.json())
                         .then(data => {
                             if (!resultBox) return;
-
-                            const fmtVndLocal = (num) =>
-                                new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
-
+                            const fmtVndLocal = (num) => new Intl.NumberFormat('vi-VN').format(Math
+                                .round(num)) + ' đ';
                             if (data.success) {
                                 const discountAmount = Number(data.discount || 0);
-                                const discountText = discountAmount > 0 ?
-                                    fmtVndLocal(discountAmount) :
-                                    '0 đ';
-
                                 const finalTotalLocal = Math.max(0, total - discountAmount);
-                                const finalTextLocal = fmtVndLocal(finalTotalLocal);
-
                                 resultBox.innerHTML = `
-                                    <div class="alert alert-success p-2">
-                                        ✅ Áp dụng thành công <strong>${data.voucher_name || code}</strong><br>
-                                        Giảm: <strong>${discountText}</strong><br>
-                                        Tổng mới (ước tính): <strong>${finalTextLocal}</strong><br>
-                                        <small class="text-muted">Tiền cọc sẽ được tính lại theo % bạn chọn (50% hoặc 100%).</small>
-                                    </div>`;
-
-                                // Lưu thông tin voucher vào hidden input gửi lên server
+                        <div class="alert alert-success p-2">
+                            Áp dụng thành công <strong>${data.voucher_name || code}</strong><br>
+                            Giảm: <strong>${discountAmount > 0 ? fmtVndLocal(discountAmount) : '0 đ'}</strong><br>
+                            Tổng mới (ước tính): <strong>${fmtVndLocal(finalTotalLocal)}</strong><br>
+                            <small class="text-muted">Tiền cọc sẽ được tính lại theo % bạn chọn (50% hoặc 100%).</small>
+                        </div>`;
                                 const voucherIdInput = document.getElementById('voucher_id_input');
-                                if (voucherIdInput && data.voucher_id) {
-                                    voucherIdInput.value = data.voucher_id;
-                                }
-
+                                if (voucherIdInput && data.voucher_id) voucherIdInput.value = data
+                                    .voucher_id;
                                 const voucherDiscountInput = document.getElementById(
                                     'voucher_discount_input');
-                                if (voucherDiscountInput && typeof data.discount !== 'undefined') {
+                                if (voucherDiscountInput && typeof data.discount !== 'undefined')
                                     voucherDiscountInput.value = data.discount;
-                                }
-
                                 const voucherCodeHiddenInput = document.getElementById(
                                     'voucher_code_input');
-                                if (voucherCodeHiddenInput) {
-                                    voucherCodeHiddenInput.value = data.voucher_code || code;
-                                }
-
-                                // Trigger tính lại theo discount
-                                if (window.bookingUpdateSummary) {
-                                    window.bookingUpdateSummary();
-                                }
+                                if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = data
+                                    .voucher_code || code;
+                                if (window.bookingUpdateSummary) window.bookingUpdateSummary();
                             } else {
-                                resultBox.innerHTML = `
-                                    <div class="alert alert-danger p-2">
-                                        ${data.message || 'Không áp dụng được mã giảm giá.'}
-                                    </div>`;
-
+                                resultBox.innerHTML =
+                                    `<div class="alert alert-danger p-2">${data.message || 'Không áp dụng được mã giảm giá.'}</div>`;
                                 const voucherIdInput = document.getElementById('voucher_id_input');
                                 const voucherDiscountInput = document.getElementById(
                                     'voucher_discount_input');
@@ -878,823 +878,1014 @@
                                 if (voucherIdInput) voucherIdInput.value = '';
                                 if (voucherDiscountInput) voucherDiscountInput.value = '';
                                 if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
-
-                                if (window.bookingUpdateSummary) {
-                                    window.bookingUpdateSummary();
-                                }
+                                if (window.bookingUpdateSummary) window.bookingUpdateSummary();
                             }
                         })
                         .catch(() => {
-                            if (resultBox) {
-                                resultBox.innerHTML =
-                                    `<div class="alert alert-danger p-2">Có lỗi xảy ra khi áp dụng mã giảm giá.</div>`;
-                            }
+                            const resultBox = document.getElementById('voucherResult');
+                            if (resultBox) resultBox.innerHTML =
+                                `<div class="alert alert-danger p-2">Có lỗi xảy ra khi áp dụng mã giảm giá.</div>`;
                             const voucherIdInput = document.getElementById('voucher_id_input');
                             const voucherDiscountInput = document.getElementById(
                                 'voucher_discount_input');
                             const voucherCodeHiddenInput = document.getElementById(
-                            'voucher_code_input');
+                                'voucher_code_input');
                             if (voucherIdInput) voucherIdInput.value = '';
                             if (voucherDiscountInput) voucherDiscountInput.value = '';
                             if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
+                            if (window.bookingUpdateSummary) window.bookingUpdateSummary();
+                        });
+                });
+            }
+            // ====== END VOUCHER ======
 
-                            if (window.bookingUpdateSummary) {
-                                window.bookingUpdateSummary();
+
+            // ===== BOOKING + AVAILABILITY + MR (multi-type) =====
+            (function() {
+                // -------- blade-provided data (safe) --------
+                const LOAI_PHONGS = (typeof window.LOAI_PHONGS !== 'undefined') ? window.LOAI_PHONGS : {};
+                const CURRENT_LOAI_ID = Number(window.CURRENT_LOAI_ID || {{ (int) $phong->loai_phong_id }});
+                const CURRENT_PHONG_ID = String(window.CURRENT_PHONG_ID || (document.querySelector(
+                    'input[name="phong_id"]')?.value || ''));
+
+                const dateRangeInput = document.getElementById('date_range');
+                const fromInput = document.getElementById('ngay_nhan_phong');
+                const toInput = document.getElementById('ngay_tra_phong');
+                const adultsInput = document.getElementById('adults');
+                const childrenInput = document.getElementById('children');
+                const childrenAgesContainer = document.getElementById('children_ages_container');
+                const roomsInput = document.getElementById('rooms_count');
+
+                const nightsDisplay = document.getElementById('nights_count_display');
+                const priceBaseDisplay = document.getElementById('price_base_display');
+                const priceAdultsDisplay = document.getElementById('price_adults_display');
+                const priceChildrenDisplay = document.getElementById('price_children_display');
+                const finalPerNightDisplay = document.getElementById('final_per_night_display');
+                const totalDisplay = document.getElementById('total_snapshot_display');
+                const payableDisplay = document.getElementById('payable_now_display');
+                const availDisplayEl = document.getElementById('available_rooms_display');
+                const availabilityMessageEl = document.getElementById('availability_message');
+                const weekendNoticeEl = document.getElementById('weekend_notice');
+
+                // MR UI elements
+                const MR_CONTAINER = document.getElementById('mr_rooms_container');
+                const MR_ADD_SELECT = document.getElementById('mr_add_type_select');
+                const MR_ADD_BTN = document.getElementById('mr_add_type_btn');
+
+                // config constants from blade
+                const pricePerNight = Number({!! json_encode((float) ($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0))) !!}) || 0;
+                const baseCapacity = Number({{ $baseCapacity }}) || 1;
+                const ADULT_PRICE = {{ \App\Http\Controllers\Client\BookingController::ADULT_PRICE }};
+                const CHILD_PRICE = {{ \App\Http\Controllers\Client\BookingController::CHILD_PRICE }};
+                const CHILD_FREE_AGE = {{ \App\Http\Controllers\Client\BookingController::CHILD_FREE_AGE }};
+                const WEEKEND_MULTIPLIER = 1.10;
+
+                let currentAvailableRooms = Number(availDisplayEl ? (availDisplayEl.innerText || 0) : 0);
+
+                function fmtVnd(num) {
+                    return new Intl.NumberFormat('vi-VN').format(Math.round(num || 0)) + ' đ';
+                }
+
+                // ---------- helpers robustly read arrays from LOAI_PHONGS objects ----------
+                function getArr(obj, candidates) {
+                    for (const k of candidates) {
+                        if (!obj) continue;
+                        if (Array.isArray(obj[k])) return obj[k];
+                    }
+                    return [];
+                }
+
+                function getStr(obj, candidates) {
+                    for (const k of candidates) {
+                        if (!obj) continue;
+                        if (typeof obj[k] === 'string' && obj[k].trim() !== '') return obj[k];
+                    }
+                    return '';
+                }
+
+                // ---------- ensure to > from ----------
+                function ensureToAfterFromAndUpdateInputs() {
+                    if (!fromInput || !toInput) return false;
+                    const from = new Date(fromInput.value + 'T00:00:00');
+                    let to = new Date(toInput.value + 'T00:00:00');
+                    if (isNaN(from.getTime())) return false;
+                    if (isNaN(to.getTime()) || to <= from) {
+                        to = new Date(from.getTime());
+                        to.setDate(to.getDate() + 1);
+                        const y = to.getFullYear(),
+                            m = String(to.getMonth() + 1).padStart(2, '0'),
+                            d = String(to.getDate()).padStart(2, '0');
+                        toInput.value = `${y}-${m}-${d}`;
+                        return true;
+                    }
+                    return true;
+                }
+
+                function countWeekendNights(fromDate, toDate) {
+                    const cursor = new Date(fromDate.getTime());
+                    const end = new Date(toDate.getTime());
+                    let cnt = 0;
+                    while (cursor < end) {
+                        const d = cursor.getDay();
+                        if (d === 5 || d === 6 || d === 0) cnt++;
+                        cursor.setDate(cursor.getDate() + 1);
+                    }
+                    return cnt;
+                }
+
+                // ---------- input limits ----------
+                function updateInputLimitsByRooms() {
+                    const rooms = Number(roomsInput ? (roomsInput.value || 1) : 1);
+                    const adultsMax = (baseCapacity + 2) * Math.max(1, rooms);
+                    const childrenMax = Math.min(12, 2 * Math.max(1, rooms));
+                    if (adultsInput) {
+                        adultsInput.max = adultsMax;
+                        if (!adultsInput.min) adultsInput.min = 1;
+                        let v = Number(adultsInput.value || adultsInput.min || 1);
+                        if (isNaN(v) || v < Number(adultsInput.min)) v = Number(adultsInput.min);
+                        if (v > adultsMax) v = adultsMax;
+                        adultsInput.value = v;
+                        const roomCapDisplay = document.getElementById('room_capacity_display');
+                        if (roomCapDisplay) roomCapDisplay.innerText = adultsMax;
+                    }
+                    if (childrenInput) {
+                        childrenInput.max = childrenMax;
+                        let v2 = Number(childrenInput.value || 0);
+                        if (isNaN(v2) || v2 < 0) v2 = 0;
+                        if (v2 > childrenMax) v2 = childrenMax;
+                        childrenInput.value = v2;
+                    }
+                }
+
+                // ---------- availability main ----------
+                async function updateRoomsAvailabilityMain() {
+                    try {
+                        if (!fromInput || !toInput) return;
+                        if (!ensureToAfterFromAndUpdateInputs()) return;
+                        const from = fromInput.value,
+                            to = toInput.value;
+                        if (!from || !to) return;
+
+                        const loaiId = {{ $phong->loai_phong_id }};
+                        const phongId = {{ $phong->id }};
+                        const params = new URLSearchParams({
+                            loai_phong_id: String(loaiId),
+                            phong_id: String(phongId),
+                            from,
+                            to
+                        }).toString();
+                        const url = '{{ route('booking.availability') }}' + '?' + params;
+                        console.debug('[availability main] GET', url);
+                        const res = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json'
                             }
                         });
-                });
-            }
-        });
-
-        // ====== PHẦN LOGIC ĐẶT PHÒNG (giá, khách, VNPAY) ======
-        (function() {
-            const initialChildrenAges = {!! json_encode(old('children_ages', [])) !!};
-            const initialChildrenCount = Number({{ old('children', 0) }});
-            const initialSelectedAddons = {!! json_encode(old('addons', [])) !!};
-
-            const dateRangeInput = document.getElementById('date_range');
-            const fromInput = document.getElementById('ngay_nhan_phong');
-            const toInput = document.getElementById('ngay_tra_phong');
-            const adultsInput = document.getElementById('adults');
-            const childrenInput = document.getElementById('children');
-            const childrenAgesContainer = document.getElementById('children_ages_container');
-            const roomsInput = document.getElementById('rooms_count');
-            const nightsDisplay = document.getElementById('nights_count_display');
-            const priceBaseDisplay = document.getElementById('price_base_display');
-            const priceAdultsDisplay = document.getElementById('price_adults_display');
-            const priceChildrenDisplay = document.getElementById('price_children_display');
-            const finalPerNightDisplay = document.getElementById('final_per_night_display');
-            const totalDisplay = document.getElementById('total_snapshot_display');
-            const payableDisplay = document.getElementById('payable_now_display');
-            const availDisplayEl = document.getElementById('available_rooms_display');
-            const availabilityMessageEl = document.getElementById('availability_message');
-            const weekendNoticeEl = document.getElementById('weekend_notice');
-
-            const pricePerNight = Number({!! json_encode((float) ($phong->tong_gia ?? ($phong->gia_mac_dinh ?? 0))) !!});
-            const baseCapacity = Number({{ $baseCapacity }});
-            const ADULT_PRICE = {{ \App\Http\Controllers\Client\BookingController::ADULT_PRICE }};
-            const CHILD_PRICE = {{ \App\Http\Controllers\Client\BookingController::CHILD_PRICE }};
-            const CHILD_FREE_AGE = {{ \App\Http\Controllers\Client\BookingController::CHILD_FREE_AGE }};
-
-            // hệ số tăng giá cuối tuần
-            const WEEKEND_MULTIPLIER = 1.10;
-
-            let currentAvailableRooms = Number(availDisplayEl ? (availDisplayEl.innerText || 0) : 0);
-
-            function fmtVnd(num) {
-                return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
-            }
-
-            function computeAddonsPerNight() {
-                let sum = 0;
-                document.querySelectorAll('input[name="addons[]"]:checked').forEach(chk => {
-                    const p = Number(chk.dataset.price || 0);
-                    if (!isNaN(p)) sum += p;
-                });
-                const rooms = Number(roomsInput ? (roomsInput.value || 1) : 1);
-                return sum * Math.max(1, rooms);
-            }
-
-            function clampNumberInput(el, min, max) {
-                if (!el) return;
-                let v = Number(el.value || 0);
-                if (isNaN(v)) v = min;
-                if (v < min) el.value = min;
-                else if (v > max) el.value = max;
-            }
-
-            function setHiddenDates(arr) {
-                if (!arr || arr.length === 0) return;
-                const from = arr[0];
-                const to = arr[1] || arr[0];
-
-                function fmt(d) {
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    return `${y}-${m}-${day}`;
-                }
-
-                fromInput.value = fmt(from);
-                toInput.value = fmt(to);
-                updateSummary();
-                updateRoomsAvailability();
-            }
-
-            if (typeof flatpickr !== 'undefined' && dateRangeInput) {
-                if (dateRangeInput._flatpickr) {
-                    dateRangeInput._flatpickr.destroy();
-                }
-
-                flatpickr(dateRangeInput, {
-                    mode: "range",
-                    minDate: "today",
-                    dateFormat: "Y-m-d",
-                    defaultDate: [
-                        fromInput.value || new Date().toISOString().slice(0, 10),
-                        toInput.value || (() => {
-                            let d = new Date();
-                            d.setDate(d.getDate() + 1);
-                            return d.toISOString().slice(0, 10);
-                        })()
-                    ],
-                    onChange: function(selectedDates) {
-                        if (selectedDates.length) setHiddenDates(selectedDates);
-                    }
-                });
-
-                if (fromInput.value && toInput.value) {
-                    setHiddenDates([new Date(fromInput.value), new Date(toInput.value)]);
-                }
-            }
-
-            async function updateRoomsAvailability() {
-                try {
-                    const from = fromInput.value;
-                    const to = toInput.value;
-                    if (!from || !to) return;
-                    const loaiId = {{ $phong->loai_phong_id }};
-                    const phongId = {{ $phong->id }};
-                    const params = new URLSearchParams({
-                        loai_phong_id: String(loaiId),
-                        phong_id: String(phongId),
-                        from: from,
-                        to: to
-                    }).toString();
-                    const url = '{{ route('booking.availability') }}' + '?' + params;
-                    const res = await fetch(url, {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
-                    });
-                    if (!res.ok) {
-                        console.error('Availability check error: status', res.status);
-                        return;
-                    }
-                    const data = await res.json();
-                    const avail = Number(data.available || 0);
-                    currentAvailableRooms = avail;
-
-                    if (availDisplayEl) availDisplayEl.innerText = avail;
-                    if (roomsInput) {
-                        roomsInput.max = avail;
-                        if (Number(roomsInput.value || 0) > avail) roomsInput.value = Math.max(1, avail);
-                    }
-
-                    if (avail === 0) {
-                        showNoAvailabilityMessage();
-                    } else {
-                        clearAvailabilityMessage();
-                    }
-
-                    updateSummary();
-                } catch (err) {
-                    console.error('Availability check error', err);
-                    showToastInline('Lỗi khi kiểm tra tính khả dụng phòng.', true, 5000);
-                }
-            }
-
-            function showNoAvailabilityMessage() {
-                if (!availabilityMessageEl) return;
-                availabilityMessageEl.className = 'small mt-2 text-danger';
-                availabilityMessageEl.innerText =
-                    `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
-                toggleSubmit(false);
-            }
-
-            function clearAvailabilityMessage() {
-                if (!availabilityMessageEl) return;
-                availabilityMessageEl.innerText = '';
-                toggleSubmit(true);
-            }
-
-            function toggleSubmit(enabled) {
-                const form = document.getElementById('bookingForm');
-                if (!form) return;
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (!submitBtn) return;
-                submitBtn.disabled = !enabled;
-            }
-
-            function renderChildrenAges() {
-                const count = Number(childrenInput.value || initialChildrenCount || 0);
-                childrenAgesContainer.innerHTML = '';
-                for (let i = 0; i < count; i++) {
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'mb-2 child-age-wrapper';
-                    const initialVal = (Array.isArray(initialChildrenAges) &&
-                            typeof initialChildrenAges[i] !== 'undefined') ?
-                        Number(initialChildrenAges[i]) :
-                        0;
-                    wrapper.innerHTML = `
-                        <label class="form-label">Tuổi trẻ em ${i + 1}</label>
-                        <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
-                        <div class="small text-danger mt-1 age-error" style="display:none;"></div>
-                    `;
-                    childrenAgesContainer.appendChild(wrapper);
-                }
-
-                document.querySelectorAll('.child-age-input').forEach((el) => {
-                    el.addEventListener('input', function() {
-                        const min = 0,
-                            max = 12;
-                        let v = Number(this.value);
-                        if (isNaN(v)) v = min;
-                        if (v < min) {
-                            this.value = min;
-                            showAgeError(this, `Tuổi tối thiểu là ${min}.`);
-                        } else if (v > max) {
-                            this.value = max;
-                            showAgeError(this, `Tuổi tối đa cho trẻ em là ${max}.`);
-                        } else hideAgeError(this);
-                        updateSummary();
-                    });
-                    el.addEventListener('blur', function() {
-                        const min = 0,
-                            max = 12;
-                        let v = Number(this.value);
-                        if (isNaN(v) || v < min) this.value = min;
-                        if (v > max) this.value = max;
-                    });
-                });
-
-                function showAgeError(inputEl, msg) {
-                    const wr = inputEl.closest('.child-age-wrapper');
-                    if (!wr) return;
-                    const err = wr.querySelector('.age-error');
-                    if (err) {
-                        err.innerText = msg;
-                        err.style.display = 'block';
-                        setTimeout(() => err.style.display = 'none', 2500);
-                    }
-                }
-
-                function hideAgeError(inputEl) {
-                    const wr = inputEl.closest('.child-age-wrapper');
-                    if (!wr) return;
-                    const err = wr.querySelector('.age-error');
-                    if (err) err.style.display = 'none';
-                }
-
-                updateSummary();
-            }
-
-            function updateInputLimitsByRooms() {
-                const rooms = Number(roomsInput ? (roomsInput.value || 1) : 1);
-                const adultsMax = (baseCapacity + 2) * Math.max(1, rooms);
-                const childrenMax = Math.min(12, 2 * Math.max(1, rooms));
-
-                if (adultsInput) {
-                    adultsInput.max = adultsMax;
-                    clampNumberInput(adultsInput, Number(adultsInput.min || 1), adultsMax);
-                    const roomCapDisplay = document.getElementById('room_capacity_display');
-                    if (roomCapDisplay) roomCapDisplay.innerText = adultsMax;
-                }
-                if (childrenInput) {
-                    childrenInput.max = childrenMax;
-                    clampNumberInput(childrenInput, Number(childrenInput.min || 0), childrenMax);
-                }
-            }
-
-            function computePersonCharges() {
-                const adults = Number(adultsInput.value || 0);
-                const ages = Array.from(document.querySelectorAll('.child-age-input')).map(x => {
-                    let a = Number(x.value || 0);
-                    if (isNaN(a)) a = 0;
-                    if (a < 0) a = 0;
-                    if (a > 12) a = 12;
-                    return a;
-                });
-                let computedAdults = adults;
-                let chargeableChildren = 0;
-                ages.forEach(a => {
-                    if (a >= 13) computedAdults++;
-                    else if (a >= 7) chargeableChildren++;
-                });
-                return {
-                    computedAdults,
-                    chargeableChildren
-                };
-            }
-
-            function validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed) {
-                const childrenCount = Number(childrenInput.value || 0);
-                const form = document.getElementById('bookingForm');
-                let existing = document.getElementById('guest_limit_error');
-                if (existing) existing.remove();
-                let ok = true;
-
-                if (currentAvailableRooms <= 0) {
-                    ok = false;
-                    const err = document.createElement('div');
-                    err.id = 'guest_limit_error';
-                    err.className = 'alert alert-danger mt-3';
-                    err.innerText =
-                        `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn. Vui lòng chọn khoảng thời gian khác.`;
-                    const cardBody = form.querySelector('.card-body');
-                    if (cardBody) cardBody.prepend(err);
-                } else {
-                    if (countedPersons > totalMaxAllowed) {
-                        ok = false;
-                        const err = document.createElement('div');
-                        err.id = 'guest_limit_error';
-                        err.className = 'alert alert-danger mt-3';
-                        err.innerText =
-                            `Số lượng khách vượt quá giới hạn tối đa (${totalMaxAllowed}). Vui lòng giảm số lượng khách hoặc tăng số phòng. Lưu ý: Trẻ em dưới 7 tuổi được miễn phí và không tính vào giới hạn.`;
-                        const cardBody = form.querySelector('.card-body');
-                        if (cardBody) cardBody.prepend(err);
-                    } else if (childrenCount > Number(childrenInput.max || 2)) {
-                        ok = false;
-                        const err = document.createElement('div');
-                        err.id = 'guest_limit_error';
-                        err.className = 'alert alert-danger mt-3';
-                        err.innerText = `Tối đa ${childrenInput.max} trẻ em cho ${roomsInput.value || 1} phòng.`;
-                        const cardBody = form.querySelector('.card-body');
-                        if (cardBody) cardBody.prepend(err);
-                    }
-                }
-
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (submitBtn) submitBtn.disabled = !ok;
-            }
-
-            // Đếm số đêm cuối tuần (T6, T7, CN) trong khoảng [from, to)
-            function countWeekendNights(fromDate, toDate) {
-                const cursor = new Date(fromDate.getTime());
-                const end = new Date(toDate.getTime());
-                let count = 0;
-                while (cursor < end) {
-                    const day = cursor.getDay(); // 0: CN, 1: Th2, ... 6: Th7
-                    if (day === 5 || day === 6 || day === 0) {
-                        count++;
-                    }
-                    cursor.setDate(cursor.getDate() + 1);
-                }
-                return count;
-            }
-
-            // ---- UPDATE SUMMARY (có weekend +10% + voucher) ----
-            function updateSummary() {
-                const fromVal = fromInput.value;
-                const toVal = toInput.value;
-                const snapshotTotalInput = document.getElementById('snapshot_total_input');
-                const hiddenTotalInput = document.getElementById('hidden_tong_tien');
-                const hiddenDepositInput = document.getElementById('hidden_deposit');
-                const originalTotalInput = document.getElementById('original_total');
-                const originalDepositInput = document.getElementById('original_deposit');
-                const voucherDiscountInput = document.getElementById('voucher_discount_input');
-
-                if (!fromVal || !toVal) {
-                    nightsDisplay.innerText = '-';
-                    finalPerNightDisplay.innerText = '-';
-                    totalDisplay.innerText = '-';
-                    payableDisplay.innerText = '-';
-
-                    if (snapshotTotalInput) snapshotTotalInput.value = 0;
-                    if (hiddenTotalInput) hiddenTotalInput.value = 0;
-                    if (hiddenDepositInput) hiddenDepositInput.value = 0;
-
-                    if (originalTotalInput) originalTotalInput.value = 0;
-                    if (originalDepositInput) originalDepositInput.value = 0;
-
-                    if (weekendNoticeEl) weekendNoticeEl.style.display = 'none';
-                    return;
-                }
-
-                const from = new Date(fromVal + 'T00:00:00');
-                const to = new Date(toVal + 'T00:00:00');
-                const diffMs = to - from;
-                const nights = Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
-
-                if (nights <= 0) {
-                    nightsDisplay.innerText = '-';
-                    finalPerNightDisplay.innerText = '-';
-                    totalDisplay.innerText = '-';
-                    payableDisplay.innerText = '-';
-
-                    if (snapshotTotalInput) snapshotTotalInput.value = 0;
-                    if (hiddenTotalInput) hiddenTotalInput.value = 0;
-                    if (hiddenDepositInput) hiddenDepositInput.value = 0;
-
-                    if (originalTotalInput) originalTotalInput.value = 0;
-                    if (originalDepositInput) originalDepositInput.value = 0;
-
-                    if (weekendNoticeEl) weekendNoticeEl.style.display = 'none';
-                    return;
-                }
-
-                nightsDisplay.innerText = nights;
-
-                let roomsCount = 1;
-                if (roomsInput) {
-                    roomsCount = Number(roomsInput.value || 1);
-                    if (isNaN(roomsCount) || roomsCount < 1) roomsCount = 1;
-                    if (roomsInput.max && Number(roomsInput.max) >= 0 && roomsCount > Number(roomsInput.max)) {
-                        roomsCount = Number(roomsInput.max);
-                        roomsInput.value = roomsCount;
-                    }
-                }
-
-                updateInputLimitsByRooms();
-
-                const persons = computePersonCharges();
-                const computedAdults = persons.computedAdults;
-                const chargeableChildren = persons.chargeableChildren;
-                const countedPersons = computedAdults + chargeableChildren;
-
-                const totalMaxAllowed = (baseCapacity + 2) * roomsCount;
-
-                // Calculate extra guests (DEV branch logic)
-                const extraCountTotal = Math.max(0, countedPersons - (baseCapacity * roomsCount));
-                const adultsBeyondBaseTotal = Math.max(0, computedAdults - (baseCapacity * roomsCount));
-                const adultExtraTotal = Math.min(adultsBeyondBaseTotal, extraCountTotal);
-                let childrenExtraTotal = Math.max(0, extraCountTotal - adultExtraTotal);
-                childrenExtraTotal = Math.min(childrenExtraTotal, chargeableChildren);
-
-                const adultsChargePerNightTotal = adultExtraTotal * ADULT_PRICE;
-                const childrenChargePerNightTotal = childrenExtraTotal * CHILD_PRICE;
-                const addonsPerNight = computeAddonsPerNight();
-                const basePerRoom = pricePerNight;
-
-                // --- TÍNH GIÁ PHÒNG BASE CÓ WEEKEND +10% ---
-                const weekendNights = countWeekendNights(from, to);
-                const weekdayNights = Math.max(0, nights - weekendNights);
-
-                if (weekendNoticeEl) {
-                    if (weekendNights > 0) {
-                        weekendNoticeEl.style.display = 'block';
-                        weekendNoticeEl.innerText =
-                            `Lưu ý: Giá phòng tăng 10% cho các đêm cuối tuần (Thứ 6, Thứ 7, Chủ nhật). ` +
-                            `Số đêm cuối tuần trong khoảng bạn chọn: ${weekendNights}.`;
-                    } else {
-                        weekendNoticeEl.style.display = 'none';
-                    }
-                }
-
-                const baseWeekdayTotal = basePerRoom * roomsCount * weekdayNights;
-                const baseWeekendTotal = basePerRoom * WEEKEND_MULTIPLIER * roomsCount * weekendNights;
-                const roomBaseTotal = baseWeekdayTotal + baseWeekendTotal;
-
-                // Phụ thu (extra adults / children / addons) tính đều cho mọi đêm
-                const extrasPerNightTotal = adultsChargePerNightTotal + childrenChargePerNightTotal + addonsPerNight;
-                const extrasTotal = extrasPerNightTotal * nights;
-
-                // Tổng GỐC (chưa voucher)
-                const rawTotal = roomBaseTotal + extrasTotal;
-
-                // Áp dụng voucher (nếu có)
-                let voucherDiscount = 0;
-                if (voucherDiscountInput && voucherDiscountInput.value) {
-                    voucherDiscount = Number(voucherDiscountInput.value) || 0;
-                    if (voucherDiscount < 0) voucherDiscount = 0;
-                    if (voucherDiscount > rawTotal) voucherDiscount = rawTotal;
-                }
-
-                let total = rawTotal;
-                if (voucherDiscount > 0) {
-                    total = Math.max(0, rawTotal - voucherDiscount);
-                }
-
-                // Calculate final per night and deposit based on voucher-adjusted total
-                const finalPerNight = total / nights; // giá trung bình / đêm (đã gồm weekend + extra + voucher)
-
-                // Lấy phần trăm đặt cọc
-                const selectedDepositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
-                const depositPercentageValue = selectedDepositRadio ?
-                    parseInt(selectedDepositRadio.value, 10) :
-                    50;
-                const depositPercent = depositPercentageValue / 100;
-
-                // ✅ FIX: Khi 100%, deposit = total (không làm tròn). Khi 50%, làm tròn lên đến hàng nghìn
-                let deposit = depositPercent === 1 ?
-                    total :
-                    Math.ceil(total * depositPercent / 1000) * 1000;
-
-
-                const percentageText = depositPercent * 100 + '%';
-                const depositLabel = document.getElementById('deposit_percentage_label');
-                const modalDepositLabel = document.getElementById('modal_deposit_label');
-                const remainingInfo = document.getElementById('remaining_info');
-
-                if (depositLabel) {
-                    depositLabel.innerText = depositPercent === 1 ?
-                        'Thanh toán toàn bộ (100%)' :
-                        `Đặt cọc (${percentageText})`;
-                }
-                if (modalDepositLabel) {
-                    modalDepositLabel.innerText = depositPercent === 1 ?
-                        'Thanh toán toàn bộ (100%)' :
-                        `Đặt cọc (${percentageText})`;
-                }
-                if (remainingInfo) {
-                    if (depositPercent === 1) {
-                        remainingInfo.innerText = 'Đã thanh toán đủ - Không cần thanh toán thêm khi check-in';
-                    } else {
-                        const remaining = 100 - (depositPercent * 100);
-                        remainingInfo.innerText =
-                            `Phần còn lại (${remaining}%) thanh toán tại khách sạn khi check in`;
-                    }
-                }
-
-                // Giá hiển thị (base / extra chưa trừ voucher; final per night đã trừ voucher)
-                priceBaseDisplay.innerText = fmtVnd(basePerRoom); // giá cơ bản / phòng / đêm
-                priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ?
-                    fmtVnd(adultsChargePerNightTotal) :
-                    '0 đ';
-                priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ?
-                    fmtVnd(childrenChargePerNightTotal) :
-                    '0 đ';
-                const existingAddonsEl = document.getElementById('price_addons_display');
-                if (existingAddonsEl) existingAddonsEl.innerText = addonsPerNight > 0 ?
-                    fmtVnd(addonsPerNight) :
-                    '0 đ';
-
-                finalPerNightDisplay.innerText = fmtVnd(finalPerNight);
-                totalDisplay.innerText = fmtVnd(total);
-                payableDisplay.innerText = fmtVnd(deposit);
-
-                validateGuestLimits(computedAdults, chargeableChildren, countedPersons, totalMaxAllowed);
-
-                const finalPerNightInput = document.getElementById('final_per_night_input');
-                if (finalPerNightInput) finalPerNightInput.value = finalPerNight;
-                if (snapshotTotalInput) snapshotTotalInput.value = total;
-                if (hiddenTotalInput) hiddenTotalInput.value = total;
-                if (hiddenDepositInput) hiddenDepositInput.value = deposit;
-
-                // LƯU GIÁ GỐC (KHÔNG VOUCHER) ĐỂ ÁP DỤNG / RESET VOUCHER
-                if (originalTotalInput) originalTotalInput.value = rawTotal;
-                if (originalDepositInput) {
-                    // ✅ FIX: Khi 100%, deposit = rawTotal (không làm tròn). Khi 50%, làm tròn lên đến hàng nghìn
-                    const depositRaw = depositPercent === 1 ?
-                        rawTotal :
-                        Math.ceil(rawTotal * depositPercent / 1000) * 1000;
-                    originalDepositInput.value = depositRaw;
-                }
-            }
-
-            // expose cho UI voucher dùng
-            window.bookingUpdateSummary = updateSummary;
-
-            document.querySelectorAll('input[name="deposit_percentage"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    updateSummary();
-                });
-            });
-
-            function showToastInline(msg, isError = false, timeout = 2800) {
-                try {
-                    const d = document.createElement('div');
-                    d.className = 'alert ' + (isError ? 'alert-danger' : 'alert-success') + ' position-fixed';
-                    d.style.right = '20px';
-                    d.style.bottom = '20px';
-                    d.style.zIndex = 1150;
-                    d.style.minWidth = '200px';
-                    d.textContent = msg;
-                    document.body.appendChild(d);
-                    setTimeout(() => d.remove(), timeout);
-                } catch (e) {
-                    console.warn('Toast failed', e);
-                }
-            }
-
-            (function handleServerMessagesOnLoad() {
-                const successEl = document.getElementById('server_success');
-                const errorEl = document.getElementById('server_error');
-                const container = document.getElementById('server_message_container');
-
-                if (successEl) {
-                    const msg = successEl.getAttribute('data-message') || 'Đặt phòng thành công';
-                    const datPhongId = successEl.getAttribute('data-datphong') || '';
-                    if (container) {
-                        const alert = document.createElement('div');
-                        alert.className = 'alert alert-success';
-                        let html = `<strong>Thành công:</strong> ${msg}`;
-                        if (datPhongId) {
-                            const url = "{{ route('account.booking.show', ['dat_phong' => '__ID__']) }}".replace(
-                                '__ID__', datPhongId);
-                            html +=
-                                ` <a href="${url}" class="btn btn-sm btn-outline-primary ms-2">Xem chi tiết đặt phòng</a>`;
-                        }
-                        alert.innerHTML = html;
-                        container.appendChild(alert);
-                    }
-                    showToastInline(msg, false, 4000);
-                }
-
-                if (errorEl) {
-                    const msg = errorEl.getAttribute('data-message') || 'Không thể tạo đặt phòng';
-                    if (container) {
-                        const alert = document.createElement('div');
-                        alert.className = 'alert alert-danger';
-                        alert.textContent = msg;
-                        container.appendChild(alert);
-                    }
-                    showToastInline(msg, true, 5000);
-                }
-            })();
-
-            function showVNPAYConfirmModal() {
-                const nights = Number(nightsDisplay.innerText || 0);
-                const basePrice = pricePerNight * (roomsInput ? Number(roomsInput.value || 1) : 1);
-                const adultsCharge = priceAdultsDisplay.innerText || '0 đ';
-                const childrenCharge = priceChildrenDisplay.innerText || '0 đ';
-
-                const addonsEl = document.getElementById('price_addons_display');
-                const addonsCharge = addonsEl ? (addonsEl.innerText || '0 đ') : '0 đ';
-
-                const finalPerNight = finalPerNightDisplay.innerText || '0 đ';
-                const total = totalDisplay.innerText || '0 đ';
-                const deposit = payableDisplay.innerText || '0 đ';
-
-                document.getElementById('modal_price_base').innerText = fmtVnd(basePrice);
-                document.getElementById('modal_price_adults').innerText = adultsCharge;
-                document.getElementById('modal_price_children').innerText = childrenCharge;
-                document.getElementById('modal_price_addons').innerText = addonsCharge;
-                document.getElementById('modal_final_per_night').innerText = finalPerNight;
-                document.getElementById('modal_nights_count').innerText = nights;
-                document.getElementById('modal_total_snapshot').innerText = total;
-                document.getElementById('modal_payable_now').innerText = deposit;
-
-                const modal = new bootstrap.Modal(document.getElementById('vnpayConfirmModal'));
-                modal.show();
-            }
-
-            // Xử lý click nút "Xác Nhận" trong modal VNPAY
-            const vnpayProceedBtn = document.getElementById('vnpayProceedBtn');
-            if (vnpayProceedBtn) {
-                vnpayProceedBtn.addEventListener('click', async function() {
-                    const modalInstance = bootstrap.Modal.getInstance(
-                        document.getElementById('vnpayConfirmModal')
-                    );
-                    if (modalInstance) modalInstance.hide();
-
-                    const submitBtn = document.querySelector('#bookingForm button[type="submit"]');
-                    submitBtn.disabled = true;
-                    submitBtn.dataset.origHtml = submitBtn.innerHTML;
-                    submitBtn.innerHTML =
-                        '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
-
-                    const phongId = document.querySelector('input[name="phong_id"]').value;
-                    const ngayNhan = fromInput.value;
-                    const ngayTra = toInput.value;
-                    const tongTien = document.getElementById('hidden_tong_tien').value;
-                    const deposit = document.getElementById('hidden_deposit').value;
-                    const adults = adultsInput.value;
-                    const children = childrenInput.value;
-                    const childrenAges = Array.from(
-                        document.querySelectorAll('input[name="children_ages[]"]')
-                    ).map(el => el.value);
-                    const addons = Array.from(
-                        document.querySelectorAll('input[name="addons[]"]:checked')
-                    ).map(el => el.value);
-                    const roomsCount = roomsInput.value;
-                    const soKhach = Number(adults) + Number(children);
-                    const name = document.querySelector('input[name="name"]').value.trim();
-                    const address = document.querySelector('input[name="address"]').value.trim();
-                    const phone = document.querySelector('input[name="phone"]').value.trim();
-                    const phuongThuc = 'vnpay';
-
-                    const voucherId = document.getElementById('voucher_id_input')?.value || null;
-                    const voucherDiscount = document.getElementById('voucher_discount_input')?.value ||
-                    null;
-                    const voucherCodeHidden = document.getElementById('voucher_code_input')?.value || null;
-
-                    const depositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
-                    const depositPercentageValue = depositRadio ? depositRadio.value : '50';
-
-                    try {
-                        const response = await fetch("{{ route('payment.initiate') }}", {
-                            method: "POST",
-                            headers: {
-                                "X-CSRF-TOKEN": "{{ csrf_token() }}",
-                                "Content-Type": "application/json",
-                                "Accept": "application/json",
-                            },
-                            body: JSON.stringify({
-                                phong_id: phongId,
-                                ngay_nhan_phong: ngayNhan,
-                                ngay_tra_phong: ngayTra,
-                                amount: deposit,
-                                total_amount: tongTien,
-                                deposit_percentage: depositPercentageValue,
-
-                                so_khach: soKhach,
-                                adults: adults,
-                                children: children,
-                                children_ages: childrenAges,
-                                addons: addons,
-                                rooms_count: roomsCount,
-
-                                // voucher
-                                voucher_id: voucherId,
-                                voucher_discount: voucherDiscount,
-                                ma_voucher: voucherCodeHidden,
-
-                                phuong_thuc: phuongThuc,
-                                name: name,
-                                address: address,
-                                phone: phone,
-                                ghi_chu: document.querySelector('textarea[name="ghi_chu"]')
-                                    .value.trim() || '',
-                            }),
-                        });
-
-                        const data = await response.json();
-                        const depositPercentage = parseFloat(depositPercentageValue) || 50;
-                        const tolerance = depositPercentage === 100 ? 2000 : 0;
-                        if (parseFloat(deposit) <= 0 ||
-                            (parseFloat(deposit) > parseFloat(tongTien) + tolerance)) {
-                            showToastInline('Deposit không hợp lệ.', true, 5000);
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                        if (!res.ok) {
+                            if (res.status === 422) {
+                                const body = await res.json().catch(() => null);
+                                console.warn('availability main 422 body:', body);
+                            }
+                            console.error('Availability check error: status', res.status);
                             return;
                         }
-                        if (data.redirect_url) {
-                            window.location.href = data.redirect_url;
-                        } else {
-                            showToastInline(data.error || 'Không thể khởi tạo thanh toán.', true, 5000);
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                        const data = await res.json();
+                        const avail = Number(data.available || 0);
+                        currentAvailableRooms = avail;
+                        if (availDisplayEl) availDisplayEl.innerText = avail;
+                        if (roomsInput) {
+                            roomsInput.max = avail;
+                            if (Number(roomsInput.value || 0) > avail) roomsInput.value = Math.max(1,
+                                avail);
                         }
+                        if (avail === 0) showNoAvailabilityMessage();
+                        else clearAvailabilityMessage();
+                        updateSummary();
                     } catch (err) {
-                        showToastInline('Lỗi khi tạo thanh toán: ' + err.message, true, 5000);
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                        console.error('Availability check error', err);
                     }
-                });
-            }
+                }
 
-            // Setup hành vi submit form
-            (function setupSubmitUx() {
-                const form = document.getElementById('bookingForm');
-                if (!form) return;
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (!submitBtn) return;
-                const paymentMethodSelect = document.querySelector('select[name="phuong_thuc"]');
+                function showNoAvailabilityMessage() {
+                    if (!availabilityMessageEl) return;
+                    availabilityMessageEl.className = 'small mt-2 text-danger';
+                    availabilityMessageEl.innerText =
+                        `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
+                    toggleSubmit(false);
+                }
 
-                form.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    if (submitBtn.disabled) return;
+                function clearAvailabilityMessage() {
+                    if (!availabilityMessageEl) return;
+                    availabilityMessageEl.innerText = '';
+                    toggleSubmit(true);
+                }
 
-                    if (currentAvailableRooms <= 0) {
-                        if (availabilityMessageEl) {
-                            availabilityMessageEl.className = 'small mt-2 text-danger';
-                            availabilityMessageEl.innerText =
-                                `Không thể đặt: Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
+                function toggleSubmit(enabled) {
+                    const form = document.getElementById('bookingForm');
+                    if (!form) return;
+                    const btn = form.querySelector('button[type="submit"]');
+                    if (!btn) return;
+                    btn.disabled = !enabled;
+                }
+
+                // ---------- MR (additional groups) ----------
+                let mrIndex = 0;
+
+                function getLoaiObj(loaiId) {
+                    return LOAI_PHONGS[String(loaiId)] || LOAI_PHONGS[loaiId] || null;
+                }
+
+                // Keep hidden inputs in sync with UI state so normal form submit works
+                function syncGroupHiddenInputs() {
+                    if (!MR_CONTAINER) return;
+                    const groups = Array.from(MR_CONTAINER.querySelectorAll('.mr_group'));
+                    groups.forEach(g => {
+                        const gi = g.dataset.idx;
+                        // ensure loai_phong_id hidden exists
+                        let hLo = g.querySelector(`input[name="rooms[${gi}][loai_phong_id]"]`);
+                        if (!hLo) {
+                            hLo = document.createElement('input');
+                            hLo.type = 'hidden';
+                            hLo.name = `rooms[${gi}][loai_phong_id]`;
+                            hLo.className = 'mr_hidden_loai';
+                            g.appendChild(hLo);
                         }
-                        showToastInline(
-                            `Không thể đặt: Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`,
-                            true, 3500);
-                        return;
+                        hLo.value = g.dataset.loaiId;
+
+                        // rooms_count
+                        let hCnt = g.querySelector(`input[name="rooms[${gi}][rooms_count]"]`);
+                        const roomsInp = g.querySelector('.mr_rooms_count_input');
+                        if (!hCnt) {
+                            hCnt = document.createElement('input');
+                            hCnt.type = 'hidden';
+                            hCnt.name = `rooms[${gi}][rooms_count]`;
+                            hCnt.className = 'mr_hidden_rooms_count';
+                            g.appendChild(hCnt);
+                        }
+                        hCnt.value = roomsInp ? roomsInp.value : 1;
+
+                        // adults
+                        let hAdults = g.querySelector(`input[name="rooms[${gi}][adults]"]`);
+                        const adultsInp = g.querySelector('.mr_adults_input');
+                        if (!hAdults) {
+                            hAdults = document.createElement('input');
+                            hAdults.type = 'hidden';
+                            hAdults.name = `rooms[${gi}][adults]`;
+                            hAdults.className = 'mr_hidden_adults';
+                            g.appendChild(hAdults);
+                        }
+                        hAdults.value = adultsInp ? adultsInp.value : 0;
+
+                        // children
+                        let hChildren = g.querySelector(`input[name="rooms[${gi}][children]"]`);
+                        const childrenInp = g.querySelector('.mr_children_input');
+                        if (!hChildren) {
+                            hChildren = document.createElement('input');
+                            hChildren.type = 'hidden';
+                            hChildren.name = `rooms[${gi}][children]`;
+                            hChildren.className = 'mr_hidden_children';
+                            g.appendChild(hChildren);
+                        }
+                        hChildren.value = childrenInp ? childrenInp.value : 0;
+
+                        // You can add per-group addons hidden inputs if you support them:
+                        // remove previous 'addons' hidden to avoid duplicates
+                        const prevAddons = g.querySelectorAll(`[name^="rooms[${gi}][addons]"]`);
+                        prevAddons.forEach(n => n.remove());
+                        // (If you have checkboxes per group, create rooms[gi][addons][] hidden inputs here.)
+
+                    });
+                }
+
+                function buildGroupNode(loaiId) {
+                    const loai = getLoaiObj(loaiId);
+                    if (!loai) {
+                        console.warn('Không tìm thấy loai_phong trong LOAI_PHONGS:', loaiId);
+                        return null;
                     }
 
-                    const paymentMethod = paymentMethodSelect.value;
-                    if (paymentMethod === 'vnpay') {
-                        showVNPAYConfirmModal();
-                        return;
-                    } else {
-                        submitBtn.disabled = true;
-                        submitBtn.dataset.origHtml = submitBtn.innerHTML;
-                        submitBtn.innerHTML =
-                            '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
-                        form.submit();
+                    // pick representative room (to get precise price if available)
+                    const phongs = getArr(loai, ['phongs', 'phongs_list', 'rooms']) || [];
+                    let rep = null;
+                    if (Array.isArray(phongs) && phongs.length) {
+                        rep = phongs.find(p => String(p.id) !== String(CURRENT_PHONG_ID)) || phongs[0];
                     }
-                });
+                    const price = Number((rep && (rep.tong_gia || rep.gia_cuoi_cung || rep.gia_mac_dinh)) ||
+                        loai.gia_mac_dinh || 0);
+                    const capacity = loai.suc_chua || (rep ? (rep.suc_chua || 1) : 1);
 
-                ['ngay_nhan_phong', 'ngay_tra_phong', 'rooms_count'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.addEventListener('change', () => {
-                        if (submitBtn && submitBtn.disabled) {
-                            submitBtn.disabled = false;
-                            if (submitBtn.dataset.origHtml) {
-                                submitBtn.innerHTML = submitBtn.dataset.origHtml;
+                    // build amenities list robustly
+                    const amenities = (getArr(loai, ['tienNghis', 'tien_nghis', 'tien_nghi', 'amenities',
+                            'tien_nghi'
+                        ]) || [])
+                        .map(a => a.ten || a.name).filter(Boolean).slice(0, 6).join(', ') || '-';
+
+                    // bed types display (try multiple keys)
+                    const bedTypesArr = getArr(loai, ['bedTypes', 'bed_types', 'beds', 'bed_types_list']);
+                    const bedTypesHtml = bedTypesArr.length ? (bedTypesArr.map(b => {
+                        const label = b.ten || b.name || (b.label) || '';
+                        const qty = (b.pivot && b.pivot.quantity) || b.quantity || '';
+                        return `<div class="small">• ${label}${qty ? ` x${qty}` : ''}</div>`;
+                    }).join('')) : '<div class="small">-</div>';
+
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'mr_group card p-2 mb-3';
+                    wrapper.dataset.loaiId = String(loaiId);
+                    wrapper.dataset.representativePhongId = rep ? String(rep.id) : '';
+                    wrapper.dataset.pricePerRoom = String(price);
+                    wrapper.dataset.baseCapacity = String(capacity);
+                    wrapper.dataset.idx = String(++mrIndex);
+
+                    wrapper.innerHTML = `
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="fw-bold">${loai.ten || loai.name}</div>
+                                <div class="small text-muted">${getStr(loai, ['mo_ta','description','desc'])}</div>
+                                <div class="small"><strong>Tiện nghi:</strong> <span class="mr_amenities">${amenities}</span></div>
+                                <div class="small"><strong>Cấu hình giường:</strong> <div class="mr_bedtypes">${bedTypesHtml}</div></div>
+                                <div class="small"><strong>Sức chứa (mỗi phòng):</strong> <span class="mr_capacity">${capacity}</span></div>
+                                <div class="small text-muted">Có sẵn cho ngày đã chọn: <span class="mr_available_display">-</span> phòng</div>
+                            </div>
+                            <div class="text-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger mr_remove_btn">Xóa</button>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-4">
+                                <label class="form-label">Số phòng</label>
+                                <input type="number" min="1" value="1" class="form-control mr_rooms_count_input" />
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Người lớn</label>
+                                <input type="number" min="0" value="${capacity}" class="form-control mr_adults_input" />
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Trẻ em</label>
+                                <input type="number" min="0" value="0" class="form-control mr_children_input" />
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <label class="form-label">Giá / đêm (tạm)</label>
+                                <div class="fw-bold mr_price_display">${price ? fmtVnd(price) : '-'}</div>
+                            </div>
+                        </div>
+                    `;
+
+                    // events
+                    const roomsInp = wrapper.querySelector('.mr_rooms_count_input');
+                    const adultsInp = wrapper.querySelector('.mr_adults_input');
+                    const childrenInp = wrapper.querySelector('.mr_children_input');
+                    const rmBtn = wrapper.querySelector('.mr_remove_btn');
+
+                    const onGroupChange = () => {
+                        let v = Number(roomsInp.value || 1);
+                        if (isNaN(v) || v < 1) v = 1;
+                        roomsInp.value = v;
+                        let a = Number(adultsInp.value || 0);
+                        if (isNaN(a) || a < 0) a = 0;
+                        adultsInp.value = a;
+                        let c = Number(childrenInp.value || 0);
+                        if (isNaN(c) || c < 0) c = 0;
+                        childrenInp.value = c;
+
+                        // update hidden inputs for this group
+                        syncGroupHiddenInputs();
+
+                        fetchAndWriteAvailabilityForGroup(wrapper);
+                        updateSummary();
+                    };
+
+                    roomsInp.addEventListener('input', onGroupChange);
+                    adultsInp.addEventListener('input', onGroupChange);
+                    childrenInp.addEventListener('input', onGroupChange);
+
+                    rmBtn.addEventListener('click', function() {
+                        if (MR_ADD_SELECT) {
+                            const opt = MR_ADD_SELECT.querySelector(`option[value="${loaiId}"]`);
+                            if (opt) opt.hidden = false;
+                        }
+                        wrapper.remove();
+                        // re-sync after removal
+                        syncGroupHiddenInputs();
+                        updateSummary();
+                    });
+
+                    // initial fetch small delay + create initial hidden inputs
+                    setTimeout(() => {
+                        fetchAndWriteAvailabilityForGroup(wrapper);
+                        syncGroupHiddenInputs();
+                    }, 50);
+                    return wrapper;
+                }
+
+                async function fetchAndWriteAvailabilityForGroup(wrapper) {
+                    try {
+                        if (!fromInput || !toInput) return;
+                        if (!ensureToAfterFromAndUpdateInputs()) return;
+                        const loaiId = wrapper.dataset.loaiId;
+                        const rep = wrapper.dataset.representativePhongId;
+                        const paramsObj = {
+                            loai_phong_id: String(loaiId),
+                            from: fromInput.value,
+                            to: toInput.value
+                        };
+                        if (rep) paramsObj.phong_id = String(rep);
+                        const url = '{{ route('booking.availability') }}' + '?' + new URLSearchParams(
+                            paramsObj).toString();
+                        console.debug('[availability group] GET', url);
+                        const res = await fetch(url, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+                        if (!res.ok) {
+                            if (res.status === 422) {
+                                const body = await res.json().catch(() => null);
+                                console.warn('group availability 422 body:', body);
+                            }
+                            console.warn('group availability http status', res.status);
+                            const ad = wrapper.querySelector('.mr_available_display');
+                            if (ad) ad.innerText = '-';
+                            return;
+                        }
+                        const data = await res.json();
+                        const avail = Number(data.available || 0);
+                        const ad = wrapper.querySelector('.mr_available_display');
+                        if (ad) ad.innerText = avail;
+                        const roomsInp = wrapper.querySelector('.mr_rooms_count_input');
+                        if (roomsInp) {
+                            roomsInp.max = Math.max(1, avail);
+                            if (Number(roomsInp.value || 0) > avail) roomsInp.value = Math.max(1, avail);
+                        }
+                        // keep hidden inputs synced after availability changes
+                        syncGroupHiddenInputs();
+                    } catch (err) {
+                        console.error('group availability error', err);
+                    }
+                }
+
+                function refreshAllGroupsAvailability() {
+                    if (!MR_CONTAINER) return;
+                    const groups = Array.from(MR_CONTAINER.querySelectorAll('.mr_group'));
+                    groups.forEach(g => fetchAndWriteAvailabilityForGroup(g));
+                }
+
+                // MR add button
+                if (MR_ADD_BTN && MR_ADD_SELECT && MR_CONTAINER) {
+                    MR_ADD_BTN.addEventListener('click', function() {
+                        const val = MR_ADD_SELECT.value;
+                        if (!val) return;
+                        if (MR_CONTAINER.querySelector(`.mr_group[data-loai-id="${val}"]`)) {
+                            showInlineMsg('Loại phòng này đã được thêm', true);
+                            return;
+                        }
+                        const node = buildGroupNode(val);
+                        if (node) {
+                            MR_CONTAINER.appendChild(node);
+                            const opt = MR_ADD_SELECT.querySelector(`option[value="${val}"]`);
+                            if (opt) opt.hidden = true;
+                            MR_ADD_SELECT.value = '';
+                        }
+                        // ensure hidden inputs created
+                        syncGroupHiddenInputs();
+                        updateSummary();
+                    });
+                } else {
+                    if (!MR_ADD_BTN) console.warn('MR_ADD_BTN not found');
+                    if (!MR_ADD_SELECT) console.warn('MR_ADD_SELECT not found');
+                    if (!MR_CONTAINER) console.warn('MR_CONTAINER not found');
+                }
+
+                function showInlineMsg(msg, isError = false, t = 2500) {
+                    try {
+                        const d = document.createElement('div');
+                        d.className = 'alert ' + (isError ? 'alert-danger' : 'alert-success') +
+                            ' position-fixed';
+                        d.style.right = '20px';
+                        d.style.bottom = '20px';
+                        d.style.zIndex = 1150;
+                        d.style.minWidth = '200px';
+                        d.textContent = msg;
+                        document.body.appendChild(d);
+                        setTimeout(() => d.remove(), t);
+                    } catch (e) {
+                        console.warn(e);
+                    }
+                }
+
+                // ---------- SUMMARY (main + groups) ----------
+                function computeAddonsPerNight() {
+                    let sum = 0;
+                    document.querySelectorAll('input[name="addons[]"]:checked').forEach(chk => {
+                        const p = Number(chk.dataset.price || 0);
+                        if (!isNaN(p)) sum += p;
+                    });
+                    const rooms = Number(roomsInput ? (roomsInput.value || 1) : 1);
+                    return sum * Math.max(1, rooms);
+                }
+
+                function updateSummary() {
+                    if (!ensureToAfterFromAndUpdateInputs()) return;
+                    const fromVal = fromInput?.value,
+                        toVal = toInput?.value;
+                    if (!fromVal || !toVal) {
+                        nightsDisplay && (nightsDisplay.innerText = '-');
+                        finalPerNightDisplay && (finalPerNightDisplay.innerText = '-');
+                        totalDisplay && (totalDisplay.innerText = '-');
+                        payableDisplay && (payableDisplay.innerText = '-');
+                        return;
+                    }
+                    const from = new Date(fromVal + 'T00:00:00'),
+                        to = new Date(toVal + 'T00:00:00');
+                    const nights = Math.max(0, Math.round((to - from) / (1000 * 60 * 60 * 24)));
+                    if (nights <= 0) {
+                        nightsDisplay && (nightsDisplay.innerText = '-');
+                        finalPerNightDisplay && (finalPerNightDisplay.innerText = '-');
+                        totalDisplay && (totalDisplay.innerText = '-');
+                        payableDisplay && (payableDisplay.innerText = '-');
+                        return;
+                    }
+                    if (nightsDisplay) nightsDisplay.innerText = nights;
+
+                    // main rooms count clamp
+                    let roomsCount = 1;
+                    if (roomsInput) {
+                        roomsCount = Number(roomsInput.value || 1);
+                        if (isNaN(roomsCount) || roomsCount < 1) roomsCount = 1;
+                        if (roomsInput.max && Number(roomsInput.max) >= 0 && roomsCount > Number(roomsInput
+                                .max)) {
+                            roomsCount = Number(roomsInput.max);
+                            roomsInput.value = roomsCount;
+                        }
+                    }
+                    updateInputLimitsByRooms();
+
+                    // main persons
+                    const agesGlobal = Array.from(document.querySelectorAll('.child-age-input')).map(x =>
+                        Number(x.value || 0));
+                    let computedAdultsMain = Number(adultsInput?.value || 0);
+                    let chargeableChildrenMain = 0;
+                    agesGlobal.forEach(a => {
+                        if (a >= 13) computedAdultsMain++;
+                        else if (a >= CHILD_FREE_AGE) chargeableChildrenMain++;
+                    });
+
+                    // totals start from main
+                    let computedAdultsTotal = computedAdultsMain;
+                    let chargeableChildrenTotal = chargeableChildrenMain;
+
+                    // main extras
+                    const extraCountMain = Math.max(0, computedAdultsMain - (baseCapacity * roomsCount));
+                    const adultsBeyondBaseMain = Math.max(0, computedAdultsMain - (baseCapacity * roomsCount));
+                    const adultExtraTotalMain = Math.min(adultsBeyondBaseMain, extraCountMain);
+                    const adultsChargePerNightMain = adultExtraTotalMain * ADULT_PRICE;
+                    const childrenChargePerNightMain = chargeableChildrenMain * CHILD_PRICE;
+
+                    const addonsPerNight = computeAddonsPerNight();
+                    const basePerRoom = pricePerNight;
+
+                    const weekendNights = countWeekendNights(from, to);
+                    const weekdayNights = Math.max(0, nights - weekendNights);
+
+                    const baseWeekdayTotal = basePerRoom * roomsCount * weekdayNights;
+                    const baseWeekendTotal = basePerRoom * WEEKEND_MULTIPLIER * roomsCount * weekendNights;
+                    const roomBaseTotal = baseWeekdayTotal + baseWeekendTotal;
+
+                    const extrasPerNightMainTotal = adultsChargePerNightMain + childrenChargePerNightMain +
+                        addonsPerNight;
+                    const extrasTotalMain = extrasPerNightMainTotal * nights;
+
+                    // groups
+                    let additionalGroupsTotal = 0;
+                    let additionalAdultsChargePerNight = 0;
+                    let groupsRoomCount = 0;
+                    if (MR_CONTAINER) {
+                        const groups = Array.from(MR_CONTAINER.querySelectorAll('.mr_group'));
+                        groups.forEach(g => {
+                            const price = Number(g.dataset.pricePerRoom || 0);
+                            const roomsG = Number(g.querySelector('.mr_rooms_count_input')?.value || 0);
+                            const adultsG = Number(g.querySelector('.mr_adults_input')?.value || 0);
+                            const childrenG = Number(g.querySelector('.mr_children_input')?.value || 0);
+                            const baseCap = Number(g.dataset.baseCapacity || 1);
+
+                            if (!roomsG || roomsG <= 0) return;
+                            groupsRoomCount += roomsG;
+                            const bw = price * roomsG * weekdayNights;
+                            const be = price * WEEKEND_MULTIPLIER * roomsG * weekendNights;
+                            additionalGroupsTotal += (bw + be);
+
+                            // add counts (we assume group children are chargeable; if you need free-age logic for groups, pass ages)
+                            computedAdultsTotal += adultsG;
+                            chargeableChildrenTotal += childrenG;
+
+                            // group extra adult charges
+                            const extraAdultsGroup = Math.max(0, adultsG - (baseCap * roomsG));
+                            additionalAdultsChargePerNight += extraAdultsGroup * ADULT_PRICE;
+                        });
+                    }
+
+                    const extrasPerNightTotal = (adultsChargePerNightMain + additionalAdultsChargePerNight) + (
+                        childrenChargePerNightMain) + addonsPerNight;
+                    const extrasTotal = extrasPerNightTotal * nights;
+
+                    const rawTotal = roomBaseTotal + extrasTotal + additionalGroupsTotal;
+
+                    // voucher
+                    const voucherDiscountInput = document.getElementById('voucher_discount_input');
+                    let voucherDiscount = 0;
+                    if (voucherDiscountInput && voucherDiscountInput.value) {
+                        voucherDiscount = Number(voucherDiscountInput.value) || 0;
+                        if (voucherDiscount < 0) voucherDiscount = 0;
+                        if (voucherDiscount > rawTotal) voucherDiscount = rawTotal;
+                    }
+                    let total = rawTotal;
+                    if (voucherDiscount > 0) total = Math.max(0, rawTotal - voucherDiscount);
+
+                    const finalPerNight = total / nights;
+                    const selectedDepositRadio = document.querySelector(
+                        'input[name="deposit_percentage"]:checked');
+                    const depositPercent = (selectedDepositRadio ? parseInt(selectedDepositRadio.value, 10) :
+                        50) / 100;
+                    const deposit = depositPercent === 1 ? total : Math.ceil(total * depositPercent / 1000) *
+                        1000;
+
+                    // write UI
+                    priceBaseDisplay && (priceBaseDisplay.innerText = fmtVnd(basePerRoom));
+                    priceAdultsDisplay && (priceAdultsDisplay.innerText = ((adultsChargePerNightMain +
+                        additionalAdultsChargePerNight) > 0) ? fmtVnd(adultsChargePerNightMain +
+                        additionalAdultsChargePerNight) : '0 đ');
+                    priceChildrenDisplay && (priceChildrenDisplay.innerText = (childrenChargePerNightMain > 0) ?
+                        fmtVnd(childrenChargePerNightMain) : '0 đ');
+                    finalPerNightDisplay && (finalPerNightDisplay.innerText = fmtVnd(finalPerNight));
+                    totalDisplay && (totalDisplay.innerText = fmtVnd(total));
+                    payableDisplay && (payableDisplay.innerText = fmtVnd(deposit));
+
+                    // hidden inputs
+                    const hiddenTotal = document.getElementById('hidden_tong_tien');
+                    const hiddenDeposit = document.getElementById('hidden_deposit');
+                    const snapshotTotal = document.getElementById('snapshot_total_input');
+                    if (hiddenTotal) hiddenTotal.value = total;
+                    if (hiddenDeposit) hiddenDeposit.value = deposit;
+                    if (snapshotTotal) snapshotTotal.value = total;
+
+                    // original totals
+                    const originalTotalInput = document.getElementById('original_total');
+                    const originalDepositInput = document.getElementById('original_deposit');
+                    if (originalTotalInput) originalTotalInput.value = rawTotal;
+                    if (originalDepositInput) originalDepositInput.value = deposit;
+
+                    // validate guest limits & submit
+                    const totalMaxAllowed = (baseCapacity + 2) * (roomsCount + groupsRoomCount);
+                    const countedPersons = computedAdultsTotal + chargeableChildrenTotal;
+                    if (countedPersons > totalMaxAllowed || currentAvailableRooms <= 0) toggleSubmit(false);
+                    else toggleSubmit(true);
+                }
+
+                // expose
+                window.bookingUpdateSummary = function() {
+                    updateSummary();
+                    syncGroupHiddenInputs();
+                };
+
+                // ---------- events ----------
+                function renderChildrenAges() {
+                    const initialChildrenAges = {!! json_encode(old('children_ages', [])) !!};
+                    const initialChildrenCount = Number({{ old('children', 0) }});
+                    const count = Number(childrenInput?.value || initialChildrenCount || 0);
+                    if (!childrenAgesContainer) return;
+                    childrenAgesContainer.innerHTML = '';
+                    for (let i = 0; i < count; i++) {
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'mb-2 child-age-wrapper';
+                        const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[
+                            i] !== 'undefined') ? Number(initialChildrenAges[i]) : 0;
+                        wrapper.innerHTML = `<label class="form-label">Tuổi trẻ em ${i+1}</label>
+                        <input type="number" name="children_ages[]" class="form-control child-age-input" min="0" max="12" value="${initialVal}" />
+                        <div class="small text-danger mt-1 age-error" style="display:none;"></div>`;
+                        childrenAgesContainer.appendChild(wrapper);
+                    }
+                    document.querySelectorAll('.child-age-input').forEach(el => {
+                        el.addEventListener('input', function() {
+                            let v = Number(this.value || 0);
+                            if (isNaN(v) || v < 0) this.value = 0;
+                            if (v > 12) this.value = 12;
+                            updateSummary();
+                        });
+                    });
+                }
+
+                if (adultsInput) adultsInput.addEventListener('input', updateSummary);
+                if (childrenInput) {
+                    childrenInput.addEventListener('input', () => {
+                        renderChildrenAges();
+                        updateSummary();
+                    });
+                }
+                if (roomsInput) {
+                    roomsInput.addEventListener('input', updateSummary);
+                    roomsInput.addEventListener('change', updateSummary);
+                }
+
+                // flatpickr glue
+                function setHiddenDatesAndRefresh(selectedDates) {
+                    if (!selectedDates || selectedDates.length === 0) return;
+                    const from = selectedDates[0],
+                        to = selectedDates[1] || selectedDates[0];
+
+                    function fmt(d) {
+                        const y = d.getFullYear(),
+                            m = String(d.getMonth() + 1).padStart(2, '0'),
+                            day = String(d.getDate()).padStart(2, '0');
+                        return `${y}-${m}-${day}`;
+                    }
+                    if (fromInput) fromInput.value = fmt(from);
+                    if (toInput) toInput.value = fmt(to);
+                    ensureToAfterFromAndUpdateInputs();
+                    updateSummary();
+                    updateRoomsAvailabilityMain();
+                    refreshAllGroupsAvailability();
+                }
+                if (typeof flatpickr !== 'undefined' && dateRangeInput) {
+                    if (dateRangeInput._flatpickr) dateRangeInput._flatpickr.destroy();
+                    flatpickr(dateRangeInput, {
+                        mode: "range",
+                        minDate: "today",
+                        dateFormat: "Y-m-d",
+                        defaultDate: [fromInput?.value || new Date().toISOString().slice(0, 10), toInput
+                            ?.value || (() => {
+                                let d = new Date();
+                                d.setDate(d.getDate() + 1);
+                                return d.toISOString().slice(0, 10);
+                            })()
+                        ],
+                        onChange: function(selectedDates) {
+                            if (selectedDates.length) setHiddenDatesAndRefresh(selectedDates);
+                        }
+                    });
+                    if (fromInput?.value && toInput?.value) setHiddenDatesAndRefresh([new Date(fromInput.value),
+                        new Date(toInput.value)
+                    ]);
+                }
+
+                // initial
+                renderChildrenAges();
+                updateInputLimitsByRooms();
+                updateSummary();
+                updateRoomsAvailabilityMain();
+                refreshAllGroupsAvailability();
+
+
+                // ---------- VNPAY modal + submit handler ----------
+                function showVNPAYConfirmModal() {
+                    const nights = Number(nightsDisplay?.innerText || 0);
+                    const basePrice = pricePerNight * (roomsInput ? Number(roomsInput.value || 1) : 1);
+                    const adultsCharge = priceAdultsDisplay?.innerText || '0 đ';
+                    const childrenCharge = priceChildrenDisplay?.innerText || '0 đ';
+                    const addonsEl = document.getElementById('price_addons_display');
+                    const addonsCharge = addonsEl ? (addonsEl.innerText || '0 đ') : '0 đ';
+                    const finalPerNight = finalPerNightDisplay?.innerText || '0 đ';
+                    const total = totalDisplay?.innerText || '0 đ';
+                    const deposit = payableDisplay?.innerText || '0 đ';
+
+                    if (document.getElementById('modal_price_base')) document.getElementById('modal_price_base')
+                        .innerText = fmtVnd(basePrice);
+                    if (document.getElementById('modal_price_adults')) document.getElementById(
+                        'modal_price_adults').innerText = adultsCharge;
+                    if (document.getElementById('modal_price_children')) document.getElementById(
+                        'modal_price_children').innerText = childrenCharge;
+                    if (document.getElementById('modal_price_addons')) document.getElementById(
+                        'modal_price_addons').innerText = addonsCharge;
+                    if (document.getElementById('modal_final_per_night')) document.getElementById(
+                        'modal_final_per_night').innerText = finalPerNight;
+                    if (document.getElementById('modal_nights_count')) document.getElementById(
+                        'modal_nights_count').innerText = nights;
+                    if (document.getElementById('modal_total_snapshot')) document.getElementById(
+                        'modal_total_snapshot').innerText = total;
+                    if (document.getElementById('modal_payable_now')) document.getElementById(
+                        'modal_payable_now').innerText = deposit;
+
+                    const modalEl = document.getElementById('vnpayConfirmModal');
+                    if (!modalEl) {
+                        console.warn('VNPAY modal not found: #vnpayConfirmModal');
+                        return;
+                    }
+                    const modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                }
+
+                // bind proceed (sends payload including groups as 'rooms')
+                const vnpayProceedBtn = document.getElementById('vnpayProceedBtn');
+                if (vnpayProceedBtn) {
+                    vnpayProceedBtn.addEventListener('click', async function() {
+                        const modalInstance = bootstrap.Modal.getInstance(document.getElementById(
+                            'vnpayConfirmModal'));
+                        if (modalInstance) modalInstance.hide();
+
+                        // ensure hidden inputs are in sync
+                        syncGroupHiddenInputs();
+
+                        const submitBtn = document.querySelector(
+                            '#bookingForm button[type="submit"]');
+                        if (submitBtn) {
+                            submitBtn.disabled = true;
+                            submitBtn.dataset.origHtml = submitBtn.innerHTML;
+                            submitBtn.innerHTML =
+                                '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
+                        }
+
+                        // collect rooms payload from hidden inputs (robust)
+                        const roomsPayload = [];
+                        if (MR_CONTAINER) {
+                            const groups = Array.from(MR_CONTAINER.querySelectorAll('.mr_group'));
+                            groups.forEach(g => {
+                                const gi = g.dataset.idx;
+                                const loai = g.querySelector(
+                                    `input[name="rooms[${gi}][loai_phong_id]"]`)?.value;
+                                const roomsCnt = Number(g.querySelector(
+                                        `input[name="rooms[${gi}][rooms_count]"]`)
+                                    ?.value || 0);
+                                const adultsG = Number(g.querySelector(
+                                        `input[name="rooms[${gi}][adults]"]`)?.value ||
+                                    0);
+                                const childrenG = Number(g.querySelector(
+                                        `input[name="rooms[${gi}][children]"]`)
+                                    ?.value || 0);
+                                // we intentionally do NOT provide phong_id so server will auto-assign
+                                roomsPayload.push({
+                                    loai_phong_id: loai ? parseInt(loai, 10) : null,
+                                    rooms_count: roomsCnt,
+                                    adults: adultsG,
+                                    children: childrenG,
+                                    // addons: [] // extend if needed
+                                });
+                            });
+                        }
+
+                        const phongId = document.querySelector('input[name="phong_id"]')?.value;
+                        const ngayNhan = fromInput?.value;
+                        const ngayTra = toInput?.value;
+                        const tongTien = document.getElementById('hidden_tong_tien')?.value;
+                        const deposit = document.getElementById('hidden_deposit')?.value;
+                        const adults = adultsInput?.value;
+                        const children = childrenInput?.value;
+                        const childrenAges = Array.from(document.querySelectorAll(
+                            'input[name="children_ages[]"]')).map(el => el.value);
+                        const addons = Array.from(document.querySelectorAll(
+                            'input[name="addons[]"]:checked')).map(el => el.value);
+                        const roomsCount = roomsInput?.value;
+                        const soKhach = Number(adults) + Number(children);
+                        const name = document.querySelector('input[name="name"]')?.value.trim();
+                        const address = document.querySelector('input[name="address"]')?.value
+                            .trim();
+                        const phone = document.querySelector('input[name="phone"]')?.value.trim();
+                        const phuongThuc = 'vnpay';
+
+                        const voucherId = document.getElementById('voucher_id_input')?.value ||
+                            null;
+                        const voucherDiscount = document.getElementById('voucher_discount_input')
+                            ?.value || null;
+                        const voucherCodeHidden = document.getElementById('voucher_code_input')
+                            ?.value || null;
+
+                        const depositRadio = document.querySelector(
+                            'input[name="deposit_percentage"]:checked');
+                        const depositPercentageValue = depositRadio ? depositRadio.value : '50';
+
+                        try {
+                            const response = await fetch("{{ route('payment.initiate') }}", {
+                                method: "POST",
+                                headers: {
+                                    "X-CSRF-TOKEN": "{{ csrf_token() }}",
+                                    "Content-Type": "application/json",
+                                    "Accept": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    phong_id: phongId,
+                                    ngay_nhan_phong: ngayNhan,
+                                    ngay_tra_phong: ngayTra,
+                                    amount: deposit,
+                                    total_amount: tongTien,
+                                    deposit_percentage: depositPercentageValue,
+                                    so_khach: soKhach,
+                                    adults: adults,
+                                    children: children,
+                                    children_ages: childrenAges,
+                                    addons: addons,
+                                    rooms_count: roomsCount,
+                                    // voucher
+                                    voucher_id: voucherId,
+                                    voucher_discount: voucherDiscount,
+                                    ma_voucher: voucherCodeHidden,
+                                    // rooms/groups => server bookingController expects 'rooms' array
+                                    rooms: roomsPayload,
+                                    phuong_thuc: phuongThuc,
+                                    name: name,
+                                    address: address,
+                                    phone: phone,
+                                    ghi_chu: document.querySelector(
+                                            'textarea[name="ghi_chu"]')?.value
+                                        .trim() || ''
+                                }),
+                            });
+
+                            const data = await response.json();
+                            const depositPercentage = parseFloat(depositPercentageValue) || 50;
+                            const tolerance = depositPercentage === 100 ? 2000 : 0;
+                            if (parseFloat(deposit) <= 0 || (parseFloat(deposit) > parseFloat(
+                                    tongTien) + tolerance)) {
+                                showInlineMsg('Deposit không hợp lệ.', true, 5000);
+                                if (submitBtn) {
+                                    submitBtn.disabled = false;
+                                    submitBtn.innerHTML = submitBtn.dataset.origHtml || 'Đặt';
+                                }
+                                return;
+                            }
+                            if (data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                            } else {
+                                showInlineMsg(data.error || 'Không thể khởi tạo thanh toán.', true,
+                                    5000);
+                                if (submitBtn) {
+                                    submitBtn.disabled = false;
+                                    submitBtn.innerHTML = submitBtn.dataset.origHtml || 'Đặt';
+                                }
+                            }
+                        } catch (err) {
+                            showInlineMsg('Lỗi khi tạo thanh toán: ' + (err.message || err), true,
+                                5000);
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = submitBtn.dataset.origHtml || 'Đặt';
                             }
                         }
                     });
-                });
-            })();
+                }
 
-            document.querySelectorAll('.addon-checkbox').forEach(chk =>
-                chk.addEventListener('change', updateSummary)
-            );
-            if (Array.isArray(initialSelectedAddons) && initialSelectedAddons.length) {
-                document.querySelectorAll('.addon-checkbox').forEach(chk => {
-                    chk.checked = initialSelectedAddons.includes(String(chk.value)) ||
-                        initialSelectedAddons.includes(Number(chk.value));
-                });
-            }
-            if (adultsInput) adultsInput.addEventListener('input', updateSummary);
-            if (childrenInput) childrenInput.addEventListener('input', renderChildrenAges);
-            if (roomsInput) {
-                roomsInput.addEventListener('input', updateSummary);
-                roomsInput.addEventListener('change', updateSummary);
-            }
+                // Expose showVNPAYConfirmModal to be callable by form submit handler
+                window.showVNPAYConfirmModal = showVNPAYConfirmModal;
 
-            updateInputLimitsByRooms();
-            renderChildrenAges();
-            updateSummary();
-            updateRoomsAvailability();
-        })();
+                // ---------- form submit interception (show modal when vnpay) ----------
+                (function setupSubmitUx() {
+                    const form = document.getElementById('bookingForm');
+                    if (!form) return;
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const paymentMethodSelect = document.querySelector('select[name="phuong_thuc"]');
+
+                    form.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        if (submitBtn && submitBtn.disabled) return;
+
+                        if (currentAvailableRooms <= 0) {
+                            if (availabilityMessageEl) {
+                                availabilityMessageEl.className = 'small mt-2 text-danger';
+                                availabilityMessageEl.innerText =
+                                    `Không thể đặt: Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
+                            }
+                            showInlineMsg(
+                                `Không thể đặt: Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`,
+                                true, 3500);
+                            return;
+                        }
+
+                        // sync hidden inputs so server receives rooms[] on normal submit
+                        syncGroupHiddenInputs();
+
+                        const paymentMethod = paymentMethodSelect?.value || '';
+                        if (paymentMethod === 'vnpay') {
+                            // update modal then show
+                            showVNPAYConfirmModal();
+                            return;
+                        } else {
+                            if (submitBtn) {
+                                submitBtn.disabled = true;
+                                submitBtn.dataset.origHtml = submitBtn.innerHTML;
+                                submitBtn.innerHTML =
+                                    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
+                            }
+                            // submit normally (hidden inputs contain rooms[])
+                            form.submit();
+                        }
+                    });
+
+                    // small UX: when changing date/rooms re-enable if disabled
+                    ['ngay_nhan_phong', 'ngay_tra_phong', 'rooms_count'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.addEventListener('change', () => {
+                            const btn = document.querySelector(
+                                '#bookingForm button[type="submit"]');
+                            if (btn && btn.disabled) {
+                                btn.disabled = false;
+                                if (btn.dataset.origHtml) btn.innerHTML = btn.dataset
+                                    .origHtml;
+                            }
+                        });
+                    });
+                })();
+
+            })(); // end booking IIFE
+        });
     </script>
 @endpush

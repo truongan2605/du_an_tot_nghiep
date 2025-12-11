@@ -164,10 +164,10 @@ class Phong extends Model
     {
         return $this->hasMany(Wishlist::class, 'phong_id');
     }
-public function danhGiaspace()
-{
-    return $this->hasMany(DanhGiaSpace::class, 'phong_id');
-}
+    public function danhGiaspace()
+    {
+        return $this->hasMany(DanhGiaSpace::class, 'phong_id');
+    }
 
     public function getTongGiaAttribute()
     {
@@ -388,10 +388,12 @@ public function danhGiaspace()
         $sig = $this->specSignatureArray();
         return md5(json_encode($sig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
-  public function danhGias()
-{
-    return $this->hasMany(DanhGiaSpace::class, 'phong_id');
-}
+
+    public function danhGias()
+    {
+        return $this->hasMany(DanhGiaSpace::class, 'phong_id');
+    }
+    
     protected static function booted()
     {
         static::saving(function ($phong) {
@@ -401,7 +403,5 @@ public function danhGiaspace()
                 Log::warning('Could not compute spec_signature_hash for Phong id=' . ($phong->id ?? 'new') . ': ' . $e->getMessage());
             }
         });
-
     }
-    
 }

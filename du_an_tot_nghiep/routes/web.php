@@ -175,16 +175,15 @@ Route::prefix('admin')
         Route::post('phong/vat-dung-instances/{instance}/mark-lost', [PhongVatDungInstanceController::class, 'markLost'])->name('phong.vatdung.instances.mark-lost');
 
         //đáng giá phòng 
-        Route::get('/danh-gia', [DanhGiaController::class, 'index'])->name('danhgia.index');
-        Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
-        Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
+        Route::get('/danh-gia', [ClientDanhGiaController::class, 'index'])->name('danhgia.index');
+        Route::get('/danh-gia/{id}', [ClientDanhGiaController::class, 'show'])->name('danhgia.show');
+        Route::post('/danh-gia/{id}/toggle', [ClientDanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
+
         // trả lời
         Route::post(
             '/danh-gia/{id}/reply',
-            [DanhGiaController::class, 'reply']
+            [ClientDanhGiaController::class, 'reply']
         )->name('danhgia.reply');
-
-
 
 
         // ==================== BLOG (ADMIN) ====================
@@ -312,24 +311,21 @@ Route::middleware('auth')
         Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
         Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
         Route::get('bookings/{booking}/available-vouchers', [BookingController::class, 'getAvailableVouchers'])->name('booking.available-vouchers');
-        
+
         // Room change
         Route::post('bookings/{booking}/change-room', [BookingController::class, 'changeRoom'])->name('booking.change-room');
 
         // Rewards (Ưu đãi & hạng thành viên)
         Route::get('rewards', [App\Http\Controllers\Account\RewardController::class, 'index'])
-        ->name('rewards');
+            ->name('rewards');
 
- 
-    
-    // Room change callback (outside auth middleware to accept VNPay callback)
-    Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
+        // Room change callback (outside auth middleware to accept VNPay callback)
+        Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
 
 
         // Danh sách đặt phòng
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
 
-        // Hiển thị form đánh giá
         // Hiển thị form đánh giá
         Route::get('/danh-gia/{booking}', [ClientDanhGiaController::class, 'create'])
             ->name('danhgia.create');
