@@ -125,7 +125,7 @@ public function calculate(Request $request, $id)
             $overChild = max(0, $totalChild - $remain);
         }
 
-        $extraFee = $overAdult * 150000 + $overChild * 50000;
+        $extraFee = $overAdult * 150000 + $overChild * 60000;
 
         // Voucher chia đều
         $voucherItem = 0;
