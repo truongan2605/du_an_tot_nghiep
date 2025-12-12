@@ -2514,7 +2514,22 @@
                 
                 // Calculate based on FULL BOOKING total (not just changed room)
                 const newDepositRequired = newBookingTotal * (depositPct / 100);
-                const paymentNeeded = newDepositRequired - currentDeposit;
+                const basePaymentNeeded = Math.max(0, newDepositRequired - currentDeposit);
+                
+                // ===== NEW: Get selected vouchers discount =====
+                const selectedVouchers = document.querySelectorAll('.voucher-checkbox:checked');
+                let selectedVoucherTotal = 0;
+                let selectedVoucherCodes = [];
+                selectedVouchers.forEach(cb => {
+                    selectedVoucherTotal += parseFloat(cb.dataset.value) || 0;
+                    const label = cb.closest('.voucher-item')?.querySelector('strong.text-primary');
+                    if (label) selectedVoucherCodes.push(label.textContent.trim());
+                });
+                
+                // Calculate final payment after voucher
+                const finalPaymentNeeded = Math.max(0, basePaymentNeeded - selectedVoucherTotal);
+                const excessVoucher = Math.max(0, selectedVoucherTotal - basePaymentNeeded);
+                const actualVoucherUsed = Math.min(selectedVoucherTotal, basePaymentNeeded);
                 
                 console.log('💳 Upgrade confirmation:', {
                     depositPct,
@@ -2522,21 +2537,54 @@
                     newBookingTotal,
                     newDepositRequired,
                     currentDeposit,
-                    paymentNeeded
+                    basePaymentNeeded,
+                    selectedVoucherTotal,
+                    finalPaymentNeeded,
+                    excessVoucher
                 });
                 
                 // Build payment section HTML
                 let paymentSectionHtml = '';
                 let voucherBonusHtml = '';
+                let voucherWarningHtml = '';
                 let iconType = 'question';
                 let confirmButtonText = '';
                 let confirmButtonColor = '#0d6efd';
                 
-                if (paymentNeeded > 0) {
-                    // Need to pay more
+                // Build voucher warning if excess exists
+                if (excessVoucher > 0 && selectedVoucherTotal > 0) {
+                    voucherWarningHtml = `
+                        <div class="alert alert-warning border-warning mb-3">
+                            <h6 class="fw-semibold mb-2">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Lưu ý quan trọng
+                            </h6>
+                            <p class="mb-2 small">
+                                • Voucher của bạn: <strong>${formatMoney(selectedVoucherTotal)}</strong><br>
+                                • Số tiền cần thanh toán: <strong>${formatMoney(basePaymentNeeded)}</strong><br>
+                                • Số tiền thừa: <strong class="text-danger">${formatMoney(excessVoucher)}</strong>
+                            </p>
+                            <hr class="my-2">
+                            <p class="mb-0 small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Voucher sẽ được tính là <strong class="text-danger">ĐÃ SỬ DỤNG</strong> sau khi xác nhận. 
+                                Phần thừa ${formatMoney(excessVoucher)} sẽ <strong>KHÔNG</strong> được hoàn lại.
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                if (finalPaymentNeeded > 0) {
+                    // Need to pay more (with or without voucher)
                     iconType = 'info';
                     confirmButtonColor = '#0d6efd';
                     confirmButtonText = '<i class="bi bi-credit-card me-1"></i> Thanh toán VNPay';
+                    
+                    let voucherAppliedText = selectedVoucherTotal > 0 
+                        ? `<small class="text-success d-block mt-2">
+                               <i class="bi bi-check-circle me-1"></i>
+                               Đã giảm ${formatMoney(selectedVoucherTotal)} từ voucher
+                           </small>` 
+                        : '';
                     
                     paymentSectionHtml = `
                         <div class="alert alert-warning border-warning mb-0">
@@ -2546,16 +2594,32 @@
                             <p class="mb-2 small">Bạn cần thanh toán thêm để hoàn tất nâng cấp:</p>
                             <div class="bg-white p-3 rounded shadow-sm text-center">
                                 <div class="text-muted small mb-1">Số tiền cần thanh toán</div>
-                                <div class="display-6 fw-bold text-danger">${formatMoney(paymentNeeded)}</div>
+                                <div class="display-6 fw-bold text-danger">${formatMoney(finalPaymentNeeded)}</div>
                             </div>
+                            ${voucherAppliedText}
                             <small class="text-muted d-block mt-2">
                                 <i class="bi bi-info-circle me-1"></i>
                                 Bạn sẽ được chuyển đến cổng thanh toán VNPay
                             </small>
                         </div>
                     `;
+                } else if (selectedVoucherTotal > 0) {
+                    // Voucher covers everything
+                    iconType = 'success';
+                    confirmButtonColor = '#28a745';
+                    confirmButtonText = '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng';
+                    
+                    paymentSectionHtml = `
+                        <div class="alert alert-success border-success mb-0">
+                            <div class="text-center">
+                                <div class="fs-2 mb-2">✓</div>
+                                <h6 class="fw-bold text-success mb-2">MIỄN PHÍ - VOUCHER ĐÃ COVER</h6>
+                                <p class="mb-0">Voucher ${formatMoney(selectedVoucherTotal)} đã cover toàn bộ chi phí nâng cấp!</p>
+                            </div>
+                        </div>
+                    `;
                 } else {
-                    // Already paid enough
+                    // Already paid enough (no voucher)
                     iconType = 'success';
                     confirmButtonColor = '#28a745';
                     confirmButtonText = '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng';
@@ -2690,15 +2754,25 @@
                                         <strong class="text-primary">${formatMoney(newDepositRequired)}</strong>
                                     </div>
                                     
+                                    ${selectedVoucherTotal > 0 ? `
+                                    <div class="d-flex justify-content-between mb-2 bg-success bg-opacity-10 p-2 rounded">
+                                        <span class="text-success">
+                                            <i class="bi bi-gift me-1"></i>Voucher DOWNGRADE áp dụng:
+                                        </span>
+                                        <strong class="text-success">-${formatMoney(selectedVoucherTotal)}</strong>
+                                    </div>
+                                    ` : ''}
+                                    
                                     <hr class="my-2">
                                     
-                                    <div class="d-flex justify-content-between p-2 ${paymentNeeded > 0 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'} rounded">
-                                        <span class="fw-semibold">${paymentNeeded > 0 ? 'Cần thanh toán thêm:' : 'Đã đủ:'}</span>
-                                        <h5 class="mb-0 ${paymentNeeded > 0 ? 'text-danger' : 'text-success'}">${paymentNeeded > 0 ? formatMoney(paymentNeeded) : '✓ 0đ'}</h5>
+                                    <div class="d-flex justify-content-between p-2 ${finalPaymentNeeded > 0 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'} rounded">
+                                        <span class="fw-semibold">${finalPaymentNeeded > 0 ? 'Cần thanh toán thêm:' : 'Đã đủ:'}</span>
+                                        <h5 class="mb-0 ${finalPaymentNeeded > 0 ? 'text-danger' : 'text-success'}">${finalPaymentNeeded > 0 ? formatMoney(finalPaymentNeeded) : '✓ 0đ'}</h5>
                                     </div>
                                 </div>
                             </div>
                             
+                            ${voucherWarningHtml}
                             ${paymentSectionHtml}
                             ${voucherBonusHtml}
                         </div>
@@ -3025,7 +3099,7 @@
                 
                 // Update payment info with voucher discount
                 const paymentInfoEl = document.getElementById('paymentNeededInfo');
-                if (paymentInfoEl && paymentInfoEl.textContent.includes('Cần thanh toán')) {
+                if (paymentInfoEl) {
                     // Recalculate payment needed
                     const depositPct = {{ $meta['deposit_percentage'] ?? 50 }};
                     const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
@@ -3034,8 +3108,30 @@
                     const basePaymentNeeded = Math.max(0, newDepositRequired - currentDeposit);
                     const finalPaymentNeeded = Math.max(0, basePaymentNeeded - totalVoucherDiscount);
                     
-                    const paymentInfoHtml = finalPaymentNeeded > 0 
-                        ? `<div class="d-flex justify-content-between">
+                    // Check for excess voucher value
+                    const excessVoucher = Math.max(0, totalVoucherDiscount - basePaymentNeeded);
+                    const actualUsed = Math.min(totalVoucherDiscount, basePaymentNeeded);
+                    
+                    let excessWarning = '';
+                    if (excessVoucher > 0 && totalVoucherDiscount > 0) {
+                        excessWarning = `<div class="alert alert-warning py-2 mt-2 small">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <strong>Lưu ý quan trọng:</strong><br>
+                            • Voucher của bạn: <strong>${formatMoney(totalVoucherDiscount)}</strong><br>
+                            • Số tiền cần thanh toán: <strong>${formatMoney(basePaymentNeeded)}</strong><br>
+                            • Số tiền thừa: <strong class="text-danger">${formatMoney(excessVoucher)}</strong><br>
+                            <hr class="my-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Voucher sẽ được tính là <strong class="text-danger">ĐÃ SỬ DỤNG</strong> sau khi xác nhận. 
+                            Phần thừa ${formatMoney(excessVoucher)} sẽ không được hoàn lại.
+                        </div>`;
+                    }
+                    
+                    let paymentInfoHtml = '';
+                    
+                    if (finalPaymentNeeded > 0) {
+                        // Need to pay via VNPay
+                        paymentInfoHtml = `<div class="d-flex justify-content-between">
                                <span class="text-danger fw-semibold">Cần thanh toán:</span>
                                <h5 class="mb-0 text-danger">${formatMoney(finalPaymentNeeded)}</h5>
                            </div>
@@ -3046,11 +3142,24 @@
                            <small class="text-muted d-block mt-2">
                                <i class="bi bi-info-circle me-1"></i>
                                Bạn sẽ được chuyển đến cổng thanh toán VNPay
-                           </small>`
-                         : `<div class="alert alert-success mb-0">
+                           </small>`;
+                    } else if (totalVoucherDiscount > 0) {
+                        // Voucher covers everything
+                        paymentInfoHtml = `<div class="alert alert-success mb-0">
                                 <i class="bi bi-check-circle me-1"></i>
                                 Miễn phí! Voucher đã cover toàn bộ chi phí.
-                            </div>`;
+                            </div>${excessWarning}`;
+                    } else {
+                        // No voucher, no payment (shouldn't happen in upgrade)
+                        paymentInfoHtml = `<div class="d-flex justify-content-between">
+                               <span class="text-danger fw-semibold">Cần thanh toán:</span>
+                               <h5 class="mb-0 text-danger">${formatMoney(basePaymentNeeded)}</h5>
+                           </div>
+                           <small class="text-muted d-block mt-2">
+                               <i class="bi bi-info-circle me-1"></i>
+                               Bạn sẽ được chuyển đến cổng thanh toán VNPay
+                           </small>`;
+                    }
                     
                     paymentInfoEl.innerHTML = paymentInfoHtml;
                 }

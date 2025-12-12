@@ -714,8 +714,10 @@ class BookingController extends Controller
                 return $this->redirectToVNPayForRoomChange($booking, $roomChange, $finalPaymentNeeded);
             } else {
                 // No payment needed - complete directly and mark vouchers as used
-                // Pass voucher discount to completeRoomChange
-                $result = $this->completeRoomChange($roomChange, $voucherDiscount);
+                // CRITICAL FIX: Only add the ACTUALLY USED portion of voucher to deposit
+                // If voucher > payment needed, excess is lost (voucher fully consumed)
+                $actualVoucherUsed = min($voucherDiscount, $basePaymentNeeded);
+                $result = $this->completeRoomChange($roomChange, $actualVoucherUsed);
 
                 // Mark vouchers as used
                 foreach ($appliedVouchers as $voucherInfo) {
@@ -740,7 +742,16 @@ class BookingController extends Controller
                     $successMessage = 'Đổi phòng thành công! ';
                     if (count($appliedVouchers) > 0) {
                         $totalDiscount = array_sum(array_column($appliedVouchers, 'value'));
-                        $successMessage .= 'Đã áp dụng voucher ' . number_format($totalDiscount) . 'đ. Không cần thanh toán thêm!';
+                        $actualUsed = min($totalDiscount, $basePaymentNeeded);
+                        $excessValue = $totalDiscount - $actualUsed;
+                        
+                        if ($excessValue > 0) {
+                            // Voucher exceeded payment needed - notify user
+                            $successMessage .= 'Đã sử dụng ' . number_format($actualUsed) . 'đ từ voucher ' . number_format($totalDiscount) . 'đ. ';
+                            $successMessage .= 'Voucher đã được đánh dấu ĐÃ SỬ DỤNG. (' . number_format($excessValue) . 'đ thừa không được hoàn lại)';
+                        } else {
+                            $successMessage .= 'Đã áp dụng voucher ' . number_format($totalDiscount) . 'đ. Không cần thanh toán thêm!';
+                        }
                     } else {
                         $successMessage .= 'Không cần thanh toán thêm.';
                     }
