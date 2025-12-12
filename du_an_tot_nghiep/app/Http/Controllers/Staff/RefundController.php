@@ -25,6 +25,11 @@ class RefundController extends Controller
             $query->where('status', $request->input('status'));
         }
 
+        // Filter by refund type (full_booking or single_room)
+        if ($request->filled('refund_type')) {
+            $query->where('refund_type', $request->input('refund_type'));
+        }
+
         // Search by booking reference
         if ($request->filled('q')) {
             $search = $request->input('q');
@@ -59,11 +64,15 @@ class RefundController extends Controller
         try {
             DB::beginTransaction();
 
+            // Giữ lại admin_note gốc (chứa thông tin phòng đã hủy) và thêm ghi chú mới
+            $existingNote = $refund->admin_note ?? '';
+            $newNote = $request->input('note') ? "\n[Ghi chú duyệt]: " . $request->input('note') : '';
+            
             $refund->update([
                 'status' => 'approved',
                 'processed_at' => now(),
                 'processed_by' => Auth::id(),
-                'admin_note' => $request->input('note', 'Đã phê duyệt yêu cầu hoàn tiền'),
+                'admin_note' => $existingNote . $newNote,
             ]);
 
             DB::commit();

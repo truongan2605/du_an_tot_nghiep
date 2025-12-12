@@ -483,6 +483,115 @@
                     </div>
                 @endif
 
+                {{-- Cancelled Rooms History --}}
+                @php
+                    $cancelledRoomRefunds = \App\Models\RefundRequest::where('dat_phong_id', $booking->id)
+                        ->where('refund_type', 'single_room')
+                        ->orderBy('created_at', 'desc')
+                        ->get();
+                @endphp
+                @if($cancelledRoomRefunds->count() > 0)
+                    <div class="mb-5">
+                        <h6 class="text-danger fw-bold mb-4">
+                            <i class="bi bi-x-circle me-2"></i>Lịch Sử Hủy Phòng
+                            <span class="badge bg-danger ms-2">{{ $cancelledRoomRefunds->count() }}</span>
+                        </h6>
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-4">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Thời gian</th>
+                                                <th>Phòng đã hủy</th>
+                                                <th class="text-end">Số tiền hoàn</th>
+                                                <th class="text-center">Trạng thái</th>
+                                                <th class="text-center">Chứng từ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($cancelledRoomRefunds as $refund)
+                                                @php
+                                                    // Lấy tên phòng từ admin_note
+                                                    $roomNameFromNote = 'Phòng đã hủy';
+                                                    if ($refund->admin_note && preg_match('/Hủy phòng:\s*([^|]+)/', $refund->admin_note, $matches)) {
+                                                        $roomNameFromNote = trim($matches[1]);
+                                                    }
+                                                    
+                                                    $statusLabel = match($refund->status) {
+                                                        'pending' => 'Chờ xử lý',
+                                                        'approved' => 'Đã duyệt',
+                                                        'completed' => 'Đã hoàn',
+                                                        'rejected' => 'Từ chối',
+                                                        default => 'N/A'
+                                                    };
+                                                    $statusBadge = match($refund->status) {
+                                                        'pending' => 'bg-warning text-dark',
+                                                        'approved' => 'bg-info',
+                                                        'completed' => 'bg-success',
+                                                        'rejected' => 'bg-danger',
+                                                        default => 'bg-secondary'
+                                                    };
+                                                @endphp
+                                                <tr>
+                                                    <td>
+                                                        <small class="text-muted">
+                                                            <i class="bi bi-calendar me-1"></i>
+                                                            {{ $refund->created_at->format('d/m/Y H:i') }}
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        <strong class="text-danger">{{ $roomNameFromNote }}</strong>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <strong class="text-success">{{ number_format($refund->amount, 0, ',', '.') }} ₫</strong>
+                                                        <div class="small text-muted">{{ $refund->percentage ?? 0 }}%</div>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge {{ $statusBadge }}">{{ $statusLabel }}</span>
+                                                        @if($refund->processed_at)
+                                                            <div class="small text-muted mt-1">
+                                                                {{ $refund->processed_at->format('d/m H:i') }}
+                                                            </div>
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-center">
+                                                        @if($refund->proof_image_path)
+                                                            <a href="{{ $refund->proof_image_url }}" target="_blank" class="btn btn-sm btn-outline-success" title="Xem chứng từ">
+                                                                <i class="bi bi-image"></i>
+                                                            </a>
+                                                        @else
+                                                            <span class="text-muted">—</span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                {{-- Tổng tiền đã hoàn --}}
+                                @php
+                                    $totalRefunded = $cancelledRoomRefunds->where('status', 'completed')->sum('amount');
+                                    $totalPending = $cancelledRoomRefunds->whereIn('status', ['pending', 'approved'])->sum('amount');
+                                @endphp
+                                <div class="d-flex justify-content-end gap-4 mt-3 pt-3 border-top">
+                                    @if($totalPending > 0)
+                                        <div>
+                                            <span class="text-muted">Đang chờ hoàn:</span>
+                                            <strong class="text-warning ms-2">{{ number_format($totalPending, 0, ',', '.') }} ₫</strong>
+                                        </div>
+                                    @endif
+                                    <div>
+                                        <span class="text-muted">Đã hoàn tiền:</span>
+                                        <strong class="text-success ms-2">{{ number_format($totalRefunded, 0, ',', '.') }} ₫</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-door-open-fill me-2"></i>Phòng Đã Gán</h6>
 
                 @php
