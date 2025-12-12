@@ -94,6 +94,41 @@
                 display: inline-block;
             }
         }
+        /* Custom Scrollbar cho notification dropdown - Staff */
+        #staffNotificationDropdown + .dropdown-menu::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #staffNotificationDropdown + .dropdown-menu::-webkit-scrollbar-track {
+            background: #f0f4f8;
+            border-radius: 10px;
+            margin: 5px 0;
+            border: 1px solid #e0e8f0;
+        }
+
+        #staffNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #4a90e2 0%, #357abd 50%, #2a5f8f 100%);
+            border-radius: 10px;
+            border: 1px solid #5a9fe2;
+            transition: all 0.3s ease;
+        }
+
+        #staffNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
+            border-color: #6aaff2;
+            box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+        }
+
+        #staffNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb:active {
+            background: linear-gradient(180deg, #357abd 0%, #2a5f8f 50%, #1f4a7a 100%);
+            border-color: #4580cd;
+        }
+
+        /* Firefox scrollbar */
+        #staffNotificationDropdown + .dropdown-menu {
+            scrollbar-width: thin;
+            scrollbar-color: #4a90e2 #f0f4f8;
+        }
     </style>
 </head>
 

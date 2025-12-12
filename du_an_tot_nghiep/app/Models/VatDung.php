@@ -32,6 +32,7 @@ class VatDung extends Model
 
     public const LOAI_DO_AN = 'do_an';
     public const LOAI_DO_DUNG = 'do_dung';
+    public const LOAI_DICH_VU_KHAC = 'dich_vu_khac';
 
     public function isConsumable(): bool
     {
@@ -41,6 +42,11 @@ class VatDung extends Model
     public function isDurable(): bool
     {
         return $this->loai === self::LOAI_DO_DUNG;
+    }
+
+    public function isDichVuKhac(): bool
+    {
+        return $this->loai === self::LOAI_DICH_VU_KHAC;
     }
 
     // Relationships

@@ -595,10 +595,18 @@
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-door-open-fill me-2"></i>Phòng Đã Gán</h6>
 
                 @php
+                    // Lấy cả đồ ăn và dịch vụ khác
                     $availableFoods = \App\Models\VatDung::where('active', 1)
-                        ->where('loai', \App\Models\VatDung::LOAI_DO_AN ?? 'do_an')
+                        ->whereIn('loai', [
+                            \App\Models\VatDung::LOAI_DO_AN ?? 'do_an',
+                            \App\Models\VatDung::LOAI_DICH_VU_KHAC ?? 'dich_vu_khac'
+                        ])
+                        ->orderBy('loai')
                         ->orderBy('ten')
                         ->get();
+                    
+                    // Tách thành 2 nhóm để hiển thị
+                    $availableFoodsGrouped = $availableFoods->groupBy('loai');
 
                     $roomSource =
                         $booking->trang_thai === 'hoan_thanh' &&
@@ -716,11 +724,28 @@
                                         <label class="form-label">Dịch vụ</label>
                                         <select name="vat_dung_id" id="modal_vat_dung_id" class="form-select" required>
                                             <option value="">— Chọn dịch vụ —</option>
-                                            @foreach ($availableFoods as $fd)
-                                                <option value="{{ $fd->id }}" data-price="{{ $fd->gia ?? 0 }}">
-                                                    {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }}
-                                                    đ)</option>
-                                            @endforeach
+                                            
+                                            {{-- Nhóm Đồ ăn --}}
+                                            @if(isset($availableFoodsGrouped[\App\Models\VatDung::LOAI_DO_AN]) && $availableFoodsGrouped[\App\Models\VatDung::LOAI_DO_AN]->isNotEmpty())
+                                                <optgroup label="🍽️ Đồ ăn / Dịch vụ tiêu thụ">
+                                                    @foreach ($availableFoodsGrouped[\App\Models\VatDung::LOAI_DO_AN] as $fd)
+                                                        <option value="{{ $fd->id }}" data-price="{{ $fd->gia ?? 0 }}">
+                                                            {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }} đ)
+                                                        </option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endif
+                                            
+                                            {{-- Nhóm Dịch vụ khác --}}
+                                            @if(isset($availableFoodsGrouped[\App\Models\VatDung::LOAI_DICH_VU_KHAC]) && $availableFoodsGrouped[\App\Models\VatDung::LOAI_DICH_VU_KHAC]->isNotEmpty())
+                                                <optgroup label="⭐ Dịch vụ khác">
+                                                    @foreach ($availableFoodsGrouped[\App\Models\VatDung::LOAI_DICH_VU_KHAC] as $fd)
+                                                        <option value="{{ $fd->id }}" data-price="{{ $fd->gia ?? 0 }}">
+                                                            {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }} đ)
+                                                        </option>
+                                                    @endforeach
+                                                </optgroup>
+                                            @endif
                                         </select>
                                     </div>
                                     <div class="row g-2">

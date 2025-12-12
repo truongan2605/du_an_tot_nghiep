@@ -297,6 +297,68 @@ class StaffController extends Controller
             ->orderByDesc('revenue')
             ->get();
 
+        // === Doanh thu theo từng phòng cụ thể ===
+        // Hôm nay
+        $roomRevenueToday = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->join('phong as p', 'hdi.phong_id', '=', 'p.id')
+            ->leftJoin('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->whereDate('hd.created_at', $todayDate)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.phong_id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Tuần này
+        $roomRevenueWeek = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->join('phong as p', 'hdi.phong_id', '=', 'p.id')
+            ->leftJoin('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->whereBetween(DB::raw('DATE(hd.created_at)'), $weekRange)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.phong_id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Tháng này
+        $roomRevenueMonth = DB::table('hoa_don_items as hdi')
+            ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+            ->join('phong as p', 'hdi.phong_id', '=', 'p.id')
+            ->leftJoin('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->whereYear('hd.created_at', $year)
+            ->whereMonth('hd.created_at', $month)
+            ->whereNotIn('hd.trang_thai', ['da_huy'])
+            ->whereNotNull('hdi.phong_id')
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
         $events = DatPhong::select('id', 'ma_tham_chieu', 'trang_thai', 'ngay_nhan_phong', 'ngay_tra_phong')
             ->whereIn('trang_thai', $activeStatus)
             ->with('user:id,name')
@@ -335,22 +397,21 @@ class StaffController extends Controller
         $customRefund = null;
         $customNetRevenue = null;
         $customRangeLabel = null;
+        $customChartLabels = [];
+        $customChartData = [];
+        $customPaid = 0;
 
         if ($request->has('start_date') && $request->has('end_date')) {
             try {
                 $startDate = Carbon::parse($request->start_date)->startOfDay();
                 $endDate = Carbon::parse($request->end_date)->endOfDay();
                 
-                // Hybrid model: GiaoDich (paid) + HoaDon (all invoices)
+                // Chỉ tính theo giao dịch thanh toán (GiaoDich)
                 $customPaid = GiaoDich::where('trang_thai', 'thanh_cong')
                     ->whereBetween('created_at', [$startDate, $endDate])
                     ->sum('so_tien');
                 
-                $customInvoiced = HoaDon::whereBetween('created_at', [$startDate, $endDate])
-                    ->whereNotIn('trang_thai', ['da_huy'])
-                    ->sum('tong_thuc_thu');
-                
-                $customRevenue = $customPaid + $customInvoiced;
+                $customRevenue = $customPaid;
                 
                 // Use RefundRequest instead of GiaoDich
                 $customRefund = RefundRequest::where('status', 'completed')
@@ -359,6 +420,17 @@ class StaffController extends Controller
                 
                 $customNetRevenue = $customRevenue - $customRefund;
                 $customRangeLabel = $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y');
+                
+                // Tính doanh thu theo ngày trong khoảng thời gian đã lọc (chỉ tính giao dịch thanh toán)
+                $currentDate = $startDate->copy();
+                while ($currentDate->lte($endDate)) {
+                    $customChartLabels[] = $currentDate->format('d/m');
+                    $dayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
+                        ->whereDate('created_at', $currentDate->toDateString())
+                        ->sum('so_tien');
+                    $customChartData[] = (int) $dayPaid;
+                    $currentDate->addDay();
+                }
             } catch (\Exception $e) {
                 Log::error('Error parsing date range', ['error' => $e->getMessage()]);
             }
@@ -399,13 +471,19 @@ class StaffController extends Controller
             'roomTypeRevenueToday',
             'roomTypeRevenueWeek',
             'roomTypeRevenueMonth',
+            'roomRevenueToday',
+            'roomRevenueWeek',
+            'roomRevenueMonth',
             'roomTypeStats',
             'analyticsChartLabels',
             'analyticsChartData',
             'customRevenue',
             'customRefund',
             'customNetRevenue',
-            'customRangeLabel'
+            'customRangeLabel',
+            'customChartLabels',
+            'customChartData',
+            'customPaid'
         ));
     }
 
@@ -653,8 +731,42 @@ class StaffController extends Controller
                                 $unit = $item->gia_tren_dem ?? 0;
                                 return $carry + ($unit * $qty);
                             }, 0.0);
+                            
+                            // Kiểm tra hình thức thanh toán (50% hay 100%)
+                            if (is_array($booking->snapshot_meta)) {
+                                $meta = $booking->snapshot_meta;
+                            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                                $meta = json_decode($booking->snapshot_meta, true) ?? [];
+                            } else {
+                                $meta = [];
+                            }
+                            $depositPercentage = $meta['deposit_percentage'] ?? 50;
+                            
+                            // Tính tổng số tiền đã thanh toán
+                            $paidAmount = GiaoDich::where('dat_phong_id', $booking->id)
+                                ->where('trang_thai', 'thanh_cong')
+                                ->sum('so_tien');
+                            
+                            // Tính tổng tiền booking
+                            $totalAmount = $booking->tong_tien ?? 0;
+                            
+                            // Xác định hình thức thanh toán: >= 95% coi là 100%
+                            $isFullPayment = false;
+                            if ($totalAmount > 0) {
+                                $paymentPercentage = ($paidAmount / $totalAmount) * 100;
+                                $isFullPayment = ($paymentPercentage >= 95) || ($depositPercentage == 100);
+                            }
+                            
                             $perHourRate = $dailyTotal * 0.3 / 24;
-                            $booking->early_checkin_fee_estimate = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                            
+                            if ($isFullPayment) {
+                                // Thanh toán 100%: tính phí không giới hạn (100%)
+                                $booking->early_checkin_fee_estimate = $perHourRate * $hoursEarly;
+                            } else {
+                                // Đặt cọc 50%: tối đa 50% giá phòng/ngày
+                                $booking->early_checkin_fee_estimate = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                            }
+                            
                             $booking->early_checkin_fee_estimate = (int) round($booking->early_checkin_fee_estimate, 0);
                         }
                     } elseif ($now->isAfter($standardCheckinTime)) {
@@ -765,7 +877,7 @@ class StaffController extends Controller
 
         $hasDonDep = false;
         if (!empty($phongIds)) {
-            $hasDonDep = \App\Models\Phong::whereIn('id', $phongIds)->where('don_dep', true)->exists();
+            $hasDonDep = Phong::whereIn('id', $phongIds)->where('don_dep', true)->exists();
         }
 
         if ($hasDonDep) {
@@ -803,7 +915,7 @@ class StaffController extends Controller
                 ]);
                 
                 // Xóa dat_phong_items
-                \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+                DatPhongItem::where('dat_phong_id', $booking->id)->delete();
                 
                 // Xóa giu_phong records
                 if (Schema::hasTable('giu_phong')) {
@@ -830,9 +942,42 @@ class StaffController extends Controller
                     return $carry + ($unit * $qty);
                 }, 0.0);
                 
-                // Phí checkin sớm: 30% giá phòng/ngày cho mỗi giờ sớm (tối đa 50% giá phòng/ngày)
+                // Kiểm tra hình thức thanh toán (50% hay 100%)
+                if (is_array($booking->snapshot_meta)) {
+                    $meta = $booking->snapshot_meta;
+                } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                    $meta = json_decode($booking->snapshot_meta, true) ?? [];
+                } else {
+                    $meta = [];
+                }
+                $depositPercentage = $meta['deposit_percentage'] ?? 50;
+                
+                // Tính tổng số tiền đã thanh toán
+                $paidAmount = GiaoDich::where('dat_phong_id', $booking->id)
+                    ->where('trang_thai', 'thanh_cong')
+                    ->sum('so_tien');
+                
+                // Tính tổng tiền booking
+                $totalAmount = $booking->tong_tien ?? 0;
+                
+                // Xác định hình thức thanh toán: >= 95% coi là 100%
+                $isFullPayment = false;
+                if ($totalAmount > 0) {
+                    $paymentPercentage = ($paidAmount / $totalAmount) * 100;
+                    $isFullPayment = ($paymentPercentage >= 95) || ($depositPercentage == 100);
+                }
+                
+                // Phí checkin sớm: 30% giá phòng/ngày cho mỗi giờ sớm
                 $perHourRate = $dailyTotal * 0.3 / 24; // 30% giá ngày chia cho 24 giờ
-                $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5); // Tối đa 50% giá ngày
+                
+                if ($isFullPayment) {
+                    // Thanh toán 100%: tính phí không giới hạn (100%)
+                    $earlyCheckinFee = $perHourRate * $hoursEarly;
+                } else {
+                    // Đặt cọc 50%: tối đa 50% giá phòng/ngày
+                    $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                }
+                
                 $earlyCheckinFee = (int) round($earlyCheckinFee, 0);
             }
         }
@@ -938,19 +1083,29 @@ class StaffController extends Controller
                 }
             }
             
+            // Kiểm tra xem đã thanh toán phụ thu checkin sớm chưa
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                $meta = json_decode($booking->snapshot_meta, true) ?? [];
+            } else {
+                $meta = [];
+            }
+            
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
-
-            // Tạo hóa đơn phụ thu nếu checkin sớm
+            $hasPaidEarlyCheckinFee = !empty($meta['early_checkin_fee_paid']) && $meta['early_checkin_fee_paid'] > 0;
+            
+            // Tạo hóa đơn phụ thu nếu checkin sớm và chưa thanh toán phụ thu
             $hoaDon = null;
-            if ($isEarlyCheckin && $earlyCheckinFee > 0) {
-                $hoaDon = \App\Models\HoaDon::where('dat_phong_id', $booking->id)
+            if ($isEarlyCheckin && $earlyCheckinFee > 0 && !$hasPaidEarlyCheckinFee) {
+                $hoaDon = HoaDon::where('dat_phong_id', $booking->id)
                     ->where('trang_thai', '!=', 'da_thanh_toan')
                     ->orderByDesc('id')
                     ->first();
                 
                 if (!$hoaDon) {
-                    $hoaDon = \App\Models\HoaDon::create([
+                    $hoaDon = HoaDon::create([
                         'dat_phong_id' => $booking->id,
                         'so_hoa_don' => 'HD' . time() . rand(100, 999),
                         'tong_thuc_thu' => 0,
@@ -961,7 +1116,7 @@ class StaffController extends Controller
                 }
                 
                 // Thêm item phụ thu checkin sớm
-                \App\Models\HoaDonItem::create([
+                HoaDonItem::create([
                     'hoa_don_id' => $hoaDon->id,
                     'type' => 'early_checkin_fee',
                     'name' => 'Phụ thu checkin sớm',
@@ -974,6 +1129,10 @@ class StaffController extends Controller
                 // Cập nhật tổng hóa đơn
                 $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $earlyCheckinFee;
                 $hoaDon->save();
+            } elseif ($isEarlyCheckin && $hasPaidEarlyCheckinFee) {
+                // Đã thanh toán phụ thu rồi, không tạo hóa đơn nữa
+                // Nhưng vẫn cần cập nhật early_checkin_fee_amount để ghi nhận
+                $earlyCheckinFee = $meta['early_checkin_fee_paid'];
             }
 
             $booking->update([
@@ -1458,7 +1617,7 @@ class StaffController extends Controller
                     'cancellation_reason' => 'Hủy đặt phòng do checkin muộn (sang ngày khác)',
                 ]);
                 
-                \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+                DatPhongItem::where('dat_phong_id', $booking->id)->delete();
                 
                 if (Schema::hasTable('giu_phong')) {
                     DB::table('giu_phong')
@@ -1481,8 +1640,42 @@ class StaffController extends Controller
                     $unit = $item->gia_tren_dem ?? 0;
                     return $carry + ($unit * $qty);
                 }, 0.0);
+                
+                // Kiểm tra hình thức thanh toán (50% hay 100%)
+                if (is_array($booking->snapshot_meta)) {
+                    $meta = $booking->snapshot_meta;
+                } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                    $meta = json_decode($booking->snapshot_meta, true) ?? [];
+                } else {
+                    $meta = [];
+                }
+                $depositPercentage = $meta['deposit_percentage'] ?? 50;
+                
+                // Tính tổng số tiền đã thanh toán
+                $paidAmount = GiaoDich::where('dat_phong_id', $booking->id)
+                    ->where('trang_thai', 'thanh_cong')
+                    ->sum('so_tien');
+                
+                // Tính tổng tiền booking
+                $totalAmount = $booking->tong_tien ?? 0;
+                
+                // Xác định hình thức thanh toán: >= 95% coi là 100%
+                $isFullPayment = false;
+                if ($totalAmount > 0) {
+                    $paymentPercentage = ($paidAmount / $totalAmount) * 100;
+                    $isFullPayment = ($paymentPercentage >= 95) || ($depositPercentage == 100);
+                }
+                
                 $perHourRate = $dailyTotal * 0.3 / 24;
-                $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                
+                if ($isFullPayment) {
+                    // Thanh toán 100%: tính phí không giới hạn (100%)
+                    $earlyCheckinFee = $perHourRate * $hoursEarly;
+                } else {
+                    // Đặt cọc 50%: tối đa 50% giá phòng/ngày
+                    $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                }
+                
                 $earlyCheckinFee = (int) round($earlyCheckinFee, 0);
             }
         }
@@ -1528,19 +1721,29 @@ class StaffController extends Controller
             } else {
                 $meta = [];
             }
+            // Kiểm tra xem đã thanh toán phụ thu checkin sớm chưa
+            if (is_array($booking->snapshot_meta)) {
+                $meta = $booking->snapshot_meta;
+            } elseif (is_string($booking->snapshot_meta) && !empty($booking->snapshot_meta)) {
+                $meta = json_decode($booking->snapshot_meta, true) ?? [];
+            } else {
+                $meta = [];
+            }
+            
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
-
-            // Tạo hóa đơn phụ thu nếu checkin sớm
+            $hasPaidEarlyCheckinFee = !empty($meta['early_checkin_fee_paid']) && $meta['early_checkin_fee_paid'] > 0;
+            
+            // Tạo hóa đơn phụ thu nếu checkin sớm và chưa thanh toán phụ thu
             $hoaDon = null;
-            if ($isEarlyCheckin && $earlyCheckinFee > 0) {
-                $hoaDon = \App\Models\HoaDon::where('dat_phong_id', $booking->id)
+            if ($isEarlyCheckin && $earlyCheckinFee > 0 && !$hasPaidEarlyCheckinFee) {
+                $hoaDon = HoaDon::where('dat_phong_id', $booking->id)
                     ->where('trang_thai', '!=', 'da_thanh_toan')
                     ->orderByDesc('id')
                     ->first();
                 
                 if (!$hoaDon) {
-                    $hoaDon = \App\Models\HoaDon::create([
+                    $hoaDon = HoaDon::create([
                         'dat_phong_id' => $booking->id,
                         'so_hoa_don' => 'HD' . time() . rand(100, 999),
                         'tong_thuc_thu' => 0,
@@ -1550,7 +1753,7 @@ class StaffController extends Controller
                     ]);
                 }
                 
-                \App\Models\HoaDonItem::create([
+                HoaDonItem::create([
                     'hoa_don_id' => $hoaDon->id,
                     'type' => 'early_checkin_fee',
                     'name' => 'Phụ thu checkin sớm',
@@ -1562,6 +1765,10 @@ class StaffController extends Controller
                 
                 $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $earlyCheckinFee;
                 $hoaDon->save();
+            } elseif ($isEarlyCheckin && $hasPaidEarlyCheckinFee) {
+                // Đã thanh toán phụ thu rồi, không tạo hóa đơn nữa
+                // Nhưng vẫn cần cập nhật early_checkin_fee_amount để ghi nhận
+                $earlyCheckinFee = $meta['early_checkin_fee_paid'];
             }
 
             // Cập nhật booking
@@ -1642,7 +1849,7 @@ class StaffController extends Controller
 
         $bookingMap = [];
         if (!empty($allBookingIds)) {
-            $bookingMap = \App\Models\DatPhong::whereIn('id', $allBookingIds)
+            $bookingMap = DatPhong::whereIn('id', $allBookingIds)
                 ->pluck('ma_tham_chieu', 'id')
                 ->toArray();
         }
@@ -1713,7 +1920,7 @@ class StaffController extends Controller
             }
         }
 
-        $refundItems = \App\Models\HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
+        $refundItems = HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
             $q->where('dat_phong_id', $booking->id);
         })->where('type', 'refund')->get();
 
@@ -1742,7 +1949,7 @@ class StaffController extends Controller
         }
 
         $lateFeeTotal = 0;
-        $lateItems = \App\Models\HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
+        $lateItems = HoaDonItem::whereHas('hoaDon', function ($q) use ($booking) {
             $q->where('dat_phong_id', $booking->id);
         })->where('type', 'late_fee')->get();
 
@@ -1823,7 +2030,7 @@ class StaffController extends Controller
             
             // Create refund transaction if refund amount > 0
             if ($refundAmount > 0) {
-                \App\Models\GiaoDich::create([
+                GiaoDich::create([
                     'dat_phong_id' => $booking->id,
                     'so_tien' => $refundAmount,
                     'trang_thai' => 'da_hoan',
@@ -1833,11 +2040,11 @@ class StaffController extends Controller
             }
 
             // Delete dat_phong_items
-            \App\Models\DatPhongItem::where('dat_phong_id', $booking->id)->delete();
+            DatPhongItem::where('dat_phong_id', $booking->id)->delete();
 
             // Create refund request if refund amount > 0
             if ($refundAmount > 0) {
-                \App\Models\RefundRequest::create([
+                RefundRequest::create([
                     'dat_phong_id' => $booking->id,
                     'amount' => $refundAmount,
                     'percentage' => $refundPercentage,
