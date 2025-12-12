@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\DB;
 
 class LoaiPhong extends Model
 {
     use HasFactory;
+    use Auditable;
 
     protected $table = 'loai_phong';
 
@@ -38,8 +40,16 @@ class LoaiPhong extends Model
 
     public function tienNghis()
     {
-        return $this->belongsToMany(TienNghi::class, 'loai_phong_tien_nghi');
+        return $this->belongsToMany(TienNghi::class, 'loai_phong_tien_nghi')
+            ->where('tien_nghi.active', true);
     }
+
+    public function vatDungs()
+    {
+        return $this->belongsToMany(VatDung::class, 'loai_phong_vat_dung', 'loai_phong_id', 'vat_dung_id')
+            ->where('vat_dungs.active', true);
+    }
+
 
     public function bedTypes()
     {

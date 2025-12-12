@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class GiaoDich extends Model
 {
     use HasFactory;
-
+    use Auditable;
     protected $table = 'giao_dich';
 
     protected $fillable = [
@@ -26,9 +27,9 @@ class GiaoDich extends Model
     ];
 
     // Relationships
-    public function datPhong()
+    public function dat_phong()
     {
-        return $this->belongsTo(DatPhong::class);
+        return $this->belongsTo(DatPhong::class, 'dat_phong_id', 'id');
     }
 
     public function hoanTiens()

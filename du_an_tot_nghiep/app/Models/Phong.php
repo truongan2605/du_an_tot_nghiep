@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\Auditable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Phong extends Model
 {
     use HasFactory;
-
+    use Auditable;
     protected $table = 'phong';
 
     protected $fillable = [
@@ -25,6 +28,7 @@ class Phong extends Model
         'gia_cuoi_cung',
         'img',
         'trang_thai',
+        'don_dep',
         'last_checked_at',
         'spec_signature_hash',
     ];
@@ -35,6 +39,7 @@ class Phong extends Model
         'gia_mac_dinh' => 'decimal:2',
         'gia_cuoi_cung' => 'decimal:2',
         'last_checked_at' => 'datetime',
+        'don_dep' => 'boolean',
     ];
 
     public function loaiPhong()
@@ -49,8 +54,90 @@ class Phong extends Model
 
     public function tienNghis()
     {
-        return $this->belongsToMany(TienNghi::class, 'phong_tien_nghi');
+        return $this->belongsToMany(TienNghi::class, 'phong_tien_nghi')
+            ->where('tien_nghi.active', true);
     }
+
+
+    public function vatDungs()
+    {
+        return $this->belongsToMany(\App\Models\VatDung::class, 'phong_vat_dung')
+            ->using(\App\Models\PhongVatDung::class)
+            ->withPivot(['so_luong', 'da_tieu_thu', 'gia_override', 'tracked_instances'])
+            ->withTimestamps();
+    }
+
+
+    public function vatDungInstances()
+    {
+        return $this->hasMany(\App\Models\PhongVatDungInstance::class, 'phong_id');
+    }
+
+    public function vatDungIncidents()
+    {
+        return $this->hasMany(\App\Models\VatDungIncident::class, 'phong_id');
+    }
+
+
+
+    public function computeConsumableCharges(): float
+    {
+        $this->loadMissing(['vatDungs']);
+
+        $total = 0.0;
+        foreach ($this->vatDungs as $vd) {
+            if (! $vd->isConsumable()) continue;
+            $consumed = (int) ($vd->pivot->da_tieu_thu ?? 0);
+            if ($consumed <= 0) continue;
+            $unitPrice = $vd->pivot->gia_override !== null ? (float) $vd->pivot->gia_override : (float) ($vd->gia ?? 0);
+            $total += $consumed * $unitPrice;
+        }
+        return (float) $total;
+    }
+
+    public function computeIncidentCharges(): float
+    {
+        // eager load incidents
+        $this->loadMissing(['vatDungIncidents']);
+        return (float) $this->vatDungIncidents->sum(function ($inc) {
+            return (float) ($inc->fee ?? 0);
+        });
+    }
+
+    public function activeDatPhong(): ?\App\Models\DatPhong
+    {
+        if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
+            $dp = \App\Models\DatPhong::whereHas('datPhongItems', function ($q) {
+                $q->where('phong_id', $this->id);
+            })
+                ->whereIn('trang_thai', ['da_dat', 'dang_su_dung', 'da_xac_nhan'])
+                ->orderByDesc('id')
+                ->first();
+
+            if ($dp) return $dp;
+        }
+
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+            $row = DB::table('giu_phong')
+                ->where('phong_id', $this->id)
+                ->where('released', false)
+                ->where('het_han_luc', '>', now())
+                ->orderByDesc('id')
+                ->first();
+
+            if ($row && !empty($row->dat_phong_id)) {
+                return \App\Models\DatPhong::find($row->dat_phong_id);
+            }
+        }
+
+        return null;
+    }
+
+    public function computeVatDungCharges(): float
+    {
+        return $this->computeConsumableCharges() + $this->computeIncidentCharges();
+    }
+
 
     public function bedTypes()
     {
@@ -58,7 +145,10 @@ class Phong extends Model
             ->withPivot(['quantity', 'price'])
             ->withTimestamps();
     }
-
+    public function datPhongItems()
+    {
+        return $this->hasMany(DatPhongItem::class, 'phong_id');
+    }
     public function images()
     {
         return $this->hasMany(PhongImage::class, 'phong_id')->orderBy('id', 'asc');
@@ -66,13 +156,18 @@ class Phong extends Model
 
     public function phongDaDats()
     {
-        return $this->hasMany(PhongDaDat::class);
+        // đã cập nhật
+        return $this->hasMany(DatPhong::class, 'phong_id');
     }
 
     public function wishlists()
     {
         return $this->hasMany(Wishlist::class, 'phong_id');
     }
+public function danhGiaspace()
+{
+    return $this->hasMany(DanhGiaSpace::class, 'phong_id');
+}
 
     public function getTongGiaAttribute()
     {
@@ -256,6 +351,26 @@ class Phong extends Model
         return $arr;
     }
 
+    public function hasBookings(): bool
+    {
+        if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
+            $exists = DB::table('dat_phong_item')
+                ->where('phong_id', $this->id)
+                ->exists();
+            if ($exists) return true;
+        }
+
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+            $exists = DB::table('giu_phong')
+                ->where('phong_id', $this->id)
+                ->where('released', false)
+                ->exists();
+            if ($exists) return true;
+        }
+
+        return false;
+    }
+
     public function specSignatureArray(): array
     {
         $sig = [
@@ -273,7 +388,10 @@ class Phong extends Model
         $sig = $this->specSignatureArray();
         return md5(json_encode($sig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }
-
+  public function danhGias()
+{
+    return $this->hasMany(DanhGiaSpace::class, 'phong_id');
+}
     protected static function booted()
     {
         static::saving(function ($phong) {
@@ -283,5 +401,7 @@ class Phong extends Model
                 Log::warning('Could not compute spec_signature_hash for Phong id=' . ($phong->id ?? 'new') . ': ' . $e->getMessage());
             }
         });
+
     }
+    
 }

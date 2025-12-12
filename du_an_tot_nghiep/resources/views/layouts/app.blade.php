@@ -64,6 +64,17 @@
             }
         })
     </script>
+    <!-- AI chatbox -->
+<script data-name-bot="huy"
+	src="https://app.preny.ai/embed-global.js"
+	data-button-style="width:300px;height:300px;"
+	data-language="vi"
+	async
+	defer
+	data-preny-bot-id="692bcf49a98b11e2f6c759c8"
+></script>
+
+<!-- end chat -->
     <!-- Favicon -->
     <link rel="shortcut icon" href="{{ asset('template/stackbros/assets/images/favicon.ico') }}">
 
@@ -98,6 +109,15 @@
 
     <script src="{{ asset('template/stackbros/assets/js/functions.js') }}"></script>
 
+    <!-- Vite Assets for Notifications -->
+    @vite(['resources/js/app.js'])
+
+    <!-- Client Notification Scripts -->
+    <script>
+        // Set user ID for notification manager
+        window.userId = {{ auth()->id() ?? 'null' }};
+    </script>
+
     @stack('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -114,20 +134,20 @@
 
                 if (status === 'added') {
                     btn.setAttribute('aria-pressed', 'true');
-                    btn.setAttribute('title', 'Remove from wishlist');
+                    btn.setAttribute('title', 'Xóa khỏi danh sách yêu thích');
                     if (icon) {
                         icon.className = 'fa-solid fa-heart';
                         icon.classList.add('text-danger');
                     }
-                    if (isDetail && label) label.textContent = 'Saved';
+                    if (isDetail && label) label.textContent = 'Đã lưu';
                 } else if (status === 'removed') {
                     btn.setAttribute('aria-pressed', 'false');
-                    btn.setAttribute('title', 'Add to wishlist');
+                    btn.setAttribute('title', 'Thêm vào danh sách yêu thích');
                     if (icon) {
                         icon.className = 'fa-regular fa-heart';
                         icon.classList.remove('text-danger');
                     }
-                    if (isDetail && label) label.textContent = 'Add to wishlist';
+                    if (isDetail && label) label.textContent = 'Thêm vào yêu thích';
                 }
             }
 
@@ -172,21 +192,21 @@
                     if (res.ok) {
                         if (data.status === 'added' || data.status === 'removed') {
                             updateButtonUI(btn, data.status);
-                            showToast(data.status === 'added' ? 'Added to wishlist' : 'Removed from wishlist');
+                            showToast(data.status === 'added' ? 'Đã thêm vào yêu thích' : 'Đã xóa khỏi yêu thích');
                             if (btn.classList.contains('wishlist-toggle')) {
                                 setTimeout(() => window.location.reload(), 400);
                             }
                         } else {
                             console.warn('Unknown wishlist payload', data);
-                            showToast('Action completed', false);
+                            showToast('Hoàn thành thao tác', false);
                         }
                     } else {
                         console.error('Wishlist error', data);
-                        showToast(data.message || 'An error occurred', true);
+                        showToast(data.message || 'Đã xảy ra lỗi', true);
                     }
                 } catch (err) {
                     console.error('Network/JSON error', err);
-                    showToast('Network error', true);
+                    showToast('Lỗi mạng', true);
                 }
             }
 
@@ -222,6 +242,11 @@
             border: none;
             box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
         }
+        .sticky-sidebar {
+    position: sticky;
+    top: 80px; /* chỉnh tùy độ cao header */
+}
+
 
         .btn-wishlist i {
             color: #fff;

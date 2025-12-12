@@ -14,9 +14,6 @@
             <a href="{{ route('admin.customer-notifications.index') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left me-1"></i>Quay lại
             </a>
-            <a href="{{ route('admin.customer-notifications.edit', $notification) }}" class="btn btn-primary">
-                <i class="fas fa-edit me-1"></i>Chỉnh sửa
-            </a>
         </div>
     </div>
 
@@ -260,9 +257,6 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ route('admin.customer-notifications.edit', $notification) }}" class="btn btn-outline-primary">
-                            <i class="fas fa-edit me-1"></i>Chỉnh sửa
-                        </a>
                         
                         @if($notification->trang_thai === 'failed')
                             <form method="POST" action="{{ route('admin.customer-notifications.resend', $notification) }}" 
@@ -299,6 +293,10 @@
     </div>
 </div>
 @endsection
+
+
+
+
 
 
 

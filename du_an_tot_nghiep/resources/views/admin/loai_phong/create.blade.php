@@ -32,9 +32,9 @@
             </div>
 
             <div class="mb-3">
-                <label>Giá mặc định (VND / night)</label>
-                <input type="number" step="0.01" name="gia_mac_dinh" class="form-control"
-                    value="{{ old('gia_mac_dinh', 0) }}" required>
+                <label>Giá mặc định (VND / đêm)</label>
+                <input type="text" id="gia_mac_dinh" name="gia_mac_dinh" class="form-control"
+                    value="{{ old('gia_mac_dinh') }}" oninput="formatMoney(this)" maxlength="20">
             </div>
 
             <div class="mb-3" hidden>
@@ -44,21 +44,91 @@
                     dưới.</div>
             </div>
 
+            {{-- Tiện nghi (shared block for create & edit) --}}
             <div class="mb-3">
-                <label>Tiện nghi</label><br>
-                @foreach ($tienNghis as $tn)
-                    <div class="form-check form-check-inline">
-                        <input type="checkbox" name="tien_nghi[]" value="{{ $tn->id }}" class="form-check-input"
-                            {{ in_array($tn->id, old('tien_nghi', [])) ? 'checked' : '' }}>
-                        <label class="form-check-label">{{ $tn->ten }}</label>
+                <label class="form-label">Dịch vụ</label>
+                <div class="card">
+                    <div class="card-body" style="max-height:260px; overflow-y:auto;">
+                        @php
+                            // oldList có thể là array từ request; nếu không có, fallback sang $loaiphong->tienNghis (edit) hoặc []
+                            $selectedTienNghi = old(
+                                'tien_nghi_ids',
+                                isset($loaiphong) ? $loaiphong->tienNghis->pluck('id')->toArray() : [],
+                            );
+                        @endphp
+
+                        @if ($tienNghis->count() > 0)
+                            <div class="row">
+                                @foreach ($tienNghis as $tn)
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="tien_nghi_ids[]"
+                                                id="tn{{ $tn->id }}" value="{{ $tn->id }}"
+                                                {{ in_array($tn->id, (array) $selectedTienNghi) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="tn{{ $tn->id }}">
+                                                <strong>{{ $tn->ten }}</strong>
+                                                @if (isset($tn->gia))
+                                                    <small
+                                                        class="text-muted ms-2">({{ number_format($tn->gia, 0, ',', '.') }}
+                                                        đ)</small>
+                                                @endif
+                                            </label>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-muted mb-0">Chưa có dịch vụ nào.</p>
+                        @endif
                     </div>
-                @endforeach
+                </div>
             </div>
 
+            {{-- Vật dụng (Đồ dùng) — same UI as Tiện nghi --}}
+            <div class="mb-3">
+                <label class="form-label">Vật dụng (Đồ dùng)</label>
+                <div class="card">
+                    <div class="card-body" style="max-height:260px; overflow-y:auto;">
+                        @php
+                            $selectedVatDungs = old(
+                                'vat_dung_ids',
+                                isset($loaiphong) ? $loaiphong->vatDungs->pluck('id')->toArray() : [],
+                            );
+                        @endphp
+
+                        @if ($vatDungs->count() > 0)
+                            <div class="row">
+                                @foreach ($vatDungs as $vd)
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="vat_dung_ids[]"
+                                                id="vd{{ $vd->id }}" value="{{ $vd->id }}"
+                                                {{ in_array($vd->id, (array) $selectedVatDungs) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="vd{{ $vd->id }}">
+                                                <strong>{{ $vd->ten }}</strong>
+                                                @if (isset($vd->gia))
+                                                    <small
+                                                        class="text-muted ms-2">({{ number_format($vd->gia, 0, ',', '.') }}
+                                                        đ)</small>
+                                                @endif
+                                            </label>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-muted mb-0">Chưa có vật dụng (đồ dùng).</p>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+
             <hr>
-            <h5>Bed types (Cấu hình giường cho loại phòng)</h5>
-            <p class="text-muted small">Chọn số lượng cho mỗi loại giường. <strong>Suc_chua</strong> và
-                <strong>so_giuong</strong> sẽ được tính tự động dựa trên cấu hình này.</p>
+            <h5>Loại giường</h5>
+            <p class="text-muted small">Chọn số lượng cho mỗi loại giường. <strong>Sức chứa</strong> và
+                <strong>Số giường</strong> sẽ được tính tự động dựa trên cấu hình này.
+            </p>
 
             @foreach ($bedTypes as $bt)
                 @php
@@ -68,16 +138,16 @@
                 <div class="row mb-2 align-items-center">
                     <div class="col-md-4">
                         <strong>{{ $bt->name }}</strong>
-                        <div class="small text-muted">capacity: {{ $bt->capacity }} / default price:
+                        <div class="small text-muted">số lượng: {{ $bt->capacity }} / Giá mặc định:
                             {{ number_format($bt->price, 0, ',', '.') }} đ</div>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label small">Quantity</label>
+                        <label class="form-label small">Chất lượng</label>
                         <input type="number" name="bed_types[{{ $bt->id }}][quantity]" min="0"
                             class="form-control" value="{{ $qty }}">
                     </div>
                     <div class="col-md-5">
-                        <label class="form-label small">Price per bed (optional override)</label>
+                        <label class="form-label small">Giá mỗi giường (Ghi đè)</label>
                         <input type="number" step="0.01" name="bed_types[{{ $bt->id }}][price]"
                             class="form-control" value="{{ $price }}">
                     </div>
@@ -89,5 +159,40 @@
                 <a href="{{ route('admin.loai_phong.index') }}" class="btn btn-secondary">Hủy</a>
             </div>
         </form>
+        <script>
+            function formatMoney(input) {
+                let v = input.value.toLowerCase().replace(/\s+/g, '');
+
+                // ===== 1. Hỗ trợ ký hiệu nhanh =====
+                if (v.endsWith('k')) {
+                    v = v.replace('k', '');
+                    v = parseInt(v || 0) * 1000;
+                } else if (v.endsWith('m')) {
+                    v = v.replace('m', '');
+                    v = parseInt(v || 0) * 1000000;
+                } else if (v.endsWith('b')) {
+                    v = v.replace('b', '');
+                    v = parseInt(v || 0) * 1000000000;
+                } else {
+                    // giữ lại số
+                    v = v.replace(/\D/g, '');
+                }
+
+                // ===== 2. Giới hạn số chữ số =====
+                const MAX_DIGITS = 12; // tối đa 999.999.999.999
+                if (v.length > MAX_DIGITS) {
+                    v = v.substring(0, MAX_DIGITS);
+                }
+
+                // ===== 3. Format VND =====
+                if (v === "") {
+                    input.value = "";
+                    return;
+                }
+
+                input.value = Number(v).toLocaleString("vi-VN");
+            }
+        </script>
+
     </div>
 @endsection

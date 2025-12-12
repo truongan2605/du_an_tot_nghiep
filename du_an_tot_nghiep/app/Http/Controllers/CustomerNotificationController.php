@@ -6,6 +6,7 @@ use App\Models\ThongBao;
 use App\Models\User;
 use App\Jobs\SendNotificationJob;
 use App\Jobs\SendBatchNotificationJob;
+use App\Events\NotificationCreated;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Mail;
@@ -21,7 +22,6 @@ class CustomerNotificationController extends Controller
     public function index(Request $request)
     {
         $query = ThongBao::query()
-            ->where('kenh', 'in_app')
             ->whereIn('nguoi_nhan_id', function($q) {
                 $q->select('id')
                   ->from('users')
@@ -53,6 +53,15 @@ class CustomerNotificationController extends Controller
             });
         }
 
+        // Lấy thống kê trước khi paginate
+        $baseQuery = clone $query;
+        $stats = [
+            'total' => $baseQuery->count(),
+            'sent' => (clone $baseQuery)->where('trang_thai', 'sent')->count(),
+            'pending' => (clone $baseQuery)->where('trang_thai', 'pending')->count(),
+            'failed' => (clone $baseQuery)->where('trang_thai', 'failed')->count(),
+        ];
+
         $notifications = $query->paginate(15);
 
         // Lấy danh sách khách hàng để filter
@@ -60,7 +69,7 @@ class CustomerNotificationController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        return view('admin.customer-notifications.index', compact('notifications', 'customers'));
+        return view('admin.customer-notifications.index', compact('notifications', 'customers', 'stats'));
     }
 
     /**
@@ -81,25 +90,44 @@ class CustomerNotificationController extends Controller
      */
     public function store(Request $request)
     {
-        // Convert payload from JSON string (textarea) to array before validation
-        $rawPayload = $request->input('payload');
-        if (is_string($rawPayload) && trim($rawPayload) !== '') {
-            $decoded = json_decode($rawPayload, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return back()->withInput()->withErrors(['payload' => 'Payload phải là JSON hợp lệ.']);
+        // Handle both old JSON format and new form fields
+        $payload = null;
+        
+        // Check if using new form fields
+        if ($request->has('notification_title') && $request->has('notification_message')) {
+            $payload = [
+                'title' => $request->input('notification_title'),
+                'message' => $request->input('notification_message')
+            ];
+            
+            if ($request->filled('notification_link')) {
+                $payload['link'] = $request->input('notification_link');
             }
-            $request->merge(['payload' => $decoded]);
-        } elseif ($rawPayload === '' || $rawPayload === null) {
-            $request->merge(['payload' => null]);
+        } else {
+            // Fallback to old JSON format
+            $rawPayload = $request->input('payload');
+            if (is_string($rawPayload) && trim($rawPayload) !== '') {
+                $decoded = json_decode($rawPayload, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return back()->withInput()->withErrors(['payload' => 'Payload phải là JSON hợp lệ.']);
+                }
+                $payload = $decoded;
+            }
         }
 
         $data = $request->validate([
             'nguoi_nhan_id' => ['nullable', Rule::exists('users', 'id')],
             'kenh' => ['required', Rule::in(['email', 'in_app'])],
             'ten_template' => ['required', 'string', 'max:255'],
-            'payload' => ['nullable', 'array'],
             'send_to_all_customers' => ['sometimes', 'boolean'],
+            // New form fields
+            'notification_title' => ['nullable', 'string', 'max:255'],
+            'notification_message' => ['nullable', 'string'],
+            'notification_link' => ['nullable', 'string', 'max:500'],
         ]);
+        
+        // Add payload to data
+        $data['payload'] = $payload;
 
         // Validate that either nguoi_nhan_id or send_to_all_customers is provided
         if (empty($data['nguoi_nhan_id']) && empty($data['send_to_all_customers'])) {
@@ -152,10 +180,50 @@ class CustomerNotificationController extends Controller
         // Otherwise create single notification for selected customer
         $notification = ThongBao::create($data);
 
-        // Dispatch single notification job
-        SendNotificationJob::dispatch($notification->id, $notification->nguoi_nhan_id)
-            ->onQueue('notifications')
-            ->delay(now()->addSeconds(2));
+        // Broadcast notification for real-time updates
+        if ($data['kenh'] === 'in_app') {
+            broadcast(new NotificationCreated($notification));
+        }
+
+        // Cập nhật trạng thái thông báo in-app
+        $notification->update([
+            'trang_thai' => 'sent',
+            'so_lan_thu' => 1,
+            'lan_thu_cuoi' => now(),
+        ]);
+
+        // Gửi email về Gmail trực tiếp (giống như email hóa đơn khi checkout)
+        try {
+            // Reload notification với relationships
+            $notification->load('nguoiNhan');
+            $user = $notification->nguoiNhan;
+            
+            if (!$user || !$user->email) {
+                Log::warning('Cannot send notification email: missing user or email', [
+                    'notification_id' => $notification->id,
+                    'user_id' => $notification->nguoi_nhan_id,
+                ]);
+                return redirect()->route('admin.customer-notifications.show', $notification)
+                    ->with('success', 'Tạo thông báo khách hàng thành công (không có email để gửi)');
+            }
+
+            // Gửi email
+            Mail::to($user->email)->send(new ThongBaoEmail($notification));
+            
+            Log::info('Customer notification email sent successfully', [
+                'notification_id' => $notification->id,
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+        } catch (\Throwable $e) {
+            // Log lỗi nhưng không làm gián đoạn quá trình
+            Log::error('Failed to send customer notification email', [
+                'notification_id' => $notification->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            // Không cập nhật trạng thái thành 'failed' vì thông báo in-app đã thành công
+        }
 
         return redirect()->route('admin.customer-notifications.show', $notification)->with('success', 'Tạo thông báo khách hàng thành công');
     }
@@ -222,22 +290,21 @@ class CustomerNotificationController extends Controller
 
         $notification->update($data);
 
-        if ($notification->kenh === 'email' && $notification->trang_thai !== 'read') {
+        // Gửi email về Gmail nếu có thay đổi và chưa đọc
+        if ($notification->trang_thai !== 'read') {
             try {
                 $user = User::find($notification->nguoi_nhan_id);
-                if ($user) {
+                if ($user && $user->email) {
                     Mail::to($user->email)->send(new ThongBaoEmail($notification));
-                    $notification->update([
-                        'trang_thai' => 'sent',
-                        'so_lan_thu' => ($notification->so_lan_thu ?? 0) + 1,
-                        'lan_thu_cuoi' => now(),
+                    \Illuminate\Support\Facades\Log::info('Customer notification email sent after update', [
+                        'notification_id' => $notification->id,
+                        'user_id' => $user->id,
                     ]);
                 }
             } catch (\Throwable $e) {
-                $notification->update([
-                    'trang_thai' => 'failed',
-                    'so_lan_thu' => ($notification->so_lan_thu ?? 0) + 1,
-                    'lan_thu_cuoi' => now(),
+                \Illuminate\Support\Facades\Log::warning('Failed to send customer notification email after update', [
+                    'notification_id' => $notification->id,
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -271,20 +338,26 @@ class CustomerNotificationController extends Controller
             'lan_thu_cuoi' => now()
         ]);
 
-        // Send email if channel is email
-        if ($notification->kenh === 'email') {
-            try {
-                $user = $notification->nguoiNhan;
-                if ($user && $user->email) {
-                    Mail::to($user->email)->send(new ThongBaoEmail($notification));
-                    $notification->update(['trang_thai' => 'sent']);
-                } else {
-                    $notification->update(['trang_thai' => 'failed']);
-                }
-            } catch (\Exception $e) {
+        // Gửi email về Gmail (gửi trực tiếp, đồng bộ)
+        try {
+            $user = $notification->nguoiNhan;
+            if ($user && $user->email) {
+                Mail::to($user->email)->send(new ThongBaoEmail($notification));
+                $notification->update(['trang_thai' => 'sent']);
+                \Illuminate\Support\Facades\Log::info('Customer notification email sent on resend', [
+                    'notification_id' => $notification->id,
+                    'user_id' => $user->id,
+                ]);
+            } else {
                 $notification->update(['trang_thai' => 'failed']);
-                return back()->with('error', 'Gửi lại thất bại: ' . $e->getMessage());
             }
+        } catch (\Exception $e) {
+            $notification->update(['trang_thai' => 'failed']);
+            \Illuminate\Support\Facades\Log::error('Failed to send customer notification email on resend', [
+                'notification_id' => $notification->id,
+                'error' => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Gửi lại thất bại: ' . $e->getMessage());
         }
 
         return back()->with('success', 'Đã gửi lại thông báo khách hàng thành công.');

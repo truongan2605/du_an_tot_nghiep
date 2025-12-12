@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Tang extends Model
 {
     use HasFactory;
+    use Auditable;
 
     protected $table = 'tang';
 

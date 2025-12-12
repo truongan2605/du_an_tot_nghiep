@@ -4,16 +4,19 @@ namespace App\Jobs;
 
 use App\Models\ThongBao;
 use App\Models\User;
+use App\Events\NotificationCreated;
+use App\Mail\ThongBaoEmail;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Exception;
 
 class SendBatchNotificationJob implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, SerializesModels;
+    use Queueable, SerializesModels;
 
     protected $notificationData;
     protected $userIds;
@@ -82,7 +85,7 @@ class SendBatchNotificationJob implements ShouldQueue
                 }
 
                 // Create notification record
-                ThongBao::create([
+                $notification = ThongBao::create([
                     'nguoi_nhan_id' => $userId,
                     'kenh' => $this->notificationData['kenh'],
                     'ten_template' => $this->notificationData['ten_template'],
@@ -91,6 +94,36 @@ class SendBatchNotificationJob implements ShouldQueue
                     'so_lan_thu' => 0,
                     'batch_id' => $this->batchId,
                 ]);
+
+                // Broadcast notification for real-time updates
+                if ($this->notificationData['kenh'] === 'in_app') {
+                    broadcast(new NotificationCreated($notification));
+                }
+
+                // Cập nhật trạng thái thông báo in-app
+                $notification->update([
+                    'trang_thai' => 'sent',
+                    'so_lan_thu' => 1,
+                    'lan_thu_cuoi' => now(),
+                ]);
+
+                // Gửi email về Gmail (gửi trực tiếp, đồng bộ)
+                if ($user->email) {
+                    try {
+                        Mail::to($user->email)->send(new ThongBaoEmail($notification));
+                        Log::info("Notification email sent for user", [
+                            'user_id' => $userId,
+                            'batch_id' => $this->batchId
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::warning("Failed to send notification email for user", [
+                            'user_id' => $userId,
+                            'batch_id' => $this->batchId,
+                            'error' => $e->getMessage()
+                        ]);
+                        // Không cập nhật trạng thái thành 'failed' vì thông báo in-app đã thành công
+                    }
+                }
 
                 Log::info("Created notification for user", [
                     'user_id' => $userId,

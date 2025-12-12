@@ -9,28 +9,95 @@ use App\Models\Phong;
 use App\Models\PhongImage;
 use App\Models\Tang;
 use App\Models\TienNghi;
+use App\Models\VatDung;
+use App\Events\RoomCreated;
+use App\Events\RoomUpdated;
+use App\Models\HoaDon;
+use App\Models\HoaDonItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class PhongController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $phongs = Phong::with(['loaiPhong', 'tang', 'images'])->orderBy('id', 'desc')->get();
-        return view('admin.phong.index', compact('phongs'));
+        $query = Phong::with(['loaiPhong', 'tang', 'images'])->orderBy('id', 'desc');
+
+        // --- Bộ lọc ---
+        if ($request->filled('ma_phong')) {
+            $query->where('ma_phong', 'like', '%' . $request->ma_phong . '%');
+        }
+
+        if ($request->filled('name')) {
+            $query->where('name', 'like', '%' . $request->name . '%');
+        }
+
+        if ($request->filled('loai_phong_id')) {
+            $query->where('loai_phong_id', $request->loai_phong_id);
+        }
+
+        if ($request->filled('tang_id')) {
+            $query->where('tang_id', $request->tang_id);
+        }
+
+        // Lấy dữ liệu
+        $phongs = $query->get();
+
+        // Dữ liệu cho dropdown
+        $loaiPhongs = \App\Models\LoaiPhong::all();
+        $tangs = \App\Models\Tang::all();
+
+        $phongIds = $phongs->pluck('id')->toArray();
+        $latestBookingIds = [];
+
+        // 1) từ dat_phong_item (nếu có cột phong_id)
+        if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
+            $rows = DB::table('dat_phong_item')
+                ->select('phong_id', DB::raw('MAX(dat_phong_item.dat_phong_id) as last_id'))
+                ->whereIn('phong_id', $phongIds)
+                ->groupBy('phong_id')
+                ->get();
+
+            foreach ($rows as $r) {
+                $latestBookingIds[(int)$r->phong_id] = (int)$r->last_id;
+            }
+        }
+
+        // 2) bổ sung từ giu_phong (nếu có) — một phòng có thể được giữ trước khi dat_phong_item tồn tại
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+            $rows = DB::table('giu_phong')
+                ->select('phong_id', DB::raw('MAX(giu_phong.dat_phong_id) as last_id'))
+                ->whereIn('phong_id', $phongIds)
+                ->groupBy('phong_id')
+                ->get();
+
+            foreach ($rows as $r) {
+                $pid = (int)$r->phong_id;
+                $lid = (int)$r->last_id;
+                // nếu đã có id từ dat_phong_item thì lấy max — đảm bảo lấy booking mới nhất
+                if (!isset($latestBookingIds[$pid]) || $lid > $latestBookingIds[$pid]) {
+                    $latestBookingIds[$pid] = $lid;
+                }
+            }
+        }
+
+        // truyền vào view
+        return view('admin.phong.index', compact('phongs', 'loaiPhongs', 'tangs', 'latestBookingIds'));
     }
+
 
     public function create()
     {
         $loaiPhongs = LoaiPhong::with('tienNghis', 'bedTypes')->get();
         $tangs = Tang::all();
         $tienNghis = TienNghi::where('active', true)->get();
+        $vatDungs = VatDung::where('active', true)->get();
         $bedTypes = BedType::orderBy('name')->get();
 
-        return view('admin.phong.create', compact('loaiPhongs', 'tangs', 'tienNghis', 'bedTypes'));
+        return view('admin.phong.create', compact('loaiPhongs', 'tangs', 'tienNghis', 'vatDungs', 'bedTypes'));
     }
 
     public function store(Request $request)
@@ -49,6 +116,8 @@ class PhongController extends Controller
             'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'integer|exists:tien_nghi,id',
+            'vat_dungs' => 'nullable|array',
+            'vat_dungs.*' => 'exists:vat_dungs,id',
             'bed_types' => 'nullable|array',
             'trang_thai' => 'nullable|in:trong,dang_o,bao_tri,khong_su_dung'
         ]);
@@ -138,6 +207,21 @@ class PhongController extends Controller
                 }
             }
 
+            $selectedLoai->load('vatDungs');
+            $attachVat = [];
+            foreach ($selectedLoai->vatDungs as $vd) {
+                $attachVat[$vd->id] = [
+                    'so_luong' => $vd->pivot->so_luong ?? 1,
+                    'da_tieu_thu' => 0,
+                    'gia_override' => null,
+                    'tracked_instances' => $vd->pivot->tracked_instances ?? true,
+                ];
+            }
+            if (!empty($attachVat)) {
+                $phong->vatDungs()->sync($attachVat);
+            }
+
+
             // images
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $file) {
@@ -153,8 +237,46 @@ class PhongController extends Controller
                 $phong->tienNghis()->detach();
             }
 
+            // Vật dụng
+            // nếu admin gửi vat_dungs (ví dụ dạng [vat_dung_id => ['so_luong' => X, 'tracked_instances' => true]]) thì sync
+            if ($request->filled('vat_dungs') && is_array($request->input('vat_dungs'))) {
+                $inputVat = $request->input('vat_dungs');
+                $attachVat = [];
+                foreach ($inputVat as $vdId => $vals) {
+                    $attachVat[(int)$vdId] = [
+                        'so_luong' => isset($vals['so_luong']) ? (int)$vals['so_luong'] : 0,
+                        'da_tieu_thu' => $vals['da_tieu_thu'] ?? 0,
+                        'gia_override' => $vals['gia_override'] ?? null,
+                        'tracked_instances' => isset($vals['tracked_instances']) ? (bool)$vals['tracked_instances'] : true,
+                    ];
+                }
+                // nếu admin gửi nhưng rỗng, detach
+                if (!empty($attachVat)) $phong->vatDungs()->sync($attachVat);
+                else $phong->vatDungs()->detach();
+            } else {
+                // nếu không có input, đảm bảo ít nhất copy default từ loai_phong nếu pivot chưa có
+                $selectedLoai->load('vatDungs');
+                // sửa thành:
+                $phongVatIds = $phong->vatDungs()->pluck('vat_dungs.id')->toArray();
+                $missing = $selectedLoai->vatDungs->pluck('id')->diff($phongVatIds);
+                if ($missing->isNotEmpty()) {
+                    $add = [];
+                    foreach ($selectedLoai->vatDungs as $vd) {
+                        $add[$vd->id] = [
+                            'so_luong' => $vd->pivot->so_luong ?? 1,
+                            'da_tieu_thu' => 0,
+                            'gia_override' => null,
+                            'tracked_instances' => $vd->pivot->tracked_instances ?? true,
+                        ];
+                    }
+                    if (!empty($add)) $phong->vatDungs()->syncWithoutDetaching($add);
+                }
+            }
+
             $phong->loadMissing(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes']);
             $phong->recalcAndSave(true);
+
+
 
             try {
                 $phong->spec_signature_hash = $phong->specSignatureHash();
@@ -164,6 +286,14 @@ class PhongController extends Controller
             }
 
             DB::commit();
+
+            // Dispatch room created event (will trigger listener)
+            Log::info("Dispatching RoomCreated event", [
+                'room_id' => $phong->id,
+                'room_code' => $phong->ma_phong
+            ]);
+            event(new RoomCreated($phong));
+
             return redirect()->route('admin.phong.index')->with('success', 'Thêm phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -198,6 +328,8 @@ class PhongController extends Controller
             'images.*' => 'image|mimes:jpg,jpeg,png,webp|max:4096',
             'tien_nghi' => 'nullable|array',
             'tien_nghi.*' => 'integer|exists:tien_nghi,id',
+            'vat_dungs' => 'nullable|array',
+            'vat_dungs.*' => 'exists:vat_dungs,id',
             'bed_types' => 'nullable|array',
             'trang_thai' => 'nullable|in:khong_su_dung,trong,dang_o,bao_tri',
         ]);
@@ -310,6 +442,14 @@ class PhongController extends Controller
             $phong->loadMissing(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes']);
             $phong->recalcAndSave(true);
 
+            $oldStatus = $phong->getOriginal('trang_thai') ?? null;
+            if ($requestedStatus === 'trong' && $oldStatus !== 'trong') {
+                \App\Models\PhongVatDungConsumption::where('phong_id', $phong->id)
+                    ->whereNull('consumed_at')
+                    ->whereNull('billed_at')
+                    ->delete();
+            }
+
             try {
                 $phong->spec_signature_hash = $phong->specSignatureHash();
                 $phong->saveQuietly();
@@ -318,6 +458,10 @@ class PhongController extends Controller
             }
 
             DB::commit();
+
+            // Dispatch room updated event (will trigger listener)
+            event(new RoomUpdated($phong));
+
             return redirect()->route('admin.phong.index')->with('success', 'Cập nhật phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -327,27 +471,152 @@ class PhongController extends Controller
 
     public function show($id)
     {
-        $phong = Phong::with(['loaiPhong.tienNghis', 'tienNghis', 'bedTypes'])->findOrFail($id);
+        $phong = Phong::with([
+            'loaiPhong.tienNghis',
+            'tienNghis',
+            'vatDungs' => function ($q) {
+                $q->where('active', 1);
+            },
+            'loaiPhong.vatDungs' => function ($q) {
+                $q->where('active', 1);
+            }
+        ])->findOrFail($id);
 
-        $tienNghiLoaiPhong = $phong->loaiPhong->tienNghis ?? collect();
-        $tienNghiPhong = $phong->tienNghis ?? collect();
+        // Tiện nghi mặc định từ Loại phòng
+        $tienNghiLoaiPhong = $phong->loaiPhong?->tienNghis ?? collect();
 
-        return view('admin.phong.show', compact('phong', 'tienNghiLoaiPhong', 'tienNghiPhong'));
+        // tắt hiển thị tiện nghi bổ sung (UI-only)
+        $tienNghiPhong = collect();
+
+        // Đồ vật (do_dung) lấy từ loại phòng (mặc định)
+        $vatDungLoaiPhongDoDung = collect();
+        if ($phong->loaiPhong) {
+            $vatDungLoaiPhongDoDung = $phong->loaiPhong->vatDungs
+                ->filter(fn($v) => ($v->loai ?? '') === VatDung::LOAI_DO_DUNG);
+        }
+
+        // Lấy tất cả vật dụng hiện có trên pivot phòng (active)
+        $vatPhongPivot = $phong->vatDungs()->where('active', 1)->get();
+
+        // Tách pivot theo loại
+        $vatPhongDoDung = $vatPhongPivot->filter(fn($v) => ($v->loai ?? '') === VatDung::LOAI_DO_DUNG);
+        $vatPhongDoAnPivot = $vatPhongPivot->filter(fn($v) => ($v->loai ?? '') === VatDung::LOAI_DO_AN);
+
+        // Active booking (nếu có)
+        $activeDatPhong = $phong->activeDatPhong();
+
+        // --- 1) Lấy "Vật phẩm ban đầu" từ phong_vat_dung_consumptions (reserved, chưa consumed/billed)
+        $initialReservations = [];
+        if ($activeDatPhong) {
+            $initialReservations = \App\Models\PhongVatDungConsumption::where('dat_phong_id', $activeDatPhong->id)
+                ->where('phong_id', $phong->id)
+                ->whereNull('consumed_at')
+                ->whereNull('billed_at')
+                ->groupBy('vat_dung_id')
+                ->select('vat_dung_id', DB::raw('SUM(quantity) as qty'))
+                ->pluck('qty', 'vat_dung_id')
+                ->toArray();
+        }
+
+        // --- 2) Lấy "Vật phẩm đã tiêu thụ (hóa đơn)" từ hoa_don_items (tất cả các hóa đơn liên quan dat_phong)
+        $hoaDonItemsGrouped = [];
+        if ($activeDatPhong) {
+            $hoaDonIds = \App\Models\HoaDon::where('dat_phong_id', $activeDatPhong->id)
+                ->pluck('id')
+                ->toArray();
+
+            if (!empty($hoaDonIds)) {
+                $hoaDonItemsGrouped = \App\Models\HoaDonItem::whereIn('hoa_don_id', $hoaDonIds)
+                    ->where('type', 'consumption')
+                    ->groupBy('vat_dung_id')
+                    ->select('vat_dung_id', DB::raw('SUM(quantity) as qty'))
+                    ->pluck('qty', 'vat_dung_id')
+                    ->toArray();
+            }
+        }
+
+        // Nếu có một số vat_dung xuất hiện trong consumedTotals nhưng không có pivot (ví dụ admin đã ghi tiêu thụ thủ công)
+        $pivotVatIds = $vatPhongDoAnPivot->pluck('id')->toArray();
+        $missingVatIds = array_diff(array_keys($initialReservations), $pivotVatIds);
+
+        $vatFromReservations = collect();
+        if (!empty($missingVatIds)) {
+            $vatFromReservations = VatDung::whereIn('id', $missingVatIds)->where('active', 1)->get();
+        }
+
+        // Final do_an list to display: pivot items (with pivot data) + items only from consumption/reservation records
+        $vatPhongDoAn = $vatPhongDoAnPivot->merge($vatFromReservations);
+
+        // Instances: only statuses allowed in your schema
+        $instances = \App\Models\PhongVatDungInstance::where('phong_id', $phong->id)
+            ->whereIn('status', ['present', 'damaged', 'missing'])
+            ->get()
+            ->groupBy('vat_dung_id');
+
+        // build instancesMap: số lượng instance theo vat_dung_id và list
+        $instancesMap = [];
+        foreach ($instances as $vdId => $rows) {
+            $instancesMap[$vdId] = [
+                'count' => $rows->count(),
+                'rows' => $rows,
+            ];
+        }
+
+        // existingReservations (keeps row models) - nếu cần elsewhere
+        $existingReservations = collect();
+        if ($activeDatPhong) {
+            $existingReservations = \App\Models\PhongVatDungConsumption::where('dat_phong_id', $activeDatPhong->id)
+                ->where('phong_id', $phong->id)
+                ->whereNull('consumed_at')
+                ->whereNull('billed_at')
+                ->get()
+                ->keyBy('vat_dung_id');
+        }
+
+        // Truyền thêm $initialReservations và $hoaDonItemsGrouped để view dùng
+        return view('admin.phong.show', compact(
+            'phong',
+            'tienNghiLoaiPhong',
+            'tienNghiPhong',
+            'vatDungLoaiPhongDoDung',
+            'vatPhongDoDung',
+            'vatPhongDoAn',
+            'instancesMap',
+            'existingReservations',
+            'activeDatPhong',
+            'initialReservations',
+            'hoaDonItemsGrouped'
+        ));
     }
 
     public function destroy(Phong $phong)
     {
         DB::beginTransaction();
         try {
-            $hasBookings = $phong->phongDaDats()->exists();
-            if ($hasBookings) {
-                return back()->withErrors(['error' => 'Không thể xóa phòng vì đã có booking liên quan.']);
+            if ($phong->hasBookings()) {
+                return back()->withErrors(['error' => 'Không thể xóa phòng vì có booking/giữ phòng hoặc dữ liệu liên quan. Vui lòng kiểm tra dat_phong_item / giu_phong / dat_phong.']);
             }
 
             $phong->tienNghis()->detach();
-            $phong->bedTypes()->detach();
 
-            $phong->wishlists()->delete();
+            if (\Illuminate\Support\Facades\Schema::hasTable('phong_vat_dung_instances')) {
+                $instances = $phong->vatDungInstances()->get();
+                foreach ($instances as $ins) {
+                    try {
+                        DB::table('phong_vat_dung')
+                            ->where('phong_id', $ins->phong_id)
+                            ->where('vat_dung_id', $ins->vat_dung_id)
+                            ->decrement('so_luong', (int)($ins->quantity ?? 1));
+                    } catch (\Throwable $e) {
+                        // ignore
+                    }
+                    $ins->delete();
+                }
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('phong_vat_dung')) {
+                DB::table('phong_vat_dung')->where('phong_id', $phong->id)->delete();
+            }
 
             foreach ($phong->images as $img) {
                 if (Storage::disk('public')->exists($img->image_path)) {
@@ -359,12 +628,12 @@ class PhongController extends Controller
             $phong->delete();
 
             if ($phong->loai_phong_id) {
-                LoaiPhong::refreshSoLuongThucTe($phong->loai_phong_id);
+                \App\Models\LoaiPhong::refreshSoLuongThucTe($phong->loai_phong_id);
             }
 
             DB::commit();
-            return redirect()->route('admin.phong.index')
-                ->with('success', 'Xóa phòng thành công');
+
+            return redirect()->route('admin.phong.index')->with('success', 'Xóa phòng thành công');
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->withErrors(['error' => 'Lỗi xóa: ' . $e->getMessage()]);

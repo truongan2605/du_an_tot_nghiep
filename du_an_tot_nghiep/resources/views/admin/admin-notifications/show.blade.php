@@ -288,7 +288,7 @@ function markAsRead(notificationId) {
 function resendNotification(notificationId) {
     if (confirm('Bạn có chắc muốn gửi lại thông báo này?')) {
         // Implement resend logic here
-        alert('Chức năng gửi lại đang được phát triển');
+        alert('Đang chuyển trang');
     }
 }
 </script>

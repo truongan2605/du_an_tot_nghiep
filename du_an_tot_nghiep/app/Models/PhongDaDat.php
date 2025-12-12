@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class PhongDaDat extends Model
 {
     use HasFactory;
+    use Auditable;
 
     protected $table = 'phong_da_dat';
 

@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class VoucherUsage extends Model
 {
     use HasFactory;
+    use Auditable;
 
     protected $table = 'voucher_usage';
 
@@ -36,5 +38,9 @@ class VoucherUsage extends Model
     public function nguoiDung()
     {
         return $this->belongsTo(User::class);
+    }
+    public function booking()
+    {
+        return $this->belongsTo(DatPhong::class, 'dat_phong_id');
     }
 }

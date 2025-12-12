@@ -20,10 +20,10 @@
     <!-- Stats Cards -->
     <div class="row mb-4">
         @php
-            $totalCount = $notifications->total();
-            $sentCount = $notifications->where('trang_thai', 'sent')->count();
-            $pendingCount = $notifications->where('trang_thai', 'pending')->count();
-            $failedCount = $notifications->where('trang_thai', 'failed')->count();
+            $totalCount = $stats['total'] ?? $notifications->total();
+            $sentCount = $stats['sent'] ?? 0;
+            $pendingCount = $stats['pending'] ?? 0;
+            $failedCount = $stats['failed'] ?? 0;
         @endphp
         
         <div class="col-md-3">
@@ -229,10 +229,6 @@
                                             <a href="{{ route('admin.customer-notifications.show', $notification) }}" 
                                                class="btn btn-outline-primary" title="Xem chi tiết">
                                                 <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{{ route('admin.customer-notifications.edit', $notification) }}" 
-                                               class="btn btn-outline-secondary" title="Chỉnh sửa">
-                                                <i class="fas fa-edit"></i>
                                             </a>
                                             @if($notification->trang_thai === 'failed')
                                                 <form method="POST" action="{{ route('admin.customer-notifications.resend', $notification) }}" 

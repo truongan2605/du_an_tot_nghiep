@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class HoaDon extends Model
 {
     use HasFactory;
-
+    use Auditable;
     protected $table = 'hoa_don';
 
     protected $fillable = [
@@ -27,6 +28,11 @@ class HoaDon extends Model
     public function datPhong()
     {
         return $this->belongsTo(DatPhong::class);
+    }
+
+    public function hoaDonItems()
+    {
+        return $this->hasMany(HoaDonItem::class, 'hoa_don_id');
     }
 
     // Scopes

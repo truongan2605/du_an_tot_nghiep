@@ -92,7 +92,7 @@
                         value="{{ old('so_giuong', $phong->so_giuong) }}" readonly>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label>Giá (Loại)</label>
+                    <label>Giá mặc định của loại phòng</label>
                     <input type="number" id="gia_input_edit" class="form-control"
                         value="{{ old('gia_mac_dinh', $phong->gia_mac_dinh) }}" readonly>
                 </div>
@@ -120,25 +120,51 @@
                 </select>
             </div>
 
-            <h6 class="mt-3">Tiện nghi</h6>
-            <div class="d-flex flex-wrap gap-2 mb-2">
-                @php
-                    $tienNghiLoaiPhong = $phong->loaiPhong->tienNghis->pluck('id')->toArray();
-                    $tienNghiPhong = $phong->tienNghis->pluck('id')->toArray();
-                    $allChecked = array_unique(array_merge($tienNghiLoaiPhong, $tienNghiPhong));
-                @endphp
+            <h6 class="mt-3">Dịch vụ</h6>
 
-                @foreach ($tienNghis as $tn)
-                    <div class="form-check form-check-inline">
-                        <input type="checkbox" name="tien_nghi[]" value="{{ $tn->id }}"
-                            class="form-check-input tienNghiCheckbox" data-price="{{ $tn->gia }}"
-                            id="tienNghi_edit_{{ $tn->id }}" {{ in_array($tn->id, $allChecked) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="tienNghi_edit_{{ $tn->id }}">
-                            <i class="{{ $tn->icon }}"></i> {{ $tn->ten }}
-                            ({{ number_format($tn->gia, 0, ',', '.') }} đ)
+            <div class="mb-2">
+                <div id="amenities_checkbox_list_edit" class="d-flex flex-wrap gap-2">
+                    @php
+                        $roomAmenityIds = $phong->tienNghis->pluck('id')->toArray();
+                        $typeAmenityIds = $phong->loaiPhong?->tienNghis->pluck('id')->toArray() ?? [];
+                    @endphp
+
+                    @foreach ($tienNghis as $tn)
+                        @php
+                            $inType = in_array($tn->id, $typeAmenityIds);
+                            $inRoom = in_array($tn->id, $roomAmenityIds);
+                        @endphp
+                        <label
+                            class="form-check form-check-inline amenity-label-edit {{ $inType ? 'in-type' : ($inRoom ? 'extra' : 'not-in-type') }}"
+                            data-amenity-id="{{ $tn->id }}" data-price="{{ $tn->gia ?? 0 }}">
+                            <input type="checkbox" class="form-check-input amenity-checkbox-edit"
+                                value="{{ $tn->id }}" id="tienNghi_edit_{{ $tn->id }}"
+                                {{ $inType || $inRoom ? 'checked' : '' }} disabled>
+                            <span class="form-check-label ms-1">
+                                <i class="{{ $tn->icon }}"></i> {{ $tn->ten }}
+                                <small class="d-inline-block ms-1">({{ number_format($tn->gia, 0, ',', '.') }} đ)</small>
+                            </span>
                         </label>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
+            </div>
+
+            @php
+                $allCheckedServer = $allChecked ?? $roomAmenityIds;
+            @endphp
+
+            <div id="hidden_amenities_container_edit">
+                @if (old('tien_nghi'))
+                    @foreach (old('tien_nghi') as $id)
+                        <input type="hidden" name="tien_nghi[]" value="{{ $id }}"
+                            class="amenity-hidden-input-edit">
+                    @endforeach
+                @else
+                    @foreach ($allCheckedServer as $id)
+                        <input type="hidden" name="tien_nghi[]" value="{{ $id }}"
+                            class="amenity-hidden-input-edit">
+                    @endforeach
+                @endif
             </div>
 
             <div class="mb-2">
@@ -169,6 +195,66 @@
     </div>
 @endsection
 
+@section('styles')
+    <style>
+        .type-badge {
+            color: #0d6efd;
+            font-weight: 600;
+        }
+
+        /* blue text */
+        .extra-badge {
+            color: #856404;
+            font-weight: 600;
+        }
+
+        /* amber/brownish text */
+        .muted-badge {
+            color: #6c757d;
+            font-weight: 400;
+            opacity: .85;
+            filter: grayscale(20%);
+        }
+
+        .amenity-label-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .12rem .3rem;
+            border-radius: .25rem;
+        }
+
+        .amenity-label-edit .form-check-label {
+            margin: 0;
+            cursor: default;
+        }
+
+        /* checkbox accent color for modern browsers */
+        .amenity-checkbox-edit {
+            width: 1.08rem;
+            height: 1.08rem;
+            margin-top: 0.06rem;
+            accent-color: #6c757d;
+        }
+
+        .type-badge~.amenity-checkbox-edit,
+        .amenity-label-edit.in-type .amenity-checkbox-edit {
+            accent-color: #0d6efd;
+        }
+
+        /* checked style */
+        .extra-badge~.amenity-checkbox-edit,
+        .amenity-label-edit.extra .amenity-checkbox-edit {
+            accent-color: #ffc107;
+        }
+
+        .muted-badge~.amenity-checkbox-edit,
+        .amenity-label-edit.not-in-type .amenity-checkbox-edit {
+            accent-color: #6c757d;
+        }
+    </style>
+@endsection
+
 @section('scripts')
     @php
         $roomBedList = $phong->bedTypes
@@ -189,161 +275,218 @@
 
     <script>
         (function() {
-            const loaiSelect = document.getElementById('loai_phong_select_edit');
-            const totalDisplay = document.getElementById('total_display');
+            const editSelect = document.getElementById('loai_phong_select_edit');
             const giaInput = document.getElementById('gia_input_edit');
-            const sucInput = document.getElementById('suc_chua_edit');
-            const giuongInput = document.getElementById('so_giuong_edit');
             const bedTypesContainer = document.getElementById('bed_types_container_edit');
-            const trangThaiSelect = document.getElementById('trang_thai_select');
+            const amenitiesContainer = document.getElementById('amenities_checkbox_list_edit');
+            const hiddenAmenityContainer = document.getElementById('hidden_amenities_container_edit');
+            const form = document.getElementById('phongEditForm');
+            const totalDisp = document.getElementById('total_display');
 
-            const roomBedList = @json($roomBedList);
-            const roomAmenityIds = @json($roomAmenityIds);
-            const currentRoomLoaiId = @json((int) $phong->loai_phong_id);
+            const initialRoomAmenityIds = @json($roomAmenityIds || []);
 
-            let currentBedList = Array.isArray(roomBedList) ? roomBedList.slice() : [];
-
-            function parseNumber(v) {
-                if (v === null || v === undefined || v === '') return 0;
-                return Number(v);
+            function toInt(v) {
+                const n = parseInt(v, 10);
+                return isNaN(n) ? 0 : n;
             }
 
-            function renderBedTypes(list, container) {
-                if (!container) return;
+            function toFloat(v) {
+                if (v === null || v === undefined) return 0;
+                const s = String(v).replace(/[^\d\.\-]/g, '');
+                const f = parseFloat(s);
+                return isNaN(f) ? 0 : f;
+            }
+
+            function parseAmenityIdsFromOption(opt) {
+                if (!opt) return [];
+                try {
+                    const raw = opt.dataset.amenities ?? '[]';
+                    const arr = JSON.parse(raw);
+                    if (!Array.isArray(arr)) return [];
+                    return arr.map(x => toInt(x)).filter(x => x > 0);
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function parseBedlistFromOption(opt) {
+                if (!opt) return [];
+                try {
+                    const raw = opt.dataset.bedtypes ?? '[]';
+                    const arr = JSON.parse(raw);
+                    return Array.isArray(arr) ? arr : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function renderBedTypes(list) {
+                if (!bedTypesContainer) return;
                 if (!Array.isArray(list) || list.length === 0) {
-                    container.innerHTML = '<em>Không có cấu hình giường cho loại phòng này.</em>';
-                    currentBedList = [];
+                    bedTypesContainer.innerHTML = '<em>Không có cấu hình giường cho loại phòng này.</em>';
                     return;
                 }
                 let html =
                     '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Loại giường</th><th class="text-center">Số lượng</th><th class="text-center">Sức chứa/giường</th><th class="text-end">Giá/giường</th></tr></thead><tbody>';
                 list.forEach(b => {
                     html += `<tr>
-                <td>${b.name}</td>
-                <td class="text-center">${b.quantity}</td>
-                <td class="text-center">${b.capacity}</td>
-                <td class="text-end">${new Intl.NumberFormat('vi-VN').format(Math.round(b.price || 0))} đ</td>
-            </tr>`;
+                        <td>${b.name}</td>
+                        <td class="text-center">${b.quantity}</td>
+                        <td class="text-center">${b.capacity}</td>
+                        <td class="text-end">${new Intl.NumberFormat('vi-VN').format(Math.round(b.price || 0))} đ</td>
+                    </tr>`;
                 });
                 html += '</tbody></table></div>';
-                container.innerHTML = html;
-                currentBedList = Array.isArray(list) ? list.map(x => ({
-                    id: x.id,
-                    name: x.name,
-                    capacity: parseInt(x.capacity || 0),
-                    price: parseFloat(x.price || 0),
-                    quantity: parseInt(x.quantity || 0)
-                })) : [];
+                bedTypesContainer.innerHTML = html;
             }
 
-            function computeBedTotal() {
+            function setHiddenAmenityInputs(ids) {
+                if (!hiddenAmenityContainer) return;
+                hiddenAmenityContainer.querySelectorAll('.amenity-hidden-input-edit').forEach(n => n.remove());
+                (ids || []).forEach(id => {
+                    const inp = document.createElement('input');
+                    inp.type = 'hidden';
+                    inp.name = 'tien_nghi[]';
+                    inp.value = id;
+                    inp.className = 'amenity-hidden-input-edit';
+                    hiddenAmenityContainer.appendChild(inp);
+                });
+            }
+
+            function getHiddenAmenityIds() {
+                if (!hiddenAmenityContainer) return [];
+                return Array.from(hiddenAmenityContainer.querySelectorAll('.amenity-hidden-input-edit'))
+                    .map(i => toInt(i.value))
+                    .filter(n => n > 0);
+            }
+
+            function computeBedSum(opt) {
+                const list = parseBedlistFromOption(opt);
                 let s = 0;
-                currentBedList.forEach(b => {
-                    const qty = parseInt(b.quantity || 0);
-                    const p = parseFloat(b.price || 0);
-                    if (qty > 0 && p) s += qty * p;
+                (list || []).forEach(b => {
+                    const qty = toInt(b.quantity || 0);
+                    const price = toFloat(b.price || 0);
+                    s += qty * price;
                 });
                 return s;
             }
 
-            function updateTotal() {
-                const opt = loaiSelect.querySelector('option:checked');
-                const base = opt ? parseNumber(opt.dataset.gia) : 0;
-
-                let amenitySum = 0;
-                document.querySelectorAll('.tienNghiCheckbox:checked').forEach(cb => {
-                    amenitySum += parseNumber(cb.dataset.price || 0);
-                });
-
-                const bedSum = computeBedTotal();
-
-                const total = base + amenitySum + bedSum;
-
-                if (totalDisplay) totalDisplay.innerText = new Intl.NumberFormat('vi-VN').format(Math.round(total)) +
-                    ' đ';
-                if (giaInput) giaInput.value = Math.round(base);
+            function badgePriceById(id) {
+                if (!amenitiesContainer) return 0;
+                const sel = amenitiesContainer.querySelector('[data-amenity-id="' + id + '"]');
+                if (!sel) return 0;
+                const p = sel.dataset.price ?? sel.getAttribute('data-price') ?? 0;
+                return toFloat(p || 0);
             }
 
-            function setAmenityCheckboxesByIds(ids, keepRoomExtras = true) {
-                document.querySelectorAll('.tienNghiCheckbox').forEach(cb => cb.checked = false);
-                if (Array.isArray(ids)) {
-                    ids.forEach(id => {
-                        const cb = document.getElementById('tienNghi_edit_' + id);
-                        if (cb) cb.checked = true;
-                    });
-                }
-                if (keepRoomExtras && Array.isArray(roomAmenityIds)) {
-                    roomAmenityIds.forEach(id => {
-                        const cb = document.getElementById('tienNghi_edit_' + id);
-                        if (cb) cb.checked = true;
-                    });
-                }
-            }
-
-            function fillFromOption(opt) {
-                if (!opt) return;
-                const gia = opt.dataset.gia ?? 0;
-                const suc = opt.dataset.suc_chua ?? '';
-                const giuong = opt.dataset.so_giuong ?? '';
-                const amenitiesJson = opt.dataset.amenities ?? '[]';
-                const bedtypesJson = opt.dataset.bedtypes ?? '[]';
-
-                giaInput.value = parseNumber(gia);
-                sucInput.value = suc !== '' ? parseNumber(suc) : '';
-                giuongInput.value = giuong !== '' ? parseNumber(giuong) : '';
-
-                let ids = [];
+            function ensureArray(x) {
+                if (Array.isArray(x)) return x;
+                if (x === null || x === undefined) return [];
+                if (typeof x === 'number' || typeof x === 'string') return [x];
                 try {
-                    ids = JSON.parse(amenitiesJson);
+                    return Array.from(x);
                 } catch (e) {
-                    ids = [];
+                    return [];
                 }
-
-                let bedlist = [];
-                try {
-                    bedlist = JSON.parse(bedtypesJson);
-                } catch (e) {
-                    bedlist = [];
-                }
-
-                const selectedLoaiId = parseInt(opt.value);
-                if (selectedLoaiId === currentRoomLoaiId && Array.isArray(roomBedList) && roomBedList.length > 0) {
-                    renderBedTypes(roomBedList, bedTypesContainer);
-                } else {
-                    renderBedTypes(bedlist, bedTypesContainer);
-                }
-
-                setAmenityCheckboxesByIds(ids, true);
-
-                updateTotal();
             }
 
-            loaiSelect.addEventListener('change', function() {
-                const opt = loaiSelect.querySelector('option:checked');
-                if (!opt) {
-                    renderBedTypes([], bedTypesContainer);
-                    updateTotal();
-                    return;
+            function unionArrays(a, b) {
+                const A = ensureArray(a).map(x => toInt(x)).filter(n => n > 0);
+                const B = ensureArray(b).map(x => toInt(x)).filter(n => n > 0);
+                return Array.from(new Set([...A, ...B]));
+            }
+
+            function updateTotalDisplay() {
+                try {
+                    const opt = editSelect ? editSelect.options[editSelect.selectedIndex] : null;
+                    const base = opt ? toFloat(opt.dataset.gia || 0) : 0;
+                    if (giaInput && opt) giaInput.value = Math.round(base);
+
+                    const bedSum = computeBedSum(opt);
+
+                    const typeIds = parseAmenityIdsFromOption(opt);
+                    const hiddenIds =
+                        getHiddenAmenityIds();
+                    const unionIds = unionArrays(typeIds, unionArrays(hiddenIds, initialRoomAmenityIds));
+
+                    let amenitySum = 0;
+                    unionIds.forEach(id => {
+                        amenitySum += badgePriceById(id);
+                    });
+
+                    const total = Math.round(base + bedSum + amenitySum);
+                    if (totalDisp) totalDisp.innerText = new Intl.NumberFormat('vi-VN').format(total) + ' đ';
+
+                    if (amenitiesContainer) {
+                        const badges = amenitiesContainer.querySelectorAll('[data-amenity-id]');
+                        badges.forEach(b => {
+                            const id = toInt(b.dataset.amenityId || b.getAttribute('data-amenity-id'));
+                            const labelSpan = b.querySelector('.form-check-label');
+                            const cb = b.querySelector('.amenity-checkbox-edit');
+
+                            // clear previous "visual" classes from inner span (we won't use bg-primary/bg-light)
+                            if (labelSpan) {
+                                labelSpan.classList.remove('type-badge', 'extra-badge', 'muted-badge');
+                            }
+
+                            // apply new semantic classes to the inner span only (no full-row background)
+                            if (typeIds.includes(id)) {
+                                if (labelSpan) labelSpan.classList.add('type-badge');
+                                if (cb) cb.checked = true;
+                            } else if (unionIds.includes(id)) {
+                                if (labelSpan) labelSpan.classList.add('extra-badge');
+                                if (cb) cb.checked = true;
+                            } else {
+                                if (labelSpan) labelSpan.classList.add('muted-badge');
+                                if (cb) cb.checked = false;
+                            }
+                        });
+
+                    }
+                } catch (e) {
+                    console.error('Error updateTotalDisplay:', e);
                 }
-                fillFromOption(opt);
-
-                const active = opt.dataset.active === undefined || opt.dataset.active === '1';
-                trangThaiSelect.disabled = !active;
-            });
-
-            document.querySelectorAll('.tienNghiCheckbox').forEach(cb => cb.addEventListener('change', updateTotal));
+            }
 
             document.addEventListener('DOMContentLoaded', function() {
-                const opt = loaiSelect.querySelector('option:checked');
-                if (opt) {
-                    fillFromOption(opt);
-                    const active = opt ? (opt.dataset.active === undefined || opt.dataset.active === '1') :
-                        true;
-                    trangThaiSelect.disabled = !active;
-                } else {
-                    renderBedTypes(roomBedList, bedTypesContainer);
-                    setAmenityCheckboxesByIds([], true);
-                    updateTotal();
+                try {
+                    const opt0 = editSelect ? editSelect.options[editSelect.selectedIndex] : null;
+                    renderBedTypes(parseBedlistFromOption(opt0));
+
+                    const existHidden = getHiddenAmenityIds();
+                    if (!existHidden.length) {
+                        setHiddenAmenityInputs(initialRoomAmenityIds);
+                    }
+
+                    updateTotalDisplay();
+
+                    if (editSelect) {
+                        editSelect.addEventListener('change', function() {
+                            const opt = editSelect.options[editSelect.selectedIndex];
+                            const typeIds = parseAmenityIdsFromOption(opt);
+                            renderBedTypes(parseBedlistFromOption(opt));
+                            setHiddenAmenityInputs(typeIds);
+                            updateTotalDisplay();
+                        });
+                    }
+
+                    const observer = new MutationObserver(() => {
+                        updateTotalDisplay();
+                    });
+                    if (hiddenAmenityContainer) {
+                        observer.observe(hiddenAmenityContainer, {
+                            childList: true,
+                            subtree: true
+                        });
+                    }
+
+                    window.__roomAmenityDebug = {
+                        updateTotalDisplay,
+                        getHiddenAmenityIds,
+                        parseAmenityIdsFromOption,
+                    };
+                } catch (e) {
+                    console.error('INIT error (amenities script):', e);
                 }
             });
         })();

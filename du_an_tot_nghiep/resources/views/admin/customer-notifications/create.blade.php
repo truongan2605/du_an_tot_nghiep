@@ -74,7 +74,6 @@
                                                     <i class="fas fa-bell me-1"></i>In-app
                                                     @break
                                             @endswitch
-                                            {{ ucfirst($channel) }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -131,19 +130,40 @@
             </div>
         </div>
 
-                        <!-- Payload -->
+                        <!-- Notification Content -->
                         <div class="mb-4">
-                            <label for="payload" class="form-label">Nội dung thông báo (JSON)</label>
-                            <textarea class="form-control" id="payload" name="payload" rows="8" 
-                                      placeholder='{"title": "Tiêu đề thông báo", "message": "Nội dung chi tiết", "link": "/account/bookings"}'>{{ old('payload') }}</textarea>
-                            <div class="form-text">
-                                <strong>Ví dụ JSON:</strong><br>
-                                <code>{"title": "Xác nhận đặt phòng", "message": "Đặt phòng thành công! Mã đặt phòng: #12345", "link": "/account/bookings"}</code>
-                            </div>
-                            @error('payload')
+                            <label for="notification_title" class="form-label">Tiêu đề thông báo <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="notification_title" name="notification_title" 
+                                   value="{{ old('notification_title') }}" placeholder="Ví dụ: Xác nhận đặt phòng thành công" required>
+                            @error('notification_title')
                                 <div class="text-danger small mt-1">{{ $message }}</div>
                             @enderror
                         </div>
+
+                        <div class="mb-4">
+                            <label for="notification_message" class="form-label">Nội dung thông báo <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="notification_message" name="notification_message" rows="4" 
+                                      placeholder="Ví dụ: Đặt phòng thành công! Mã đặt phòng: #12345. Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi." required>{{ old('notification_message') }}</textarea>
+                            @error('notification_message')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="notification_link" class="form-label">Link (tùy chọn)</label>
+                            <input type="text" class="form-control" id="notification_link" name="notification_link" 
+                                   value="{{ old('notification_link') }}" placeholder="Ví dụ: /account/bookings hoặc https://example.com">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Link sẽ được mở khi người dùng click vào thông báo
+                            </div>
+                            @error('notification_link')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- Hidden payload field for backend -->
+                        <input type="hidden" id="payload" name="payload" value="">
 
                         <!-- Submit Buttons -->
                         <div class="d-flex gap-2">
@@ -448,25 +468,32 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Template input not found');
     }
 
-    // Validate JSON format
-    const payloadTextarea = document.getElementById('payload');
-    if (payloadTextarea) {
-        payloadTextarea.addEventListener('blur', function() {
-            const value = this.value.trim();
-            if (value) {
-                try {
-                    JSON.parse(value);
-                    this.classList.remove('is-invalid');
-                    this.classList.add('is-valid');
-                } catch (e) {
-                    this.classList.remove('is-valid');
-                    this.classList.add('is-invalid');
-                }
-            } else {
-                this.classList.remove('is-valid', 'is-invalid');
-            }
-        });
+    // Auto-generate JSON payload from form fields
+    function updatePayload() {
+        const title = document.getElementById('notification_title').value;
+        const message = document.getElementById('notification_message').value;
+        const link = document.getElementById('notification_link').value;
+        
+        const payload = {
+            title: title,
+            message: message
+        };
+        
+        if (link) {
+            payload.link = link;
+        }
+        
+        document.getElementById('payload').value = JSON.stringify(payload);
+        console.log('Generated payload:', payload);
     }
+    
+    // Add event listeners to form fields
+    document.getElementById('notification_title').addEventListener('input', updatePayload);
+    document.getElementById('notification_message').addEventListener('input', updatePayload);
+    document.getElementById('notification_link').addEventListener('input', updatePayload);
+    
+    // Initial payload generation
+    updatePayload();
 
     // Toggle between specific customer and all customers
     const specificCustomerSelect = document.getElementById('nguoi_nhan_id');

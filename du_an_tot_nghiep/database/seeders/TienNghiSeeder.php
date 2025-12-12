@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\TienNghi;
+use Smknstd\FakerPicsumImages\FakerPicsumImagesProvider;
 
 class TienNghiSeeder extends Seeder
 {
@@ -12,6 +13,9 @@ class TienNghiSeeder extends Seeder
      */
     public function run(): void
     {
+        $faker = fake();
+        $faker->addProvider(new FakerPicsumImagesProvider($faker));
+
         $tienNghis = [
             [
                 'ten' => 'WiFi miễn phí',
@@ -65,11 +69,21 @@ class TienNghiSeeder extends Seeder
             ],
         ];
 
+        $pathImages = storage_path('app/public/tien-nghi');
+        if(!file_exists($pathImages)) mkdir($pathImages, 0777, true);
+
         foreach ($tienNghis as $tienNghi) {
-            TienNghi::create($tienNghi);
+            TienNghi::create(array_merge($tienNghi, [
+                'gia' => $faker->numberBetween(10000, 2000000),
+                'icon' => basename($pathImages) . '/' . $faker->image(dir: $pathImages, width: 128, height: 128, isFullPath: false, imageExtension: FakerPicsumImagesProvider::WEBP_IMAGE),
+            ]));
         }
     }
 }
+
+
+
+
 
 
 

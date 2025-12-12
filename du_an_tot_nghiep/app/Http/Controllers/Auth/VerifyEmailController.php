@@ -3,29 +3,54 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Auth\Events\Verified;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
+use Illuminate\View\View;
 use App\Providers\RouteServiceProvider;
 
 class VerifyEmailController extends Controller
 {
-
-    public function __invoke(EmailVerificationRequest $request): RedirectResponse
+    public function __invoke(Request $request, $id, $hash): View
     {
-        if ($request->user()->hasVerifiedEmail()) {
-            return redirect()->intended(RouteServiceProvider::HOME.'?verified=1');
+        // Tìm user theo ID
+        $user = User::findOrFail($id);
+
+        // Kiểm tra email đã được verify chưa
+        if ($user->email_verified_at) {
+            return view('auth.email-verified', [
+                'alreadyVerified' => true,
+                'userName' => $user->name
+            ]);
         }
 
-        if ($request->user()->markEmailAsVerified()) {
-            // Phát event
-            event(new Verified($request->user()));
-
-            // Kích hoạt account (is_active = true)
-            // Lưu ý: nếu bạn muốn admin vẫn phải active thủ công thì bỏ dòng này
-            $request->user()->update(['is_active' => true]);
+        // Verify hash từ URL (Laravel dùng sha1 của email)
+        $expectedHash = sha1($user->email);
+        
+        if (! hash_equals((string) $hash, $expectedHash)) {
+            return view('auth.email-verified', [
+                'error' => true,
+                'message' => 'Link xác nhận không hợp lệ hoặc đã hết hạn.'
+            ]);
         }
 
-        return redirect()->intended(RouteServiceProvider::HOME.'?verified=1');
+        // Verify signature từ signed URL
+        if (! URL::hasValidSignature($request)) {
+            return view('auth.email-verified', [
+                'error' => true,
+                'message' => 'Link xác nhận không hợp lệ hoặc đã hết hạn.'
+            ]);
+        }
+
+        // Đánh dấu email đã được verify
+        $user->email_verified_at = now();
+        $user->is_active = true;
+        $user->save();
+
+        return view('auth.email-verified', [
+            'success' => true,
+            'userName' => $user->name
+        ]);
     }
 }

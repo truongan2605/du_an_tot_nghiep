@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class DatPhongItem extends Model
 {
     use HasFactory;
+    use Auditable;
 
     protected $table = 'dat_phong_item';
 
@@ -16,10 +18,21 @@ class DatPhongItem extends Model
         'phong_id',
         'loai_phong_id',
         'so_luong',
+        'so_nguoi_o',
+        'number_child',
+        'number_adult',
         'gia_tren_dem',
         'so_dem',
         'taxes_amount',
-        'tong_item'
+        'tong_item',
+        'voucher_allocated',  // Số tiền voucher được giảm cho phòng này
+        'spec_signature_hash',
+        // Hỗ trợ hủy từng phòng
+        'trang_thai',
+        'refund_amount',
+        'refund_percentage',
+        'cancelled_at',
+        'cancellation_reason',
     ];
 
     protected $casts = [
@@ -29,18 +42,20 @@ class DatPhongItem extends Model
         'taxes_amount' => 'decimal:2',
     ];
 
+    // Relationships
+  
     protected $attributes = [
         'so_dem' => 1,
     ];
 
     public function datPhong()
     {
-        return $this->belongsTo(DatPhong::class);
+        return $this->belongsTo(DatPhong::class, 'dat_phong_id');
     }
 
     public function loaiPhong()
     {
-        return $this->belongsTo(LoaiPhong::class);
+        return $this->belongsTo(LoaiPhong::class, 'loai_phong_id');
     }
 
      public function phong()
@@ -50,7 +65,15 @@ class DatPhongItem extends Model
 
     public function phongDaDats()
     {
-        return $this->hasMany(PhongDaDat::class);
+        return $this->hasMany(PhongDaDat::class, 'dat_phong_item_id');
+    }
+
+    /**
+     * Liên kết với yêu cầu hoàn tiền (nếu phòng này bị hủy)
+     */
+    public function refundRequest()
+    {
+        return $this->hasOne(RefundRequest::class, 'dat_phong_item_id');
     }
 
     // Accessors
