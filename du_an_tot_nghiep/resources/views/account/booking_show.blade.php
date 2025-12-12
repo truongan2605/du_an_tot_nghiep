@@ -362,20 +362,22 @@
                                                 @foreach ($booking->datPhongItems as $it)
                                                     @php
                                                         $roomName = $it->phong->name ?? ($it->loai_phong->name ?? 'Phòng ' . ($it->phong_id ?? 'N/A'));
-                                                        $pricePer = $it->gia_tren_dem ?? 0;
+                                                        $pricePer = $it->gia_tren_dem ?? 0;  // Post-voucher price
                                                         $nights = $it->so_dem ?? 1;
                                                         $qty = $it->so_luong ?? 1;
                                                         // Always calculate from current price (handles room changes)
                                                         $subtotal = $pricePer * $nights * $qty;
                                                         
-                                                        // Calculate original price (before voucher) - FIX FOR MULTI-ROOM
-                                                        $hasVoucher = ($booking->voucher_discount ?? 0) > 0;
-                                                        $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
-                                                        $originalPricePerNight = $hasVoucher 
-                                                            ? (($booking->tong_tien + $booking->voucher_discount) / max(1, $totalRooms) / max(1, $nights))
+                                                        // FIXED: Use voucher_allocated from THIS room (works after room changes too)
+                                                        $voucherForThisRoom = $it->voucher_allocated ?? 0;
+                                                        $hasVoucherForRoom = $voucherForThisRoom > 0;
+                                                        
+                                                        // Calculate original price by adding back the voucher allocated to THIS room
+                                                        $originalPricePerNight = $hasVoucherForRoom 
+                                                            ? ($pricePer + ($voucherForThisRoom / max(1, $nights)))  // Add voucher back
                                                             : $pricePer;
-                                                        $originalSubtotal = $hasVoucher
-                                                            ? (($booking->tong_tien + $booking->voucher_discount) / max(1, $totalRooms))
+                                                        $originalSubtotal = $hasVoucherForRoom
+                                                            ? ($subtotal + $voucherForThisRoom)  // Total before voucher
                                                             : $subtotal;
                                                     @endphp
                                                     <tr>
@@ -389,7 +391,7 @@
                                                             </div>
                                                         </td>
                                                         <td class="text-end">
-                                                            @if($hasVoucher)
+                                                            @if($hasVoucherForRoom)
                                                                 <small class="text-muted text-decoration-line-through">{{ number_format($originalPricePerNight, 0, ',', '.') }}đ</small><br>
                                                                 <span class="text-success fw-semibold">{{ number_format($pricePer, 0, ',', '.') }} VND</span>
                                                             @else
@@ -398,7 +400,7 @@
                                                         </td>
                                                         <td class="text-end fw-semibold">{{ $nights }}</td>
                                                         <td class="text-end">
-                                                            @if($hasVoucher)
+                                                            @if($hasVoucherForRoom)
                                                                 <small class="text-muted text-decoration-line-through">{{ number_format($originalSubtotal, 0, ',', '.') }}đ</small><br>
                                                                 <span class="fw-semibold text-primary">{{ number_format($subtotal, 0, ',', '.') }} VND</span>
                                                             @else
@@ -881,15 +883,22 @@
                                                                 </div>
                                                                 <div class="text-end">
                                                                     <small class="text-muted d-block">Tổng/đêm</small>
-                                                                    @if(($booking->voucher_discount ?? 0) > 0)
-                                                                        @php
-                                                                            $nights = $currentItem->so_dem ?? 1;
-                                                                            $totalRooms = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
-                                                                            $originalPricePerNight = ($booking->tong_tien + $booking->voucher_discount) / max(1, $totalRooms) / max(1, $nights);
-                                                                        @endphp
-                                                                        <small class="text-muted text-decoration-line-through d-block">{{ number_format($originalPricePerNight, 0, ',', '.') }}đ</small>
-                                                                    @endif
-                                                                    <strong class="text-success fs-6">{{ number_format($currentItem->gia_tren_dem ?? 0, 0, ',', '.') }}đ</strong>
+                                                                @php
+                                                                    // FIXED: Use voucher_allocated from THIS room item
+                                                                    $voucherForThisRoom = $currentItem->voucher_allocated ?? 0;
+                                                                    $nights = $currentItem->so_dem ?? 1;
+                                                                    $currentPricePerNight = $currentItem->gia_tren_dem ?? 0;
+                                                                    
+                                                                    // Original price = current price + voucher allocated per night
+                                                                    $originalPricePerNight = $voucherForThisRoom > 0
+                                                                        ? ($currentPricePerNight + ($voucherForThisRoom / max(1, $nights)))
+                                                                        : $currentPricePerNight;
+                                                                    $hasVoucherForThisRoom = $voucherForThisRoom > 0;
+                                                                @endphp
+                                                                @if($hasVoucherForThisRoom)
+                                                                    <small class="text-muted text-decoration-line-through d-block">{{ number_format($originalPricePerNight, 0, ',', '.') }}đ</small>
+                                                                @endif
+                                                                <strong class="text-success fs-6">{{ number_format($currentPricePerNight, 0, ',', '.') }}đ</strong>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1432,15 +1441,16 @@
 
             // Data for demo purposes - will be replaced with AJAX call
             // VOUCHER FIX: Use original price (before voucher) from backend
-            let currentRoomPrice = {{ $currentPriceOriginal ?? 0 }};  // Preserves voucher discount
+            // Use Math.round to avoid decimal issues in JavaScript
+            let currentRoomPrice = {{ (int) round($currentPriceOriginal ?? 0) }};  // Preserves voucher discount
             console.log('🔍 DEBUG currentRoomPrice from backend:', currentRoomPrice);
             const nightsRemaining = {{ $meta['nights'] ?? 1 }};
-            const oldTotal = {{ $booking->tong_tien ?? 0 }};
+            const oldTotal = {{ (int) ($booking->tong_tien ?? 0) }};
             
-            // Map of room prices for lookup
+            // Map of room prices for lookup (integers only)
             const roomPrices = {
                 @foreach($booking->datPhongItems as $item)
-                    {{ $item->phong_id }}: {{ $item->gia_tren_dem }},
+                    {{ $item->phong_id }}: {{ (int) round($item->gia_tren_dem ?? 0) }},
                 @endforeach
             };
             
@@ -1871,7 +1881,10 @@
                 // Render each room type (not individual rooms)
                 Object.values(roomsByType).forEach(roomType => {
                     const room = roomType.sample_room; // Use sample room for prices
-                    const priceDiff = room.price - currentRoomPrice;
+                    
+                    // CRITICAL FIX: Use price_difference from API (correctly calculated server-side)
+                    // instead of recalculating here with wrong currentRoomPrice (which is an average)
+                    const priceDiff = room.price_difference ?? (room.price - currentRoomPrice);
                     const priceDiffFormatted = Math.abs(priceDiff).toLocaleString('vi-VN');
                     
                     let badgeClass = 'price-badge-same';
@@ -2019,7 +2032,10 @@
 
             function updatePriceSummary(roomData) {
                 const newRoomPrice = roomData.price || 0;
-                const priceDiffPerNight = newRoomPrice - currentRoomPrice;
+                
+                // CRITICAL FIX: Use price_difference from API (correctly calculated server-side)
+                // instead of recalculating here with wrong currentRoomPrice (which is an average)
+                const priceDiffPerNight = roomData.price_difference ?? (newRoomPrice - currentRoomPrice);
                 const totalDifference = priceDiffPerNight * nightsRemaining;
                 const newTotal = oldTotal + totalDifference;
 
@@ -2242,20 +2258,30 @@
                 }
                 
                 const nights = {{ $meta['nights'] ?? 1 }};
-                const oldRoomTotal = currentRoomPrice * nights;  // This room only
-                const newRoomTotal = selectedRoomPrice * nights;  // New room only
-                const priceDiff = newRoomTotal - oldRoomTotal;
                 
-                // CRITICAL: Calculate FULL BOOKING total (for multi-room support)
-                const currentBookingTotal = {{ $booking->tong_tien }};  // All rooms
-                const newBookingTotal = currentBookingTotal - oldRoomTotal + newRoomTotal;
+                // Find selected room data from allAvailableRooms (contains API data)
+                const roomData = allAvailableRooms.find(r => r.id == selectedRoomId) || {};
                 
-                console.log('💰 Payment calculation:', {
-                    oldRoomTotal,
-                    newRoomTotal,
+                // CRITICAL FIX: Use price_difference from API (server-side calculated)
+                // This ensures consistency with updatePriceSummary() display
+                const priceDiffPerNight = roomData.price_difference ?? (selectedRoomPrice - currentRoomPrice);
+                const priceDiff = Math.round(priceDiffPerNight * nights);  // Total difference
+                
+                // Use same formula as updatePriceSummary() to ensure consistency
+                const newBookingTotal = Math.round(oldTotal + priceDiff);
+                const currentBookingTotal = oldTotal;
+                
+                // For display purposes
+                const oldRoomTotal = Math.round(currentRoomPrice * nights);
+                const newRoomTotal = Math.round(selectedRoomPrice * nights);
+                
+                console.log('💰 Payment calculation (consistent with preview):', {
+                    priceDiffPerNight,
                     priceDiff,
-                    currentBookingTotal,
-                    newBookingTotal
+                    oldTotal,
+                    newBookingTotal,
+                    currentRoomPrice,
+                    selectedRoomPrice
                 });
                 
                 // Get selected room info
@@ -2506,8 +2532,9 @@
                 const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
                 const voucherDiscount = {{ $booking->voucher_discount ?? 0 }};  // Voucher được giữ lại
                 
-                const newDepositRequired = newBookingTotal * (depositPct / 100);
-                const refundAmount = currentDeposit - newDepositRequired;
+                // CRITICAL FIX: Use Math.round() to avoid decimal issues (e.g., 904.999,5đ)
+                const newDepositRequired = Math.round(newBookingTotal * (depositPct / 100));
+                const refundAmount = Math.round(currentDeposit - newDepositRequired);
                 
                 Swal.fire({
                     icon: 'success',

@@ -25,6 +25,7 @@ class DatPhongItem extends Model
         'so_dem',
         'taxes_amount',
         'tong_item',
+        'voucher_allocated',  // Số tiền voucher được giảm cho phòng này
         'spec_signature_hash',
     ];
 

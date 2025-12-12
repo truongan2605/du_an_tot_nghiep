@@ -22,10 +22,12 @@ class RoomChange extends Model
         'changed_by_user_id',
         'status',
         'payment_info',
+        'metadata',  // NEW: Store inherited voucher info
     ];
 
     protected $casts = [
         'payment_info' => 'array',
+        'metadata' => 'array',  // NEW: Voucher inheritance info
         'old_price' => 'decimal:2',
         'new_price' => 'decimal:2',
         'price_difference' => 'decimal:2',
