@@ -7,6 +7,7 @@ use App\Models\Phong;
 use App\Models\Voucher;
 use App\Models\DatPhong;
 use App\Models\DatPhongItem;
+use App\Models\GiuPhong;
 use Illuminate\Support\Str;
 use App\Models\VoucherUsage;
 use Illuminate\Http\Request;
@@ -233,8 +234,17 @@ class BookingController extends Controller
             ->pluck('dat_phong_item.phong_id')
             ->toArray();
 
-        // Available = All - Booked - Current
-        $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
+        // ========== RACE CONDITION FIX: Also exclude rooms being held by others ==========
+        $heldRoomIds = GiuPhong::where('released', false)
+            ->where('het_han_luc', '>', now())
+            ->where('dat_phong_id', '!=', $booking->id) // Not our own booking's holds
+            ->whereNotNull('phong_id')
+            ->pluck('phong_id')
+            ->toArray();
+        // ========== END RACE CONDITION FIX ==========
+
+        // Available = All - Booked - Held by others - Current
+        $availableRoomIds = array_diff($allRooms, $bookedRoomIds, $heldRoomIds, [$currentRoom->id]);
 
         // Get guest count from booking to calculate extra charges
         $meta = is_array($booking->snapshot_meta)
@@ -462,6 +472,65 @@ class BookingController extends Controller
         if (!$newRoom) {
             return back()->with('error', 'Phòng mới không tồn tại.');
         }
+
+        // ========== RACE CONDITION FIX: Check and hold new room ==========
+        // Check if new room is in maintenance or unavailable
+        if (in_array($newRoom->trang_thai, ['bao_tri', 'khong_su_dung'])) {
+            return back()->with('error', 'Phòng đang bảo trì hoặc không khả dụng.');
+        }
+
+        // Check if new room is already held by someone else (for room change)
+        $existingHold = GiuPhong::where('phong_id', $newRoom->id)
+            ->where('released', false)
+            ->where('het_han_luc', '>', now())
+            ->where('dat_phong_id', '!=', $booking->id) // Not our own booking
+            ->first();
+
+        if ($existingHold) {
+            Log::warning('🚫 Room change blocked - room already held', [
+                'booking_id' => $booking->id,
+                'new_room_id' => $newRoom->id,
+                'held_by_booking' => $existingHold->dat_phong_id,
+                'hold_expires' => $existingHold->het_han_luc
+            ]);
+            return back()->with('error', 'Phòng này đang được người khác giữ chỗ. Vui lòng chọn phòng khác hoặc thử lại sau vài phút.');
+        }
+
+        // Check if new room is already booked during our stay period
+        $checkInStr = Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0)->toDateTimeString();
+        $checkOutStr = Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0)->toDateTimeString();
+        
+        $isBooked = DB::table('dat_phong_item')
+            ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+            ->where('dat_phong_item.phong_id', $newRoom->id)
+            ->where('dat_phong.id', '!=', $booking->id) // Exclude our booking
+            ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+            ->whereRaw("CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$checkOutStr])
+            ->whereRaw("CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?", [$checkInStr])
+            ->exists();
+
+        if ($isBooked) {
+            return back()->with('error', 'Phòng đã có người đặt trong thời gian này. Vui lòng chọn phòng khác.');
+        }
+
+        // ========== CREATE ROOM HOLD for new room (15 minutes) ==========
+        // This prevents race condition - no one else can select this room while we process
+        $roomHold = GiuPhong::create([
+            'dat_phong_id' => $booking->id,
+            'loai_phong_id' => $newRoom->loai_phong_id,
+            'phong_id' => $newRoom->id,
+            'so_luong' => 1,
+            'het_han_luc' => Carbon::now()->addMinutes(15),
+            'released' => false,
+        ]);
+
+        Log::info('🔒 Room hold created for room change', [
+            'booking_id' => $booking->id,
+            'new_room_id' => $newRoom->id,
+            'hold_id' => $roomHold->id,
+            'expires_at' => $roomHold->het_han_luc
+        ]);
+        // ========== END RACE CONDITION FIX ==========
 
         // NOTE: Removed max changes limit - now unlimited room changes allowed
 
@@ -1001,6 +1070,20 @@ class BookingController extends Controller
             $roomChange->payment_info = ['error_code' => $request->vnp_ResponseCode];
             $roomChange->save();
 
+            // CLEANUP: Release room hold so others can book this room
+            GiuPhong::where('dat_phong_id', $roomChange->dat_phong_id)
+                ->where('phong_id', $roomChange->new_room_id)
+                ->where('released', false)
+                ->update([
+                    'released' => true,
+                    'released_at' => now(),
+                ]);
+
+            Log::info('🔓 Room hold released after failed payment', [
+                'room_change_id' => $roomChange->id,
+                'new_room_id' => $roomChange->new_room_id
+            ]);
+
             session()->forget('room_change_id');
 
             return redirect('/account/bookings/' . $roomChange->dat_phong_id)
@@ -1113,7 +1196,22 @@ class BookingController extends Controller
             $roomChange->status = 'completed';
             $roomChange->save();
 
-            // 5. Send email notification
+            // 5. CLEANUP: Release room hold (giu_phong) for the new room
+            // The hold was created to prevent race condition, now we can release it
+            GiuPhong::where('dat_phong_id', $booking->id)
+                ->where('phong_id', $roomChange->new_room_id)
+                ->where('released', false)
+                ->update([
+                    'released' => true,
+                    'released_at' => now(),
+                ]);
+
+            Log::info('🔓 Room hold released after successful room change', [
+                'booking_id' => $booking->id,
+                'new_room_id' => $roomChange->new_room_id
+            ]);
+
+            // 6. Send email notification
             // TODO: Implement email notification
 
             DB::commit();
