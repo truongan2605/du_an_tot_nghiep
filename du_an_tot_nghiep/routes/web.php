@@ -246,6 +246,11 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         });
         Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
             ->name('bookings.rooms.clear_cleaning');
+        
+        // Staff cancel individual room
+        Route::post('/bookings/{id}/cancel-room/{itemId}', [StaffController::class, 'cancelRoomItem'])
+            ->name('bookings.cancel-room-item');
+        
         Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
 

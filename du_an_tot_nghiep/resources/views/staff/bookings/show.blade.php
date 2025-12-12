@@ -670,8 +670,19 @@
                                         <span class="badge bg-light text-dark border">{{ $qty }} phòng</span>
                                     </div>
 
-                                    <div class="col-md-4 text-end">
+                                    <div class="col-md-4 text-end d-flex align-items-center justify-content-end gap-2">
                                         <strong class="text-success">{{ number_format($unitPrice, 0) }} ₫</strong>/đêm
+                                        
+                                        {{-- Nút hủy phòng: chỉ hiện khi booking đang chờ/đã xác nhận và có từ 2 phòng trở lên --}}
+                                        @if(!$isArrayLine && in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']) && $roomSource->count() > 1)
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-danger"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#cancelRoomModal{{ $item->id }}"
+                                                    title="Hủy phòng này">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -1603,4 +1614,104 @@
         });
     </script>
     @endpush
+    
+    {{-- Cancel Room Modals for Staff --}}
+    @if(in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']) && $booking->datPhongItems && $booking->datPhongItems->count() > 1)
+        @foreach($booking->datPhongItems as $roomItem)
+            @php
+                // Calculate estimated refund
+                $roomPricePerNight = $roomItem->gia_tren_dem ?? 0;
+                $nights = $roomItem->so_dem ?? 1;
+                $qty = $roomItem->so_luong ?? 1;
+                $roomTotalPrice = $roomPricePerNight * $nights * $qty;
+                
+                $paidAmount = $booking->deposit_amount ?? 0;
+                $currentBookingTotal = $booking->tong_tien;
+                $roomProportion = $currentBookingTotal > 0 ? ($roomTotalPrice / $currentBookingTotal) : 0;
+                $roomDepositShare = $paidAmount * $roomProportion;
+                
+                $checkInDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+                $daysUntilCheckIn = now()->diffInDays($checkInDate, false);
+                $depositPercentage = ($booking->snapshot_meta['deposit_percentage'] ?? 50);
+                
+                if ($depositPercentage == 100) {
+                    if ($daysUntilCheckIn >= 7) $refundPercentage = 90;
+                    elseif ($daysUntilCheckIn >= 3) $refundPercentage = 60;
+                    elseif ($daysUntilCheckIn >= 1) $refundPercentage = 40;
+                    else $refundPercentage = 20;
+                } else {
+                    if ($daysUntilCheckIn >= 7) $refundPercentage = 100;
+                    elseif ($daysUntilCheckIn >= 3) $refundPercentage = 70;
+                    elseif ($daysUntilCheckIn >= 1) $refundPercentage = 30;
+                    else $refundPercentage = 0;
+                }
+                
+                $estimatedRefund = round($roomDepositShare * ($refundPercentage / 100));
+                $roomDisplayName = $roomItem->phong->name ?? $roomItem->loaiPhong->ten ?? "Phòng #{$roomItem->id}";
+            @endphp
+            
+            <div class="modal fade" id="cancelRoomModal{{ $roomItem->id }}" tabindex="-1" aria-labelledby="cancelRoomModalLabel{{ $roomItem->id }}" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title" id="cancelRoomModalLabel{{ $roomItem->id }}">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Xác nhận hủy phòng
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-warning mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Bạn có chắc chắn muốn hủy phòng này khỏi booking?
+                            </div>
+                            
+                            <div class="card border-danger mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title text-danger">
+                                        <i class="bi bi-door-closed me-2"></i>{{ $roomDisplayName }}
+                                    </h6>
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tr>
+                                            <td class="text-muted">Giá phòng:</td>
+                                            <td class="text-end">{{ number_format($roomTotalPrice, 0, ',', '.') }} ₫</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Phần cọc phòng:</td>
+                                            <td class="text-end">{{ number_format($roomDepositShare, 0, ',', '.') }} ₫</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="text-muted">Tỷ lệ hoàn:</td>
+                                            <td class="text-end">
+                                                <span class="badge {{ $refundPercentage >= 70 ? 'bg-success' : ($refundPercentage >= 30 ? 'bg-warning text-dark' : 'bg-danger') }}">
+                                                    {{ $refundPercentage }}%
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr class="border-top">
+                                            <td class="text-muted fw-bold">Số tiền hoàn:</td>
+                                            <td class="text-end fw-bold text-success fs-5">{{ number_format($estimatedRefund, 0, ',', '.') }} ₫</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <small class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                Còn {{ abs(round($daysUntilCheckIn)) }} ngày trước check-in
+                            </small>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy bỏ</button>
+                            <form action="{{ route('staff.bookings.cancel-room-item', ['id' => $booking->id, 'itemId' => $roomItem->id]) }}" method="POST" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-x-circle me-1"></i>Xác nhận hủy phòng
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    @endif
 @endsection

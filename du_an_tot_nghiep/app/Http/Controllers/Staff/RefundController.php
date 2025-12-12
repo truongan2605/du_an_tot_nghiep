@@ -200,6 +200,14 @@ class RefundController extends Controller
                 'proof_image_path' => $imagePath,
             ]);
 
+            // Cập nhật trạng thái GiaoDich liên quan thành 'da_hoan'
+            // Tìm các giao dịch hoàn tiền chưa được cập nhật
+            \App\Models\GiaoDich::where('dat_phong_id', $refund->dat_phong_id)
+                ->where('nha_cung_cap', 'hoan_tien')
+                ->where('trang_thai', 'dang_cho')
+                ->where('so_tien', '<', 0)  // Giao dịch hoàn tiền có số tiền âm
+                ->update(['trang_thai' => 'da_hoan']);
+
             Log::info('Refund marked as completed with proof image', [
                 'refund_id' => $refund->id,
                 'amount' => $refund->amount,

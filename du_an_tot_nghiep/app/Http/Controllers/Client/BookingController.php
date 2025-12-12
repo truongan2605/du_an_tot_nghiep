@@ -2860,6 +2860,7 @@ class BookingController extends Controller
                 // Note: dat_phong_item_id is null since item is deleted
                 \App\Models\RefundRequest::create([
                     'dat_phong_id' => $booking->id,
+                    'user_id' => $booking->nguoi_dung_id,  // User của booking
                     'dat_phong_item_id' => null,  // Item đã bị xóa
                     'refund_type' => 'single_room',
                     'amount' => $refundAmount,
