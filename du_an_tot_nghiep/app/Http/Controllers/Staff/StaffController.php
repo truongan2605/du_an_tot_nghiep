@@ -731,8 +731,36 @@ class StaffController extends Controller
                                 $unit = $item->gia_tren_dem ?? 0;
                                 return $carry + ($unit * $qty);
                             }, 0.0);
+                            
+                            // Kiểm tra hình thức thanh toán (50% hay 100%)
+                            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true);
+                            $depositPercentage = $meta['deposit_percentage'] ?? 50;
+                            
+                            // Tính tổng số tiền đã thanh toán
+                            $paidAmount = \App\Models\GiaoDich::where('dat_phong_id', $booking->id)
+                                ->where('trang_thai', 'thanh_cong')
+                                ->sum('so_tien');
+                            
+                            // Tính tổng tiền booking
+                            $totalAmount = $booking->tong_tien ?? 0;
+                            
+                            // Xác định hình thức thanh toán: >= 95% coi là 100%
+                            $isFullPayment = false;
+                            if ($totalAmount > 0) {
+                                $paymentPercentage = ($paidAmount / $totalAmount) * 100;
+                                $isFullPayment = ($paymentPercentage >= 95) || ($depositPercentage == 100);
+                            }
+                            
                             $perHourRate = $dailyTotal * 0.3 / 24;
-                            $booking->early_checkin_fee_estimate = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                            
+                            if ($isFullPayment) {
+                                // Thanh toán 100%: tính phí không giới hạn (100%)
+                                $booking->early_checkin_fee_estimate = $perHourRate * $hoursEarly;
+                            } else {
+                                // Đặt cọc 50%: tối đa 50% giá phòng/ngày
+                                $booking->early_checkin_fee_estimate = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                            }
+                            
                             $booking->early_checkin_fee_estimate = (int) round($booking->early_checkin_fee_estimate, 0);
                         }
                     } elseif ($now->isAfter($standardCheckinTime)) {
@@ -908,9 +936,36 @@ class StaffController extends Controller
                     return $carry + ($unit * $qty);
                 }, 0.0);
                 
-                // Phí checkin sớm: 30% giá phòng/ngày cho mỗi giờ sớm (tối đa 50% giá phòng/ngày)
+                // Kiểm tra hình thức thanh toán (50% hay 100%)
+                $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true);
+                $depositPercentage = $meta['deposit_percentage'] ?? 50;
+                
+                // Tính tổng số tiền đã thanh toán
+                $paidAmount = \App\Models\GiaoDich::where('dat_phong_id', $booking->id)
+                    ->where('trang_thai', 'thanh_cong')
+                    ->sum('so_tien');
+                
+                // Tính tổng tiền booking
+                $totalAmount = $booking->tong_tien ?? 0;
+                
+                // Xác định hình thức thanh toán: >= 95% coi là 100%
+                $isFullPayment = false;
+                if ($totalAmount > 0) {
+                    $paymentPercentage = ($paidAmount / $totalAmount) * 100;
+                    $isFullPayment = ($paymentPercentage >= 95) || ($depositPercentage == 100);
+                }
+                
+                // Phí checkin sớm: 30% giá phòng/ngày cho mỗi giờ sớm
                 $perHourRate = $dailyTotal * 0.3 / 24; // 30% giá ngày chia cho 24 giờ
-                $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5); // Tối đa 50% giá ngày
+                
+                if ($isFullPayment) {
+                    // Thanh toán 100%: tính phí không giới hạn (100%)
+                    $earlyCheckinFee = $perHourRate * $hoursEarly;
+                } else {
+                    // Đặt cọc 50%: tối đa 50% giá phòng/ngày
+                    $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                }
+                
                 $earlyCheckinFee = (int) round($earlyCheckinFee, 0);
             }
         }
@@ -1019,9 +1074,13 @@ class StaffController extends Controller
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
-            // Tạo hóa đơn phụ thu nếu checkin sớm
+            // Kiểm tra xem đã thanh toán phụ thu checkin sớm chưa
+            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+            $hasPaidEarlyCheckinFee = !empty($meta['early_checkin_fee_paid']) && $meta['early_checkin_fee_paid'] > 0;
+            
+            // Tạo hóa đơn phụ thu nếu checkin sớm và chưa thanh toán phụ thu
             $hoaDon = null;
-            if ($isEarlyCheckin && $earlyCheckinFee > 0) {
+            if ($isEarlyCheckin && $earlyCheckinFee > 0 && !$hasPaidEarlyCheckinFee) {
                 $hoaDon = \App\Models\HoaDon::where('dat_phong_id', $booking->id)
                     ->where('trang_thai', '!=', 'da_thanh_toan')
                     ->orderByDesc('id')
@@ -1052,6 +1111,10 @@ class StaffController extends Controller
                 // Cập nhật tổng hóa đơn
                 $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $earlyCheckinFee;
                 $hoaDon->save();
+            } elseif ($isEarlyCheckin && $hasPaidEarlyCheckinFee) {
+                // Đã thanh toán phụ thu rồi, không tạo hóa đơn nữa
+                // Nhưng vẫn cần cập nhật early_checkin_fee_amount để ghi nhận
+                $earlyCheckinFee = $meta['early_checkin_fee_paid'];
             }
 
             $booking->update([
@@ -1559,8 +1622,36 @@ class StaffController extends Controller
                     $unit = $item->gia_tren_dem ?? 0;
                     return $carry + ($unit * $qty);
                 }, 0.0);
+                
+                // Kiểm tra hình thức thanh toán (50% hay 100%)
+                $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true);
+                $depositPercentage = $meta['deposit_percentage'] ?? 50;
+                
+                // Tính tổng số tiền đã thanh toán
+                $paidAmount = \App\Models\GiaoDich::where('dat_phong_id', $booking->id)
+                    ->where('trang_thai', 'thanh_cong')
+                    ->sum('so_tien');
+                
+                // Tính tổng tiền booking
+                $totalAmount = $booking->tong_tien ?? 0;
+                
+                // Xác định hình thức thanh toán: >= 95% coi là 100%
+                $isFullPayment = false;
+                if ($totalAmount > 0) {
+                    $paymentPercentage = ($paidAmount / $totalAmount) * 100;
+                    $isFullPayment = ($paymentPercentage >= 95) || ($depositPercentage == 100);
+                }
+                
                 $perHourRate = $dailyTotal * 0.3 / 24;
-                $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                
+                if ($isFullPayment) {
+                    // Thanh toán 100%: tính phí không giới hạn (100%)
+                    $earlyCheckinFee = $perHourRate * $hoursEarly;
+                } else {
+                    // Đặt cọc 50%: tối đa 50% giá phòng/ngày
+                    $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                }
+                
                 $earlyCheckinFee = (int) round($earlyCheckinFee, 0);
             }
         }
@@ -1609,9 +1700,13 @@ class StaffController extends Controller
             $meta['checkin_at'] = now()->toDateTimeString();
             $meta['checkin_by'] = Auth::id();
 
-            // Tạo hóa đơn phụ thu nếu checkin sớm
+            // Kiểm tra xem đã thanh toán phụ thu checkin sớm chưa
+            $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+            $hasPaidEarlyCheckinFee = !empty($meta['early_checkin_fee_paid']) && $meta['early_checkin_fee_paid'] > 0;
+            
+            // Tạo hóa đơn phụ thu nếu checkin sớm và chưa thanh toán phụ thu
             $hoaDon = null;
-            if ($isEarlyCheckin && $earlyCheckinFee > 0) {
+            if ($isEarlyCheckin && $earlyCheckinFee > 0 && !$hasPaidEarlyCheckinFee) {
                 $hoaDon = \App\Models\HoaDon::where('dat_phong_id', $booking->id)
                     ->where('trang_thai', '!=', 'da_thanh_toan')
                     ->orderByDesc('id')
@@ -1640,6 +1735,10 @@ class StaffController extends Controller
                 
                 $hoaDon->tong_thuc_thu = (float)$hoaDon->tong_thuc_thu + $earlyCheckinFee;
                 $hoaDon->save();
+            } elseif ($isEarlyCheckin && $hasPaidEarlyCheckinFee) {
+                // Đã thanh toán phụ thu rồi, không tạo hóa đơn nữa
+                // Nhưng vẫn cần cập nhật early_checkin_fee_amount để ghi nhận
+                $earlyCheckinFee = $meta['early_checkin_fee_paid'];
             }
 
             // Cập nhật booking
