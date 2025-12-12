@@ -90,6 +90,14 @@
                         <option value="rejected" @selected(request('status') == 'rejected')>Từ chối</option>
                     </select>
                 </div>
+                <div class="col-auto">
+                    <label class="form-label small mb-1">Loại hủy</label>
+                    <select name="refund_type" class="form-select form-select-sm">
+                        <option value="">Tất cả</option>
+                        <option value="full_booking" @selected(request('refund_type') == 'full_booking')>Hủy toàn bộ</option>
+                        <option value="single_room" @selected(request('refund_type') == 'single_room')>Hủy từng phòng</option>
+                    </select>
+                </div>
                 <div class="col-auto flex-grow-1">
                     <label class="form-label small mb-1">Tìm kiếm (Mã đặt phòng)</label>
                     <input type="search" name="q" value="{{ request('q') }}" placeholder="VD: DP12345678" class="form-control form-control-sm" />
@@ -148,6 +156,17 @@
                                 <td>
                                     <div>
                                         <strong class="text-primary">{{ $booking->ma_tham_chieu }}</strong>
+                                    </div>
+                                    <div>
+                                        @if($refund->refund_type === 'single_room')
+                                            <span class="badge bg-warning text-dark small">
+                                                <i class="fas fa-door-open me-1"></i>Hủy 1 phòng
+                                            </span>
+                                        @else
+                                            <span class="badge bg-danger small">
+                                                <i class="fas fa-ban me-1"></i>Hủy toàn bộ
+                                            </span>
+                                        @endif
                                     </div>
                                     <small class="text-muted">
                                         <i class="far fa-calendar"></i> 
@@ -266,6 +285,35 @@
                                                     <i class="fas fa-ban"></i> Thông Tin Hủy Phòng
                                                 </h6>
                                                 <table class="table table-sm table-borderless mb-0">
+                                                    <tr>
+                                                        <td class="text-muted">Loại hủy:</td>
+                                                        <td>
+                                                            @if($refund->refund_type === 'single_room')
+                                                                <span class="badge bg-warning text-dark">
+                                                                    <i class="fas fa-door-open me-1"></i>Hủy 1 phòng
+                                                                </span>
+                                                            @else
+                                                                <span class="badge bg-danger">
+                                                                    <i class="fas fa-ban me-1"></i>Hủy toàn bộ
+                                                                </span>
+                                                            @endif
+                                                        </td>
+                                                    </tr>
+                                                    @if($refund->refund_type === 'single_room' && $refund->admin_note)
+                                                        @php
+                                                            // Lấy tên phòng từ admin_note
+                                                            $roomNameFromNote = null;
+                                                            if (preg_match('/Hủy phòng:\s*([^|]+)/', $refund->admin_note, $matches)) {
+                                                                $roomNameFromNote = trim($matches[1]);
+                                                            }
+                                                        @endphp
+                                                        @if($roomNameFromNote)
+                                                            <tr>
+                                                                <td class="text-muted">Phòng đã hủy:</td>
+                                                                <td><strong class="text-danger">{{ $roomNameFromNote }}</strong></td>
+                                                            </tr>
+                                                        @endif
+                                                    @endif
                                                     <tr>
                                                         <td class="text-muted">Thời gian hủy:</td>
                                                         <td><strong>{{ $cancelledAt->format('d/m/Y H:i') }}</strong></td>

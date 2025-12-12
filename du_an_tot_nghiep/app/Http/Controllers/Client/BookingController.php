@@ -6,6 +6,8 @@ use Carbon\Carbon;
 use App\Models\Phong;
 use App\Models\Voucher;
 use App\Models\DatPhong;
+use App\Models\DatPhongItem;
+use App\Models\GiuPhong;
 use Illuminate\Support\Str;
 use App\Models\VoucherUsage;
 use Illuminate\Http\Request;
@@ -25,6 +27,10 @@ class BookingController extends Controller
 
     // Hệ số tăng giá cuối tuần (T6, T7, CN)
     public const WEEKEND_MULTIPLIER = 1.10;
+
+    // Số khách thêm tối đa cho mỗi phòng (có phụ thu)
+    // Sức chứa tối đa = suc_chua + MAX_EXTRA_GUESTS_PER_ROOM
+    public const MAX_EXTRA_GUESTS_PER_ROOM = 2;
 
     public function index(Request $request)
     {
@@ -228,8 +234,17 @@ class BookingController extends Controller
             ->pluck('dat_phong_item.phong_id')
             ->toArray();
 
-        // Available = All - Booked - Current
-        $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
+        // ========== RACE CONDITION FIX: Also exclude rooms being held by others ==========
+        $heldRoomIds = GiuPhong::where('released', false)
+            ->where('het_han_luc', '>', now())
+            ->where('dat_phong_id', '!=', $booking->id) // Not our own booking's holds
+            ->whereNotNull('phong_id')
+            ->pluck('phong_id')
+            ->toArray();
+        // ========== END RACE CONDITION FIX ==========
+
+        // Available = All - Booked - Held by others - Current
+        $availableRoomIds = array_diff($allRooms, $bookedRoomIds, $heldRoomIds, [$currentRoom->id]);
 
         // Get guest count from booking to calculate extra charges
         $meta = is_array($booking->snapshot_meta)
@@ -254,10 +269,24 @@ class BookingController extends Controller
         $weekendNights = $meta['weekend_nights'] ?? 0;
         $weekdayNights = max(0, $nights - $weekendNights);
 
+        // Log capacity filter info
+        Log::info('🚪 Room change capacity filter', [
+            'booking_id' => $booking->id,
+            'guests_in_current_room' => $guestsInCurrentRoom,
+            'available_room_ids_before_filter' => count($availableRoomIds),
+        ]);
+
         // Load room details
         $availableRooms = Phong::whereIn('id', $availableRoomIds)
             ->with(['loaiPhong', 'images'])
             ->get()
+            // CAPACITY FIX: Filter out rooms with MAX capacity less than current guests
+            // MAX capacity = base capacity + MAX_EXTRA_GUESTS_PER_ROOM
+            ->filter(function ($room) use ($guestsInCurrentRoom) {
+                $baseCapacity = $room->suc_chua ?? ($room->loaiPhong->suc_chua ?? 2);
+                $maxCapacity = $baseCapacity + self::MAX_EXTRA_GUESTS_PER_ROOM;
+                return $maxCapacity >= $guestsInCurrentRoom;  // Only show rooms that can fit all guests (with extra surcharge)
+            })
             ->map(function ($room) use ($currentPrice, $guestsInCurrentRoom, $currentItem, $nights, $weekendNights, $weekdayNights, $inheritedVoucher) {
                 // Get base price from ROOM's final price (not total or type default)
                 $roomBasePrice = $room->gia_cuoi_cung ?? 0;
@@ -444,14 +473,96 @@ class BookingController extends Controller
             return back()->with('error', 'Phòng mới không tồn tại.');
         }
 
-        // 6. Check max changes (limit 2 changes per booking)
-        $changeCount = \App\Models\RoomChange::where('dat_phong_id', $booking->id)
-            ->where('status', 'completed')
-            ->count();
-
-        if ($changeCount >= 2) {
-            return back()->with('error', 'Đã đạt giới hạn đổi phòng (tối đa 2 lần).');
+        // ========== RACE CONDITION FIX: Check and hold new room ==========
+        // Check if new room is in maintenance or unavailable
+        if (in_array($newRoom->trang_thai, ['bao_tri', 'khong_su_dung'])) {
+            return back()->with('error', 'Phòng đang bảo trì hoặc không khả dụng.');
         }
+
+        // Check if new room is already held by someone else (for room change)
+        $existingHold = GiuPhong::where('phong_id', $newRoom->id)
+            ->where('released', false)
+            ->where('het_han_luc', '>', now())
+            ->where('dat_phong_id', '!=', $booking->id) // Not our own booking
+            ->first();
+
+        if ($existingHold) {
+            Log::warning('🚫 Room change blocked - room already held', [
+                'booking_id' => $booking->id,
+                'new_room_id' => $newRoom->id,
+                'held_by_booking' => $existingHold->dat_phong_id,
+                'hold_expires' => $existingHold->het_han_luc
+            ]);
+            return back()->with('error', 'Phòng này đang được người khác giữ chỗ. Vui lòng chọn phòng khác hoặc thử lại sau vài phút.');
+        }
+
+        // Check if new room is already booked during our stay period
+        $checkInStr = Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0)->toDateTimeString();
+        $checkOutStr = Carbon::parse($booking->ngay_tra_phong)->setTime(12, 0)->toDateTimeString();
+        
+        $isBooked = DB::table('dat_phong_item')
+            ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+            ->where('dat_phong_item.phong_id', $newRoom->id)
+            ->where('dat_phong.id', '!=', $booking->id) // Exclude our booking
+            ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+            ->whereRaw("CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ?", [$checkOutStr])
+            ->whereRaw("CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?", [$checkInStr])
+            ->exists();
+
+        if ($isBooked) {
+            return back()->with('error', 'Phòng đã có người đặt trong thời gian này. Vui lòng chọn phòng khác.');
+        }
+
+        // ========== CREATE ROOM HOLD for new room (15 minutes) ==========
+        // This prevents race condition - no one else can select this room while we process
+        $roomHold = GiuPhong::create([
+            'dat_phong_id' => $booking->id,
+            'loai_phong_id' => $newRoom->loai_phong_id,
+            'phong_id' => $newRoom->id,
+            'so_luong' => 1,
+            'het_han_luc' => Carbon::now()->addMinutes(15),
+            'released' => false,
+        ]);
+
+        Log::info('🔒 Room hold created for room change', [
+            'booking_id' => $booking->id,
+            'new_room_id' => $newRoom->id,
+            'hold_id' => $roomHold->id,
+            'expires_at' => $roomHold->het_han_luc
+        ]);
+        // ========== END RACE CONDITION FIX ==========
+
+        // NOTE: Removed max changes limit - now unlimited room changes allowed
+
+        // 6.5. CAPACITY VALIDATION: Check new room can fit all guests
+        $guestsInRoom = $currentItem->so_nguoi_o ?? 0;
+        
+        // Fallback for old bookings without so_nguoi_o
+        if ($guestsInRoom == 0) {
+            $meta = is_array($booking->snapshot_meta)
+                ? $booking->snapshot_meta
+                : json_decode($booking->snapshot_meta, true);
+            $totalGuests = ($meta['computed_adults'] ?? 0) + ($meta['chargeable_children'] ?? 0);
+            $totalRoomsInBooking = $booking->datPhongItems ? $booking->datPhongItems->count() : 1;
+            $guestsInRoom = $totalRoomsInBooking > 0 ? ceil($totalGuests / $totalRoomsInBooking) : $totalGuests;
+        }
+        
+        // MAX capacity = base capacity + MAX_EXTRA_GUESTS_PER_ROOM (same as booking form and getAvailableRooms filter)
+        $baseCapacity = $newRoom->suc_chua ?? ($newRoom->loaiPhong->suc_chua ?? 2);
+        $maxCapacity = $baseCapacity + self::MAX_EXTRA_GUESTS_PER_ROOM;
+        
+        if ($maxCapacity < $guestsInRoom) {
+            Log::warning('🚫 Room change blocked - insufficient capacity', [
+                'booking_id' => $booking->id,
+                'new_room_id' => $newRoom->id,
+                'base_capacity' => $baseCapacity,
+                'max_capacity' => $maxCapacity,
+                'guests_in_room' => $guestsInRoom,
+            ]);
+            $extraLabel = self::MAX_EXTRA_GUESTS_PER_ROOM;
+            return back()->with('error', "Phòng mới chỉ chứa tối đa {$maxCapacity} người (cơ bản {$baseCapacity} + {$extraLabel} thêm), không đủ cho {$guestsInRoom} khách đang đặt.");
+        }
+
 
         // 7. Get current room info (already have $currentItem from step 5)
         $currentRoom = $currentItem->phong;
@@ -665,8 +776,10 @@ class BookingController extends Controller
                 return $this->redirectToVNPayForRoomChange($booking, $roomChange, $finalPaymentNeeded);
             } else {
                 // No payment needed - complete directly and mark vouchers as used
-                // Pass voucher discount to completeRoomChange
-                $result = $this->completeRoomChange($roomChange, $voucherDiscount);
+                // CRITICAL FIX: Only add the ACTUALLY USED portion of voucher to deposit
+                // If voucher > payment needed, excess is lost (voucher fully consumed)
+                $actualVoucherUsed = min($voucherDiscount, $basePaymentNeeded);
+                $result = $this->completeRoomChange($roomChange, $actualVoucherUsed);
 
                 // Mark vouchers as used
                 foreach ($appliedVouchers as $voucherInfo) {
@@ -691,7 +804,16 @@ class BookingController extends Controller
                     $successMessage = 'Đổi phòng thành công! ';
                     if (count($appliedVouchers) > 0) {
                         $totalDiscount = array_sum(array_column($appliedVouchers, 'value'));
-                        $successMessage .= 'Đã áp dụng voucher ' . number_format($totalDiscount) . 'đ. Không cần thanh toán thêm!';
+                        $actualUsed = min($totalDiscount, $basePaymentNeeded);
+                        $excessValue = $totalDiscount - $actualUsed;
+                        
+                        if ($excessValue > 0) {
+                            // Voucher exceeded payment needed - notify user
+                            $successMessage .= 'Đã sử dụng ' . number_format($actualUsed) . 'đ từ voucher ' . number_format($totalDiscount) . 'đ. ';
+                            $successMessage .= 'Voucher đã được đánh dấu ĐÃ SỬ DỤNG. (' . number_format($excessValue) . 'đ thừa không được hoàn lại)';
+                        } else {
+                            $successMessage .= 'Đã áp dụng voucher ' . number_format($totalDiscount) . 'đ. Không cần thanh toán thêm!';
+                        }
                     } else {
                         $successMessage .= 'Không cần thanh toán thêm.';
                     }
@@ -948,6 +1070,20 @@ class BookingController extends Controller
             $roomChange->payment_info = ['error_code' => $request->vnp_ResponseCode];
             $roomChange->save();
 
+            // CLEANUP: Release room hold so others can book this room
+            GiuPhong::where('dat_phong_id', $roomChange->dat_phong_id)
+                ->where('phong_id', $roomChange->new_room_id)
+                ->where('released', false)
+                ->update([
+                    'released' => true,
+                    'released_at' => now(),
+                ]);
+
+            Log::info('🔓 Room hold released after failed payment', [
+                'room_change_id' => $roomChange->id,
+                'new_room_id' => $roomChange->new_room_id
+            ]);
+
             session()->forget('room_change_id');
 
             return redirect('/account/bookings/' . $roomChange->dat_phong_id)
@@ -1060,7 +1196,22 @@ class BookingController extends Controller
             $roomChange->status = 'completed';
             $roomChange->save();
 
-            // 5. Send email notification
+            // 5. CLEANUP: Release room hold (giu_phong) for the new room
+            // The hold was created to prevent race condition, now we can release it
+            GiuPhong::where('dat_phong_id', $booking->id)
+                ->where('phong_id', $roomChange->new_room_id)
+                ->where('released', false)
+                ->update([
+                    'released' => true,
+                    'released_at' => now(),
+                ]);
+
+            Log::info('🔓 Room hold released after successful room change', [
+                'booking_id' => $booking->id,
+                'new_room_id' => $roomChange->new_room_id
+            ]);
+
+            // 6. Send email notification
             // TODO: Implement email notification
 
             DB::commit();
@@ -2613,6 +2764,258 @@ class BookingController extends Controller
             } else {
                 return 0;   // Không hoàn
             }
+        }
+    }
+
+    /**
+     * Cancel a single room item from a multi-room booking
+     * This is an ADDITIONAL feature - does NOT replace full booking cancellation
+     */
+    public function cancelRoomItem(Request $request, $id, $itemId)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập để hủy phòng.');
+        }
+
+        // Find the booking and verify ownership
+        $booking = DatPhong::where('id', $id)
+            ->where('nguoi_dung_id', $user->id)
+            ->with('datPhongItems')
+            ->first();
+
+        if (!$booking) {
+            return back()->with('error', 'Không tìm thấy đặt phòng hoặc bạn không có quyền thực hiện thao tác này.');
+        }
+
+        // Check if the booking status allows cancellation
+        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+            return back()->with('error', 'Không thể hủy phòng với trạng thái booking hiện tại: ' . $booking->trang_thai);
+        }
+
+        // Find the room item with relationships
+        $roomItem = DatPhongItem::where('id', $itemId)
+            ->where('dat_phong_id', $booking->id)
+            ->with(['phong', 'loaiPhong'])
+            ->first();
+
+        if (!$roomItem) {
+            return back()->with('error', 'Không tìm thấy phòng cần hủy trong booking này.');
+        }
+
+        // Check if room item is already cancelled
+        if (($roomItem->trang_thai ?? 'active') === 'cancelled') {
+            return back()->with('error', 'Phòng này đã được hủy trước đó.');
+        }
+
+        // Count active rooms in this booking
+        $activeRooms = $booking->datPhongItems->filter(function($item) {
+            return ($item->trang_thai ?? 'active') === 'active';
+        });
+
+        // If only 1 active room left, redirect to full booking cancellation
+        if ($activeRooms->count() <= 1) {
+            return back()->with('info', 'Đây là phòng cuối cùng trong booking. Vui lòng sử dụng chức năng "Hủy toàn bộ booking" nếu bạn muốn hủy.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // ===== STEP 1: Calculate room price (post-voucher) =====
+            $roomPricePerNight = $roomItem->gia_tren_dem ?? 0;
+            $nights = $roomItem->so_dem ?? 1;
+            $qty = $roomItem->so_luong ?? 1;
+            $roomTotalPrice = $roomPricePerNight * $nights * $qty;
+            
+            // ===== STEP 2: Calculate refund timing =====
+            $checkInDateTime = Carbon::parse($booking->ngay_nhan_phong)->setTime(14, 0, 0);
+            $now = Carbon::now();
+            $daysUntilCheckIn = (int) $now->diffInDays($checkInDateTime, false);
+
+            // ===== STEP 3: Determine deposit type for refund tier =====
+            $meta = $booking->snapshot_meta ?? [];
+            $originalDepositPct = $meta['deposit_percentage'] ?? 50;
+            
+            $currentBookingTotal = $booking->tong_tien ?? 0;
+            $paidAmount = $booking->deposit_amount ?? 0;
+            
+            // Calculate actual deposit percentage
+            $actualDepositPct = $currentBookingTotal > 0 ? ($paidAmount / $currentBookingTotal) * 100 : 50;
+            $depositType = ($actualDepositPct >= 95) ? 100 : $originalDepositPct;
+
+            // ===== STEP 4: Calculate room's proportion of the paid deposit =====
+            // Room's share of the total = (room price / total booking price)
+            $roomProportion = $currentBookingTotal > 0 ? ($roomTotalPrice / $currentBookingTotal) : 0;
+            
+            // Room's share of the deposit = deposit × proportion
+            $roomDepositShare = $paidAmount * $roomProportion;
+
+            // ===== STEP 5: Calculate refund amount =====
+            $refundPercentage = $this->calculateRefundPercentage($daysUntilCheckIn, $depositType);
+            $refundAmount = round($roomDepositShare * ($refundPercentage / 100));
+
+            Log::info('Cancel room item - calculation details', [
+                'booking_id' => $booking->id,
+                'item_id' => $itemId,
+                'room_price_per_night' => $roomPricePerNight,
+                'nights' => $nights,
+                'qty' => $qty,
+                'room_total_price' => $roomTotalPrice,
+                'current_booking_total' => $currentBookingTotal,
+                'paid_amount' => $paidAmount,
+                'room_proportion' => round($roomProportion, 4),
+                'room_deposit_share' => round($roomDepositShare, 0),
+                'days_until_checkin' => $daysUntilCheckIn,
+                'deposit_type' => $depositType,
+                'refund_percentage' => $refundPercentage,
+                'refund_amount' => $refundAmount,
+            ]);
+
+            // ===== STEP 6: Save room info before deletion =====
+            $cancelledRoomInfo = [
+                'phong_id' => $roomItem->phong_id,
+                'phong_name' => $roomItem->phong->name ?? null,
+                'loai_phong_name' => $roomItem->loaiPhong->name ?? null,
+                'gia_tren_dem' => $roomPricePerNight,
+                'so_dem' => $nights,
+                'so_luong' => $qty,
+                'room_total_price' => $roomTotalPrice,
+            ];
+            $displayRoomName = $cancelledRoomInfo['phong_name'] ?? $cancelledRoomInfo['loai_phong_name'] ?? "Phòng #{$itemId}";
+
+            // ===== STEP 7: Update booking totals =====
+            $newBookingTotal = max(0, $currentBookingTotal - $roomTotalPrice);
+            
+            // QUAN TRỌNG: Giảm deposit_amount theo số tiền đã hoàn
+            // Điều này đảm bảo khi hủy toàn bộ booking sau này,
+            // số tiền hoàn được tính đúng trên phần cọc CÒN LẠI
+            $newDepositAmount = max(0, $paidAmount - $refundAmount);
+            
+            $booking->update([
+                'tong_tien' => $newBookingTotal,
+                'deposit_amount' => $newDepositAmount,  // Giảm theo số tiền đã hoàn
+            ]);
+
+            Log::info('Cancel room item - booking updated', [
+                'booking_id' => $booking->id,
+                'old_total' => $currentBookingTotal,
+                'new_total' => $newBookingTotal,
+                'old_deposit' => $paidAmount,
+                'refund_amount' => $refundAmount,
+                'new_deposit' => $newDepositAmount,
+            ]);
+
+            // ===== STEP 8: Delete related records =====
+            
+            // 8a: Delete phong_da_dat records for this item
+            if (Schema::hasTable('phong_da_dat')) {
+                $deletedPhongDaDat = DB::table('phong_da_dat')
+                    ->where('dat_phong_item_id', $itemId)
+                    ->delete();
+                    
+                Log::info('Deleted phong_da_dat for cancelled room', [
+                    'item_id' => $itemId,
+                    'deleted_count' => $deletedPhongDaDat,
+                ]);
+            }
+
+            // 8b: Delete giu_phong records for this room
+            if (Schema::hasTable('giu_phong') && $cancelledRoomInfo['phong_id']) {
+                $deletedHolds = DB::table('giu_phong')
+                    ->where('dat_phong_id', $booking->id)
+                    ->where('phong_id', $cancelledRoomInfo['phong_id'])
+                    ->delete();
+                    
+                Log::info('Released giu_phong for cancelled room', [
+                    'booking_id' => $booking->id,
+                    'phong_id' => $cancelledRoomInfo['phong_id'],
+                    'deleted_count' => $deletedHolds,
+                ]);
+            }
+
+            // 8c: DELETE the DatPhongItem record - this automatically unlocks the room
+            $roomItem->delete();
+            
+            Log::info('Deleted dat_phong_item for cancelled room', [
+                'booking_id' => $booking->id,
+                'item_id' => $itemId,
+                'room_info' => $cancelledRoomInfo,
+            ]);
+
+            // ===== STEP 9: Create refund transaction if applicable =====
+            if ($refundAmount > 0) {
+                \App\Models\GiaoDich::create([
+                    'dat_phong_id' => $booking->id,
+                    'so_tien' => $refundAmount,
+                    'trang_thai' => 'da_hoan',
+                    'nha_cung_cap' => 'Hoàn tiền hủy phòng đơn lẻ',
+                    'ghi_chu' => sprintf(
+                        "Hoàn %d%% cho phòng %s. Giá phòng: %s, Phần cọc: %s",
+                        $refundPercentage,
+                        $displayRoomName,
+                        number_format($roomTotalPrice, 0, ',', '.'),
+                        number_format($roomDepositShare, 0, ',', '.')
+                    ),
+                ]);
+
+                // Create refund request for staff processing
+                // Note: dat_phong_item_id is null since item is deleted
+                \App\Models\RefundRequest::create([
+                    'dat_phong_id' => $booking->id,
+                    'user_id' => $booking->nguoi_dung_id,  // User của booking
+                    'dat_phong_item_id' => null,  // Item đã bị xóa
+                    'refund_type' => 'single_room',
+                    'amount' => $refundAmount,
+                    'percentage' => $refundPercentage,
+                    'status' => 'pending',
+                    'requested_at' => now(),
+                    'admin_note' => sprintf(
+                        "Hủy phòng: %s | Giá: %s | Cọc phần: %s",
+                        $displayRoomName,
+                        number_format($roomTotalPrice, 0, ',', '.'),
+                        number_format($roomDepositShare, 0, ',', '.')
+                    ),
+                ]);
+
+                Log::info('Refund created for cancelled room', [
+                    'booking_id' => $booking->id,
+                    'item_id' => $itemId,
+                    'refund_amount' => $refundAmount,
+                ]);
+            }
+
+            DB::commit();
+
+            // ===== Build success message =====
+            $message = sprintf('Đã hủy phòng "%s" thành công. ', $displayRoomName);
+            
+            if ($refundAmount > 0) {
+                $message .= sprintf(
+                    'Số tiền hoàn: %s ₫ (%d%% của %s ₫ phần cọc phòng này). Yêu cầu hoàn tiền đang được xử lý.',
+                    number_format($refundAmount, 0, ',', '.'),
+                    $refundPercentage,
+                    number_format($roomDepositShare, 0, ',', '.')
+                );
+            } else {
+                $message .= 'Không được hoàn tiền do hủy muộn (< 24 giờ trước check-in).';
+            }
+            
+            $message .= sprintf(' Tổng booking mới: %s ₫.', number_format($newBookingTotal, 0, ',', '.'));
+
+            return back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Room item cancellation error', [
+                'booking_id' => $booking->id ?? $id,
+                'item_id' => $itemId,
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Có lỗi xảy ra khi hủy phòng. Vui lòng thử lại sau.');
         }
     }
 

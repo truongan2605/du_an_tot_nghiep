@@ -246,6 +246,11 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         });
         Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
             ->name('bookings.rooms.clear_cleaning');
+        
+        // Staff cancel individual room
+        Route::post('/bookings/{id}/cancel-room/{itemId}', [StaffController::class, 'cancelRoomItem'])
+            ->name('bookings.cancel-room-item');
+        
         Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
 
@@ -310,6 +315,7 @@ Route::middleware('auth')
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
         Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel'])->name('booking.cancel');
+        Route::post('bookings/{id}/cancel-room-item/{itemId}', [BookingController::class, 'cancelRoomItem'])->name('booking.cancel-room-item');
         Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
         Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
         Route::get('bookings/{booking}/available-vouchers', [BookingController::class, 'getAvailableVouchers'])->name('booking.available-vouchers');
