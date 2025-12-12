@@ -463,14 +463,7 @@ class BookingController extends Controller
             return back()->with('error', 'Phòng mới không tồn tại.');
         }
 
-        // 6. Check max changes (limit 2 changes per booking)
-        $changeCount = \App\Models\RoomChange::where('dat_phong_id', $booking->id)
-            ->where('status', 'completed')
-            ->count();
-
-        if ($changeCount >= 2) {
-            return back()->with('error', 'Đã đạt giới hạn đổi phòng (tối đa 2 lần).');
-        }
+        // NOTE: Removed max changes limit - now unlimited room changes allowed
 
         // 6.5. CAPACITY VALIDATION: Check new room can fit all guests
         $guestsInRoom = $currentItem->so_nguoi_o ?? 0;

@@ -983,7 +983,7 @@
                             <div class="d-flex align-items-start">
                                 <i class="bi bi-info-circle-fill fs-5 me-3 flex-shrink-0 text-info"></i>
                                 <div class="small">
-                                    <strong>Chính sách:</strong> Trước 24h Nhận phòng • Đổi phòng tăng giá: Thanh toán chênh lệch • Đổi phòng dưới giá: Nhận voucher • Giới hạn 2 lần/Đổi phòng • Miễn phí nếu cùng giá
+                                    <strong>Chính sách:</strong> Trước 24h Nhận phòng • Đổi phòng tăng giá: Thanh toán chênh lệch • Đổi phòng dưới giá: Nhận voucher • Miễn phí nếu cùng giá
                                 </div>
                             </div>
                         </div>
