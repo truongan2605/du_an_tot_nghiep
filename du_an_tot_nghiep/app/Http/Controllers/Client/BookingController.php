@@ -2886,22 +2886,34 @@ class BookingController extends Controller
             // ===== STEP 7: Update booking totals =====
             $newBookingTotal = max(0, $currentBookingTotal - $roomTotalPrice);
             
-            // QUAN TRỌNG: Giảm deposit_amount theo số tiền đã hoàn
-            // Điều này đảm bảo khi hủy toàn bộ booking sau này,
-            // số tiền hoàn được tính đúng trên phần cọc CÒN LẠI
-            $newDepositAmount = max(0, $paidAmount - $refundAmount);
+            // QUAN TRỌNG: Khi hủy 1 phòng, toàn bộ phần cọc của phòng đó bị loại bỏ:
+            // - Phần được hoàn (30%): trả về khách
+            // - Phần bị phạt (70%): khách sạn giữ lại (MẤT LUÔN)
+            // => Deposit còn lại = chỉ phần cọc của các phòng còn active
+            // 
+            // Ví dụ: 2 phòng × 500k = 1tr, cọc 50% = 500k (250k/phòng)
+            // Hủy phòng 1 với 30% refund:
+            //   - Hoàn: 75k (30% × 250k)
+            //   - Mất: 175k (70% × 250k) 
+            //   - Cọc còn lại: 250k (chỉ phòng 2)
+            $newDepositAmount = max(0, $paidAmount - $roomDepositShare);
             
             $booking->update([
                 'tong_tien' => $newBookingTotal,
-                'deposit_amount' => $newDepositAmount,  // Giảm theo số tiền đã hoàn
+                'deposit_amount' => $newDepositAmount,  // Chỉ còn cọc của các phòng active
             ]);
+
+            // Tính số tiền khách sạn giữ lại (phần phạt)
+            $forfeitedAmount = $roomDepositShare - $refundAmount;
 
             Log::info('Cancel room item - booking updated', [
                 'booking_id' => $booking->id,
                 'old_total' => $currentBookingTotal,
                 'new_total' => $newBookingTotal,
                 'old_deposit' => $paidAmount,
+                'room_deposit_share' => $roomDepositShare,
                 'refund_amount' => $refundAmount,
+                'forfeited_amount' => $forfeitedAmount,  // Phần khách sạn giữ lại
                 'new_deposit' => $newDepositAmount,
             ]);
 
