@@ -26,7 +26,7 @@
                                     </a>
                                     <h1 class="mb-2 h3">Quên mật khẩu?</h1>
                                     <p class="mb-sm-0">
-                                        Nhập địa chỉ email liên kết với tài khoản của bạn. 
+                                        Nhập địa chỉ email liên kết với tài khoản của bạn.
                                         Chúng tôi sẽ gửi <strong>mã xác thực 6 số</strong> để đặt lại mật khẩu.
                                     </p>
 
@@ -50,8 +50,11 @@
                                             @enderror
                                         </div>
 
-                                        <div class="mb-3 text-center">
-                                            <p>Quay lại <a href="{{ route('login') }}">Đăng nhập</a></p>
+                                        <div class="mt-3 text-center">
+                                            <strong>
+                                                Đã có mã?
+                                                <a href="{{ route('password.otp.form') }}">Nhập mã để đặt lại mật khẩu</a>
+                                            </strong>
                                         </div>
 
                                         <!-- Button -->
@@ -61,13 +64,9 @@
                                             </button>
                                         </div>
 
-                                        <div class="mt-3 text-center">
-                                            <small>
-                                                Đã có mã? 
-                                                <a href="{{ route('password.otp.form') }}">Nhập mã để đặt lại mật khẩu</a>
-                                            </small>
+                                        <div class="mb-3 text-center">
+                                            <p>Quay lại <a href="{{ route('login') }}">Đăng nhập</a></p>
                                         </div>
-
                                     </form>
                                     <!-- Form END -->
                                 </div>
