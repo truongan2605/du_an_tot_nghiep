@@ -1088,14 +1088,12 @@
                     if (!btn) return;
                     btn.disabled = !enabled;
                 }
-
                 // ---------- MR (additional groups) ----------
                 let mrIndex = 0;
 
                 function getLoaiObj(loaiId) {
                     return LOAI_PHONGS[String(loaiId)] || LOAI_PHONGS[loaiId] || null;
                 }
-
                 // Keep hidden inputs in sync with UI state so normal form submit works
                 function syncGroupHiddenInputs() {
                     if (!MR_CONTAINER) return;
@@ -1112,7 +1110,6 @@
                             g.appendChild(hLo);
                         }
                         hLo.value = g.dataset.loaiId;
-
                         // rooms_count
                         let hCnt = g.querySelector(`input[name="rooms[${gi}][rooms_count]"]`);
                         const roomsInp = g.querySelector('.mr_rooms_count_input');
@@ -1124,7 +1121,6 @@
                             g.appendChild(hCnt);
                         }
                         hCnt.value = roomsInp ? roomsInp.value : 1;
-
                         // adults
                         let hAdults = g.querySelector(`input[name="rooms[${gi}][adults]"]`);
                         const adultsInp = g.querySelector('.mr_adults_input');
@@ -1136,24 +1132,41 @@
                             g.appendChild(hAdults);
                         }
                         hAdults.value = adultsInp ? adultsInp.value : 0;
-
                         // children
-                        let hChildren = g.querySelector(`input[name="rooms[${gi}][children]"]`);
-                        const childrenInp = g.querySelector('.mr_children_input');
-                        if (!hChildren) {
-                            hChildren = document.createElement('input');
-                            hChildren.type = 'hidden';
-                            hChildren.name = `rooms[${gi}][children]`;
-                            hChildren.className = 'mr_hidden_children';
-                            g.appendChild(hChildren);
-                        }
-                        hChildren.value = childrenInp ? childrenInp.value : 0;
+                        const prevKids = g.querySelectorAll(`[name^="rooms[${gi}][children_ages]"]`);
+                        prevKids.forEach(n => n.remove());
+                        const ageInputs = g.querySelectorAll('.mr_child_age_input');
+                        ageInputs.forEach(ai => {
+                            const hi = document.createElement('input');
+                            hi.type = 'hidden';
+                            hi.name = `rooms[${gi}][children_ages][]`;
+                            hi.value = ai.value || 0;
+                            g.appendChild(hi);
+                        });
 
-                        // You can add per-group addons hidden inputs if you support them:
+                        // final_per_night (from dataset if present)
+                        let hFinal = g.querySelector(`input[name="rooms[${gi}][final_per_night]"]`);
+                        if (!hFinal) {
+                            hFinal = document.createElement('input');
+                            hFinal.type = 'hidden';
+                            hFinal.name = `rooms[${gi}][final_per_night]`;
+                            g.appendChild(hFinal);
+                        }
+                        hFinal.value = g.dataset.pricePerRoom || '0';
+
+                        // nights
+                        let hN = g.querySelector(`input[name="rooms[${gi}][nights]"]`);
+                        if (!hN) {
+                            hN = document.createElement('input');
+                            hN.type = 'hidden';
+                            hN.name = `rooms[${gi}][nights]`;
+                            g.appendChild(hN);
+                        }
+                        hN.value = document.getElementById('nights_count_display')?.innerText || 1;
+
                         // remove previous 'addons' hidden to avoid duplicates
                         const prevAddons = g.querySelectorAll(`[name^="rooms[${gi}][addons]"]`);
                         prevAddons.forEach(n => n.remove());
-                        // (If you have checkboxes per group, create rooms[gi][addons][] hidden inputs here.)
 
                     });
                 }
@@ -1164,7 +1177,6 @@
                         console.warn('Không tìm thấy loai_phong trong LOAI_PHONGS:', loaiId);
                         return null;
                     }
-
                     // pick representative room (to get precise price if available)
                     const phongs = getArr(loai, ['phongs', 'phongs_list', 'rooms']) || [];
                     let rep = null;
@@ -1222,7 +1234,11 @@
                             </div>
                             <div class="col-4">
                                 <label class="form-label">Trẻ em</label>
-                                <input type="number" min="0" value="0" class="form-control mr_children_input" />
+                                <div class="d-flex">
+                                    <input type="number" min="0" value="0" class="form-control mr_children_input" />
+                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2 mr_manage_ages_btn">Tuổi</button>
+                                </div>
+                                <div class="mr_children_ages_container mt-2" style="display:none"></div>
                             </div>
                         </div>
                         <div class="row mt-2">
@@ -1232,30 +1248,77 @@
                             </div>
                         </div>
                     `;
-
                     // events
                     const roomsInp = wrapper.querySelector('.mr_rooms_count_input');
                     const adultsInp = wrapper.querySelector('.mr_adults_input');
                     const childrenInp = wrapper.querySelector('.mr_children_input');
-                    const rmBtn = wrapper.querySelector('.mr_remove_btn');
+                    const agesContainer = wrapper.querySelector('.mr_children_ages_container');
+                    const agesBtn = wrapper.querySelector('.mr_manage_ages_btn');
 
-                    const onGroupChange = () => {
-                        let v = Number(roomsInp.value || 1);
-                        if (isNaN(v) || v < 1) v = 1;
-                        roomsInp.value = v;
+                    function enforceGroupLimits() {
+                        const roomsVal = Math.max(1, Number(roomsInp.value || 1));
+                        roomsInp.value = roomsVal;
+
+                        const perRoomMaxAdults = Number(wrapper.dataset.baseCapacity || 1) + 2;
+                        const maxAdultsTotal = perRoomMaxAdults * roomsVal;
                         let a = Number(adultsInp.value || 0);
                         if (isNaN(a) || a < 0) a = 0;
+                        if (a > maxAdultsTotal) a = maxAdultsTotal;
                         adultsInp.value = a;
+
+                        const maxChildrenTotal = 2 * roomsVal;
                         let c = Number(childrenInp.value || 0);
                         if (isNaN(c) || c < 0) c = 0;
+                        if (c > maxChildrenTotal) c = maxChildrenTotal;
                         childrenInp.value = c;
-
-                        // update hidden inputs for this group
-                        syncGroupHiddenInputs();
-
-                        fetchAndWriteAvailabilityForGroup(wrapper);
-                        updateSummary();
-                    };
+                        // ensure children ages inputs count equals childrenInp
+                        const currentAgeInputs = agesContainer.querySelectorAll('input.mr_child_age_input');
+                        const needed = Number(childrenInp.value || 0);
+                        // add or remove age inputs
+                        if (currentAgeInputs.length < needed) {
+                            for (let k = currentAgeInputs.length; k < needed; k++) {
+                                const el = document.createElement('input');
+                                el.type = 'number';
+                                el.min = 0;
+                                el.max = 12;
+                                el.value = 0;
+                                el.className = 'form-control form-control-sm mr_child_age_input mt-1';
+                                agesContainer.appendChild(el);
+                                el.addEventListener('input', () => {
+                                    if (el.value === '') el.value = 0;
+                                    let v = Number(el.value || 0);
+                                    if (isNaN(v) || v < 0) v = 0;
+                                    if (v > 12) v = 12;
+                                    el.value = v;
+                                    // update summary (so main updates chargeable children per group via hidden input)
+                                    updateSummary();
+                                    syncGroupHiddenInputs();
+                                });
+                            }
+                        } else if (currentAgeInputs.length > needed) {
+                            for (let k = currentAgeInputs.length - 1; k >= needed; k--) {
+                                currentAgeInputs[k].remove();
+                            }
+                        }
+                        // show/hide ages container
+                        agesContainer.style.display = needed > 0 ? 'block' : 'none';
+                    }
+                    agesBtn.addEventListener('click', () => {
+                        // toggle visibility
+                        agesContainer.style.display = agesContainer.style.display === 'none' ? 'block' :
+                            'none';
+                    });
+                    // on input events
+                    [roomsInp, adultsInp, childrenInp].forEach(el => {
+                        el.addEventListener('input', () => {
+                            enforceGroupLimits();
+                            syncGroupHiddenInputs();
+                            fetchAndWriteAvailabilityForGroup(wrapper);
+                            updateSummary();
+                        });
+                    });
+                    // initial enforce
+                    enforceGroupLimits();
 
                     roomsInp.addEventListener('input', onGroupChange);
                     adultsInp.addEventListener('input', onGroupChange);
@@ -1272,6 +1335,47 @@
                         updateSummary();
                     });
 
+                    // define a reusable handler so we don't reference an undefined function
+                    function onGroupChange() {
+                        enforceGroupLimits();
+                        syncGroupHiddenInputs();
+                        fetchAndWriteAvailabilityForGroup(wrapper);
+                        updateSummary();
+                    }
+
+                    // attach events using the handler
+                    [roomsInp, adultsInp, childrenInp].forEach(el => {
+                        if (!el) return;
+                        el.addEventListener('input', onGroupChange);
+                        el.addEventListener('change', onGroupChange);
+                    });
+
+                    // toggle ages panel button
+                    agesBtn.addEventListener('click', () => {
+                        agesContainer.style.display = agesContainer.style.display === 'none' ? 'block' :
+                            'none';
+                    });
+
+                    // remove button (make sure rmBtn exists)
+                    const rmBtn = wrapper.querySelector('.mr_remove_btn');
+                    if (rmBtn) {
+                        rmBtn.addEventListener('click', function() {
+                            if (MR_ADD_SELECT) {
+                                const opt = MR_ADD_SELECT.querySelector(`option[value="${loaiId}"]`);
+                                if (opt) opt.hidden = false;
+                            }
+                            wrapper.remove();
+                            // re-sync after removal
+                            syncGroupHiddenInputs();
+                            updateSummary();
+                        });
+                    } else {
+                        console.warn('mr_remove_btn not found in group for loaiId', loaiId);
+                    }
+
+                    // initial enforce & sync
+                    enforceGroupLimits();
+
                     // initial fetch small delay + create initial hidden inputs
                     setTimeout(() => {
                         fetchAndWriteAvailabilityForGroup(wrapper);
@@ -1279,7 +1383,6 @@
                     }, 50);
                     return wrapper;
                 }
-
                 async function fetchAndWriteAvailabilityForGroup(wrapper) {
                     try {
                         if (!fromInput || !toInput) return;
@@ -1375,7 +1478,6 @@
                         console.warn(e);
                     }
                 }
-
                 // ---------- SUMMARY (main + groups) ----------
                 function computeAddonsPerNight() {
                     let sum = 0;
@@ -1422,8 +1524,7 @@
                         }
                     }
                     updateInputLimitsByRooms();
-
-                    // main persons
+                    // ---- MAIN: compute adults/children for main room (uses children ages to decide chargeable) ----
                     const agesGlobal = Array.from(document.querySelectorAll('.child-age-input')).map(x =>
                         Number(x.value || 0));
                     let computedAdultsMain = Number(adultsInput?.value || 0);
@@ -1432,67 +1533,83 @@
                         if (a >= 13) computedAdultsMain++;
                         else if (a >= CHILD_FREE_AGE) chargeableChildrenMain++;
                     });
-
-                    // totals start from main
-                    let computedAdultsTotal = computedAdultsMain;
-                    let chargeableChildrenTotal = chargeableChildrenMain;
-
-                    // main extras
-                    const extraCountMain = Math.max(0, computedAdultsMain - (baseCapacity * roomsCount));
-                    const adultsBeyondBaseMain = Math.max(0, computedAdultsMain - (baseCapacity * roomsCount));
-                    const adultExtraTotalMain = Math.min(adultsBeyondBaseMain, extraCountMain);
-                    const adultsChargePerNightMain = adultExtraTotalMain * ADULT_PRICE;
-                    const childrenChargePerNightMain = chargeableChildrenMain * CHILD_PRICE;
-
-                    const addonsPerNight = computeAddonsPerNight();
-                    const basePerRoom = pricePerNight;
-
+                    // main extras per-night
+                    const basePerRoomMain = pricePerNight; // representative price from blade
                     const weekendNights = countWeekendNights(from, to);
                     const weekdayNights = Math.max(0, nights - weekendNights);
 
-                    const baseWeekdayTotal = basePerRoom * roomsCount * weekdayNights;
-                    const baseWeekendTotal = basePerRoom * WEEKEND_MULTIPLIER * roomsCount * weekendNights;
-                    const roomBaseTotal = baseWeekdayTotal + baseWeekendTotal;
+                    const baseWeekdayTotalMain = basePerRoomMain * roomsCount * weekdayNights;
+                    const baseWeekendTotalMain = basePerRoomMain * WEEKEND_MULTIPLIER * roomsCount *
+                        weekendNights;
+                    const roomBaseTotalMain = baseWeekdayTotalMain + baseWeekendTotalMain;
 
-                    const extrasPerNightMainTotal = adultsChargePerNightMain + childrenChargePerNightMain +
-                        addonsPerNight;
-                    const extrasTotalMain = extrasPerNightMainTotal * nights;
+                    const baseCapacityMain = baseCapacity; // blade-provided
+                    const extraCountMain = Math.max(0, computedAdultsMain - (baseCapacityMain * roomsCount));
+                    const adultExtraTotalMain = Math.min(Math.max(0, computedAdultsMain - (baseCapacityMain *
+                        roomsCount)), extraCountMain);
+                    const adultsChargePerNightMain = adultExtraTotalMain * ADULT_PRICE;
+                    const childrenChargePerNightMain = chargeableChildrenMain * CHILD_PRICE;
 
-                    // groups
-                    let additionalGroupsTotal = 0;
-                    let additionalAdultsChargePerNight = 0;
+                    let additionalGroupsBaseTotal = 0;
+                    let additionalGroupsExtrasPerNight = 0;
                     let groupsRoomCount = 0;
+
                     if (MR_CONTAINER) {
                         const groups = Array.from(MR_CONTAINER.querySelectorAll('.mr_group'));
-                        groups.forEach(g => {
-                            const price = Number(g.dataset.pricePerRoom || 0);
-                            const roomsG = Number(g.querySelector('.mr_rooms_count_input')?.value || 0);
-                            const adultsG = Number(g.querySelector('.mr_adults_input')?.value || 0);
-                            const childrenG = Number(g.querySelector('.mr_children_input')?.value || 0);
-                            const baseCap = Number(g.dataset.baseCapacity || 1);
+                        if (MR_CONTAINER) {
+                            const groups = Array.from(MR_CONTAINER.querySelectorAll('.mr_group'));
+                            groups.forEach(g => {
+                                const price = Number(g.dataset.pricePerRoom || 0);
+                                const roomsG = Number(g.querySelector('.mr_rooms_count_input')?.value ||
+                                    0);
+                                // make adultsG mutable (let) because we may increment when child >=13
+                                let adultsG = Number(g.querySelector('.mr_adults_input')?.value || 0);
+                                const childrenG = Number(g.querySelector('.mr_children_input')?.value ||
+                                    0);
+                                let chargeableChildrenG = 0;
 
-                            if (!roomsG || roomsG <= 0) return;
-                            groupsRoomCount += roomsG;
-                            const bw = price * roomsG * weekdayNights;
-                            const be = price * WEEKEND_MULTIPLIER * roomsG * weekendNights;
-                            additionalGroupsTotal += (bw + be);
+                                const ageEls = g.querySelectorAll('.mr_child_age_input');
+                                if (ageEls && ageEls.length) {
+                                    ageEls.forEach(ael => {
+                                        const av = Number(ael.value || 0);
+                                        if (av >= 13) {
+                                            adultsG += 1;
+                                        } else if (av >= CHILD_FREE_AGE) {
+                                            chargeableChildrenG += 1;
+                                        }
+                                    });
+                                } else {
+                                    // fallback: if no age inputs, assume all children are chargeable up to limit
+                                    chargeableChildrenG = childrenG;
+                                }
 
-                            // add counts (we assume group children are chargeable; if you need free-age logic for groups, pass ages)
-                            computedAdultsTotal += adultsG;
-                            chargeableChildrenTotal += childrenG;
+                                const baseCapGroup = Number(g.dataset.baseCapacity || baseCapacity ||
+                                1);
+                                // compute extra adults/children for this group
+                                const totalSlots = baseCapGroup * Math.max(1, roomsG);
+                                const extraAdultsGroup = Math.max(0, adultsG - totalSlots);
+                                // adults taken occupy some slots; remaining slots could cover children
+                                const adultsTaken = Math.min(adultsG, totalSlots);
+                                const remainingSlots = Math.max(0, totalSlots - adultsTaken);
+                                const extraChildrenGroup = Math.max(0, chargeableChildrenG -
+                                    remainingSlots);
 
-                            // group extra adult charges
-                            const extraAdultsGroup = Math.max(0, adultsG - (baseCap * roomsG));
-                            additionalAdultsChargePerNight += extraAdultsGroup * ADULT_PRICE;
-                        });
+                                additionalGroupsExtrasPerNight += (extraAdultsGroup * ADULT_PRICE) + (
+                                    extraChildrenGroup * CHILD_PRICE);
+                                additionalGroupsBaseTotal += (price * roomsG *nights);
+                                groupsRoomCount += roomsG;
+                            });
+                        }
+
                     }
 
-                    const extrasPerNightTotal = (adultsChargePerNightMain + additionalAdultsChargePerNight) + (
+                    // ---- ADDONS (main-level) ----
+                    const addonsPerNight = computeAddonsPerNight(); // already multiplies by main roomsCount
+                    const extrasPerNightTotal = (adultsChargePerNightMain + additionalGroupsExtrasPerNight) + (
                         childrenChargePerNightMain) + addonsPerNight;
                     const extrasTotal = extrasPerNightTotal * nights;
-
-                    const rawTotal = roomBaseTotal + extrasTotal + additionalGroupsTotal;
-
+                    // raw totals
+                    const rawTotal = roomBaseTotalMain + additionalGroupsBaseTotal + extrasTotal;
                     // voucher
                     const voucherDiscountInput = document.getElementById('voucher_discount_input');
                     let voucherDiscount = 0;
@@ -1504,7 +1621,7 @@
                     let total = rawTotal;
                     if (voucherDiscount > 0) total = Math.max(0, rawTotal - voucherDiscount);
 
-                    const finalPerNight = total / nights;
+                    const finalPerNight = total / Math.max(1, nights);
                     const selectedDepositRadio = document.querySelector(
                         'input[name="deposit_percentage"]:checked');
                     const depositPercent = (selectedDepositRadio ? parseInt(selectedDepositRadio.value, 10) :
@@ -1512,18 +1629,19 @@
                     const deposit = depositPercent === 1 ? total : Math.ceil(total * depositPercent / 1000) *
                         1000;
 
-                    // write UI
-                    priceBaseDisplay && (priceBaseDisplay.innerText = fmtVnd(basePerRoom));
+                    // base price display: display aggregated base (main + groups) per-night total (not only main)
+                    const aggregatedBasePerNight = (roomBaseTotalMain + additionalGroupsBaseTotal) / Math.max(1,
+                        nights);
+                    priceBaseDisplay && (priceBaseDisplay.innerText = fmtVnd(aggregatedBasePerNight));
                     priceAdultsDisplay && (priceAdultsDisplay.innerText = ((adultsChargePerNightMain +
-                        additionalAdultsChargePerNight) > 0) ? fmtVnd(adultsChargePerNightMain +
-                        additionalAdultsChargePerNight) : '0 đ');
+                        additionalGroupsExtrasPerNight) > 0) ? fmtVnd(adultsChargePerNightMain +
+                        additionalGroupsExtrasPerNight) : '0 đ');
                     priceChildrenDisplay && (priceChildrenDisplay.innerText = (childrenChargePerNightMain > 0) ?
                         fmtVnd(childrenChargePerNightMain) : '0 đ');
                     finalPerNightDisplay && (finalPerNightDisplay.innerText = fmtVnd(finalPerNight));
                     totalDisplay && (totalDisplay.innerText = fmtVnd(total));
                     payableDisplay && (payableDisplay.innerText = fmtVnd(deposit));
 
-                    // hidden inputs
                     const hiddenTotal = document.getElementById('hidden_tong_tien');
                     const hiddenDeposit = document.getElementById('hidden_deposit');
                     const snapshotTotal = document.getElementById('snapshot_total_input');
@@ -1531,15 +1649,14 @@
                     if (hiddenDeposit) hiddenDeposit.value = deposit;
                     if (snapshotTotal) snapshotTotal.value = total;
 
-                    // original totals
                     const originalTotalInput = document.getElementById('original_total');
                     const originalDepositInput = document.getElementById('original_deposit');
                     if (originalTotalInput) originalTotalInput.value = rawTotal;
                     if (originalDepositInput) originalDepositInput.value = deposit;
 
-                    // validate guest limits & submit
                     const totalMaxAllowed = (baseCapacity + 2) * (roomsCount + groupsRoomCount);
-                    const countedPersons = computedAdultsTotal + chargeableChildrenTotal;
+                    const countedPersons = (computedAdultsMain + chargeableChildrenMain) /* main */ +
+                        0;
                     if (countedPersons > totalMaxAllowed || currentAvailableRooms <= 0) toggleSubmit(false);
                     else toggleSubmit(true);
                 }
@@ -1676,8 +1793,15 @@
                     modal.show();
                 }
 
-                // bind proceed (sends payload including groups as 'rooms')
                 const vnpayProceedBtn = document.getElementById('vnpayProceedBtn');
+                // ensure deposit radio changes immediately refresh UI (fix 50%/100% not updating)
+                document.querySelectorAll('input[name="deposit_percentage"]').forEach(r => {
+                    r.addEventListener('change', () => {
+                        updateSummary();
+                        syncGroupHiddenInputs();
+                    });
+                });
+
                 if (vnpayProceedBtn) {
                     vnpayProceedBtn.addEventListener('click', async function() {
                         const modalInstance = bootstrap.Modal.getInstance(document.getElementById(
@@ -1696,30 +1820,86 @@
                                 '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang xử lý...';
                         }
 
-                        // collect rooms payload from hidden inputs (robust)
+                        // --- build rooms payload (main room + groups) ---
                         const roomsPayload = [];
+                        const nightsForPayload = (function() {
+                            const f = fromInput?.value,
+                                t = toInput?.value;
+                            if (!f || !t) return 1;
+                            const fromD = new Date(f + 'T00:00:00'),
+                                toD = new Date(t + 'T00:00:00');
+                            const diff = Math.max(1, Math.round((toD - fromD) / (1000 * 60 *
+                                60 * 24)));
+                            return diff;
+                        })();
+
+                        function computePerNightFromPrice(price) {
+                            const weekendN = countWeekendNights(new Date(fromInput.value +
+                                'T00:00:00'), new Date(toInput.value + 'T00:00:00'));
+                            const weekdayN = Math.max(0, nightsForPayload - weekendN);
+                            const base = Number(price || 0);
+                            if (nightsForPayload <= 0) return base;
+                            const total = (base * weekdayN) + (base * WEEKEND_MULTIPLIER *
+                                weekendN);
+                            return total / Math.max(1, nightsForPayload);
+                        }
+
+                        // 1) main room group
+                        const mainPhongId = document.querySelector('input[name="phong_id"]')?.value;
+                        if (mainPhongId) {
+                            const mainRoomsCnt = Number(roomsInput?.value || 1);
+                            const mainAdults = Number(adultsInput?.value || 0);
+                            const mainChildren = Number(childrenInput?.value || 0);
+                            const mainLoaiId = Number(CURRENT_LOAI_ID || 0) || null;
+                            const loaiObj = LOAI_PHONGS && LOAI_PHONGS[String(mainLoaiId)];
+                            const repPrice = Number((loaiObj && (loaiObj.tong_gia || loaiObj
+                                .gia_mac_dinh)) || pricePerNight || 0);
+                            const finalPerNightMain = computePerNightFromPrice(repPrice);
+                            const specHashMain = (loaiObj && (loaiObj.spec_signature_hash || loaiObj
+                                .specSignatureHash)) || null;
+                            const selectedIdsMain = mainPhongId ? [parseInt(mainPhongId, 10)] : [];
+
+                            roomsPayload.push({
+                                loai_phong_id: mainLoaiId,
+                                rooms_count: mainRoomsCnt,
+                                adults: mainAdults,
+                                children: mainChildren,
+                                nights: nightsForPayload,
+                                final_per_night: Math.round(finalPerNightMain),
+                                spec_signature_hash: specHashMain,
+                                selected_phong_ids: selectedIdsMain
+                            });
+                        }
+
+                        // 2) MR groups
                         if (MR_CONTAINER) {
                             const groups = Array.from(MR_CONTAINER.querySelectorAll('.mr_group'));
                             groups.forEach(g => {
-                                const gi = g.dataset.idx;
-                                const loai = g.querySelector(
-                                    `input[name="rooms[${gi}][loai_phong_id]"]`)?.value;
+                                const loai = parseInt(g.dataset.loaiId || 0, 10) || null;
+                                const price = Number(g.dataset.pricePerRoom || 0);
                                 const roomsCnt = Number(g.querySelector(
-                                        `input[name="rooms[${gi}][rooms_count]"]`)
+                                    '.mr_rooms_count_input')?.value || 1);
+                                const adultsG = Number(g.querySelector('.mr_adults_input')
                                     ?.value || 0);
-                                const adultsG = Number(g.querySelector(
-                                        `input[name="rooms[${gi}][adults]"]`)?.value ||
-                                    0);
                                 const childrenG = Number(g.querySelector(
-                                        `input[name="rooms[${gi}][children]"]`)
-                                    ?.value || 0);
-                                // we intentionally do NOT provide phong_id so server will auto-assign
+                                    '.mr_children_input')?.value || 0);
+                                const repId = g.dataset.representativePhongId || '';
+                                const selected_phong_ids = repId ? [parseInt(repId, 10)] :
+                                [];
+                                const finalPerNightGroup = computePerNightFromPrice(price);
+                                const loaiObjG = LOAI_PHONGS && LOAI_PHONGS[String(loai)];
+                                const specG = (loaiObjG && (loaiObjG.spec_signature_hash ||
+                                    loaiObjG.specSignatureHash)) || null;
+
                                 roomsPayload.push({
-                                    loai_phong_id: loai ? parseInt(loai, 10) : null,
+                                    loai_phong_id: loai,
                                     rooms_count: roomsCnt,
                                     adults: adultsG,
                                     children: childrenG,
-                                    // addons: [] // extend if needed
+                                    nights: nightsForPayload,
+                                    final_per_night: Math.round(finalPerNightGroup),
+                                    spec_signature_hash: specG,
+                                    selected_phong_ids: selected_phong_ids
                                 });
                             });
                         }
