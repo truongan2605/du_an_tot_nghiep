@@ -501,6 +501,7 @@
 
                 @if ($roomSource instanceof \Illuminate\Support\Collection && $roomSource->isNotEmpty())
                     @foreach ($roomSource as $item)
+                    
                         @php
                             // item có thể là model (dat_phong_item) hoặc array (từ roomLinesFromInvoice)
                             $isArrayLine = is_array($item);
@@ -564,9 +565,17 @@
                                     <div class="col-md-4 text-end">
                                         <strong class="text-success">{{ number_format($unitPrice, 0) }} ₫</strong>/đêm
                                     
-                                    <div class="col-md-4 text-end"><a href="{{ route('admin.change-room.form', $item->id) }}" class="btn btn-warning">
-    Đổi phòng
-</a></div></div>
+@if(
+    !in_array($booking->trang_thai, ['da_huy', 'da_hoan_thanh'])
+    && is_object($item)
+)
+    <a href="{{ route('admin.change-room.form', $item->id) }}"
+       class="btn btn-warning">
+        Đổi phòng
+    </a>
+@endif
+
+</div>
                                 </div>
                             </div>
                         </div>
