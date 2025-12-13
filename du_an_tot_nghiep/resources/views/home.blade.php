@@ -109,14 +109,25 @@
                         </div>
                     </div>
 
-                    {{-- Nhận phòng - Trả phòng --}}
+                    {{-- Nhận phòng - Trả phòng (UI + Hidden submit chuẩn) --}}
                     <div class="col-xl-3 col-md-6 d-flex align-items-center">
                         <i class="bi bi-calendar fs-3 me-3 text-muted d-none d-md-block"></i>
                         <div class="flex-grow-1">
                             <label class="form-label home-search-label mb-1">Nhận phòng - Trả phòng</label>
-                            <input type="text" class="form-control form-control-lg rounded-3 flatpickr"
-                                   name="date_range" data-mode="range"
-                                   placeholder="Chọn ngày" value="{{ request('date_range') }}">
+
+                            {{-- UI input (hiển thị) --}}
+                            <input type="text"
+                                   id="date_range_ui_home"
+                                   class="form-control form-control-lg rounded-3 flatpickr"
+                                   data-mode="range"
+                                   placeholder="Chọn ngày"
+                                   value="{{ request('date_range') }}">
+
+                            {{-- Hidden input (submit lên server theo chuẩn Y-m-d to Y-m-d) --}}
+                            <input type="hidden"
+                                   name="date_range"
+                                   id="date_range_home"
+                                   value="{{ request('date_range') }}">
                         </div>
                     </div>
 
@@ -168,6 +179,9 @@
 
                             <small class="text-muted d-block mt-2">Mỗi phòng tối đa 2 trẻ em.</small>
 
+                            {{-- THÔNG BÁO INLINE (thay cho alert) --}}
+                            <div id="guestPopupMsg" class="small text-danger mt-2" style="display:none;"></div>
+
                             <button type="button" id="guestPopupDone" class="btn btn-primary w-100 mt-3 rounded-pill">
                                 Xong
                             </button>
@@ -184,7 +198,6 @@
                         <input type="number" name="rooms_count" id="home_rooms_count"
                                class="form-control form-control-lg rounded-3"
                                min="1" value="{{ request('rooms_count', 1) }}">
-                        {{-- <small class="text-muted small d-block mt-1">Số phòng bạn muốn đặt</small> --}}
                     </div>
 
                     {{-- Hàng dưới: Giá + nút tìm kiếm --}}
@@ -219,7 +232,6 @@
                     </div>
                 </div>
             </form>
-
             <!-- Search END -->
         </div>
     </section>
@@ -568,7 +580,94 @@
 
         <script>
             document.addEventListener('DOMContentLoaded', function() {
+
+                // =========================
+                // HOME - Date range (UI + hidden submit chuẩn)
+                // Submit: YYYY-MM-DD to YYYY-MM-DD
+                // UI: d M
+                // =========================
+                (function initHomeDateRange() {
+                    const ui = document.getElementById('date_range_ui_home');
+                    const hidden = document.getElementById('date_range_home');
+                    if (!ui || !hidden || typeof flatpickr === 'undefined') return;
+
+                    if (ui._flatpickr) ui._flatpickr.destroy();
+
+                    const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test((s || '').trim());
+                    const monthMap = {
+                        jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+                        jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+                    };
+
+                    function pad2(n) {
+                        n = String(n || '').trim();
+                        return n.length === 1 ? ('0' + n) : n;
+                    }
+
+                    function parseDMonAnyYear(str) {
+                        const s = (str || '').trim();
+                        let m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
+                        if (m) {
+                            const dd = pad2(m[1]);
+                            const mon = monthMap[String(m[2]).slice(0,3).toLowerCase()];
+                            const yy = m[3];
+                            if (mon) return `${yy}-${mon}-${dd}`;
+                        }
+                        m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})$/);
+                        if (m) {
+                            const dd = pad2(m[1]);
+                            const mon = monthMap[String(m[2]).slice(0,3).toLowerCase()];
+                            const yy = String(new Date().getFullYear());
+                            if (mon) return `${yy}-${mon}-${dd}`;
+                        }
+                        return null;
+                    }
+
+                    function normalizeRange(raw) {
+                        const val = (raw || '').trim();
+                        if (!val) return null;
+
+                        const parts = val.split(' to ').map(x => x.trim()).filter(Boolean);
+                        if (parts.length !== 2) return null;
+
+                        if (isYmd(parts[0]) && isYmd(parts[1])) return [parts[0], parts[1]];
+
+                        const a = parseDMonAnyYear(parts[0]);
+                        const b = parseDMonAnyYear(parts[1]);
+                        if (a && b) return [a, b];
+
+                        return null;
+                    }
+
+                    // Ưu tiên hidden (server trả về) nếu có, nếu không lấy ui.value
+                    const raw = (hidden.value || '').trim() || (ui.value || '').trim();
+                    const normalized = normalizeRange(raw);
+
+                    const fp = flatpickr(ui, {
+                        mode: "range",
+                        minDate: "today",
+                        dateFormat: "Y-m-d",     // chuẩn để dateStr là Y-m-d
+                        defaultDate: normalized ? normalized : null,
+                        onChange: function(selectedDates, dateStr) {
+                            hidden.value = dateStr || '';
+                        },
+                        altInput: true,
+                        altFormat: "d M",
+                        altInputClass: ui.className,
+                    });
+
+                    if (normalized) {
+                        hidden.value = normalized[0] + ' to ' + normalized[1];
+                        fp.setDate(normalized, false);
+                    } else {
+                        // nếu format lạ -> clear hidden để tránh submit sai
+                        hidden.value = '';
+                    }
+                })();
+
+                // =========================
                 // Price slider
+                // =========================
                 var priceSlider = document.getElementById('price-slider-home');
                 var minInput = document.getElementById('gia_min_home');
                 var maxInput = document.getElementById('gia_max_home');
@@ -614,6 +713,20 @@
                 const roomsInput = document.getElementById("home_rooms_count");
                 const summary = document.getElementById("guestSummary");
 
+                const msgEl = document.getElementById("guestPopupMsg");
+
+                function showGuestMsg(message) {
+                    if (!msgEl) return;
+                    msgEl.textContent = message;
+                    msgEl.style.display = "block";
+                }
+
+                function clearGuestMsg() {
+                    if (!msgEl) return;
+                    msgEl.textContent = "";
+                    msgEl.style.display = "none";
+                }
+
                 function getRoomsHome() {
                     return parseInt(roomsInput?.value || '1', 10) || 1;
                 }
@@ -629,6 +742,7 @@
                     if (val > maxChildren) {
                         childrenCountEl.textContent = maxChildren;
                     }
+                    if (val <= maxChildren) clearGuestMsg();
                 }
 
                 if (roomsInput) {
@@ -637,48 +751,52 @@
                 }
 
                 if (popup && btn && adultsCountEl && childrenCountEl && inputAdults && inputChildren && summary) {
-                    // Toggle popup
                     btn.addEventListener("click", () => {
                         popup.style.display = popup.style.display === "block" ? "none" : "block";
+                        if (popup.style.display === "block") clearGuestMsg();
                     });
 
-                    // Handle + buttons
                     popup.querySelectorAll(".btn-plus").forEach(button => {
                         button.addEventListener("click", () => {
                             const target = button.dataset.target;
+
                             if (target === 'adults') {
                                 let v = parseInt(adultsCountEl.textContent || '1', 10);
                                 adultsCountEl.textContent = v + 1;
+                                clearGuestMsg();
                             } else if (target === 'children') {
                                 let v = parseInt(childrenCountEl.textContent || '0', 10);
-                                v++;
                                 const maxChildren = getMaxChildrenHome();
-                                if (v > maxChildren) {
-                                    v = maxChildren;
-                                    alert("Mỗi phòng tối đa 2 trẻ em.");
+
+                                if (v >= maxChildren) {
+                                    showGuestMsg(`Mỗi phòng tối đa 2 trẻ em. (${getRoomsHome()} phòng ⇒ tối đa ${maxChildren} trẻ em)`);
+                                    return;
                                 }
-                                childrenCountEl.textContent = v;
+
+                                childrenCountEl.textContent = v + 1;
+                                clearGuestMsg();
                             }
                         });
                     });
 
-                    // Handle - buttons
                     popup.querySelectorAll(".btn-minus").forEach(button => {
                         button.addEventListener("click", () => {
                             const target = button.dataset.target;
+
                             if (target === 'adults') {
                                 let v = parseInt(adultsCountEl.textContent || '1', 10);
                                 if (v > 1) v--;
                                 adultsCountEl.textContent = v;
+                                clearGuestMsg();
                             } else if (target === 'children') {
                                 let v = parseInt(childrenCountEl.textContent || '0', 10);
                                 if (v > 0) v--;
                                 childrenCountEl.textContent = v;
+                                clearGuestMsg();
                             }
                         });
                     });
 
-                    // Done button
                     document.getElementById("guestPopupDone").addEventListener("click", () => {
                         clampChildrenHome();
 
@@ -688,12 +806,13 @@
                         summary.textContent =
                             `${adultsCountEl.textContent} Người lớn, ${childrenCountEl.textContent} Trẻ em`;
 
+                        clearGuestMsg();
                         popup.style.display = "none";
                     });
 
-                    // Click outside to close
                     document.addEventListener("click", (e) => {
                         if (!popup.contains(e.target) && !btn.contains(e.target)) {
+                            clearGuestMsg();
                             popup.style.display = "none";
                         }
                     });
