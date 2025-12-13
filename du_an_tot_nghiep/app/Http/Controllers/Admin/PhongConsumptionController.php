@@ -72,7 +72,8 @@ class PhongConsumptionController extends Controller
                     ->where('vat_dung_id', $data['vat_dung_id'])
                     ->update(['so_luong' => $newSoLuong, 'da_tieu_thu' => $newDaTieu, 'updated_at' => now()]);
             } else {
-                if ($vat && $vat->isConsumable()) {
+                // Cho phép cả đồ ăn (do_an) và dịch vụ khác (dich_vu_khac)
+                if ($vat && ($vat->isConsumable() || $vat->isDichVuKhac())) {
                     DB::table('phong_vat_dung')->insert([
                         'phong_id' => $data['phong_id'],
                         'vat_dung_id' => $data['vat_dung_id'],
@@ -230,7 +231,7 @@ class PhongConsumptionController extends Controller
                     } else {
                         // If trying to increase consumption but pivot missing and item non-consumable -> error
                         $vat = VatDung::find($consumption->vat_dung_id);
-                        if ($vat && ! $vat->isConsumable()) {
+                        if ($vat && ! $vat->isConsumable() && ! $vat->isDichVuKhac()) {
                             DB::rollBack();
                             return back()->withErrors(['error' => 'Không thể tăng tiêu thụ: vật dụng không phải consumable và chưa có pivot.']);
                         }
@@ -281,9 +282,9 @@ class PhongConsumptionController extends Controller
             }
             $consumption->save();
 
-            // nếu là consumable và có phong_id -> tăng da_tieu_thu & giảm so_luong
+            // nếu là consumable hoặc dich_vu_khac và có phong_id -> tăng da_tieu_thu & giảm so_luong
             $vat = $consumption->vatDung;
-            if ($vat && $vat->isConsumable() && $consumption->phong_id) {
+            if ($vat && ($vat->isConsumable() || $vat->isDichVuKhac()) && $consumption->phong_id) {
                 $pivot = DB::table('phong_vat_dung')
                     ->where('phong_id', $consumption->phong_id)
                     ->where('vat_dung_id', $vat->id)

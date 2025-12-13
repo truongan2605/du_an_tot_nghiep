@@ -216,6 +216,42 @@
                 opacity: 1;
             }
         }
+
+        /* Custom Scrollbar cho notification dropdown - Admin */
+        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar-track {
+            background: #f0f4f8;
+            border-radius: 10px;
+            margin: 5px 0;
+            border: 1px solid #e0e8f0;
+        }
+
+        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #4a90e2 0%, #357abd 50%, #2a5f8f 100%);
+            border-radius: 10px;
+            border: 1px solid #5a9fe2;
+            transition: all 0.3s ease;
+        }
+
+        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
+            border-color: #6aaff2;
+            box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+        }
+
+        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb:active {
+            background: linear-gradient(180deg, #357abd 0%, #2a5f8f 50%, #1f4a7a 100%);
+            border-color: #4580cd;
+        }
+
+        /* Firefox scrollbar */
+        #adminNotificationDropdown + .dropdown-menu {
+            scrollbar-width: thin;
+            scrollbar-color: #4a90e2 #f0f4f8;
+        }
     </style>
 </head>
 
@@ -330,7 +366,7 @@
 
         <div class="sidebar-section-content collapse" id="section-staff">
             <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}"
-               href="{{ route('staff.index') }}" data-section="section-staff">
+               data-url="{{ route('staff.index') }}" data-section="section-staff">
                 <i class="fas fa-tachometer-alt"></i> Dashboard
             </a>
 
@@ -474,8 +510,7 @@
                                 <i class="fas fa-user me-1"></i>{{ auth()->user()?->name ?? 'Guest' }}
                             </button>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ route('home') }}"
-                                        data-url="{{ route('home') }}">
+                                <li><a class="dropdown-item" href="{{ route('home') }}">
                                         <i class="fas fa-home me-2"></i>Về trang chủ
                                     </a></li>
                                 <li><a class="dropdown-item" href="{{ route('staff.reports') }}"><i class="bi bi-file-text me-2"></i>Báo cáo thống kê</a></li>
@@ -564,7 +599,7 @@
                 })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return response.text();
                 })
@@ -572,7 +607,29 @@
                     // Parse HTML to extract content (assuming views have @section('content'))
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
-                    const newContent = doc.querySelector('#contentArea')?.innerHTML || html;
+                    
+                    // Try to find contentArea first, then try to find main content
+                    let newContent = doc.querySelector('#contentArea')?.innerHTML;
+                    
+                    // If not found, try to find the content section or main wrapper
+                    if (!newContent) {
+                        newContent = doc.querySelector('.content-area')?.innerHTML 
+                            || doc.querySelector('main')?.innerHTML 
+                            || doc.querySelector('.container-fluid')?.outerHTML
+                            || doc.querySelector('body')?.innerHTML
+                            || html;
+                    }
+                    
+                    // Debug logging
+                    console.log('Loading URL:', url);
+                    console.log('Content length:', newContent?.length || 0);
+                    
+                    // If still empty or just whitespace, try direct navigation
+                    if (!newContent || newContent.trim() === '' || newContent.trim().length < 50) {
+                        console.warn('Content is empty or too short, redirecting to:', url);
+                        window.location.href = url;
+                        return;
+                    }
 
                     // Inject content
                     contentArea.innerHTML = newContent;
@@ -594,9 +651,14 @@
                 })
                 .catch(error => {
                     console.error('Error loading content:', error);
-                    contentArea.innerHTML = '<div class="alert alert-danger">Lỗi tải nội dung. <a href="' + url +
-                        '">Tải lại trang</a></div>';
-                    contentArea.classList.remove('content-loading');
+                    console.error('URL:', url);
+                    // If AJAX fails, try direct navigation
+                    if (error.message.includes('Network') || error.message.includes('Failed to fetch')) {
+                        window.location.href = url;
+                    } else {
+                        contentArea.innerHTML = '<div class="alert alert-danger">Lỗi tải nội dung: ' + error.message + '. <a href="' + url + '">Tải lại trang</a></div>';
+                        contentArea.classList.remove('content-loading');
+                    }
                 });
         }
 

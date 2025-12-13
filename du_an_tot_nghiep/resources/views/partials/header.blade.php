@@ -177,89 +177,87 @@
             <ul class="nav flex-row align-items-center list-unstyled ms-xl-auto">
 
                 <!-- Notification dropdown START -->
-                <li class="nav-item dropdown ms-0 ms-md-3">
-                    <!-- Notification button -->
-                    <a class="nav-notification btn btn-light p-0 mb-0" href="#" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
-                        <i class="bi bi-bell fa-fw"></i>
-                    </a>
-                    <!-- Notification dote -->
-                    @auth
-                        @php
-                            $__unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', auth()->id())
-                                ->where('trang_thai', '!=', 'read')
-                                ->count();
-                        @endphp
-                        @if ($__unreadCount > 0)
-                            <span class="notif-badge animation-blink"></span>
-                        @endif
-                    @endauth
+                @auth
+                    <li class="nav-item dropdown ms-0 ms-md-3">
+                        <!-- Notification button -->
+                        <a class="nav-notification btn btn-light p-0 mb-0" href="#" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
+                            <i class="bi bi-bell fa-fw"></i>
+                        </a>
+                        <!-- Notification dote -->
+                        @auth
+                            @php
+                                $__unreadCount = \App\Models\ThongBao::where('nguoi_nhan_id', auth()->id())
+                                    ->where('trang_thai', '!=', 'read')
+                                    ->count();
+                            @endphp
+                            @if ($__unreadCount > 0)
+                                <span class="notif-badge animation-blink"></span>
+                            @endif
+                        @endauth
 
-                    <!-- Notification dropdown menu START -->
-                    <div class="dropdown-menu dropdown-animation dropdown-menu-end dropdown-menu-size-md shadow-lg p-0">
-                        <div class="card bg-transparent">
-                            <!-- Card header -->
-                            <div
-                                class="card-header bg-transparent d-flex justify-content-between align-items-center border-bottom">
-                                <h6 class="m-0">Thông báo @auth @if ($__unreadCount > 0)
-                                        <span
-                                            class="badge bg-danger bg-opacity-10 text-danger ms-2">{{ $__unreadCount }}
-                                            mới</span>
-                                    @endif @endauth
-                                </h6>
-                                @auth
-                                    <!-- Form removed - no longer needed -->
-                                @endauth
-                            </div>
-
-                            <!-- Card body START -->
-                            <div class="card-body p-0">
-                                <ul class="list-group list-group-flush list-unstyled p-2">
+                        <!-- Notification dropdown menu START -->
+                        <div
+                            class="dropdown-menu dropdown-animation dropdown-menu-end dropdown-menu-size-md shadow-lg p-0">
+                            <div class="card bg-transparent">
+                                <!-- Card header -->
+                                <div
+                                    class="card-header bg-transparent d-flex justify-content-between align-items-center border-bottom">
+                                    <h6 class="m-0">Thông báo @auth @if ($__unreadCount > 0)
+                                            <span
+                                                class="badge bg-danger bg-opacity-10 text-danger ms-2">{{ $__unreadCount }}
+                                                mới</span>
+                                        @endif @endauth
+                                    </h6>
                                     @auth
-                                        @php
-                                            $__notifications = \App\Models\ThongBao::where(
-                                                'nguoi_nhan_id',
-                                                auth()->id(),
-                                            )
-                                                ->latest('id')
-                                                ->limit(10)
-                                                ->get();
-                                        @endphp
-                                        @forelse($__notifications as $__n)
-                                            <li>
-                                                <a href="{{ route('notifications.show', $__n->id) }}"
-                                                    class="list-group-item list-group-item-action rounded border-0 mb-1 p-3 w-100 text-start notification-item {{ $__n->trang_thai !== 'read' ? 'notif-unread' : '' }}">
-                                                    <h6 class="mb-1">{{ $__n->payload['title'] ?? $__n->ten_template }}
-                                                    </h6>
-                                                    <p class="mb-0 small">{{ $__n->payload['message'] ?? '' }}</p>
-                                                    <span
-                                                        class="small text-muted">{{ $__n->created_at?->diffForHumans() }}</span>
-                                                </a>
-                                            </li>
-                                        @empty
-                                            <li class="text-center text-muted py-3">Không có thông báo</li>
-                                        @endforelse
+                                        <!-- Form removed - no longer needed -->
                                     @endauth
-                                </ul>
-                            </div>
-                            <!-- Card body END -->
+                                </div>
 
-                            <!-- Card footer -->
-                            <div class="card-footer bg-transparent text-center border-top">
-                                <button class="btn btn-sm btn-link mb-0 p-0"
-                                    onclick="notificationManager.markAllAsRead()">
-                                    <i class="fas fa-check-double me-1"></i>Đánh dấu tất cả đã đọc
-                                </button>
-                                @auth
-                                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="testClientBroadcast()">
-                                        <i class="fas fa-bell me-1"></i>Test Client
+                                <!-- Card body START -->
+                                <div class="card-body p-0 notification-list" style="max-height: 60vh; overflow: auto;">
+                                    <ul class="list-group list-group-flush list-unstyled p-2">
+                                        @auth
+                                            @php
+                                                $__notifications = \App\Models\ThongBao::where(
+                                                    'nguoi_nhan_id',
+                                                    auth()->id(),
+                                                )
+                                                    ->latest('id')
+                                                    ->limit(10)
+                                                    ->get();
+                                            @endphp
+                                            @forelse($__notifications as $__n)
+                                                <li>
+                                                    <a href="{{ route('notifications.show', $__n->id) }}"
+                                                        class="list-group-item list-group-item-action rounded border-0 mb-1 p-3 w-100 text-start notification-item {{ $__n->trang_thai !== 'read' ? 'notif-unread' : '' }}">
+                                                        <h6 class="mb-1">{{ $__n->payload['title'] ?? $__n->ten_template }}
+                                                        </h6>
+                                                        <p class="mb-0 small">{{ $__n->payload['message'] ?? '' }}</p>
+                                                        <span
+                                                            class="small text-muted">{{ $__n->created_at?->diffForHumans() }}</span>
+                                                    </a>
+                                                </li>
+                                            @empty
+                                                <li class="text-center text-muted py-3">Không có thông báo</li>
+                                            @endforelse
+                                        @endauth
+                                    </ul>
+                                </div>
+                                <!-- Card body END -->
+
+                                <!-- Card footer -->
+                                <div class="card-footer bg-transparent text-center border-top">
+                                    <button class="btn btn-sm btn-link mb-0 p-0"
+                                        onclick="notificationManager.markAllAsRead()">
+                                        <i class="fas fa-check-double me-1"></i>Đánh dấu tất cả đã đọc
                                     </button>
-                                @endauth
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <!-- Notification dropdown menu END -->
-                </li>
+                        <!-- Notification dropdown menu END -->
+                    </li>
+                @endauth
                 <!-- Notification dropdown END -->
 
                 <!-- Profile dropdown START -->
@@ -345,6 +343,109 @@
     </nav>
 </header>
 
+<style>
+    /* Custom Scrollbar cho notification dropdown - Tương thích sáng/tối */
+    .notification-list::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    /* Chế độ sáng (Light Mode) */
+    .notification-list::-webkit-scrollbar-track {
+        background: #f0f4f8;
+        border-radius: 10px;
+        margin: 5px 0;
+        border: 1px solid #e0e8f0;
+    }
+
+    .notification-list::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #4a90e2 0%, #357abd 50%, #2a5f8f 100%);
+        border-radius: 10px;
+        border: 1px solid #5a9fe2;
+        transition: all 0.3s ease;
+    }
+
+    .notification-list::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
+        border-color: #6aaff2;
+        box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+    }
+
+    .notification-list::-webkit-scrollbar-thumb:active {
+        background: linear-gradient(180deg, #357abd 0%, #2a5f8f 50%, #1f4a7a 100%);
+        border-color: #4580cd;
+    }
+
+    /* Firefox scrollbar - Light Mode */
+    .notification-list {
+        scrollbar-width: thin;
+        scrollbar-color: #4a90e2 #f0f4f8;
+    }
+
+    /* Chế độ tối (Dark Mode) */
+    @media (prefers-color-scheme: dark) {
+        .notification-list::-webkit-scrollbar-track {
+            background: #1a1f2e;
+            border-color: #2d3444;
+        }
+
+        .notification-list::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
+            border-color: #6aaff2;
+        }
+
+        .notification-list::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #6ab0ff 0%, #5590dd 50%, #4580cd 100%);
+            border-color: #7abfff;
+            box-shadow: 0 0 8px rgba(90, 160, 242, 0.3), inset 0 0 4px rgba(90, 160, 242, 0.1);
+        }
+
+        .notification-list::-webkit-scrollbar-thumb:active {
+            background: linear-gradient(180deg, #4580cd 0%, #3570ad 50%, #2a5f8f 100%);
+            border-color: #5590dd;
+        }
+
+        /* Firefox scrollbar - Dark Mode */
+        .notification-list {
+            scrollbar-color: #5aa0f2 #1a1f2e;
+        }
+    }
+
+    /* Hỗ trợ class-based dark mode (nếu có class dark trên body/html) */
+    body.dark-mode .notification-list::-webkit-scrollbar-track,
+    html.dark-mode .notification-list::-webkit-scrollbar-track {
+        background: #1a1f2e;
+        border-color: #2d3444;
+    }
+
+    body.dark-mode .notification-list::-webkit-scrollbar-thumb,
+    html.dark-mode .notification-list::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
+        border-color: #6aaff2;
+    }
+
+    body.dark-mode .notification-list::-webkit-scrollbar-thumb:hover,
+    html.dark-mode .notification-list::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #6ab0ff 0%, #5590dd 50%, #4580cd 100%);
+        border-color: #7abfff;
+        box-shadow: 0 0 8px rgba(90, 160, 242, 0.3), inset 0 0 4px rgba(90, 160, 242, 0.1);
+    }
+
+    body.dark-mode .notification-list,
+    html.dark-mode .notification-list {
+        scrollbar-color: #5aa0f2 #1a1f2e;
+    }
+
+    /* Smooth scroll behavior */
+    .notification-list {
+        scroll-behavior: smooth;
+    }
+
+    /* Thêm padding bên phải để tránh nội dung bị che bởi scrollbar */
+    .notification-list .list-group {
+        padding-right: 4px;
+    }
+</style>
+
 <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -379,6 +480,8 @@
         const modalBody = document.getElementById('notificationModalBody');
         const markAsReadBtn = document.getElementById('markAsReadBtn');
         let currentNotificationId = null;
+        let notificationInterval = null;
+        let isUpdatingNotifications = false;
 
         modal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
@@ -520,4 +623,203 @@
                 });
         }
     });
+
+    function updateNotificationBadge() {
+        fetch('/api/notifications/unread-count')
+            .then(response => response.json())
+            .then(data => {
+                const badge = document.querySelector('.notif-badge');
+                const badgeText = document.querySelector('.card-header .badge');
+                
+                if (badge) {
+                    if (data.count > 0) {
+                        badge.style.display = 'block';
+                        badge.textContent = data.count;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+                
+                // Cập nhật badge trong header
+                if (badgeText) {
+                    if (data.count > 0) {
+                        badgeText.textContent = data.count + ' mới';
+                        badgeText.style.display = 'inline';
+                    } else {
+                        badgeText.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error updating badge:', error);
+            });
+    }
+
+    // Hàm fetch và cập nhật danh sách thông báo
+    function fetchAndUpdateNotifications() {
+        // Kiểm tra xem user có đăng nhập không (kiểm tra qua element notification)
+        const notificationList = document.querySelector('.list-group.list-group-flush');
+        if (!notificationList) {
+            return; // User chưa đăng nhập, không fetch
+        }
+        
+        // Chỉ fetch nếu không đang trong quá trình cập nhật
+        if (isUpdatingNotifications) {
+            return;
+        }
+        
+        isUpdatingNotifications = true;
+        
+        fetch('/api/notifications/recent?limit=10', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return response.json();
+        })
+        .then(data => {
+            console.log(data);
+            if (data.success && data.data) {
+                updateNotificationList(data.data);
+                updateNotificationBadge();
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching notifications:', error);
+        })
+        .finally(() => {
+            isUpdatingNotifications = false;
+        });
+    }
+
+    // Hàm cập nhật danh sách thông báo trong dropdown
+    function updateNotificationList(notifications) {
+        const notificationList = document.querySelector('.list-group.list-group-flush');
+        if (!notificationList) {
+            return;
+        }
+
+        // Lưu trạng thái scroll hiện tại
+        const wasAtTop = notificationList.scrollTop === 0;
+        const scrollPosition = notificationList.scrollTop;
+
+        // Xóa danh sách cũ (giữ lại phần tử đầu tiên nếu có)
+        notificationList.innerHTML = '';
+
+        // Render danh sách thông báo mới
+        if (notifications.length === 0) {
+            notificationList.innerHTML = '<li class="text-center text-muted py-3">Không có thông báo</li>';
+        } else {
+            notifications.forEach(notification => {
+                const isUnread = notification.trang_thai !== 'read';
+                const title = notification.payload?.title || notification.ten_template || 'Thông báo';
+                const message = notification.payload?.message || '';
+                const timeAgo = getTimeAgo(notification.created_at);
+                const notificationUrl = `/notifications/${notification.id}`;
+
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `
+                    <a href="${notificationUrl}"
+                        class="list-group-item list-group-item-action rounded border-0 mb-1 p-3 w-100 text-start notification-item ${isUnread ? 'notif-unread' : ''}"
+                        data-notification-id="${notification.id}">
+                        <h6 class="mb-1">${escapeHtml(title)}</h6>
+                        <p class="mb-0 small">${escapeHtml(message)}</p>
+                        <span class="small text-muted">${timeAgo}</span>
+                    </a>
+                `;
+                notificationList.appendChild(listItem);
+            });
+        }
+
+        // Khôi phục vị trí scroll nếu đang ở đầu danh sách
+        if (wasAtTop) {
+            notificationList.scrollTop = 0;
+        } else {
+            notificationList.scrollTop = scrollPosition;
+        }
+    }
+
+    // Hàm format thời gian
+    function getTimeAgo(dateString) {
+        if (!dateString) return '';
+        
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) {
+            return 'Vừa xong';
+        } else if (diffInSeconds < 3600) {
+            const minutes = Math.floor(diffInSeconds / 60);
+            return `${minutes} phút trước`;
+        } else if (diffInSeconds < 86400) {
+            const hours = Math.floor(diffInSeconds / 3600);
+            return `${hours} giờ trước`;
+        } else if (diffInSeconds < 604800) {
+            const days = Math.floor(diffInSeconds / 86400);
+            return `${days} ngày trước`;
+        } else {
+            return date.toLocaleDateString('vi-VN');
+        }
+    }
+
+    // Hàm escape HTML để tránh XSS
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Khởi động realtime updates khi user đã đăng nhập
+    // Kiểm tra xem có element notification list không (chỉ có khi user đã đăng nhập)
+    const notificationListCheck = document.querySelector('.list-group.list-group-flush');
+    if (notificationListCheck) {
+        // Fetch ngay lập tức khi trang load
+        fetchAndUpdateNotifications();
+        
+        // Thiết lập interval để fetch mỗi 5 giây
+        notificationInterval = setInterval(function() {
+            fetchAndUpdateNotifications();
+        }, 5000);
+        
+        // Dừng interval khi user rời khỏi trang
+        window.addEventListener('beforeunload', function() {
+            if (notificationInterval) {
+                clearInterval(notificationInterval);
+            }
+        });
+        
+        // Tạm dừng khi dropdown đang mở để tránh làm gián đoạn
+        const notificationDropdown = document.querySelector('.nav-notification[data-bs-toggle="dropdown"]');
+        if (notificationDropdown) {
+            let dropdownInterval = null;
+            
+            notificationDropdown.addEventListener('show.bs.dropdown', function() {
+                // Tạm dừng khi dropdown mở
+                if (notificationInterval) {
+                    clearInterval(notificationInterval);
+                    notificationInterval = null;
+                }
+            });
+            
+            notificationDropdown.addEventListener('hide.bs.dropdown', function() {
+                // Tiếp tục khi dropdown đóng
+                if (!notificationInterval) {
+                    notificationInterval = setInterval(function() {
+                        fetchAndUpdateNotifications();
+                    }, 5000);
+                }
+            });
+        }
+    }
+});
 </script>

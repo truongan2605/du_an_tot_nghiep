@@ -42,14 +42,22 @@
 
                             <div class="col-md-6">
                                 <label for="loai" class="form-label">Loại</label>
-                                <select name="loai" id="loai" class="form-select">
-                                    <option value="do_dung"
-                                        {{ old('loai', $vatDung->loai) === 'do_dung' ? 'selected' : '' }}>Đồ dùng (durable)
-                                    </option>
-                                    <option value="do_an" {{ old('loai', $vatDung->loai) === 'do_an' ? 'selected' : '' }}>
-                                        Đồ ăn (tiêu thụ)</option>
-                                </select>
-                                <div class="form-text">Đổi loại nếu cần; chú ý ảnh hưởng tới luồng tính tiền.</div>
+                                @if($vatDung->loai === \App\Models\VatDung::LOAI_DICH_VU_KHAC)
+                                    <input type="text" class="form-control" value="Dịch vụ khác" disabled>
+                                    <input type="hidden" name="loai" value="dich_vu_khac">
+                                    <div class="form-text text-warning">
+                                        <i class="fas fa-info-circle"></i> Loại này được quản lý từ phần Quản lý dịch vụ và không thể thay đổi tại đây.
+                                    </div>
+                                @else
+                                    <select name="loai" id="loai" class="form-select">
+                                        <option value="do_dung"
+                                            {{ old('loai', $vatDung->loai) === 'do_dung' ? 'selected' : '' }}>Đồ dùng (durable)
+                                        </option>
+                                        <option value="do_an" {{ old('loai', $vatDung->loai) === 'do_an' ? 'selected' : '' }}>
+                                            Đồ ăn (tiêu thụ)</option>
+                                    </select>
+                                    <div class="form-text">Đổi loại nếu cần; chú ý ảnh hưởng tới luồng tính tiền.</div>
+                                @endif
                             </div>
                         </div>
 

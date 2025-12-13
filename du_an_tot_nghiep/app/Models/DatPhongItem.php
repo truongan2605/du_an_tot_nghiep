@@ -18,11 +18,21 @@ class DatPhongItem extends Model
         'phong_id',
         'loai_phong_id',
         'so_luong',
+        'so_nguoi_o',
+        'number_child',
+        'number_adult',
         'gia_tren_dem',
         'so_dem',
         'taxes_amount',
         'tong_item',
+        'voucher_allocated',  // Số tiền voucher được giảm cho phòng này
         'spec_signature_hash',
+        // Hỗ trợ hủy từng phòng
+        'trang_thai',
+        'refund_amount',
+        'refund_percentage',
+        'cancelled_at',
+        'cancellation_reason',
     ];
 
     protected $casts = [
@@ -56,6 +66,14 @@ class DatPhongItem extends Model
     public function phongDaDats()
     {
         return $this->hasMany(PhongDaDat::class, 'dat_phong_item_id');
+    }
+
+    /**
+     * Liên kết với yêu cầu hoàn tiền (nếu phòng này bị hủy)
+     */
+    public function refundRequest()
+    {
+        return $this->hasOne(RefundRequest::class, 'dat_phong_item_id');
     }
 
     // Accessors

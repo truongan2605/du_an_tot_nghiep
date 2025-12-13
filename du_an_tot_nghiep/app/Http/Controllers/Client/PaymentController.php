@@ -783,17 +783,63 @@ public function handleMoMoCallback(Request $request)
                 'can_thanh_toan' => !$isFullPayment,
             ]);
 
+            // Ghi nhận sử dụng voucher nếu có
+            if (!empty($dat_phong->voucher_id)) {
+                VoucherUsage::firstOrCreate(
+                    [
+                        'dat_phong_id' => $dat_phong->id,
+                        'voucher_id'   => $dat_phong->voucher_id,
+                    ],
+                    [
+                        'nguoi_dung_id'  => $dat_phong->nguoi_dung_id,
+                        'amount' => $dat_phong->voucher_discount ?? 0,
+                        'used_at'  => now(),
+                    ]
+                );
+            }
+
             $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
             $phongIdsToOccupy = [];
 
-            foreach ($giu_phongs as $giu_phong) {
-                $meta = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
-                if (!is_array($meta)) $meta = [];
+            // AUTO-DISTRIBUTE adults and children separately
+            $totalAdults = ($meta['computed_adults'] ?? 0);
+            $totalChildren = ($meta['chargeable_children'] ?? 0);
+            $baseAdultsPerRoom = floor($totalAdults / $roomsCount);
+            $extraAdults = $totalAdults % $roomsCount;
+            $baseChildrenPerRoom = floor($totalChildren / $roomsCount);
+            $extraChildren = $totalChildren % $roomsCount;
+            
+            foreach ($giu_phongs as $index => $giu_phong) {
+                $meta_item = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
+                if (!is_array($meta_item)) $meta_item = [];
 
-                $nights = $meta['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
-                $price_per_night = $meta['final_per_night'] ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+                $nights = $meta_item['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
+                
+                // Calculate price per night from discounted total (same as VNPay)
+                // This ensures voucher discount is distributed across all rooms
+                $price_per_night = $meta_item['final_per_night']
+                    ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+                
+                // Calculate guests for THIS room
+                $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
+                $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
+                $guestsInRoom = $adultsInRoom + $childrenInRoom;
+                
+                // Get room capacity for guest tracking
+                $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
+                $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
+                
+                // Calculate extra guests beyond capacity (for tracking only)
+                $adultsInCapacity = min($adultsInRoom, $capacity);
+                $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
+                $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
+                $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
 
-                $specSignatureHash = $meta['spec_signature_hash'] ?? $meta['requested_spec_signature'] ?? null;
+                $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
+
+                // Calculate voucher amount allocated to THIS room (evenly distributed)
+                $totalVoucherDiscount = $dat_phong->voucher_discount ?? 0;
+                $voucherAllocated = $roomsCount > 0 ? ($totalVoucherDiscount / $roomsCount) : 0;
 
                 $itemPayload = [
                     'dat_phong_id' => $dat_phong->id,
@@ -801,8 +847,12 @@ public function handleMoMoCallback(Request $request)
                     'loai_phong_id' => $giu_phong->loai_phong_id,
                     'so_dem' => $nights,
                     'so_luong' => $giu_phong->so_luong ?? 1,
-                    'gia_tren_dem' => $price_per_night,
+                    'so_nguoi_o' => $guestsInRoom,
+                    'number_child' => $extraChildrenThisRoom,   // Extra children count
+                    'number_adult' => $extraAdultsThisRoom,      // Extra adults count
+                    'gia_tren_dem' => $price_per_night,          // Discounted price (includes voucher)
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                    'voucher_allocated' => $voucherAllocated,    // NEW: Voucher discount for this room
                     'spec_signature_hash' => $specSignatureHash,
                 ];
 
@@ -911,17 +961,63 @@ public function handleMoMoIPN(Request $request)
                 'can_thanh_toan' => !$isFullPayment,
             ]);
 
+            // Ghi nhận sử dụng voucher nếu có
+            if (!empty($dat_phong->voucher_id)) {
+                VoucherUsage::firstOrCreate(
+                    [
+                        'dat_phong_id' => $dat_phong->id,
+                        'voucher_id'   => $dat_phong->voucher_id,
+                    ],
+                    [
+                        'nguoi_dung_id'  => $dat_phong->nguoi_dung_id,
+                        'amount' => $dat_phong->voucher_discount ?? 0,
+                        'used_at'  => now(),
+                    ]
+                );
+            }
+
             $giu_phongs = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
             $phongIdsToOccupy = [];
 
-            foreach ($giu_phongs as $giu_phong) {
-                $meta = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
-                if (!is_array($meta)) $meta = [];
+            // AUTO-DISTRIBUTE adults and children separately
+            $totalAdults = ($meta['computed_adults'] ?? 0);
+            $totalChildren = ($meta['chargeable_children'] ?? 0);
+            $baseAdultsPerRoom = floor($totalAdults / $roomsCount);
+            $extraAdults = $totalAdults % $roomsCount;
+            $baseChildrenPerRoom = floor($totalChildren / $roomsCount);
+            $extraChildren = $totalChildren % $roomsCount;
+            
+            foreach ($giu_phongs as $index => $giu_phong) {
+                $meta_item = is_string($giu_phong->meta) ? json_decode($giu_phong->meta, true) : $giu_phong->meta;
+                if (!is_array($meta_item)) $meta_item = [];
 
-                $nights = $meta['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
-                $price_per_night = $meta['final_per_night'] ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+                $nights = $meta_item['nights'] ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
+                
+                // Calculate price per night from discounted total (same as VNPay)
+                // This ensures voucher discount is distributed across all rooms
+                $price_per_night = $meta_item['final_per_night']
+                    ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+                
+                // Calculate guests for THIS room
+                $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
+                $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
+                $guestsInRoom = $adultsInRoom + $childrenInRoom;
+                
+                // Get room capacity for guest tracking
+                $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
+                $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
+                
+                // Calculate extra guests beyond capacity (for tracking only)
+                $adultsInCapacity = min($adultsInRoom, $capacity);
+                $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
+                $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
+                $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
 
-                $specSignatureHash = $meta['spec_signature_hash'] ?? $meta['requested_spec_signature'] ?? null;
+                $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
+
+                // Calculate voucher amount allocated to THIS room (evenly distributed)
+                $totalVoucherDiscount = $dat_phong->voucher_discount ?? 0;
+                $voucherAllocated = $roomsCount > 0 ? ($totalVoucherDiscount / $roomsCount) : 0;
 
                 $itemPayload = [
                     'dat_phong_id' => $dat_phong->id,
@@ -929,8 +1025,12 @@ public function handleMoMoIPN(Request $request)
                     'loai_phong_id' => $giu_phong->loai_phong_id,
                     'so_dem' => $nights,
                     'so_luong' => $giu_phong->so_luong ?? 1,
-                    'gia_tren_dem' => $price_per_night,
+                    'so_nguoi_o' => $guestsInRoom,
+                    'number_child' => $extraChildrenThisRoom,   // Extra children count
+                    'number_adult' => $extraAdultsThisRoom,      // Extra adults count
+                    'gia_tren_dem' => $price_per_night,          // Discounted price (includes voucher)
                     'tong_item' => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                    'voucher_allocated' => $voucherAllocated,    // NEW: Voucher discount for this room
                     'spec_signature_hash' => $specSignatureHash,
                 ];
 
@@ -1035,7 +1135,15 @@ public function handleMoMoIPN(Request $request)
             ]);
         }
 
-        $meta = is_array($dat_phong->snapshot_meta) ? $dat_phong->snapshot_meta : json_decode($dat_phong->snapshot_meta, true);
+        $snapshotMeta = $dat_phong->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $roomsCount = $meta['rooms_count'] ?? 1;
 
         return DB::transaction(function () use (
@@ -1044,7 +1152,8 @@ public function handleMoMoIPN(Request $request)
             $inputData,
             $giao_dich,
             $dat_phong,
-            $roomsCount
+            $roomsCount,
+            $meta
         ) {
             if ($vnp_ResponseCode === '00' && $giao_dich->so_tien == $vnp_Amount) {
                 $giao_dich->update([
@@ -1074,20 +1183,50 @@ public function handleMoMoIPN(Request $request)
                 $giu_phongs       = GiuPhong::where('dat_phong_id', $dat_phong->id)->get();
                 $phongIdsToOccupy = [];
 
-                foreach ($giu_phongs as $giu_phong) {
-                    $meta = is_string($giu_phong->meta)
+                // AUTO-DISTRIBUTE adults and children separately
+                $totalAdults = ($meta['computed_adults'] ?? 0);
+                $totalChildren = ($meta['chargeable_children'] ?? 0);
+                $baseAdultsPerRoom = floor($totalAdults / $roomsCount);
+                $extraAdults = $totalAdults % $roomsCount;
+                $baseChildrenPerRoom = floor($totalChildren / $roomsCount);
+                $extraChildren = $totalChildren % $roomsCount;
+
+                foreach ($giu_phongs as $index => $giu_phong) {
+                    $meta_item = is_string($giu_phong->meta)
                         ? json_decode($giu_phong->meta, true)
                         : $giu_phong->meta;
-                    if (!is_array($meta)) {
-                        $meta = [];
+                    if (!is_array($meta_item)) {
+                        $meta_item = [];
                     }
 
-                    $nights = $meta['nights']
+                    $nights = $meta_item['nights']
                         ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
-                    $price_per_night = $meta['final_per_night']
+                    
+                    // Calculate price per night from discounted total (same as MoMo fix)
+                    // This ensures voucher discount is distributed across all rooms
+                    $price_per_night = $meta_item['final_per_night']
                         ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
+                    
+                    // Calculate guests for THIS room (fair distribution)
+                    $adultsInRoom = $baseAdultsPerRoom + ($index < $extraAdults ? 1 : 0);
+                    $childrenInRoom = $baseChildrenPerRoom + ($index < $extraChildren ? 1 : 0);
+                    $guestsInRoom = $adultsInRoom + $childrenInRoom;
+                    
+                    // Get room capacity for guest tracking
+                    $phong = $giu_phong->phong_id ? \App\Models\Phong::find($giu_phong->phong_id) : null;
+                    $capacity = $phong ? ($phong->suc_chua ?? 2) : 2;
+                    
+                    // Calculate extra guests beyond capacity (for tracking only)
+                    $adultsInCapacity = min($adultsInRoom, $capacity);
+                    $childrenInCapacity = min($childrenInRoom, max(0, $capacity - $adultsInCapacity));
+                    $extraAdultsThisRoom = $adultsInRoom - $adultsInCapacity;
+                    $extraChildrenThisRoom = $childrenInRoom - $childrenInCapacity;
 
-                    $specSignatureHash = $meta['spec_signature_hash'] ?? $meta['requested_spec_signature'] ?? null;
+                    $specSignatureHash = $meta_item['spec_signature_hash'] ?? $meta_item['requested_spec_signature'] ?? null;
+
+                    // Calculate voucher amount allocated to THIS room (evenly distributed)
+                    $totalVoucherDiscount = $dat_phong->voucher_discount ?? 0;
+                    $voucherAllocated = $roomsCount > 0 ? ($totalVoucherDiscount / $roomsCount) : 0;
 
                     $itemPayload = [
                         'dat_phong_id'       => $dat_phong->id,
@@ -1095,8 +1234,12 @@ public function handleMoMoIPN(Request $request)
                         'loai_phong_id'      => $giu_phong->loai_phong_id,
                         'so_dem'             => $nights,
                         'so_luong'           => $giu_phong->so_luong ?? 1,
-                        'gia_tren_dem'       => $price_per_night,
+                        'so_nguoi_o'         => $guestsInRoom,
+                        'number_child'       => $extraChildrenThisRoom,   // Extra children count
+                        'number_adult'       => $extraAdultsThisRoom,      // Extra adults count
+                        'gia_tren_dem'       => $price_per_night,          // Discounted price (includes voucher)
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                        'voucher_allocated'  => $voucherAllocated,         // NEW: Voucher discount for this room
                         'spec_signature_hash' => $specSignatureHash,
                     ];
 
@@ -1243,10 +1386,25 @@ public function handleMoMoIPN(Request $request)
 
                     $nights = $meta['nights']
                         ?? $this->calculateNights($dat_phong->ngay_nhan_phong, $dat_phong->ngay_tra_phong);
+                    
+                    Log::debug('VNPay callback price calculation', [
+                        'dat_phong_id' => $dat_phong->id,
+                        'tong_tien' => $dat_phong->tong_tien,
+                        'voucher_discount' => $dat_phong->voucher_discount,
+                        'meta_final_per_night' => $meta['final_per_night'] ?? null,
+                        'nights' => $nights,
+                        'roomsCount' => $roomsCount,
+                        'calculated_price' => $dat_phong->tong_tien / max(1, $nights * $roomsCount),
+                    ]);
+                    
                     $price_per_night = $meta['final_per_night']
                         ?? ($dat_phong->tong_tien / max(1, $nights * $roomsCount));
 
                     $specSignatureHash = $meta['spec_signature_hash'] ?? $meta['requested_spec_signature'] ?? null;
+
+                    // Calculate voucher amount allocated to THIS room (evenly distributed)
+                    $totalVoucherDiscount = $dat_phong->voucher_discount ?? 0;
+                    $voucherAllocated = $roomsCount > 0 ? ($totalVoucherDiscount / $roomsCount) : 0;
 
                     $itemPayload = [
                         'dat_phong_id'       => $dat_phong->id,
@@ -1256,6 +1414,7 @@ public function handleMoMoIPN(Request $request)
                         'so_luong'           => $giu_phong->so_luong ?? 1,
                         'gia_tren_dem'       => $price_per_night,
                         'tong_item'          => $price_per_night * $nights * ($giu_phong->so_luong ?? 1),
+                        'voucher_allocated'  => $voucherAllocated,  // NEW: Voucher discount for this room
                         'spec_signature_hash' => $specSignatureHash,
                     ];
 
@@ -1405,7 +1564,7 @@ public function handleMoMoIPN(Request $request)
     {
         $request->validate(['nha_cung_cap' => 'required|in:tien_mat,vnpay,momo']);
 
-        $booking = DatPhong::with(['giaoDichs', 'nguoiDung'])
+        $booking = DatPhong::with(['giaoDichs', 'nguoiDung', 'datPhongItems'])
             ->lockForUpdate()
             ->findOrFail($dat_phong_id);
 
@@ -1414,7 +1573,15 @@ public function handleMoMoIPN(Request $request)
         }
 
         // Kiểm tra CCCD trước khi thanh toán
-        $meta = is_array($booking->snapshot_meta) ? $booking->snapshot_meta : json_decode($booking->snapshot_meta, true) ?? [];
+        $snapshotMeta = $booking->snapshot_meta;
+        if (is_array($snapshotMeta)) {
+            $meta = $snapshotMeta;
+        } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+            $decoded = json_decode($snapshotMeta, true);
+            $meta = is_array($decoded) ? $decoded : [];
+        } else {
+            $meta = [];
+        }
         $cccdList = $meta['checkin_cccd_list'] ?? [];
         $hasCCCD = !empty($cccdList) && is_array($cccdList) && count($cccdList) > 0;
 
@@ -1433,19 +1600,90 @@ public function handleMoMoIPN(Request $request)
             return back()->with('error', 'Đã thanh toán đủ, không cần thanh toán thêm.');
         }
 
-        $transaction = DB::transaction(function () use ($booking, $remaining, $request) {
+        // Tính phụ thu checkin sớm nếu có thể checkin sớm
+        $earlyCheckinFee = 0;
+        $now = \Carbon\Carbon::now();
+        $checkinDate = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+        $standardCheckinTime = $checkinDate->copy()->setTime(14, 0, 0);
+        
+        // Kiểm tra xem đã thanh toán phụ thu checkin sớm chưa
+        $hasPaidEarlyCheckinFee = !empty($meta['early_checkin_fee_paid']) && $meta['early_checkin_fee_paid'] > 0;
+        
+        // Nếu chưa thanh toán và có thể checkin sớm, tính phụ thu
+        if (!$hasPaidEarlyCheckinFee && $now->isBefore($standardCheckinTime) && $now->isSameDay($checkinDate)) {
+            $hoursEarly = $now->diffInHours($standardCheckinTime, false);
+            if ($hoursEarly > 0) {
+                // Tính tổng giá phòng theo ngày
+                $datPhongItems = $booking->datPhongItems;
+                $dailyTotal = $datPhongItems->reduce(function ($carry, $item) {
+                    $qty = $item->so_luong ?? 1;
+                    $unit = $item->gia_tren_dem ?? 0;
+                    return $carry + ($unit * $qty);
+                }, 0.0);
+                
+                // Kiểm tra hình thức thanh toán (50% hay 100%)
+                $depositPercentage = $meta['deposit_percentage'] ?? 50;
+                
+                // Tính tổng số tiền đã thanh toán
+                $paidAmount = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                
+                // Tính tổng tiền booking
+                $totalAmount = $booking->tong_tien ?? 0;
+                
+                // Xác định hình thức thanh toán: >= 95% coi là 100%
+                $isFullPayment = false;
+                if ($totalAmount > 0) {
+                    $paymentPercentage = ($paidAmount / $totalAmount) * 100;
+                    $isFullPayment = ($paymentPercentage >= 95) || ($depositPercentage == 100);
+                }
+                
+                // Phí checkin sớm: 30% giá phòng/ngày cho mỗi giờ sớm
+                $perHourRate = $dailyTotal * 0.3 / 24;
+                
+                if ($isFullPayment) {
+                    // Thanh toán 100%: tính phí không giới hạn (100%)
+                    $earlyCheckinFee = $perHourRate * $hoursEarly;
+                } else {
+                    // Đặt cọc 50%: tối đa 50% giá phòng/ngày
+                    $earlyCheckinFee = min($perHourRate * $hoursEarly, $dailyTotal * 0.5);
+                }
+                
+                $earlyCheckinFee = (int) round($earlyCheckinFee, 0);
+            }
+        }
+
+        // Cộng phụ thu checkin sớm vào số tiền cần thanh toán
+        $totalToPay = $remaining + $earlyCheckinFee;
+
+        $transaction = DB::transaction(function () use ($booking, $remaining, $earlyCheckinFee, $totalToPay, $request, $meta) {
             $nhaCungCap = $request->nha_cung_cap;
             $trangThai  = $nhaCungCap === 'tien_mat' ? 'thanh_cong' : 'dang_cho';
 
+            // Tạo giao dịch thanh toán (bao gồm cả phụ thu checkin sớm nếu có)
+            $ghiChu = "Thanh toán phần còn lại booking: {$booking->ma_tham_chieu}";
+            if ($earlyCheckinFee > 0) {
+                $ghiChu .= " (Bao gồm phụ thu checkin sớm: " . number_format($earlyCheckinFee) . " VND)";
+            }
+            
             $giaoDich = GiaoDich::create([
                 'dat_phong_id' => $booking->id,
                 'nha_cung_cap' => $nhaCungCap,
-                'so_tien'      => $remaining,
+                'so_tien'      => $totalToPay,
                 'don_vi'       => 'VND',
                 'trang_thai'   => $trangThai,
                 'provider_txn_ref' => null,
-                'ghi_chu'      => "Thanh toán phần còn lại booking: {$booking->ma_tham_chieu}",
+                'ghi_chu'      => $ghiChu,
             ]);
+            
+            // Lưu thông tin đã thanh toán phụ thu checkin sớm vào meta và cập nhật tong_tien
+            if ($earlyCheckinFee > 0) {
+                $meta['early_checkin_fee_paid'] = $earlyCheckinFee;
+                $meta['early_checkin_fee_paid_at'] = now()->toDateTimeString();
+                $booking->snapshot_meta = $meta;
+                // Cập nhật tong_tien để bao gồm phụ thu checkin sớm
+                $booking->tong_tien = (float)$booking->tong_tien + $earlyCheckinFee;
+                $booking->save();
+            }
 
             Log::info('Created remaining payment transaction', [
                 'giao_dich_id' => $giaoDich->id,
@@ -1455,16 +1693,23 @@ public function handleMoMoIPN(Request $request)
             ]);
 
             if ($nhaCungCap === 'tien_mat') {
-                $booking->update([
-                    'trang_thai' => 'dang_su_dung',
-                    'checked_in_at' => now(),
-                    'checked_in_by' => Auth::id(),
-                ]);
+                // Nếu đã thanh toán đủ (bao gồm phụ thu), tự động checkin
+                $totalPaidAfter = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                $finalTongTien = $booking->tong_tien; // Đã được cập nhật nếu có phụ thu
+                
+                if ($totalPaidAfter >= $finalTongTien) {
+                    $booking->update([
+                        'trang_thai' => 'dang_su_dung',
+                        'checked_in_at' => now(),
+                        'checked_in_by' => Auth::id(),
+                        'is_early_checkin' => $earlyCheckinFee > 0,
+                        'early_checkin_fee_amount' => $earlyCheckinFee > 0 ? $earlyCheckinFee : 0,
+                    ]);
+                }
 
                 // Gửi thông báo thanh toán toàn bộ hoặc phần còn lại
-                $totalPaid = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
                 $notificationService = new PaymentNotificationService();
-                if ($totalPaid >= $booking->tong_tien) {
+                if ($totalPaidAfter >= $finalTongTien) {
                     $notificationService->sendFullPaymentNotification($booking, $giaoDich);
                 } else {
                     $notificationService->sendRoomPaymentNotification($booking, $giaoDich);
@@ -1475,14 +1720,24 @@ public function handleMoMoIPN(Request $request)
         });
 
         if ($request->nha_cung_cap === 'vnpay') {
-            return $this->redirectToVNPay($transaction, $remaining);
+            return $this->redirectToVNPay($transaction, $totalToPay);
         }
 
         if ($request->nha_cung_cap === 'momo') {
-            return $this->redirectToMoMo($transaction, $remaining);
+            return $this->redirectToMoMo($transaction, $totalToPay);
         }
 
-        return redirect()->route('staff.checkin')->with('success', 'Thanh toán tiền mặt thành công. Phòng đã được đưa vào sử dụng.');
+        $message = 'Thanh toán tiền mặt thành công.';
+        if ($earlyCheckinFee > 0) {
+            $message .= ' Phụ thu checkin sớm: ' . number_format($earlyCheckinFee) . ' VND đã được thanh toán.';
+        }
+        $totalPaidAfter = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+        $finalTongTien = $booking->tong_tien;
+        if ($totalPaidAfter >= $finalTongTien) {
+            $message .= ' Phòng đã được đưa vào sử dụng.';
+        }
+        
+        return redirect()->route('staff.checkin')->with('success', $message);
     }
 
     public function handleRemainingCallback(Request $request)
@@ -1585,6 +1840,30 @@ public function handleMoMoIPN(Request $request)
                 ]);
                 return redirect()->route('staff.checkin')
                     ->with('success', 'Thanh toán đặt phòng thành công.');
+            }
+            
+            // Kiểm tra xem giao dịch có bao gồm phụ thu checkin sớm không
+            $snapshotMeta = $booking->snapshot_meta;
+            if (is_array($snapshotMeta)) {
+                $meta = $snapshotMeta;
+            } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+                $decoded = json_decode($snapshotMeta, true);
+                $meta = is_array($decoded) ? $decoded : [];
+            } else {
+                $meta = [];
+            }
+            
+            // Nếu giao dịch có phụ thu checkin sớm, cập nhật tong_tien
+            if (strpos($transaction->ghi_chu ?? '', 'phụ thu checkin sớm') !== false || !empty($meta['early_checkin_fee_paid'])) {
+                $paidAmount = $booking->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                $originalTongTien = $booking->tong_tien;
+                $earlyFeePaid = $meta['early_checkin_fee_paid'] ?? 0;
+                
+                // Nếu tong_tien chưa bao gồm phụ thu, cập nhật
+                if ($earlyFeePaid > 0 && abs($paidAmount - ($originalTongTien + $earlyFeePaid)) < 1) {
+                    $booking->tong_tien = $originalTongTien + $earlyFeePaid;
+                    $booking->save();
+                }
             }
 
             Log::info('Current booking status BEFORE update', [
@@ -2049,6 +2328,29 @@ public function handleMoMoIPN(Request $request)
                     'provider_txn_ref' => $request->input('transId', ''),
                 ]);
 
+                // Kiểm tra xem giao dịch có bao gồm phụ thu checkin sớm không
+                $snapshotMeta = $dat_phong->snapshot_meta;
+                if (is_array($snapshotMeta)) {
+                    $meta = $snapshotMeta;
+                } elseif (is_string($snapshotMeta) && !empty($snapshotMeta)) {
+                    $decoded = json_decode($snapshotMeta, true);
+                    $meta = is_array($decoded) ? $decoded : [];
+                } else {
+                    $meta = [];
+                }
+                
+                // Nếu giao dịch có phụ thu checkin sớm, cập nhật tong_tien
+                if (strpos($giao_dich->ghi_chu ?? '', 'phụ thu checkin sớm') !== false || !empty($meta['early_checkin_fee_paid'])) {
+                    $paidAmount = $dat_phong->giaoDichs()->where('trang_thai', 'thanh_cong')->sum('so_tien');
+                    $originalTongTien = $dat_phong->tong_tien;
+                    $earlyFeePaid = $meta['early_checkin_fee_paid'] ?? 0;
+                    
+                    // Nếu tong_tien chưa bao gồm phụ thu, cập nhật
+                    if ($earlyFeePaid > 0 && abs($paidAmount - ($originalTongTien + $earlyFeePaid)) < 1) {
+                        $dat_phong->tong_tien = $originalTongTien + $earlyFeePaid;
+                    }
+                }
+                
                 // Update booking - mark as fully paid
                 $dat_phong->update([
                     'can_thanh_toan' => false,

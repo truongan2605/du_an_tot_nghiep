@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+
 use App\Traits\Auditable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 class DatPhong extends Model
 {
     use HasFactory;
-     use Auditable;
+    use Auditable;
     protected $table = 'dat_phong';
 
     protected $fillable = [
@@ -55,6 +56,9 @@ class DatPhong extends Model
         'is_late_checkout',
         'late_checkout_fee_amount',
         'blocks_checkin',
+        'is_early_checkin',
+        'early_checkin_fee_amount',
+        'is_late_checkin',
     ];
 
 
@@ -75,6 +79,9 @@ class DatPhong extends Model
         'is_late_checkout' => 'boolean',
         'late_checkout_fee_amount' => 'decimal:0',
         'blocks_checkin' => 'boolean',
+        'is_early_checkin' => 'boolean',
+        'early_checkin_fee_amount' => 'decimal:0',
+        'is_late_checkin' => 'boolean',
     ];
 
     // Relationships
@@ -127,18 +134,16 @@ class DatPhong extends Model
     {
         return $this->hasMany(DanhGia::class, 'dat_phong_id');
     }
-public function phongs()
-{
-    return $this->belongsToMany(
-        Phong::class,
-        'dat_phong_items_history',
-        'dat_phong_id',
-        'phong_id'
-    );
-}
 
-
-
+    public function phongs()
+    {
+        return $this->belongsToMany(
+            Phong::class,
+            'dat_phong_items_history',
+            'dat_phong_id',
+            'phong_id'
+        );
+    }
 
     public function consumptions()
     {
@@ -362,13 +367,12 @@ public function phongs()
     }
 
     public function items()
-{
-    return $this->hasMany(DatPhongItem::class, 'dat_phong_id');
-}
+    {
+        return $this->hasMany(DatPhongItem::class, 'dat_phong_id');
+    }
 
-public function phongitems()
-{
-    return $this->belongsToMany(Phong::class, 'dat_phong_items', 'dat_phong_id', 'phong_id');
-}
-
+    public function phongitems()
+    {
+        return $this->belongsToMany(Phong::class, 'dat_phong_items', 'dat_phong_id', 'phong_id');
+    }
 }

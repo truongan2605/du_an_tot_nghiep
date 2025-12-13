@@ -92,6 +92,7 @@
                             <div class="card-header border-bottom">
                                 <h4 class="card-header-title">Thông tin cá nhân</h4>
                             </div>
+
                             @if (session('status') === 'verification-link-sent')
                                 <div class="alert alert-success">
                                     Liên kết xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư đến (hoặc
@@ -119,11 +120,26 @@
                             @endif
 
                             <div class="card-body">
+                                {{-- Hiển thị lỗi server-side (nếu có) --}}
+                                @if ($errors->any())
+                                    <div class="alert alert-danger">
+                                        <ul class="mb-0">
+                                            @foreach ($errors->all() as $err)
+                                                <li>{{ $err }}</li>
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+
                                 <form class="row g-3" method="POST" action="{{ route('account.settings.update') }}"
-                                    enctype="multipart/form-data" id="profile-form">
+                                    enctype="multipart/form-data" id="profile-form" novalidate>
                                     @csrf
                                     @method('PATCH')
-                                    {{-- avatar --}}
+
+                                    {{-- alert client-side validation --}}
+                                    <div id="profile-client-errors" style="display:none;" class="alert alert-danger"></div>
+
+                                    {{-- avatar (đánh dấu * theo template) --}}
                                     <div class="col-12">
                                         <label class="form-label">Tải lên ảnh đại diện<span
                                                 class="text-danger">*</span></label>
@@ -140,7 +156,8 @@
                                             <label class="btn btn-sm btn-primary-soft mb-0" for="uploadfile-1">Thay
                                                 đổi</label>
                                             <input id="uploadfile-1" name="avatar" class="form-control d-none"
-                                                type="file" accept="image/*">
+                                                type="file" accept="image/*" aria-describedby="avatarHelp">
+                                            <div id="avatarHelp" class="form-text">File ảnh (jpg, png). Nếu không muốn thay đổi thì bỏ trống.</div>
                                         </div>
                                     </div>
 
@@ -149,7 +166,7 @@
                                         <label class="form-label">Họ và tên<span class="text-danger">*</span></label>
                                         <input type="text" name="name" class="form-control"
                                             value="{{ old('name', auth()->user()->name) }}"
-                                            placeholder="Nhập họ và tên của bạn">
+                                            placeholder="Nhập họ và tên của bạn" required>
                                     </div>
 
                                     {{-- email --}}
@@ -157,21 +174,23 @@
                                         <label class="form-label">Địa chỉ email<span class="text-danger">*</span></label>
                                         <input type="email" name="email" class="form-control"
                                             value="{{ old('email', auth()->user()->email) }}"
-                                            placeholder="Nhập địa chỉ email của bạn">
+                                            placeholder="Nhập địa chỉ email của bạn" required>
                                     </div>
 
                                     {{-- mobile --}}
                                     <div class="col-md-6">
                                         <label class="form-label">Số điện thoại<span class="text-danger">*</span></label>
-                                        <input type="text" name="so_dien_thoai" class="form-control"
+                                        <input type="tel" name="so_dien_thoai" id="so_dien_thoai" class="form-control"
                                             value="{{ old('so_dien_thoai', auth()->user()->so_dien_thoai ?? '') }}"
-                                            placeholder="Nhập số điện thoại của bạn">
+                                            placeholder="Ví dụ: 0912345678 hoặc +84912345678" required
+                                            pattern="^(\+84|0)(3|5|7|8|9)\d{8}$"
+                                            title="Số điện thoại hợp lệ: bắt đầu bằng 0 hoặc +84, tiếp theo 3/5/7/8/9 và 8 chữ số nữa (VD: 0912345678)">
                                     </div>
 
                                     {{-- nationality --}}
                                     <div class="col-md-6">
                                         <label class="form-label">Quốc tịch<span class="text-danger">*</span></label>
-                                        <select class="form-select js-choice" name="country">
+                                        <select class="form-select js-choice" name="country" required>
                                             <option value="">Chọn quốc gia của bạn</option>
                                             <option value="USA"
                                                 {{ old('country', auth()->user()->country ?? '') == 'USA' ? 'selected' : '' }}>
@@ -195,9 +214,9 @@
                                     <div class="col-md-6">
                                         <label class="form-label">Ngày sinh<span class="text-danger">*</span></label>
 
-                                        <input type="text" name="dob" class="form-control flatpickr"
+                                        <input type="text" name="dob" id="dob" class="form-control flatpickr"
                                             value="{{ old('dob', optional(auth()->user()->dob)->format('d M Y') ?? '') }}"
-                                            placeholder="Nhập ngày sinh" data-date-format="d M Y">
+                                            placeholder="Nhập ngày sinh" data-date-format="d M Y" required>
                                     </div>
 
 
@@ -209,7 +228,7 @@
                                             <div class="form-check radio-bg-light">
                                                 <input class="form-check-input" type="radio" name="gender"
                                                     id="g1" value="male"
-                                                    {{ $gender == 'male' ? 'checked' : '' }}>
+                                                    {{ $gender == 'male' ? 'checked' : '' }} required>
                                                 <label class="form-check-label" for="g1">Nam</label>
                                             </div>
                                             <div class="form-check radio-bg-light">
@@ -235,7 +254,7 @@
 
                                     {{-- submit --}}
                                     <div class="col-12 text-end">
-                                        <button type="submit" class="btn btn-primary mb-0">Lưu thay đổi</button>
+                                        <button type="submit" class="btn btn-primary mb-0" id="profile-submit">Lưu thay đổi</button>
                                     </div>
                                 </form>
                             </div>
@@ -378,6 +397,57 @@
                     }
                 });
             });
+
+            // Client-side validation
+            const form = document.getElementById('profile-form');
+            const clientErrorBox = document.getElementById('profile-client-errors');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    // reset errors
+                    clientErrorBox.style.display = 'none';
+                    clientErrorBox.innerHTML = '';
+
+                    const errors = [];
+
+                    // required fields
+                    const requiredFields = [
+                        {name: 'name', label: 'Họ và tên'},
+                        {name: 'email', label: 'Email'},
+                        {name: 'so_dien_thoai', label: 'Số điện thoại'},
+                        {name: 'country', label: 'Quốc tịch'},
+                        {name: 'dob', label: 'Ngày sinh'},
+                    ];
+
+                    requiredFields.forEach(f => {
+                        const el = form.querySelector(`[name="${f.name}"]`);
+                        if (el) {
+                            const val = el.value && el.value.toString().trim();
+                            if (!val) errors.push(`${f.label} là bắt buộc.`);
+                        }
+                    });
+
+                    // gender radio (at least one)
+                    const genderChecked = form.querySelector('input[name="gender"]:checked');
+                    if (!genderChecked) errors.push('Vui lòng chọn giới tính.');
+
+                    // phone validation - VN mobile pattern: starts with 0 or +84, then 3/5/7/8/9 and 8 digits
+                    const phoneEl = document.getElementById('so_dien_thoai');
+                    if (phoneEl) {
+                        const phoneVal = phoneEl.value.trim();
+                        const phoneRegex = /^(\+84|0)(3|5|7|8|9)\d{8}$/;
+                        if (phoneVal && !phoneRegex.test(phoneVal)) {
+                            errors.push('Số điện thoại không hợp lệ. Ví dụ hợp lệ: 0912345678 hoặc +84912345678');
+                        }
+                    }
+
+                    if (errors.length) {
+                        e.preventDefault();
+                        clientErrorBox.innerHTML = '<ul class="mb-0"><li>' + errors.join('</li><li>') + '</li></ul>';
+                        clientErrorBox.style.display = 'block';
+                        window.scrollTo({ top: clientErrorBox.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' });
+                    }
+                });
+            }
         });
     </script>
 @endpush

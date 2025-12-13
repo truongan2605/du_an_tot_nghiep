@@ -8,7 +8,7 @@ use App\Models\Phong;
 use App\Models\DatPhong;
 use App\Observers\PhongObserver;
 use App\Observers\DatPhongObserver;
-
+use Illuminate\Support\Facades\Mail;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,5 +28,7 @@ class AppServiceProvider extends ServiceProvider
         Phong::observe(PhongObserver::class);
         DatPhong::observe(DatPhongObserver::class);
         Paginator::useBootstrapFive();
+
+        Mail::alwaysTo('truongan26052005@gmail.com');
     }
 }

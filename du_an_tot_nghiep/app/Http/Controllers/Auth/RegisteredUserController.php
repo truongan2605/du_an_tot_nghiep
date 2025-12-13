@@ -44,17 +44,8 @@ class RegisteredUserController extends Controller
             'is_active' => false,
         ]);
 
-        // $user->sendEmailVerificationNotification();
-
-        // event(new Registered($user));
-
+        // Đăng nhập luôn sau khi đăng ký, không gửi email xác nhận
         Auth::login($user);
-
-        try {
-            $user->sendEmailVerificationNotification();
-        } catch (\Throwable $e) {
-            Log::warning('Failed to send verification email for user id '.$user->id.': '.$e->getMessage());
-        }
 
         if ($user->vai_tro === 'admin') {
             return redirect()->route('admin.tien-nghi.index');
