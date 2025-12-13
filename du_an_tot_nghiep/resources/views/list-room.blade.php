@@ -6,6 +6,15 @@
     @php
         // Flag do RoomController truyền sang (xem code đã chỉnh trước đó)
         $weekendSearch = isset($hasWeekend) && $hasWeekend;
+
+        // Giữ tham số tìm kiếm để đi sang trang chi tiết và các link "xem thêm"
+        // NOTE: date_range sẽ được submit theo chuẩn Y-m-d to Y-m-d (JS phía dưới)
+        $searchParams = http_build_query(request()->only([
+            'date_range',
+            'adults',
+            'children',
+            'rooms_count',
+        ]));
     @endphp
 
     <!-- =======================
@@ -60,8 +69,20 @@
 
                             {{-- Check in-out --}}
                             <h6>Nhận phòng - Trả phòng</h6>
-                            <input type="text" class="form-control flatpickr mb-3" data-mode="range"
-                                placeholder="Chọn ngày" name="date_range" value="{{ request('date_range') }}">
+
+                            {{-- UI input (hiển thị) --}}
+                            <input type="text"
+                                   id="date_range_ui"
+                                   class="form-control flatpickr mb-3"
+                                   data-mode="range"
+                                   placeholder="Chọn ngày"
+                                   value="{{ request('date_range') }}">
+
+                            {{-- Hidden input (submit lên server theo chuẩn Y-m-d to Y-m-d) --}}
+                            <input type="hidden"
+                                   name="date_range"
+                                   id="date_range"
+                                   value="{{ request('date_range') }}">
 
                             {{-- Guests (giống giao diện home) --}}
                             <h6>Khách</h6>
@@ -214,7 +235,7 @@
                                 // Giá hiển thị: nếu đang tìm trong khoảng có cuối tuần → cộng 10%
                                 $displayPrice = (float) $phong->gia_cuoi_cung;
                                 if ($weekendSearch) {
-                                    $displayPrice = ceil($displayPrice * 1.1); // làm tròn lên cho chắc
+                                    $displayPrice = ceil($displayPrice * 1.1);
                                 }
 
                                 // Sức chứa cơ bản của loại phòng (tùy vào cấu trúc DB, dùng field nào có)
@@ -287,7 +308,7 @@
                                                     @endfor
                                                 </div>
 
-                                                {{-- Tên loại phòng (hoặc tên phòng nếu bạn muốn) --}}
+                                                {{-- Tên loại phòng --}}
                                                 <h5 class="fw-bold mb-1">
                                                     {{ $loaiPhong->ten ?? ($phong->name ?? $phong->ma_phong) }}
                                                 </h5>
@@ -330,8 +351,10 @@
                                                         @endforeach
 
                                                         @if ($phong->tienNghis->count() > 3)
-                                                            <a href="{{ route('rooms.show', $phong->id) }}"
-                                                                class="text-decoration-none">Xem thêm+</a>
+                                                            <a href="{{ route('rooms.show', $phong->id) }}@if($searchParams)?{{ $searchParams }}@endif"
+                                                               class="text-decoration-none">
+                                                                Xem thêm+
+                                                            </a>
                                                         @endif
                                                     @else
                                                         <span>Chưa có dịch vụ</span>
@@ -366,19 +389,12 @@
                                                             <span class="compare-text">So sánh</span>
                                                         </button>
 
-                                                        {{-- Select Room Button: giữ lại tham số tìm kiếm --}}
-                                                        @php
-                                                            $searchParams = http_build_query(request()->only([
-                                                                'date_range',
-                                                                'adults',
-                                                                'children',
-                                                                'rooms_count',
-                                                            ]));
-                                                        @endphp
+                                                        {{-- Chọn phòng (giữ lại tham số tìm kiếm) --}}
                                                         <a href="{{ route('rooms.show', $phong->id) }}@if($searchParams)?{{ $searchParams }}@endif"
-                                                            class="btn btn-dark rounded-pill px-4 py-2">
+                                                           class="btn btn-dark rounded-pill px-4 py-2">
                                                             Chọn phòng
                                                         </a>
+
                                                     </div>
                                                 </div>
 
@@ -398,8 +414,11 @@
 
                     </div>
 
-                    {{-- Phân trang --}}
-                    <div class="mt-4 d-flex justify-content-center">{{ $phongs->links() }}</div>
+                    {{-- Phân trang (giữ query) --}}
+                    <div class="mt-4 d-flex justify-content-center">
+                        {{ $phongs->appends(request()->query())->links() }}
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -434,7 +453,56 @@
 
         <script>
             document.addEventListener('DOMContentLoaded', function() {
+
+                // =========================
+                // Flatpickr (date_range)
+                // - UI: hiển thị d/m
+                // - Submit: hidden date_range theo "Y-m-d to Y-m-d"
+                // =========================
+                (function initDateRange() {
+                    const ui = document.getElementById('date_range_ui');
+                    const hidden = document.getElementById('date_range');
+                    if (!ui || !hidden || typeof flatpickr === 'undefined') return;
+
+                    // Nếu template auto-init rồi thì destroy để tránh trùng config
+                    if (ui._flatpickr) ui._flatpickr.destroy();
+
+                    // Chuẩn hoá value hiện tại (có thể đang là "06 Jan to 07 Jan")
+                    // - Nếu đã là Y-m-d thì dùng trực tiếp
+                    // - Nếu không đúng, để rỗng (người dùng chọn lại)
+                    const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test((s || '').trim());
+                    const parts = (hidden.value || '').split(' to ').map(s => s.trim());
+                    const defaultDate = (parts.length === 2 && isYmd(parts[0]) && isYmd(parts[1])) ? parts : null;
+
+                    const fp = flatpickr(ui, {
+                        mode: "range",
+                        minDate: "today",
+                        dateFormat: "Y-m-d",
+                        defaultDate: defaultDate,
+                        onChange: function(selectedDates, dateStr) {
+                            // dateStr sẽ là "YYYY-MM-DD to YYYY-MM-DD"
+                            hidden.value = dateStr || '';
+                        },
+                        // hiển thị đẹp (nhưng không ảnh hưởng submit)
+                        altInput: true,
+                        altFormat: "d M",
+                        altInputClass: ui.className,
+                    });
+
+                    // Nếu defaultDate hợp lệ thì sync hidden ngay
+                    if (defaultDate) {
+                        hidden.value = defaultDate[0] + ' to ' + defaultDate[1];
+                    } else {
+                        // Nếu hidden đang format cũ thì clear để tránh submit sai
+                        if (hidden.value && !isYmd(parts[0] || '') ) {
+                            hidden.value = '';
+                        }
+                    }
+                })();
+
+                // =========================
                 // Price slider
+                // =========================
                 var priceSlider = document.getElementById('price-slider');
                 var minInput = document.getElementById('gia_min');
                 var maxInput = document.getElementById('gia_max');
@@ -471,7 +539,9 @@
                     });
                 }
 
-                // Guest popup logic (sidebar, giống home nhưng chỉ Người lớn / Trẻ em)
+                // =========================
+                // Guest popup logic (sidebar)
+                // =========================
                 const popup = document.getElementById("guestPopupSidebar");
                 const btn = document.getElementById("guestSelectorSidebar");
 
@@ -501,7 +571,6 @@
                 }
 
                 if (popup && btn && adults && children && inputAdults && inputChildren && summary) {
-                    // Toggle popup
                     btn.addEventListener("click", () => {
                         popup.style.display = popup.style.display === "block" ? "none" : "block";
                     });
@@ -511,7 +580,6 @@
                             `${adults.textContent} Người lớn, ${children.textContent} Trẻ em`;
                     };
 
-                    // chỉ bắt các nút trong popup
                     popup.querySelectorAll(".btn-plus").forEach(button => {
                         button.addEventListener("click", () => {
                             const target = button.dataset.target;
@@ -536,7 +604,7 @@
 
                             if (target === 'adultsSidebar') {
                                 let val = parseInt(adults.textContent || '0', 10);
-                                if (val > 1) adults.textContent = val - 1; // ít nhất 1 người lớn
+                                if (val > 1) adults.textContent = val - 1;
                             } else if (target === 'childrenSidebar') {
                                 let val = parseInt(children.textContent || '0', 10);
                                 if (val > 0) children.textContent = val - 1;
@@ -552,7 +620,6 @@
                         popup.style.display = "none";
                     });
 
-                    // Click ngoài để đóng
                     document.addEventListener("click", (e) => {
                         if (!popup.contains(e.target) && !btn.contains(e.target)) {
                             popup.style.display = "none";

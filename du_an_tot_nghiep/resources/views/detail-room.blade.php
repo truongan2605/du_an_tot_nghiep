@@ -12,8 +12,37 @@
         $thumbs = $thumbsAll->take(4)->values();
         $thumbCount = $thumbs->count();
         $remaining = max(0, $total - 1 - $thumbCount);
-    @endphp
 
+        // ====== GIỮ THAM SỐ TÌM KIẾM TỪ TRANG LIST SANG DETAIL ======
+        $searchParams = http_build_query(request()->only([
+            'date_range',
+            'adults',
+            'children',
+            'rooms_count',
+        ]));
+
+        // ====== MAP date_range -> ngay_nhan_phong / ngay_tra_phong cho trang BOOKING ======
+        $dateRange = (string) request('date_range', '');
+        $from = null;
+        $to = null;
+
+        // flatpickr submit chuẩn: "YYYY-MM-DD to YYYY-MM-DD"
+        if ($dateRange && str_contains($dateRange, ' to ')) {
+            [$from, $to] = array_pad(explode(' to ', $dateRange, 2), 2, null);
+        }
+        // fallback: "YYYY-MM-DD - YYYY-MM-DD"
+        elseif ($dateRange && str_contains($dateRange, ' - ')) {
+            [$from, $to] = array_pad(explode(' - ', $dateRange, 2), 2, null);
+        }
+
+        $bookingParams = array_filter([
+            'ngay_nhan_phong' => $from,
+            'ngay_tra_phong'  => $to,
+            'adults'          => request('adults'),
+            'children'        => request('children'),
+            'rooms_count'     => request('rooms_count'),
+        ], fn ($v) => $v !== null && $v !== '');
+    @endphp
 
     <!-- Main Title + Gallery START -->
     <section class="py-0 pt-sm-5">
@@ -25,8 +54,9 @@
                             <h1 class="fs-2">
                                 {{ $phong->loaiPhong->ten ?? ($phong->loaiPhong->ten_loai ?? '—') }}
                             </h1>
-                            <p class="fw-bold mb-0"><i class="bi bi-geo-alt me-2"></i> Tầng
-                                {{ $phong->tang->so_tang ?? '—' }}</p>
+                            <p class="fw-bold mb-0">
+                                <i class="bi bi-geo-alt me-2"></i> Tầng {{ $phong->tang->so_tang ?? '—' }}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -38,12 +68,12 @@
                     @if ($main)
                         <a href="{{ Storage::url($main->image_path) }}" class="glightbox"
                             data-gallery="room-{{ $phong->id }}">
-                            <img src="{{ Storage::url($main->image_path) }}" alt="{{ $phong->name ?? $phong->ma_phong }}"
-                                loading="lazy">
+                            <img src="{{ Storage::url($main->image_path) }}"
+                                 alt="{{ $phong->name ?? $phong->ma_phong }}" loading="lazy">
                         </a>
                     @else
-                        <img src="{{ $phong->firstImageUrl() }}" alt="{{ $phong->name ?? $phong->ma_phong }}"
-                            loading="lazy">
+                        <img src="{{ $phong->firstImageUrl() }}"
+                             alt="{{ $phong->name ?? $phong->ma_phong }}" loading="lazy">
                     @endif
                 </div>
 
@@ -67,8 +97,8 @@
                                 @if ($has)
                                     <a href="{{ $url }}" class="thumb-link glightbox"
                                         data-gallery="room-{{ $phong->id }}">
-                                        <img src="{{ $url }}" alt="{{ $phong->name ?? $phong->ma_phong }}"
-                                            loading="lazy">
+                                        <img src="{{ $url }}"
+                                             alt="{{ $phong->name ?? $phong->ma_phong }}" loading="lazy">
                                     </a>
                                 @else
                                     <div class="thumb-empty" aria-hidden="true"></div>
@@ -86,25 +116,24 @@
 
                                     @if ($overlayTarget)
                                         <a href="{{ $overlayTarget }}" class="thumb-link overlay-anchor glightbox"
-                                            data-gallery="room-{{ $phong->id }}"></a>
+                                           data-gallery="room-{{ $phong->id }}"></a>
                                     @endif
 
                                     <div class="overlay view-all" aria-hidden="true">
                                         <div>
-                                    <div class="fw-bold">Xem tất cả</div>
-                                    <div class="small">+{{ $remaining }} Ảnh</div>
+                                            <div class="fw-bold">Xem tất cả</div>
+                                            <div class="small">+{{ $remaining }} Ảnh</div>
                                         </div>
                                     </div>
 
                                     @foreach ($gallery->slice(1 + $thumbCount) as $more)
                                         <a href="{{ Storage::url($more->image_path) }}" class="d-none glightbox"
-                                            data-gallery="room-{{ $phong->id }}"></a>
+                                           data-gallery="room-{{ $phong->id }}"></a>
                                     @endforeach
                                 @endif
                             </div>
                         @endforeach
                     </div>
-
                 @endif
             </div>
         </div>
@@ -141,13 +170,13 @@
                                     </div>
 
                                     <a class="p-0 mb-4 mt-2 btn-more d-flex align-items-center collapsed"
-                                        data-bs-toggle="collapse" href="#collapseContent" role="button"
-                                        aria-expanded="false" aria-controls="collapseContent">
-                                        Xem <span class="see-more ms-1">thêm</span><span class="see-less ms-1">ít hơn</span><i
-                                            class="fa-solid fa-angle-down ms-2"></i>
+                                       data-bs-toggle="collapse" href="#collapseContent" role="button"
+                                       aria-expanded="false" aria-controls="collapseContent">
+                                        Xem <span class="see-more ms-1">thêm</span>
+                                        <span class="see-less ms-1">ít hơn</span>
+                                        <i class="fa-solid fa-angle-down ms-2"></i>
                                     </a>
                                 @endif
-
                             </div>
                         </div>
 
@@ -161,8 +190,8 @@
                                         @foreach ($phong->tienNghis->chunk(2) as $chunk)
                                             @foreach ($chunk as $tn)
                                                 <div class="col-sm-6">
-                                                    <h6><i
-                                                            class="{{ $tn->icon ?? 'fa-solid fa-check' }} me-2"></i>{{ $tn->ten }}
+                                                    <h6>
+                                                        <i class="{{ $tn->icon ?? 'fa-solid fa-check' }} me-2"></i>{{ $tn->ten }}
                                                     </h6>
                                                     @if ($tn->mo_ta)
                                                         <p class="small mb-0">{{ Str::limit($tn->mo_ta, 120) }}</p>
@@ -188,7 +217,6 @@
                                 <div class="mb-3">
                                     <strong>Tổng số giường:</strong>
                                     <span>{{ $totalBeds }}</span>
-
                                 </div>
 
                                 @if ($bedSummary && $bedSummary->count())
@@ -206,13 +234,11 @@
                                                             <div>
                                                                 <h6 class="mb-0">{{ $b['name'] }}</h6>
                                                                 @if (!empty($b['capacity']))
-                                                                    <small class="text-muted">Sức chứa:
-                                                                        {{ $b['capacity'] }}</small>
+                                                                    <small class="text-muted">Sức chứa: {{ $b['capacity'] }}</small>
                                                                 @endif
                                                             </div>
                                                             <div class="text-end">
-                                                                <div class="fw-bold">Số lượng giường: {{ $b['quantity'] }}
-                                                                </div>
+                                                                <div class="fw-bold">Số lượng giường: {{ $b['quantity'] }}</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -226,6 +252,7 @@
                             </div>
                         </div>
 
+                        {{-- Related --}}
                         <div class="card-body pt-4 p-0">
                             <div class="vstack gap-4">
                                 @if ($related && $related->count())
@@ -233,31 +260,35 @@
                                         <div class="card shadow p-3">
                                             <div class="row g-4">
                                                 <div class="col-md-5 position-relative">
-                                                    <div
-                                                        class="tiny-slider arrow-round arrow-xs arrow-dark overflow-hidden rounded-2">
+                                                    <div class="tiny-slider arrow-round arrow-xs arrow-dark overflow-hidden rounded-2">
                                                         <div class="tiny-slider-inner" data-autoplay="true"
-                                                            data-arrow="true" data-dots="false" data-items="1">
+                                                             data-arrow="true" data-dots="false" data-items="1">
                                                             @php $imgs = $r->images->take(4); @endphp
                                                             @if ($imgs->count())
                                                                 @foreach ($imgs as $im)
-                                                                    <div><img src="{{ Storage::url($im->image_path) }}"
-                                                                            class="rounded-2"
-                                                                            alt="{{ $r->name ?? $r->ma_phong }}"></div>
+                                                                    <div>
+                                                                        <img src="{{ Storage::url($im->image_path) }}"
+                                                                             class="rounded-2"
+                                                                             alt="{{ $r->name ?? $r->ma_phong }}">
+                                                                    </div>
                                                                 @endforeach
                                                             @else
-                                                                <div><img src="{{ $r->firstImageUrl() }}"
-                                                                        class="rounded-2"
-                                                                        alt="{{ $r->name ?? $r->ma_phong }}"></div>
+                                                                <div>
+                                                                    <img src="{{ $r->firstImageUrl() }}"
+                                                                         class="rounded-2"
+                                                                         alt="{{ $r->name ?? $r->ma_phong }}">
+                                                                </div>
                                                             @endif
                                                         </div>
                                                     </div>
-
                                                 </div>
 
                                                 <div class="col-md-7">
                                                     <div class="card-body d-flex flex-column h-100 p-0">
-                                                        <h5 class="card-title"><a
-                                                                href="{{ route('rooms.show', $r->id) }}">{{ $r->name ?? $r->ma_phong }}</a>
+                                                        <h5 class="card-title">
+                                                            <a href="{{ route('rooms.show', $r->id) }}@if($searchParams)?{{ $searchParams }}@endif">
+                                                                {{ $r->name ?? $r->ma_phong }}
+                                                            </a>
                                                         </h5>
 
                                                         <ul class="nav nav-divider mb-2">
@@ -265,14 +296,14 @@
                                                                 <li class="nav-item">{{ $tn->ten }}</li>
                                                             @endforeach
                                                             <li class="nav-item">
-                                                                <a href="{{ route('rooms.show', $r->id) }}"
-                                                                    class="mb-0 text-primary">Xem thêm+</a>
+                                                                <a href="{{ route('rooms.show', $r->id) }}@if($searchParams)?{{ $searchParams }}@endif"
+                                                                   class="mb-0 text-primary">
+                                                                    Xem thêm+
+                                                                </a>
                                                             </li>
                                                         </ul>
 
-                                                        {{-- price --}}
-                                                        <div
-                                                            class="d-sm-flex justify-content-sm-between align-items-center mt-auto">
+                                                        <div class="d-sm-flex justify-content-sm-between align-items-center mt-auto">
                                                             <div class="d-flex align-items-center">
                                                                 <h5 class="fw-bold mb-0 me-1">
                                                                     {{ number_format($r->gia_cuoi_cung, 0, ',', '.') }} VND
@@ -280,8 +311,10 @@
                                                                 <span class="mb-0 me-2">/ngày</span>
                                                             </div>
                                                             <div class="mt-3 mt-sm-0">
-                                                                <a href="{{ route('rooms.show', $r->id) }}"
-                                                                    class="btn btn-sm btn-primary mb-0">Chọn phòng</a>
+                                                                <a href="{{ route('rooms.show', $r->id) }}@if($searchParams)?{{ $searchParams }}@endif"
+                                                                   class="btn btn-sm btn-primary mb-0">
+                                                                    Chọn phòng
+                                                                </a>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -296,78 +329,82 @@
                         </div>
                     </div>
 
-<h3 class="mt-4 mb-3">Đánh giá của khách hàng</h3>
+                    <h3 class="mt-4 mb-3">Đánh giá của khách hàng</h3>
 
-<div id="reviews-wrapper">
+                    <div id="reviews-wrapper">
+                        @forelse($phong->danhGias as $index => $dg)
+                            <div class="review-box" data-index="{{ $index }}">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <span class="fw-semibold">
+                                        <i class="fa fa-user-circle me-1"></i> {{ $dg->user->name }}
+                                    </span>
+                                    <span class="text-muted small">{{ $dg->created_at->format('d/m/Y') }}</span>
+                                </div>
 
-    @forelse($phong->danhGias as $index => $dg)
-    <div class="review-box" data-index="{{ $index }}">
+                                @if($dg->rating)
+                                    <div class="review-stars mb-2">
+                                        @for($i = 1; $i <= $dg->rating; $i++)
+                                            <i class="fa-solid fa-star text-warning"></i>
+                                        @endfor
+                                    </div>
+                                @endif
 
-        <div class="d-flex align-items-center justify-content-between mb-1">
-            <span class="fw-semibold">
-                <i class="fa fa-user-circle me-1"></i> {{ $dg->user->name }}
-            </span>
-            <span class="text-muted small">{{ $dg->created_at->format('d/m/Y') }}</span>
-        </div>
+                                <p class="mb-1">{{ $dg->noi_dung }}</p>
 
-        @if($dg->rating)
-        <div class="review-stars mb-2">
-            @for($i = 1; $i <= $dg->rating; $i++)
-                <i class="fa-solid fa-star text-warning"></i>
-            @endfor
-        </div>
-        @endif
+                                @foreach($dg->replies as $reply)
+                                    <div class="review-reply mt-2">
+                                        <strong><i class="fa fa-user-shield"></i> Admin:</strong>
+                                        <p class="mb-1">{{ $reply->noi_dung }}</p>
+                                        <small class="text-muted">{{ $reply->created_at->format('d/m/Y') }}</small>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @empty
+                            <p class="text-muted">Chưa có đánh giá nào.</p>
+                        @endforelse
+                    </div>
 
-        <p class="mb-1">{{ $dg->noi_dung }}</p>
+                    <button id="toggle-all" class="btn btn-outline-primary mt-3" style="display:none;">
+                        Xem tất cả đánh giá
+                    </button>
 
-        @foreach($dg->replies as $reply)
-        <div class="review-reply mt-2">
-            <strong><i class="fa fa-user-shield"></i> Admin:</strong>
-            <p class="mb-1">{{ $reply->noi_dung }}</p>
-            <small class="text-muted">{{ $reply->created_at->format('d/m/Y') }}</small>
-        </div>
-        @endforeach
-
-    </div>
-    @empty
-        <p class="text-muted">Chưa có đánh giá nào.</p>
-    @endforelse
-</div>
-
-<button id="toggle-all" class="btn btn-outline-primary mt-3" style="display:none;">
-    Xem tất cả đánh giá
-</button>
-
-
-
-
-
-
-
-                    <!-- Hotel Policies (kept as-is) -->
-                    <div class="card bg-transparent">
+                    <!-- Hotel Policies -->
+                    <div class="card bg-transparent mt-4">
                         <div class="card-header border-bottom bg-transparent px-0 pt-0">
                             <h3 class="mb-0">Chính Sách Trong Khách Sạn</h3>
                         </div>
                         <div class="card-body pt-4 p-0">
                             <ul class="list-group list-group-borderless mb-2">
-                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Được phép uống rượu và hút thuốc trong phạm vi được kiểm soát tại khu vực phòng nhưng vui lòng không gây bừa bộn hoặc ồn ào trong phòng</li>
-                                <li class="list-group-item d-flex"><i class="bi bi-check-circle-fill me-2"></i>Ma túy và các sản phẩm bất hợp pháp gây say bị cấm và không được mang vào nhà hoặc tiêu thụ.
+                                <li class="list-group-item d-flex">
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                    Được phép uống rượu và hút thuốc trong phạm vi được kiểm soát tại khu vực phòng nhưng vui lòng không gây bừa bộn hoặc ồn ào trong phòng
                                 </li>
-                                <li class="list-group-item d-flex"><i class="bi bi-x-circle-fill me-2"></i>Đối với bất kỳ bản cập nhật nào, khách hàng sẽ phải trả phí hủy/sửa đổi áp dụng</li>
+                                <li class="list-group-item d-flex">
+                                    <i class="bi bi-check-circle-fill me-2"></i>
+                                    Ma túy và các sản phẩm bất hợp pháp gây say bị cấm và không được mang vào nhà hoặc tiêu thụ.
+                                </li>
+                                <li class="list-group-item d-flex">
+                                    <i class="bi bi-x-circle-fill me-2"></i>
+                                    Đối với bất kỳ bản cập nhật nào, khách hàng sẽ phải trả phí hủy/sửa đổi áp dụng
+                                </li>
                             </ul>
 
                             <ul class="list-group list-group-borderless mb-2">
-                                <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Check-in: 2:00 pm</li>
-                                <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Check out: 12:00 am</li>
-                                <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Tự làm thủ tục nhận phòng với nhân viên tòa khách sạn</li>
-                                <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Thú Cưng</li>
-                                <li class="list-group-item h6 fw-light d-flex mb-0"><i
-                                        class="bi bi-arrow-right me-2"></i>Được sử dụng thuốc lá</li>
+                                <li class="list-group-item h6 fw-light d-flex mb-0">
+                                    <i class="bi bi-arrow-right me-2"></i>Check-in: 2:00 pm
+                                </li>
+                                <li class="list-group-item h6 fw-light d-flex mb-0">
+                                    <i class="bi bi-arrow-right me-2"></i>Check out: 12:00 am
+                                </li>
+                                <li class="list-group-item h6 fw-light d-flex mb-0">
+                                    <i class="bi bi-arrow-right me-2"></i>Tự làm thủ tục nhận phòng với nhân viên tòa khách sạn
+                                </li>
+                                <li class="list-group-item h6 fw-light d-flex mb-0">
+                                    <i class="bi bi-arrow-right me-2"></i>Thú Cưng
+                                </li>
+                                <li class="list-group-item h6 fw-light d-flex mb-0">
+                                    <i class="bi bi-arrow-right me-2"></i>Được sử dụng thuốc lá
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -380,8 +417,8 @@
                             <div class="d-sm-flex justify-content-sm-between align-items-center mb-3">
                                 <div>
                                     <span>Giá bắt đầu từ</span>
-                                    <h4 class="card-title mb-0">{{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }}
-                                        VND
+                                    <h4 class="card-title mb-0">
+                                        {{ number_format($phong->gia_cuoi_cung, 0, ',', '.') }} VND
                                     </h4>
                                 </div>
 
@@ -402,22 +439,22 @@
                             <ul class="list-inline mb-2">
                                 <li class="list-inline-item me-2 h6 fw-light mb-0">{{ number_format($avg, 1) }}</li>
                                 @for ($i = 0; $i < $fullStars; $i++)
-                                    <li class="list-inline-item me-0 small"><i class="fa-solid fa-star text-warning"></i>
-                                    </li>
+                                    <li class="list-inline-item me-0 small"><i class="fa-solid fa-star text-warning"></i></li>
                                 @endfor
                                 @if ($hasHalf)
-                                    <li class="list-inline-item me-0 small"><i
-                                            class="fa-solid fa-star-half-alt text-warning"></i></li>
+                                    <li class="list-inline-item me-0 small"><i class="fa-solid fa-star-half-alt text-warning"></i></li>
                                 @endif
                                 @for ($i = 0; $i < $emptyStars; $i++)
-                                    <li class="list-inline-item me-0 small"><i class="fa-solid fa-star text-muted"></i>
-                                    </li>
+                                    <li class="list-inline-item me-0 small"><i class="fa-solid fa-star text-muted"></i></li>
                                 @endfor
                             </ul>
 
+                            {{-- Đặt phòng ngay: đi thẳng sang booking + giữ dữ liệu lọc --}}
                             <div class="d-grid">
-                                <a href="{{ route('account.booking.create', $phong) }}"
-                                    class="btn btn-lg btn-primary-soft mb-0">Đặt phòng ngay</a>
+                                <a href="{{ route('account.booking.create', $phong) }}@if(!empty($bookingParams))?{{ http_build_query($bookingParams) }}@endif"
+                                   class="btn btn-lg btn-primary-soft mb-0">
+                                    Đặt phòng ngay
+                                </a>
                             </div>
 
                             @auth
@@ -426,27 +463,31 @@
                                         data-phong-id="{{ $phong->id }}"
                                         aria-pressed="{{ $isWished ? 'true' : 'false' }}"
                                         aria-label="{{ $isWished ? 'Xóa khỏi danh sách yêu thích' : 'Thêm vào danh sách yêu thích' }}">
-                                        <i
-                                            class="{{ $isWished ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' }}"></i>
+                                        <i class="{{ $isWished ? 'fa-solid fa-heart text-danger' : 'fa-regular fa-heart' }}"></i>
                                         <span class="wl-label ms-2">{{ $isWished ? 'Đã lưu' : 'Thêm vào yêu thích' }}</span>
                                     </button>
                                 </div>
                             @else
                                 <div class="d-grid" style="margin-top: 15px">
-                                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-lg">Đăng nhập để
-                                        yêu thích</a>
+                                    <a href="{{ route('login') }}" class="btn btn-outline-secondary btn-lg">Đăng nhập để yêu thích</a>
                                 </div>
                             @endauth
 
+                            {{-- (Tuỳ chọn) link quay lại list giữ filter --}}
+                            @if ($searchParams)
+                                <div class="text-center mt-3">
+                                    <a href="{{ route('list-room.index') }}?{{ $searchParams }}" class="small text-muted">
+                                        ← Quay lại danh sách phòng
+                                    </a>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </aside>
             </div>
         </div>
-        </div>
     </section>
     <!-- About hotel END -->
-
 @endsection
 
 @push('styles')
@@ -566,6 +607,20 @@
                 flex-shrink: 0;
             }
         }
+
+        /* Review container */
+        .review-box {
+            padding: 15px 0;
+            border-bottom: 1px solid #eaeaea;
+        }
+        .review-reply {
+            background: #f8f9fa;
+            border-left: 3px solid #0d6efd;
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-size: 14px;
+        }
     </style>
 @endpush
 
@@ -583,59 +638,35 @@
             }
         });
     </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const reviews = document.querySelectorAll('.review-box');
+            const toggleBtn = document.getElementById('toggle-all');
+
+            if (toggleBtn && reviews.length > 3) {
+                reviews.forEach((box, i) => {
+                    if (i > 2) box.style.display = 'none';
+                });
+                toggleBtn.style.display = 'block';
+            }
+
+            let expanded = false;
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function() {
+                    expanded = !expanded;
+
+                    reviews.forEach((box, i) => {
+                        if (!expanded && i > 2) box.style.display = 'none';
+                        else box.style.display = 'block';
+                    });
+
+                    toggleBtn.textContent = expanded
+                        ? 'Thu gọn đánh giá'
+                        : 'Xem tất cả đánh giá';
+                });
+            }
+        });
+    </script>
 @endpush
-
-
-<style>
-/* Review container */
-.review-box {
-    padding: 15px 0;
-    border-bottom: 1px solid #eaeaea;
-}
-.review-reply {
-    background: #f8f9fa;
-    border-left: 3px solid #0d6efd;
-    padding: 10px 12px;
-    border-radius: 6px;
-    margin-top: 8px;
-    font-size: 14px;
-}
-
-
-</style>
-
-
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-
-    const reviews = document.querySelectorAll('.review-box');
-    const toggleBtn = document.getElementById('toggle-all');
-
-    if (reviews.length > 3) {
-        // Ẩn tất cả review sau review thứ 3
-        reviews.forEach((box, i) => {
-            if (i > 2) box.style.display = 'none';
-        });
-        toggleBtn.style.display = 'block';
-    }
-
-    let expanded = false;
-
-    toggleBtn.addEventListener('click', function() {
-        expanded = !expanded;
-
-        reviews.forEach((box, i) => {
-            if (!expanded && i > 2) box.style.display = 'none';
-            else box.style.display = 'block';
-        });
-
-        toggleBtn.textContent = expanded 
-            ? 'Thu gọn đánh giá'
-            : 'Xem tất cả đánh giá';
-    });
-});
-</script>
-
-
-
