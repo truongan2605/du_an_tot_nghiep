@@ -727,7 +727,7 @@
                                             
                                             {{-- Nhóm Đồ ăn --}}
                                             @if(isset($availableFoodsGrouped[\App\Models\VatDung::LOAI_DO_AN]) && $availableFoodsGrouped[\App\Models\VatDung::LOAI_DO_AN]->isNotEmpty())
-                                                <optgroup label="🍽️ Đồ ăn / Dịch vụ tiêu thụ">
+                                                <optgroup label="Đồ ăn / Dịch vụ tiêu thụ">
                                                     @foreach ($availableFoodsGrouped[\App\Models\VatDung::LOAI_DO_AN] as $fd)
                                                         <option value="{{ $fd->id }}" data-price="{{ $fd->gia ?? 0 }}">
                                                             {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }} đ)
@@ -738,7 +738,7 @@
                                             
                                             {{-- Nhóm Dịch vụ khác --}}
                                             @if(isset($availableFoodsGrouped[\App\Models\VatDung::LOAI_DICH_VU_KHAC]) && $availableFoodsGrouped[\App\Models\VatDung::LOAI_DICH_VU_KHAC]->isNotEmpty())
-                                                <optgroup label="⭐ Dịch vụ khác">
+                                                <optgroup label="Dịch vụ cơ bản">
                                                     @foreach ($availableFoodsGrouped[\App\Models\VatDung::LOAI_DICH_VU_KHAC] as $fd)
                                                         <option value="{{ $fd->id }}" data-price="{{ $fd->gia ?? 0 }}">
                                                             {{ $fd->ten }} ({{ number_format($fd->gia ?? 0, 0, ',', '.') }} đ)
