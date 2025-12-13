@@ -219,17 +219,34 @@ class LoaiPhongController extends Controller
             // XỬ LÝ TIỆN NGHI + GIÁ RIÊNG
             // ========================================
             $syncTienNghi = [];
-
             $tienNghiIds = $request->input('tien_nghi_ids', []);
 
-            foreach ($tienNghiIds as $tienNghiId) {
-                // DÙNG ?? TRONG MẢNG → KHÔNG BAO GIỜ LỖI "Undefined array key"
-                $syncTienNghi[$tienNghiId] = [
-                'price' => $request->input("tien_nghi_prices.$tienNghiId")
-            ];
+            foreach ($tienNghiIds as $id) {
+                $rawPrice = $request->input("tien_nghi_prices.$id"); // ví dụ: "200000" hoặc ""
+
+                $price = null;
+                if ($rawPrice !== null && trim($rawPrice) !== '') {
+                    $price = (int) $rawPrice; // đã được JS bỏ dấu chấm → an toàn
+
+                    // Nếu giá riêng = giá mặc định → để null (không cần lưu pivot)
+                    $defaultPrice = \App\Models\TienNghi::find($id)->gia ?? 0;
+                    if ($price == $defaultPrice) {
+                        $price = null;
+                    }
+                }
+
+                $syncTienNghi[$id] = ['price' => $price];
             }
 
             $loaiphong->tienNghis()->sync($syncTienNghi);
+
+            // QUAN TRỌNG NHẤT: CẬP NHẬT LẠI GIÁ CHO TẤT CẢ PHÒNG THUỘC LOẠI NÀY
+            \App\Models\Phong::where('loai_phong_id', $loaiphong->id)
+                ->chunkById(100, function ($phongs) {
+                    foreach ($phongs as $phong) {
+                        $phong->recalcAndSave(true); // forceOverwrite = true
+                    }
+                });
 
             // ========================================
             // XỬ LÝ VẬT DỤNG
