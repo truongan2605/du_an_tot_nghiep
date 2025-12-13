@@ -4,11 +4,11 @@
 
 @section('content')
     @php
-        // Flag do RoomController truyền sang (xem code đã chỉnh trước đó)
+        // Flag do RoomController truyền sang
         $weekendSearch = isset($hasWeekend) && $hasWeekend;
 
         // Giữ tham số tìm kiếm để đi sang trang chi tiết và các link "xem thêm"
-        // NOTE: date_range sẽ được submit theo chuẩn Y-m-d to Y-m-d (JS phía dưới)
+        // NOTE: date_range sẽ được submit theo chuẩn Y-m-d to Y-m-d
         $searchParams = http_build_query(request()->only(['date_range', 'adults', 'children', 'rooms_count']));
     @endphp
 
@@ -72,7 +72,7 @@
                             {{-- Hidden input (submit lên server theo chuẩn Y-m-d to Y-m-d) --}}
                             <input type="hidden" name="date_range" id="date_range" value="{{ request('date_range') }}">
 
-                            {{-- Guests (giống giao diện home) --}}
+                            {{-- Guests --}}
                             <h6>Khách</h6>
                             <div class="mb-3 position-relative">
                                 <div id="guestSelectorSidebar" class="guest-selector-box w-100">
@@ -212,11 +212,10 @@
                                 <button type="submit" class="filter-submit-btn">Tìm kiếm</button>
                             </div>
                         </div>
-
                     </form>
                 </aside>
 
-                {{-- ==== DANH SÁCH PHÒNG (THEO LOẠI PHÒNG) ==== --}}
+                {{-- ==== DANH SÁCH PHÒNG ==== --}}
                 <div class="col-lg-9">
                     <div class="row g-4">
                         @forelse($phongs as $phong)
@@ -224,20 +223,24 @@
                                 $loaiPhong = $phong->loaiPhong;
 
                                 // Giá hiển thị: nếu đang tìm trong khoảng có cuối tuần → cộng 10%
-                                $displayPrice = (float) $phong->gia_cuoi_cung;
+                                $displayPrice = (float) ($phong->gia_cuoi_cung ?? 0);
                                 if ($weekendSearch) {
                                     $displayPrice = ceil($displayPrice * 1.1);
                                 }
 
-                                // Sức chứa cơ bản của loại phòng
-                                $baseCapacity =
-                                    $phong->suc_chua_toi_da ??
-                                    ($phong->so_nguoi_toi_da ??
-                                        ($phong->so_nguoi ??
-                                            ($loaiPhong->so_nguoi_toi_da ?? ($loaiPhong->so_nguoi ?? 0))));
+                                // =========================
+                                // SỨC CHỨA: lấy từ nhiều field để tránh null (đồng nhất theo dữ liệu thực tế dự án)
+                                // Ưu tiên sức chứa ở loại phòng, nếu không có thì fallback sang phòng
+                                // =========================
+                                $standardCapacity =
+                                    $loaiPhong->suc_chua_toi_da ?? $loaiPhong->so_nguoi_toi_da ?? $loaiPhong->suc_chua ?? $loaiPhong->so_nguoi ?? $loaiPhong->max_nguoi ?? $loaiPhong->nguoi_toi_da ??
+                                    $phong->suc_chua_toi_da ?? $phong->so_nguoi_toi_da ?? $phong->suc_chua ?? $phong->so_nguoi ?? $phong->max_nguoi ?? $phong->nguoi_toi_da ??
+                                    null;
 
-                                // Logic dự án: mỗi loại phòng tối đa thêm 2 người
-                                $maxCapacityAdults = $baseCapacity ? $baseCapacity + 2 : null;
+                                $standardCapacity = is_numeric($standardCapacity) ? (int) $standardCapacity : null;
+
+                                // Logic dự án: mỗi loại phòng tối đa thêm 2 người (nếu dự án bạn đúng quy tắc này)
+                                $maxCapacity = $standardCapacity ? ($standardCapacity + 2) : null;
                             @endphp
 
                             <div class="col-12">
@@ -245,8 +248,8 @@
                                     class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 room-card position-relative hover-shadow transition-all">
 
                                     <div class="row g-0 align-items-center">
+                                        {{-- ========== ẢNH PHÒNG / CAROUSEL ========== --}}
                                         <div class="col-md-5 position-relative">
-
                                             @if ($phong->images->count() > 1)
                                                 <div id="carouselRoom{{ $phong->id }}" class="carousel slide"
                                                     data-bs-ride="carousel" data-bs-interval="3000">
@@ -278,6 +281,7 @@
                                                     alt="{{ $phong->name }}">
                                             @endif
 
+                                            {{-- Badge Giảm giá nếu có --}}
                                             @if (isset($phong->khuyen_mai) && $phong->khuyen_mai > 0)
                                                 <span
                                                     class="badge bg-danger position-absolute top-0 start-0 m-3 px-3 py-2 fs-6 shadow-sm">
@@ -286,8 +290,10 @@
                                             @endif
                                         </div>
 
+                                        {{-- ========== THÔNG TIN LOẠI PHÒNG ========== --}}
                                         <div class="col-md-7">
                                             <div class="card-body py-4 px-4">
+                                                {{-- Đánh giá sao --}}
                                                 <div class="d-flex align-items-center mb-2">
                                                     @for ($i = 1; $i <= 5; $i++)
                                                         <i
@@ -295,15 +301,18 @@
                                                     @endfor
                                                 </div>
 
+                                                {{-- Tên loại phòng --}}
                                                 <h5 class="fw-bold mb-1">
                                                     {{ $loaiPhong->ten ?? ($phong->name ?? $phong->ma_phong) }}
                                                 </h5>
 
+                                                {{-- Mô tả --}}
                                                 <p class="text-muted mb-2">
                                                     <i class="bi bi-geo-alt me-1"></i>
                                                     {{ $phong->mo_ta ?? 'Mô tả đang cập nhật' }}
                                                 </p>
 
+                                                {{-- Số phòng trống / tổng số phòng --}}
                                                 <p class="text-muted mb-2">
                                                     @if (request('date_range') && !is_null($phong->so_phong_trong))
                                                         Còn {{ $phong->so_phong_trong }} /
@@ -313,15 +322,20 @@
                                                     @endif
                                                 </p>
 
-                                                @if ($maxCapacityAdults)
-                                                    <p class="text-muted mb-2">
-                                                        <i class="bi bi-people me-1"></i>
-                                                        Sức chứa tối đa: {{ $maxCapacityAdults }} người
-                                                        (người lớn + trẻ em từ 7 tuổi trở lên)
-                                                        và thêm tối đa 2 trẻ em dưới 7 tuổi.
-                                                    </p>
-                                                @endif
+                                                {{-- ✅ SỨC CHỨA (HIỂN THỊ RÕ TRÊN VIEW) --}}
+                                                <p class="text-muted mb-2">
+                                                    <i class="bi bi-people me-1"></i>
+                                                    @if ($standardCapacity)
+                                                        Sức chứa: {{ $standardCapacity }} khách (tiêu chuẩn)
+                                                        @if ($maxCapacity)
+                                                            • Tối đa {{ $maxCapacity }} khách (thêm tối đa 2 khách)
+                                                        @endif
+                                                    @else
+                                                        Sức chứa: Đang cập nhật
+                                                    @endif
+                                                </p>
 
+                                                {{-- Tiện nghi --}}
                                                 <div class="small text-muted mb-2">
                                                     @if ($phong->tienNghis && $phong->tienNghis->count())
                                                         @foreach ($phong->tienNghis->take(3) as $tiennghi)
@@ -342,6 +356,7 @@
                                                     @endif
                                                 </div>
 
+                                                {{-- Giá & Nút chọn phòng --}}
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <div>
                                                         <h4 class="fw-bold text-primary mb-0">
@@ -357,6 +372,7 @@
                                                     </div>
 
                                                     <div class="d-flex gap-2">
+                                                        {{-- Compare Button --}}
                                                         <button type="button"
                                                             class="btn btn-outline-primary rounded-pill px-3 py-2 compare-btn"
                                                             data-room-id="{{ $phong->id }}"
@@ -368,6 +384,7 @@
                                                             <span class="compare-text">So sánh</span>
                                                         </button>
 
+                                                        {{-- Chọn phòng --}}
                                                         <a href="{{ route('rooms.show', $phong->id) }}@if ($searchParams) ?{{ $searchParams }} @endif"
                                                             class="btn btn-dark rounded-pill px-4 py-2">
                                                             Chọn phòng
@@ -392,6 +409,7 @@
 
                     </div>
 
+                    {{-- Phân trang (giữ query) --}}
                     <div class="mt-4 d-flex justify-content-center">
                         {{ $phongs->appends(request()->query())->links() }}
                     </div>
@@ -433,10 +451,6 @@
 
                 // =========================
                 // Flatpickr (date_range)
-                // - Nhận cả:
-                //   + "YYYY-MM-DD to YYYY-MM-DD" (chuẩn)
-                //   + "06 Jan to 07 Jan" (đang truyền từ Home)
-                // - Submit luôn về "YYYY-MM-DD to YYYY-MM-DD"
                 // =========================
                 (function initDateRange() {
                     const ui = document.getElementById('date_range_ui');
@@ -446,69 +460,15 @@
                     if (ui._flatpickr) ui._flatpickr.destroy();
 
                     const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test((s || '').trim());
-
-                    const monthMap = {
-                        jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
-                        jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
-                    };
-
-                    function pad2(n) {
-                        n = String(n || '').trim();
-                        return n.length === 1 ? ('0' + n) : n;
-                    }
-
-                    // Parse "06 Jan" / "6 Jan" / "06 Jan 2025"
-                    function parseDMonAnyYear(str) {
-                        const s = (str || '').trim();
-                        // dd Mon yyyy
-                        let m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
-                        if (m) {
-                            const dd = pad2(m[1]);
-                            const mon = monthMap[String(m[2]).slice(0,3).toLowerCase()];
-                            const yy = m[3];
-                            if (mon) return `${yy}-${mon}-${dd}`;
-                        }
-                        // dd Mon (no year) -> current year
-                        m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})$/);
-                        if (m) {
-                            const dd = pad2(m[1]);
-                            const mon = monthMap[String(m[2]).slice(0,3).toLowerCase()];
-                            const yy = String(new Date().getFullYear());
-                            if (mon) return `${yy}-${mon}-${dd}`;
-                        }
-                        return null;
-                    }
-
-                    // Normalize input (hidden or ui) to ["YYYY-MM-DD","YYYY-MM-DD"] or null
-                    function normalizeRange(raw) {
-                        const val = (raw || '').trim();
-                        if (!val) return null;
-
-                        const parts = val.split(' to ').map(x => x.trim()).filter(Boolean);
-                        if (parts.length !== 2) return null;
-
-                        // already Y-m-d
-                        if (isYmd(parts[0]) && isYmd(parts[1])) return [parts[0], parts[1]];
-
-                        // try "06 Jan"
-                        const a = parseDMonAnyYear(parts[0]);
-                        const b = parseDMonAnyYear(parts[1]);
-                        if (a && b) return [a, b];
-
-                        return null;
-                    }
-
-                    // Ưu tiên hidden (nếu có), nếu không thì lấy ui (do Home truyền sang)
-                    const rawFromServer = (hidden.value || '').trim() || (ui.value || '').trim();
-                    const normalized = normalizeRange(rawFromServer);
+                    const parts = (hidden.value || '').split(' to ').map(s => s.trim());
+                    const defaultDate = (parts.length === 2 && isYmd(parts[0]) && isYmd(parts[1])) ? parts : null;
 
                     const fp = flatpickr(ui, {
                         mode: "range",
                         minDate: "today",
                         dateFormat: "Y-m-d",
-                        defaultDate: normalized ? normalized : null,
+                        defaultDate: defaultDate,
                         onChange: function(selectedDates, dateStr) {
-                            // dateStr sẽ là "YYYY-MM-DD to YYYY-MM-DD"
                             hidden.value = dateStr || '';
                         },
                         altInput: true,
@@ -516,14 +476,10 @@
                         altInputClass: ui.className,
                     });
 
-                    // Nếu normalize được thì ép hidden về chuẩn để submit đúng
-                    if (normalized) {
-                        hidden.value = normalized[0] + ' to ' + normalized[1];
-                        fp.setDate(normalized, false);
+                    if (defaultDate) {
+                        hidden.value = defaultDate[0] + ' to ' + defaultDate[1];
                     } else {
-                        // Nếu đang là format lạ thì clear để tránh submit sai
-                        const parts = (rawFromServer || '').split(' to ').map(s => s.trim());
-                        if (rawFromServer && !(parts.length === 2 && isYmd(parts[0]) && isYmd(parts[1]))) {
+                        if (hidden.value && !isYmd(parts[0] || '')) {
                             hidden.value = '';
                         }
                     }
@@ -583,16 +539,18 @@
                 const summary = document.getElementById("guestSummarySidebar");
                 const roomsInput = document.getElementById("filter_rooms_count");
 
-                const msgEl = document.getElementById('guestPopupSidebarMsg');
-                function showGuestMsg(text) {
+                const msgEl = document.getElementById("guestPopupSidebarMsg");
+
+                function showGuestMsg(message) {
                     if (!msgEl) return;
-                    msgEl.textContent = text;
-                    msgEl.style.display = 'block';
+                    msgEl.textContent = message;
+                    msgEl.style.display = "block";
                 }
+
                 function clearGuestMsg() {
                     if (!msgEl) return;
-                    msgEl.textContent = '';
-                    msgEl.style.display = 'none';
+                    msgEl.textContent = "";
+                    msgEl.style.display = "none";
                 }
 
                 function getMaxChildren() {
@@ -608,12 +566,14 @@
                         if (currentChildren > maxChildren) {
                             children.textContent = maxChildren;
                         }
+                        if (currentChildren <= maxChildren) clearGuestMsg();
                     });
                 }
 
                 if (popup && btn && adults && children && inputAdults && inputChildren && summary) {
                     btn.addEventListener("click", () => {
                         popup.style.display = popup.style.display === "block" ? "none" : "block";
+                        if (popup.style.display === "block") clearGuestMsg();
                     });
 
                     const updateText = () => {
@@ -627,6 +587,7 @@
 
                             if (target === 'adultsSidebar') {
                                 adults.textContent = parseInt(adults.textContent || '0', 10) + 1;
+                                clearGuestMsg();
                             } else if (target === 'childrenSidebar') {
                                 const current = parseInt(children.textContent || '0', 10);
                                 const maxChildren = getMaxChildren();
@@ -649,6 +610,7 @@
                             if (target === 'adultsSidebar') {
                                 let val = parseInt(adults.textContent || '0', 10);
                                 if (val > 1) adults.textContent = val - 1;
+                                clearGuestMsg();
                             } else if (target === 'childrenSidebar') {
                                 let val = parseInt(children.textContent || '0', 10);
                                 if (val > 0) children.textContent = val - 1;
@@ -668,6 +630,7 @@
 
                     document.addEventListener("click", (e) => {
                         if (!popup.contains(e.target) && !btn.contains(e.target)) {
+                            clearGuestMsg();
                             popup.style.display = "none";
                         }
                     });
@@ -768,7 +731,7 @@
 
 @push('styles')
     <style>
-        /* Popup chọn khách (dùng chung với home) */
+        /* Popup chọn khách */
         .guest-selector-box {
             display: flex;
             align-items: center;
@@ -932,7 +895,6 @@
             border-radius: 14px 0 0 14px;
         }
 
-        /* Đảm bảo toàn card không nhảy khi đổi ảnh */
         .room-card {
             min-height: 250px;
         }
