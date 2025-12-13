@@ -307,7 +307,15 @@ Route::get('/admin/dat-phong/change-room/{id}/calculate',
     [AdminChangeRoomController::class, 'calculate']
 )->name('admin.change-room.calculate');
 
+// API lấy phòng trống
+    Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])
+        ->name('booking.available-rooms');
 
+// Đổi phòng - API lấy phòng trống
+Route::get('/admin/change-room/{id}/available-rooms', [
+    AdminChangeRoomController::class, 
+    'getAvailableRooms'
+])->name('admin.change-room.available-rooms')->middleware('auth');
 });
 
 

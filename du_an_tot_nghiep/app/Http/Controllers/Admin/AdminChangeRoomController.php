@@ -138,7 +138,143 @@ public function change(Request $request, $id)
     return back()->with('success', 'Đổi phòng thành công!');
 }
 
+/**
+ * API lấy phòng trống cho admin
+ */
+public function getAvailableRooms(Request $request, $id)
+{
+    try {
+        $item = DatPhongItem::findOrFail($id);
+        $booking = $item->datPhong;
+        
+        $oldRoomId = $request->get('old_room_id');
+        if ($oldRoomId) {
+            $oldRoomId = (int) $oldRoomId;
+        }
 
+        $currentItem = $item;
+        $currentRoom = $currentItem->phong;
+        
+        if (!$currentRoom) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Không tìm thấy phòng'
+            ], 404);
+        }
+
+        $nights = \Carbon\Carbon::parse($booking->ngay_nhan_phong)
+            ->diffInDays(\Carbon\Carbon::parse($booking->ngay_tra_phong));
+        
+        $totalRooms = $booking->datPhongItems->count() ?: 1;
+        
+        // Tính voucher
+        $voucherPerRoom = 0;
+        if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
+            $voucherPerRoom = (float)$booking->discount_amount / $totalRooms;
+        } elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
+            $voucherPerRoom = (float)$booking->voucher_discount / $totalRooms;
+        }
+        
+        // Tính ngược giá phòng gốc
+        $extraFee = ($currentItem->number_adult * 150000) + ($currentItem->number_child * 60000);
+        $currentRoomPrice = ($currentItem->gia_tren_dem * $nights) - $extraFee + $voucherPerRoom;
+        $currentPricePerNight = $nights > 0 ? $currentRoomPrice / $nights : 0;
+
+        // Lấy ngày check-in/out
+        $checkIn = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+        $checkOut = \Carbon\Carbon::parse($booking->ngay_tra_phong);
+
+        // Lấy tất cả phòng không bảo trì
+        $allRooms = Phong::whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
+            ->pluck('id')
+            ->toArray();
+
+        // Lấy phòng đã đặt trong khoảng thời gian
+        $fromStartStr = $checkIn->copy()->setTime(14, 0)->toDateTimeString();
+        $toEndStr = $checkOut->copy()->setTime(12, 0)->toDateTimeString();
+
+        $bookedRoomIds = \DB::table('dat_phong_item')
+            ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+            ->whereNotNull('dat_phong_item.phong_id')
+            ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+            ->where('dat_phong.id', '!=', $booking->id)
+            ->whereRaw("CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?", 
+                [$toEndStr, $fromStartStr])
+            ->pluck('dat_phong_item.phong_id')
+            ->toArray();
+
+        // Phòng trống
+        $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
+
+        // Load chi tiết
+        $availableRooms = Phong::whereIn('id', $availableRoomIds)
+            ->with(['loaiPhong', 'images'])
+            ->get()
+            ->map(function ($room) use ($currentPricePerNight, $currentItem, $nights) {
+                $roomBasePrice = $room->tong_gia ?? 0;
+                $roomCapacity = $room->suc_chua ?? 2;
+
+                $extraAdults = $currentItem->number_adult ?? 0;
+                $extraChildren = $currentItem->number_child ?? 0;
+                $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
+
+                $roomTotalForStay = ($roomBasePrice + $extraCharge) * $nights;
+                $priceDiff = $roomBasePrice - $currentPricePerNight;
+
+                $imagePath = '/images/room-placeholder.jpg';
+                if ($room->images && $room->images->count() > 0) {
+                    $firstImage = $room->images->first();
+                    if ($firstImage->image_url) {
+                        $imagePath = $firstImage->image_url;
+                    } elseif ($firstImage->image_path) {
+                        $imagePath = asset('storage/' . $firstImage->image_path);
+                    }
+                }
+
+                return [
+                    'id' => $room->id,
+                    'code' => $room->ma_phong,
+                    'name' => $room->name,
+                    'type_name' => $room->loaiPhong->ten ?? 'Standard',
+                    'type_id' => $room->loai_phong_id,
+                    'price_per_night' => $roomBasePrice,
+                    'price_total' => $roomTotalForStay,
+                    'extra_charge' => $extraCharge,
+                    'extra_adults' => $extraAdults,
+                    'extra_children' => $extraChildren,
+                    'price_difference' => $priceDiff,
+                    'image' => $imagePath,
+                    'capacity' => $roomCapacity,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'current_room' => [
+                'id' => $currentRoom->id,
+                'code' => $currentRoom->ma_phong,
+                'name' => $currentRoom->name,
+                'price' => $currentPricePerNight,
+            ],
+            'available_rooms' => $availableRooms,
+            'booking_info' => [
+                'check_in' => $checkIn->format('Y-m-d'),
+                'check_out' => $checkOut->format('Y-m-d'),
+                'nights' => $nights,
+                'total_rooms' => $totalRooms,
+                'voucher_per_room' => $voucherPerRoom,
+            ]
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('❌ API Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 
 
 }

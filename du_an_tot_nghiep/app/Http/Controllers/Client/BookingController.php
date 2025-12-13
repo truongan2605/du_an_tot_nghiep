@@ -126,15 +126,21 @@ class BookingController extends Controller
      */
     public function getAvailableRooms(Request $request, DatPhong $booking)
     {
-        $user = $request->user();
-        if (!$user) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
-        }
 
-        // Verify ownership
-        if ($booking->nguoi_dung_id !== $user->id) {
-            return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
-        }
+    $user = $request->user();
+    if (!$user) {
+        return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+    }
+
+    // ✅ CHO PHÉP ADMIN TRUY CẬP
+    $isAdmin = $user->vai_tro === 'admin' || $user->vai_tro === 'super_admin'; 
+    // HOẶC nếu dùng Spatie Permission:
+    // $isAdmin = $user->hasRole(['admin', 'super_admin']);
+    
+    // Verify ownership (bỏ qua nếu là admin)
+    if (!$isAdmin && $booking->nguoi_dung_id !== $user->id) {
+        return response()->json(['success' => false, 'message' => 'Forbidden'], 403);
+    }
 
         // Get current room (support multi-room bookings)
         $oldRoomId = $request->get('old_room_id'); // OLD_ROOM_ID from frontend

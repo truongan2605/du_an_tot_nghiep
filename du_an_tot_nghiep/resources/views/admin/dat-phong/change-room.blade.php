@@ -13,9 +13,9 @@
         font-size: 20px;
         font-weight: bold;
         margin-bottom: 10px;
+        color: #2c3e50;
     }
 
-    /* Mỗi loại phòng = 1 hàng scroll ngang */
     .rooms-slider {
         display: flex;
         gap: 16px;
@@ -63,6 +63,17 @@
         border-radius: 12px;
         padding: 16px;
         border: 1px solid #e9ecef;
+        position: sticky;
+        top: 20px;
+    }
+
+    .loading-spinner {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 300px;
+        gap: 15px;
     }
 </style>
 
@@ -74,10 +85,10 @@
     $oldRoomPrice = (float)$item->gia_tren_dem * $soDem;
 
     // PHỤ THU CŨ
-$adultExtra = (int)$item->number_adult;
-$childExtra = (int)$item->number_child;
-$extraFee = ($adultExtra * 150000) + ($childExtra * 60000);
-if ($extraFee < 0) $extraFee = 0;
+    $adultExtra = (int)$item->number_adult;
+    $childExtra = (int)$item->number_child;
+    $extraFee = ($adultExtra * 150000) + ($childExtra * 60000);
+    if ($extraFee < 0) $extraFee = 0;
 
     // CHIA VOUCHER THEO SỐ PHÒNG
     $roomCount = $booking->items->count() ?: 1;
@@ -89,19 +100,24 @@ if ($extraFee < 0) $extraFee = 0;
         $voucherItem = (float)$booking->voucher_discount / $roomCount;
     }
 
-    // TỔNG CẦN TRẢ CŨ
-    $payableOld = max(0, ($oldRoomPrice + $extraFee) - $voucherItem);
-
-    // GROUP ROOMS BY TYPE
-    $grouped = $availableRooms->groupBy('loai_phong_id');
+    // TÍNH NGƯỢC GIÁ PHÒNG GỐC
+    $currentRoomOriginalPrice = $oldRoomPrice - $extraFee + $voucherItem;
 @endphp
 
 
 <div class="container-fluid mt-4">
+    
+    {{-- BACK BUTTON --}}
+    <div class="mb-3">
+        <a href="{{ url()->previous() }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Quay lại
+        </a>
+    </div>
+
     <div class="row">
 
         {{-- ===================================================== --}}
-        {{-- LEFT: DANH SÁCH PHÒNG THEO TỪNG LOẠI --}}
+        {{-- LEFT: DANH SÁCH PHÒNG --}}
         {{-- ===================================================== --}}
         <div class="col-md-8">
 
@@ -110,70 +126,14 @@ if ($extraFee < 0) $extraFee = 0;
                 <strong>#{{ $item->phong->ma_phong }}</strong> — {{ $item->phong->name }}
             </h4>
 
-            {{-- LOOP LOẠI PHÒNG --}}
-            @foreach($grouped as $typeId => $roomsOfType)
-
-                <div class="room-type-section">
-
-                    <div class="room-type-title">
-                        {{ optional(\App\Models\LoaiPhong::find($typeId))->ten ?? 'Không xác định' }}
+            <div id="rooms-container">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
                     </div>
-
-                    <div class="rooms-slider">
-
-                        @foreach($roomsOfType as $room)
-
-                          @php
-    $newRoomPrice = (float)$room->tong_gia * $soDem;
-    $diff = $newRoomPrice - $oldRoomPrice;
-@endphp
-
-                            <div class="room-card" id="room-{{ $room->id }}"
-                                 onclick="selectRoom({{ $room->id }})">
-
-                                <img src="{{ $room->firstImageUrl() }}"
-                                     style="height:150px;width:100%;object-fit:cover;"
-                                     class="rounded mb-2">
-
-                                <strong>#{{ $room->ma_phong }} - {{ $room->name }}</strong>
-
-                                <div class="text-muted small">Sức chứa: {{ $room->suc_chua }}</div>
-
-                                <div class="mt-3">
-                                    <div class="d-flex justify-content-between">
-                                        <span class="small text-muted">Giá/đêm</span>
-                                        <span class="fw-bold">{{ number_format($room->tong_gia) }}đ</span>
-                                    </div>
-
-                                    <div class="d-flex justify-content-between mt-1">
-                                        <span class="small text-muted">Giá {{ $soDem }} đêm</span>
-                                        <span>{{ number_format($newRoomPrice) }}đ</span>
-                                    </div>
-
-                                    <div class="d-flex justify-content-between mt-1">
-                                        <span class="small text-muted">+ Phụ thu</span>
-                                        <span>{{ number_format($extraFee) }}đ</span>
-                                    </div>
-
-                                    <div class="mt-2">
-                                        @if($diff < 0)
-                                            <span class="badge bg-success">Tiết kiệm {{ number_format(abs($diff)) }}đ</span>
-                                        @elseif($diff > 0)
-                                            <span class="badge bg-danger">Tăng {{ number_format($diff) }}đ</span>
-                                        @else
-                                            <span class="badge bg-secondary">Không đổi</span>
-                                        @endif
-                                    </div>
-
-                                </div>
-                            </div>
-
-                        @endforeach
-
-                    </div>
+                    <span class="text-muted">Đang tải phòng trống...</span>
                 </div>
-
-            @endforeach
+            </div>
 
         </div>
 
@@ -188,50 +148,59 @@ if ($extraFee < 0) $extraFee = 0;
 
                 <h5 class="mb-3">Tóm tắt giá</h5>
 
+                {{-- PHÒNG HIỆN TẠI --}}
                 <div class="small text-muted">Phòng hiện tại</div>
-                <div class="fw-bold">{{ $item->phong->name }} — {{ $soDem }} đêm</div>
+                <div class="fw-bold" id="current-room-name">{{ $item->phong->name }} — {{ $soDem }} đêm</div>
 
-                <div>
-                    {{ number_format($oldRoomPrice) }}đ
-                    <small class="text-muted">({{ number_format($item->gia_tren_dem) }}/đêm)</small>
+                <div id="current-room-price">
+                    {{ number_format($currentRoomOriginalPrice) }}đ
+                    <small class="text-muted">({{ number_format($currentRoomOriginalPrice / $soDem) }}/đêm)</small>
                 </div>
 
                 <div class="mt-1 text-muted small">+ Phụ thu: {{ number_format($extraFee) }}đ</div>
 
                 <hr>
 
+                {{-- PHÒNG MỚI --}}
                 <div id="new-room-summary" style="display:none;">
                     <div class="small text-muted">Phòng mới</div>
                     <div id="new-room-name" class="fw-bold"></div>
                     <div id="new-room-total" class="fw-semibold mb-1"></div>
+                    <div id="new-room-extra" class="small text-muted mt-1"></div>
+                    <hr>
                 </div>
 
-                <div class="text-muted small mt-2">Voucher chia cho phòng:</div>
-                <div id="voucher-applied" class="fw-bold">
-                    {{ number_format($voucherItem) }}đ
+                {{-- VOUCHER --}}
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">Voucher chia cho phòng:</span>
+                    <span id="voucher-applied" class="fw-bold text-danger">
+                        {{ $voucherItem > 0 ? '-' . number_format($voucherItem) . 'đ' : 'Không có' }}
+                    </span>
                 </div>
 
                 <hr>
 
+                {{-- TỔNG BOOKING --}}
                 <div class="d-flex justify-content-between">
                     <span class="fw-bold">Tổng booking hiện tại</span>
-                    <span>{{ number_format($booking->tong_tien) }}đ</span>
+                    <span id="booking-current-total">{{ number_format($booking->tong_tien) }}đ</span>
                 </div>
 
                 <div class="d-flex justify-content-between mt-1">
-                    <span class="fw-bold">Tổng booking nếu đổi</span>
-                    <span id="booking-new-total-txt">-</span>
+                    <span class="fw-bold text-primary">Tổng booking nếu đổi</span>
+                    <span id="booking-new-total-txt" class="fw-bold text-primary">-</span>
                 </div>
 
                 <hr>
 
+                {{-- FORM SUBMIT --}}
                 <form id="submit-change" method="POST"
                       action="{{ route('admin.change-room.apply', $item->id) }}">
                     @csrf
                     <input type="hidden" name="new_room_id" id="new_room_id">
 
-                    <button class="btn btn-primary w-100" disabled id="confirm-btn">
-                        Xác nhận đổi phòng
+                    <button type="submit" class="btn btn-primary w-100" disabled id="confirm-btn">
+                        <i class="fas fa-exchange-alt"></i> Xác nhận đổi phòng
                     </button>
                 </form>
 
@@ -243,47 +212,281 @@ if ($extraFee < 0) $extraFee = 0;
 </div>
 
 
-{{-- ===================================================== --}}
-{{-- JS — TÍNH GIÁ REALTIME --}}
-{{-- ===================================================== --}}
+{{-- ========================================= --}}
+{{-- JAVASCRIPT --}}
+{{-- ========================================= --}}
 <script>
-function selectRoom(roomId) {
+let bookingData = null;
+let selectedRoomData = null;
 
-    document.querySelectorAll('.room-card').forEach(e => e.classList.remove('selected'));
-    document.getElementById('room-' + roomId).classList.add('selected');
-
-    document.getElementById('new_room_id').value = roomId;
-    document.getElementById('confirm-btn').disabled = false;
-
-    fetch("{{ route('admin.change-room.calculate', $item->id) }}?room_id=" + roomId)
-    .then(res => res.json())
-    .then(data => {
-        
-        // ← THÊM DEBUG Ở ĐÂY
-        console.log('=== API DATA ===', data);
-        console.log('bookingOriginal:', {{ $booking->tong_tien }});
-        console.log('diff:', data.total_diff);
-        console.log('result:', {{ $booking->tong_tien }} + Number(data.total_diff));
-
-        document.getElementById('new-room-summary').style.display = 'block';
-        // ... code cũ tiếp tục
-
-            document.getElementById('new-room-name').textContent = data.room_name;
-            document.getElementById('new-room-total').textContent = data.new_total_format;
-
-            document.getElementById('voucher-applied').textContent = data.voucher_amount_format;
-
-            const bookingOriginal = Number({{ $booking->tong_tien }});
-            const diff = Number(data.total_diff ?? 0);
-
-            document.getElementById('booking-new-total-txt').textContent =
-                new Intl.NumberFormat().format(bookingOriginal + diff) + 'đ';
-        })
-        .catch(err => {
-            alert("Lỗi tính giá!");
-            console.error(err);
+async function loadAvailableRooms() {
+    try {
+        const response = await fetch("/admin/change-room/{{ $item->id }}/available-rooms?old_room_id={{ $item->phong_id }}", {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        console.log('📦 Full API Response:', data);
+
+        if (data.success) {
+            // ✅ QUAN TRỌNG: SET bookingData TRƯỚC KHI render
+            if (!data.booking_info) {
+                throw new Error('Missing booking_info in response');
+            }
+            
+            bookingData = data.booking_info;
+            console.log('✅ bookingData set:', bookingData);
+            
+            // ✅ SAU ĐÓ MỚI render
+            if (!data.available_rooms) {
+                throw new Error('Missing available_rooms in response');
+            }
+            
+            renderAvailableRooms(data.available_rooms);
+        } else {
+            showError(data.message || 'Không thể tải phòng trống');
+        }
+    } catch (error) {
+        console.error('❌ Error loading rooms:', error);
+        showError('Lỗi kết nối API: ' + error.message);
+    }
 }
+
+// ===== HIỂN THỊ DANH SÁCH PHÒNG =====
+
+function renderAvailableRooms(roomsData) {
+    const container = document.getElementById('rooms-container');
+    
+    console.log('🏨 Rendering rooms:', roomsData);
+    
+    if (!roomsData) {
+        showError('Dữ liệu phòng không hợp lệ');
+        return;
+    }
+    
+    // Convert object to array nếu cần
+    if (!Array.isArray(roomsData)) {
+        roomsData = Object.values(roomsData);
+    }
+    
+    if (roomsData.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle"></i>
+                Không có phòng trống trong khoảng thời gian này.
+            </div>
+        `;
+        return;
+    }
+
+    // ✅ GROUP ROOMS BY TYPE_ID
+    const groupedRooms = {};
+    roomsData.forEach(room => {
+        const typeId = room.type_id || 'unknown';
+        if (!groupedRooms[typeId]) {
+            groupedRooms[typeId] = {
+                type_id: typeId,
+                type_name: room.type_name || room.name || 'Không xác định',
+                rooms: []
+            };
+        }
+        groupedRooms[typeId].rooms.push(room);
+    });
+
+    console.log('🏨 Grouped rooms:', groupedRooms);
+
+    let html = '';
+    
+    Object.values(groupedRooms).forEach((typeGroup) => {
+        console.log(`🏨 Processing type: ${typeGroup.type_name}, rooms: ${typeGroup.rooms.length}`);
+        
+        html += `
+            <div class="room-type-section">
+                <div class="room-type-title">
+                    <i class="fas fa-door-open"></i> ${typeGroup.type_name}
+                </div>
+                <div class="rooms-slider">
+        `;
+
+        typeGroup.rooms.forEach((room) => {
+            if (!room || !room.id) {
+                console.warn('⚠️ Invalid room:', room);
+                return;
+            }
+            
+            if (!bookingData || !bookingData.nights) {
+                console.error('❌ bookingData not available!');
+                return;
+            }
+            
+            const totalDiff = (room.price_difference || 0) * bookingData.nights;
+            const diffBadge = room.price_difference < 0 
+                ? `<span class="badge bg-success"><i class="fas fa-arrow-down"></i> Tiết kiệm ${formatNumber(Math.abs(totalDiff))}đ</span>`
+                : room.price_difference > 0
+                ? `<span class="badge bg-danger"><i class="fas fa-arrow-up"></i> Tăng ${formatNumber(totalDiff)}đ</span>`
+                : `<span class="badge bg-secondary">Không đổi</span>`;
+
+            const roomJsonEscaped = JSON.stringify(room)
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            html += `
+                <div class="room-card" id="room-${room.id}" onclick='selectRoom(${room.id}, \`${roomJsonEscaped}\`)'>
+                    <img src="${room.image || '/images/room-placeholder.jpg'}" 
+                         style="height:150px;width:100%;object-fit:cover;" 
+                         class="rounded mb-2"
+                         onerror="this.src='/images/room-placeholder.jpg'">
+
+                    <strong>#${room.code || ''} - ${room.name || 'Không tên'}</strong>
+                    <div class="text-muted small">
+                        <i class="fas fa-users"></i> Sức chứa: ${room.capacity || 0} người
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between">
+                            <span class="small text-muted">Giá/đêm</span>
+                            <span class="fw-bold">${formatNumber(room.price_per_night || 0)}đ</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-1">
+                            <span class="small text-muted">× ${bookingData.nights} đêm</span>
+                            <span>${formatNumber((room.price_per_night || 0) * bookingData.nights)}đ</span>
+                        </div>
+
+                        ${(room.extra_charge || 0) > 0 ? `
+                        <div class="d-flex justify-content-between mt-1">
+                            <span class="small text-muted">+ Phụ thu</span>
+                            <span class="text-warning">${formatNumber(room.extra_charge * bookingData.nights)}đ</span>
+                        </div>
+                        ` : ''}
+
+                        <div class="mt-2">
+                            ${diffBadge}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+                </div>
+            </div>
+        `;
+    });
+
+    if (html === '') {
+        showError('Không có phòng nào hợp lệ');
+        return;
+    }
+
+    container.innerHTML = html;
+    console.log('✅ Rooms rendered successfully');
+}
+// ===== CHỌN PHÒNG =====
+function selectRoom(roomId, roomDataStr) {
+    try {
+        const roomData = typeof roomDataStr === 'string' ? JSON.parse(roomDataStr) : roomDataStr;
+        
+        console.log('🎯 Selected room:', roomData);
+        
+        // Highlight selected
+        document.querySelectorAll('.room-card').forEach(e => e.classList.remove('selected'));
+        document.getElementById('room-' + roomId)?.classList.add('selected');
+
+        // Save data
+        selectedRoomData = roomData;
+        document.getElementById('new_room_id').value = roomId;
+        document.getElementById('confirm-btn').disabled = false;
+
+        // Update summary
+        document.getElementById('new-room-summary').style.display = 'block';
+        document.getElementById('new-room-name').textContent = `#${roomData.code} - ${roomData.name}`;
+        
+        const totalNew = (roomData.price_per_night + roomData.extra_charge) * bookingData.nights;
+        document.getElementById('new-room-total').textContent = formatNumber(totalNew) + 'đ';
+        
+        if (roomData.extra_charge > 0) {
+            document.getElementById('new-room-extra').textContent = 
+                `${bookingData.nights} đêm × ${formatNumber(roomData.price_per_night)}đ + Phụ thu ${formatNumber(roomData.extra_charge * bookingData.nights)}đ`;
+        } else {
+            document.getElementById('new-room-extra').textContent = 
+                `${bookingData.nights} đêm × ${formatNumber(roomData.price_per_night)}đ`;
+        }
+
+        // Tính tổng booking mới
+        const bookingCurrent = {{ $booking->tong_tien }};
+        const priceDiff = roomData.price_difference * bookingData.nights;
+        const bookingNew = bookingCurrent + priceDiff;
+
+        console.log('💰 Price calculation:', {
+            bookingCurrent,
+            priceDiff,
+            bookingNew
+        });
+
+        document.getElementById('booking-new-total-txt').textContent = formatNumber(bookingNew) + 'đ';
+        
+        // Đổi màu theo chênh lệch
+        const newTotalElement = document.getElementById('booking-new-total-txt');
+        newTotalElement.classList.remove('text-success', 'text-danger', 'text-primary');
+        if (priceDiff > 0) {
+            newTotalElement.classList.add('text-danger');
+        } else if (priceDiff < 0) {
+            newTotalElement.classList.add('text-success');
+        } else {
+            newTotalElement.classList.add('text-primary');
+        }
+
+    } catch (error) {
+        console.error('❌ Error selecting room:', error);
+        alert('Lỗi khi chọn phòng. Vui lòng thử lại!');
+    }
+}
+
+// ===== FORMAT NUMBER =====
+function formatNumber(num) {
+    return new Intl.NumberFormat('vi-VN').format(Math.round(num));
+}
+
+// ===== SHOW ERROR =====
+function showError(message) {
+    document.getElementById('rooms-container').innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Lỗi:</strong> ${message}
+        </div>
+    `;
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Page loaded, loading rooms...');
+    loadAvailableRooms();
+    
+    // Confirm trước khi submit
+    document.getElementById('submit-change').addEventListener('submit', function(e) {
+        if (!selectedRoomData) {
+            e.preventDefault();
+            alert('Vui lòng chọn phòng muốn đổi!');
+            return false;
+        }
+        
+        if (!confirm(`Bạn có chắc muốn đổi sang phòng #${selectedRoomData.code} - ${selectedRoomData.name}?`)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
 </script>
 
 @endsection
