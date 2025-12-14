@@ -2435,11 +2435,19 @@ class StaffController extends Controller
 
             // Update booking totals
             $newBookingTotal = max(0, $currentBookingTotal - $roomTotalPrice);
-            $newDepositAmount = max(0, $paidAmount - $refundAmount);
+            
+            // QUAN TRỌNG: Khi hủy 1 phòng, toàn bộ phần cọc của phòng đó bị loại bỏ:
+            // - Phần được hoàn (30%): trả về khách
+            // - Phần bị phạt (70%): khách sạn giữ lại (MẤT LUÔN)
+            // => Deposit còn lại = chỉ phần cọc của các phòng còn active
+            $newDepositAmount = max(0, $paidAmount - $roomDepositShare);
+            
+            // Tính số tiền khách sạn giữ lại (phần phạt)
+            $forfeitedAmount = $roomDepositShare - $refundAmount;
             
             $booking->update([
                 'tong_tien' => $newBookingTotal,
-                'deposit_amount' => $newDepositAmount,
+                'deposit_amount' => $newDepositAmount,  // Chỉ còn cọc của các phòng active
             ]);
 
             // Delete related records
@@ -2488,7 +2496,11 @@ class StaffController extends Controller
                 'booking_id' => $booking->id,
                 'item_id' => $itemId,
                 'room_name' => $displayRoomName,
+                'old_deposit' => $paidAmount,
+                'room_deposit_share' => round($roomDepositShare),
                 'refund_amount' => $refundAmount,
+                'forfeited_amount' => $forfeitedAmount,  // Phần khách sạn giữ lại
+                'new_deposit' => $newDepositAmount,
                 'staff_id' => Auth::id(),
             ]);
 
