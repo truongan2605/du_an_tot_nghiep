@@ -509,26 +509,54 @@
                                                         </thead>
                                                         <tbody>
                                                             @php
-                                                                $allRoomTypes = collect();
-                                                                if (!empty($roomTypeRevenueToday)) {
-                                                                    $allRoomTypes = $allRoomTypes->merge(
-                                                                        $roomTypeRevenueToday,
-                                                                    );
-                                                                }
+                                                                // Bắt đầu từ tháng này (dữ liệu chính) - đây là nguồn dữ liệu chính cho tab "Tháng này"
+                                                                $allRoomTypes = collect($roomTypeRevenueMonth ?? [])->filter(function($item) {
+                                                                    return !empty($item->id) && !empty($item->ten);
+                                                                });
+                                                                
+                                                                // Lấy danh sách ID từ tháng này
+                                                                $existingIds = $allRoomTypes->pluck('id')->filter()->toArray();
+                                                                
+                                                                // Merge với tuần này để lấy thêm các loại phòng có thể không có trong tháng
                                                                 if (!empty($roomTypeRevenueWeek)) {
-                                                                    $allRoomTypes = $allRoomTypes->merge(
-                                                                        $roomTypeRevenueWeek,
-                                                                    );
+                                                                    foreach ($roomTypeRevenueWeek as $weekType) {
+                                                                        if (!empty($weekType->id) && !empty($weekType->ten) && !in_array($weekType->id, $existingIds)) {
+                                                                            $allRoomTypes->push($weekType);
+                                                                            $existingIds[] = $weekType->id;
+                                                                        }
+                                                                    }
                                                                 }
-                                                                if (!empty($roomTypeRevenueMonth)) {
-                                                                    $allRoomTypes = $allRoomTypes->merge(
-                                                                        $roomTypeRevenueMonth,
-                                                                    );
+                                                                
+                                                                // Merge với hôm nay để lấy thêm các loại phòng có thể không có trong tháng/tuần
+                                                                if (!empty($roomTypeRevenueToday)) {
+                                                                    foreach ($roomTypeRevenueToday as $todayType) {
+                                                                        if (!empty($todayType->id) && !empty($todayType->ten) && !in_array($todayType->id, $existingIds)) {
+                                                                            $allRoomTypes->push($todayType);
+                                                                            $existingIds[] = $todayType->id;
+                                                                        }
+                                                                    }
                                                                 }
-                                                                $allRoomTypes = $allRoomTypes->unique('id');
+                                                                
+                                                                // Sắp xếp theo doanh thu tháng này (giảm dần), nếu không có trong tháng thì sắp xếp theo tuần, rồi hôm nay
+                                                                $allRoomTypes = $allRoomTypes->sortByDesc(function($roomType) use ($roomTypeRevenueMonth, $roomTypeRevenueWeek, $roomTypeRevenueToday) {
+                                                                    $monthData = $roomTypeRevenueMonth->firstWhere('id', $roomType->id);
+                                                                    if ($monthData && isset($monthData->revenue)) {
+                                                                        return $monthData->revenue;
+                                                                    }
+                                                                    $weekData = $roomTypeRevenueWeek->firstWhere('id', $roomType->id);
+                                                                    if ($weekData && isset($weekData->revenue)) {
+                                                                        return $weekData->revenue;
+                                                                    }
+                                                                    $todayData = $roomTypeRevenueToday->firstWhere('id', $roomType->id);
+                                                                    return $todayData->revenue ?? 0;
+                                                                })->values();
                                                             @endphp
                                                             @forelse($allRoomTypes as $roomType)
                                                                 @php
+                                                                    // Lấy thông tin từ tháng này trước (ưu tiên) để đảm bảo có đầy đủ thông tin
+                                                                    $monthData = $roomTypeRevenueMonth->firstWhere('id', $roomType->id);
+                                                                    $roomTypeName = $monthData->ten ?? $roomType->ten ?? 'N/A';
+                                                                    
                                                                     $todayRev =
                                                                         $roomTypeRevenueToday->firstWhere(
                                                                             'id',
@@ -539,19 +567,11 @@
                                                                             'id',
                                                                             $roomType->id,
                                                                         )->revenue ?? 0;
-                                                                    $monthRev =
-                                                                        $roomTypeRevenueMonth->firstWhere(
-                                                                            'id',
-                                                                            $roomType->id,
-                                                                        )->revenue ?? 0;
-                                                                    $bookingCount =
-                                                                        $roomTypeRevenueMonth->firstWhere(
-                                                                            'id',
-                                                                            $roomType->id,
-                                                                        )->booking_count ?? 0;
+                                                                    $monthRev = $monthData->revenue ?? 0;
+                                                                    $bookingCount = $monthData->booking_count ?? 0;
                                                                 @endphp
                                                                 <tr>
-                                                                    <td class="ps-3 fw-semibold">{{ $roomType->ten }}</td>
+                                                                    <td class="ps-3 fw-semibold">{{ $roomTypeName }}</td>
                                                                     <td class="text-center">
                                                                         <span class="badge bg-success-subtle text-success">
                                                                             {{ number_format($todayRev, 0, '.', '.') }}đ
@@ -618,14 +638,40 @@
                                         <div class="card bg-light border-0 h-100">
                                             <div class="card-body p-3">
                                                 <h6 class="text-muted mb-2">Top phòng doanh thu cao</h6>
-                                                <div style="max-height: 300px; overflow-y: auto;">
-                                                    @forelse(collect($roomRevenueMonth ?? [])->take(10) as $room)
+                                                <div style="max-height: 600px; overflow-y: auto;">
+                                                    @php
+                                                        // Lọc và sắp xếp các phòng cụ thể (chỉ lấy các phòng có ma_phong hợp lệ, không phải tên loại phòng)
+                                                        $topRooms = collect($roomRevenueMonth ?? [])
+                                                            ->filter(function($room) {
+                                                                // Chỉ lấy các phòng có ma_phong và id hợp lệ
+                                                                if (empty($room->id) || empty($room->ma_phong) || empty($room->revenue) || $room->revenue <= 0) {
+                                                                    return false;
+                                                                }
+                                                                
+                                                                // Loại bỏ các mục có ma_phong trùng với tên loại phòng (không chứa số hoặc dấu gạch ngang)
+                                                                // Mã phòng hợp lệ thường có định dạng như "SPR - 1", "STD-2", "DLX-3", v.v.
+                                                                $maPhong = trim($room->ma_phong);
+                                                                // Kiểm tra xem ma_phong có chứa số hoặc dấu gạch ngang không (định dạng mã phòng)
+                                                                $hasNumber = preg_match('/\d/', $maPhong);
+                                                                $hasDash = strpos($maPhong, '-') !== false || strpos($maPhong, '_') !== false;
+                                                                
+                                                                // Nếu không có số và không có dấu gạch, có thể là tên loại phòng, bỏ qua
+                                                                if (!$hasNumber && !$hasDash) {
+                                                                    return false;
+                                                                }
+                                                                
+                                                                return true;
+                                                            })
+                                                            ->sortByDesc('revenue')
+                                                            ->take(10);
+                                                    @endphp
+                                                    @forelse($topRooms as $room)
                                                         <div
                                                             class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
                                                             <div>
-                                                                <div class="fw-semibold text-dark">{{ $room->ma_phong }}
+                                                                <div class="fw-semibold text-dark">{{ $room->ma_phong ?? 'N/A' }}
                                                                 </div>
-                                                                <small class="text-muted">{{ $room->loai_phong }}</small>
+                                                                <small class="text-muted">{{ $room->loai_phong ?? '' }}</small>
                                                                 <br>
                                                                 <small class="text-muted">{{ $room->booking_count ?? 0 }}
                                                                     đơn</small>
@@ -1479,6 +1525,80 @@
                         });
                     }
                 @endif
+
+                // Đảm bảo tab được hiển thị đúng khi trang load/quay lại
+                function ensureActiveTabIsVisible() {
+                    const activeTabButton = document.querySelector('#revenueTabs button[data-bs-toggle="pill"].active');
+                    if (activeTabButton) {
+                        const targetId = activeTabButton.getAttribute('data-bs-target');
+                        if (targetId) {
+                            const targetPane = document.querySelector(targetId);
+                            if (targetPane) {
+                                // Đảm bảo tab-pane có class show active
+                                targetPane.classList.add('show', 'active');
+                                // Ẩn các tab-pane khác
+                                document.querySelectorAll('#revenueTabContent .tab-pane').forEach(pane => {
+                                    if (pane.id !== targetId.replace('#', '')) {
+                                        pane.classList.remove('show', 'active');
+                                    }
+                                });
+                                
+                                // Sử dụng Bootstrap Tab API để show tab (nếu có)
+                                try {
+                                    const tab = new bootstrap.Tab(activeTabButton);
+                                    if (!targetPane.classList.contains('show')) {
+                                        tab.show();
+                                    }
+                                } catch (e) {
+                                    // Nếu Bootstrap chưa load, chỉ cần class là đủ
+                                }
+                            }
+                        }
+                    } else {
+                        // Nếu không có tab nào active, active tab mặc định
+                        const defaultTab = document.querySelector('#today-tab');
+                        const defaultPane = document.querySelector('#today');
+                        if (defaultTab && defaultPane) {
+                            defaultTab.classList.add('active');
+                            defaultPane.classList.add('show', 'active');
+                            
+                            // Sử dụng Bootstrap Tab API
+                            try {
+                                const tab = new bootstrap.Tab(defaultTab);
+                                tab.show();
+                            } catch (e) {
+                                // Nếu Bootstrap chưa load, chỉ cần class là đủ
+                            }
+                        }
+                    }
+                }
+
+                // Chạy ngay khi DOM ready
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', ensureActiveTabIsVisible);
+                } else {
+                    ensureActiveTabIsVisible();
+                }
+
+                // Chạy lại khi trang được hiển thị (khi quay lại từ trang khác)
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) {
+                        setTimeout(ensureActiveTabIsVisible, 100);
+                    }
+                });
+
+                // Xử lý khi quay lại trang từ cache (back/forward navigation)
+                window.addEventListener('pageshow', function(event) {
+                    // Nếu trang được load từ cache (back/forward)
+                    if (event.persisted) {
+                        setTimeout(ensureActiveTabIsVisible, 100);
+                    }
+                });
+
+                // Xử lý khi cửa sổ được focus lại (khi quay lại tab)
+                window.addEventListener('focus', function() {
+                    setTimeout(ensureActiveTabIsVisible, 100);
+                });
 
                 // Xử lý khi chuyển tab
                 const tabButtons = document.querySelectorAll('#revenueTabs button[data-bs-toggle="pill"]');
