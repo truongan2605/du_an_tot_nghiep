@@ -101,12 +101,40 @@ public function change(Request $request, $id)
 
     $soDem = (int)$item->so_dem;
 
-    // PHỤ THU
-    $adultExtra = (int)$item->number_adult;
-    $childExtra = (int)$item->number_child;
-    $extraFee = ($adultExtra * 150000) + ($childExtra * 60000);
-
-    // VOUCHER
+    // ✅ TÍNH LẠI PHỤ THU THEO SỨC CHỨA PHÒNG MỚI
+    
+    // Tổng số khách thực tế
+    $totalGuests = $item->so_nguoi_o ?? 0;
+    if ($totalGuests == 0) {
+        $oldRoomCapacity = $item->phong->suc_chua ?? 2;
+        $totalGuests = $oldRoomCapacity + ($item->number_adult ?? 0) + ($item->number_child ?? 0);
+    }
+    
+    // Sức chứa phòng mới
+    $newRoomCapacity = $room->suc_chua ?? 2;
+    
+    // Số khách vượt quá phòng mới
+    $extraGuestsInNewRoom = max(0, $totalGuests - $newRoomCapacity);
+    
+    // Tỷ lệ người lớn/trẻ em từ phòng cũ
+    $oldExtraAdults = $item->number_adult ?? 0;
+    $oldExtraChildren = $item->number_child ?? 0;
+    $oldTotalExtra = $oldExtraAdults + $oldExtraChildren;
+    
+    // Phân bổ lại
+    if ($extraGuestsInNewRoom > 0 && $oldTotalExtra > 0) {
+        $adultRatio = $oldExtraAdults / $oldTotalExtra;
+        $newExtraAdults = round($extraGuestsInNewRoom * $adultRatio);
+        $newExtraChildren = $extraGuestsInNewRoom - $newExtraAdults;
+    } else {
+        $newExtraAdults = 0;
+        $newExtraChildren = 0;
+    }
+    
+    $newExtraFee = ($newExtraAdults * 150000) + ($newExtraChildren * 60000);
+    $oldExtraFee = ($oldExtraAdults * 150000) + ($oldExtraChildren * 60000);
+    
+    // Voucher
     $roomCount = $booking->items->count() ?: 1;
     $voucherItem = 0;
     if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
@@ -115,28 +143,36 @@ public function change(Request $request, $id)
         $voucherItem = (float)$booking->voucher_discount / $roomCount;
     }
 
-    // TÍNH NGƯỢC GIÁ PHÒNG GỐC
-    $oldRoomPrice = ($item->gia_tren_dem * $soDem) - $extraFee + $voucherItem;
+    // GIÁ PHÒNG CŨ - MỚI
+    $oldRoomPrice = ($item->gia_tren_dem * $soDem) - $oldExtraFee + $voucherItem;
     $newRoomPrice = (float)$room->tong_gia * $soDem;
 
-    // CHÊNH LỆCH
+    // CHÊNH LỆCH GIÁ PHÒNG + CHÊNH LỆCH PHỤ THU
     $diffRoomOnly = $newRoomPrice - $oldRoomPrice;
+    $diffExtraFee = $newExtraFee - $oldExtraFee;
+    $totalDiff = $diffRoomOnly + $diffExtraFee;
 
     // UPDATE BOOKING
-    $booking->tong_tien = (float)$booking->tong_tien + $diffRoomOnly;
+    $booking->tong_tien = (float)$booking->tong_tien + $totalDiff;
     $booking->save();
 
-    // UPDATE ITEM - Lưu lại gia_tren_dem mới (bao gồm phụ thu và voucher)
-    $newGiaTrenDem = ($newRoomPrice + $extraFee - $voucherItem) / $soDem;
+    // UPDATE ITEM - Lưu lại phụ thu mới
+    $newGiaTrenDem = ($newRoomPrice + $newExtraFee - $voucherItem) / $soDem;
     
     $item->phong_id = $room->id;
     $item->loai_phong_id = $room->loai_phong_id;
     $item->gia_tren_dem = $newGiaTrenDem;
     $item->tong_item = $newRoomPrice;
+    $item->number_adult = $newExtraAdults; // ✅ Cập nhật phụ thu mới
+    $item->number_child = $newExtraChildren; // ✅ Cập nhật phụ thu mới
+    $item->so_nguoi_o = $totalGuests; // ✅ Lưu tổng số khách
     $item->save();
+
+    
 
     return back()->with('success', 'Đổi phòng thành công!');
 }
+
 
 /**
  * API lấy phòng trống cho admin
@@ -185,38 +221,86 @@ public function getAvailableRooms(Request $request, $id)
         $checkOut = \Carbon\Carbon::parse($booking->ngay_tra_phong);
 
         // Lấy tất cả phòng không bảo trì
-        $allRooms = Phong::whereNotIn('trang_thai', ['bao_tri', 'khong_su_dung'])
-            ->pluck('id')
-            ->toArray();
+       $allRooms = Phong::where('trang_thai', 'trong')
+    ->pluck('id')
+    ->toArray();
+
 
         // Lấy phòng đã đặt trong khoảng thời gian
         $fromStartStr = $checkIn->copy()->setTime(14, 0)->toDateTimeString();
         $toEndStr = $checkOut->copy()->setTime(12, 0)->toDateTimeString();
 
         $bookedRoomIds = \DB::table('dat_phong_item')
-            ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
-            ->whereNotNull('dat_phong_item.phong_id')
-            ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
-            ->where('dat_phong.id', '!=', $booking->id)
-            ->whereRaw("CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?", 
-                [$toEndStr, $fromStartStr])
-            ->pluck('dat_phong_item.phong_id')
-            ->toArray();
+    ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+    ->whereNotNull('dat_phong_item.phong_id')
+    ->whereNotIn('dat_phong.trang_thai', ['da_xac_nhan','dang_cho_xac_nhan','dang_su_dung'])
+    ->where('dat_phong.id', '!=', $booking->id)
+    ->whereRaw(
+        "CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? 
+         AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?",
+        [$toEndStr, $fromStartStr]
+    )
+    ->pluck('dat_phong_item.phong_id')
+    ->toArray();
+
 
         // Phòng trống
-        $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
+        // 3️⃣ Phòng trống + không trùng ngày + khác phòng hiện tại
+$availableRoomIds = array_diff(
+    $allRooms,
+    $bookedRoomIds,
+    [$currentRoom->id]
+);
+$currentBookingRoomIds = $booking->datPhongItems()
+    ->whereNotNull('phong_id')
+    ->pluck('phong_id')
+    ->toArray();
+$excludeRoomIds = array_unique(array_merge(
+    $bookedRoomIds,          // phòng đã bị booking khác chiếm
+    $currentBookingRoomIds   // phòng đã gán trong booking hiện tại
+));
 
         // Load chi tiết
-        $availableRooms = Phong::whereIn('id', $availableRoomIds)
-            ->with(['loaiPhong', 'images'])
-            ->get()
-            ->map(function ($room) use ($currentPricePerNight, $currentItem, $nights) {
-                $roomBasePrice = $room->tong_gia ?? 0;
-                $roomCapacity = $room->suc_chua ?? 2;
+  $availableRooms = Phong::whereNotIn('id', $excludeRoomIds)
+    ->whereIn('trang_thai', ['dang_o', 'trong']) // ❗ CHỈ PHÒNG ĐƯỢC PHÉP
+    ->with(['loaiPhong', 'images'])
+    ->get()
+    ->map(function ($room) use ($currentPricePerNight, $currentItem, $nights) {
+        $roomBasePrice = $room->tong_gia ?? 0;
+        $roomCapacity = $room->suc_chua ?? 2;
 
-                $extraAdults = $currentItem->number_adult ?? 0;
-                $extraChildren = $currentItem->number_child ?? 0;
-                $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
+        // ✅ TÍNH LẠI PHỤ THU THEO SỨC CHỨA PHÒNG MỚI
+        
+        // Tổng số khách thực tế trong phòng cũ
+        $totalGuestsInOldRoom = $currentItem->so_nguoi_o ?? 0;
+        
+        // Nếu không có so_nguoi_o, tính từ phụ thu cũ
+        if ($totalGuestsInOldRoom == 0) {
+            $oldRoomCapacity = $currentItem->phong->suc_chua ?? 2;
+            $totalGuestsInOldRoom = $oldRoomCapacity + ($currentItem->number_adult ?? 0) + ($currentItem->number_child ?? 0);
+        }
+        
+        // Tính số khách vượt quá sức chứa phòng MỚI
+        $extraGuestsInNewRoom = max(0, $totalGuestsInOldRoom - $roomCapacity);
+        
+        // Tỷ lệ người lớn/trẻ em từ phòng cũ
+        $oldExtraAdults = $currentItem->number_adult ?? 0;
+        $oldExtraChildren = $currentItem->number_child ?? 0;
+        $oldTotalExtra = $oldExtraAdults + $oldExtraChildren;
+        
+        // Phân bổ lại người lớn/trẻ em theo tỷ lệ cũ
+        if ($extraGuestsInNewRoom > 0 && $oldTotalExtra > 0) {
+            $adultRatio = $oldExtraAdults / $oldTotalExtra;
+            $extraAdults = round($extraGuestsInNewRoom * $adultRatio);
+            $extraChildren = $extraGuestsInNewRoom - $extraAdults;
+        } else {
+            // Nếu không vượt, không có phụ thu
+            $extraAdults = 0;
+            $extraChildren = 0;
+        }
+        
+        $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
+
 
                 $roomTotalForStay = ($roomBasePrice + $extraCharge) * $nights;
                 $priceDiff = $roomBasePrice - $currentPricePerNight;
