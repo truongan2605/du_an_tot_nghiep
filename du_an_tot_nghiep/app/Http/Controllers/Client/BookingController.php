@@ -2675,6 +2675,7 @@ class BookingController extends Controller
             if ($refundAmount > 0) {
                 \App\Models\RefundRequest::create([
                     'dat_phong_id' => $booking->id,
+                    'refund_type' => 'full_booking',  // Distinguish from single_room cancellation
                     'amount' => $refundAmount,
                     'percentage' => $refundPercentage,
                     'status' => 'pending',

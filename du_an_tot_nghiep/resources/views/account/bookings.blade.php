@@ -534,8 +534,20 @@
                                             $label = $statusLabel($b->trang_thai);
                                             $badge = $statusBadge($b->trang_thai);
 
-                                            // Get refund request
-                                            $refundRequest = $b->refundRequests->first();
+                                            // Get refund request - prioritize full booking cancellation (no refund_type or refund_type != 'single_room')
+                                            // Then fall back to the latest refund request
+                                            $refundRequest = $b->refundRequests
+                                                ->filter(function($req) {
+                                                    // Full booking cancellation doesn't have refund_type or has type 'full_booking'
+                                                    return empty($req->refund_type) || $req->refund_type === 'full_booking';
+                                                })
+                                                ->sortByDesc('requested_at')
+                                                ->first();
+                                            
+                                            // If no full booking refund found, get the latest refund request
+                                            if (!$refundRequest) {
+                                                $refundRequest = $b->refundRequests->sortByDesc('requested_at')->first();
+                                            }
                                         @endphp
                                         <div class="card border mb-3">
                                             <div class="card-header d-flex justify-content-between align-items-center">
