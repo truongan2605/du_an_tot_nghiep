@@ -8,10 +8,31 @@ use Illuminate\Http\Request;
 
 class VoucherController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Lấy thêm số user đã nhận để tính "số lượng còn lại" ở view
-        $vouchers = Voucher::withCount('users')->get();
+        $perPage = (int) $request->get('per_page', 10);
+        if ($perPage <= 0) $perPage = 15;
+
+        $query = Voucher::query()->withCount('users');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('code', 'like', '%' . $search . '%');
+            });
+        }
+
+        $sortBy = $request->get('sort_by', 'start_date');
+        $sortDir = strtolower($request->get('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+        // Chỉ cho phép một vài cột an toàn
+        $allowedSorts = ['start_date', 'end_date', 'qty', 'created_at'];
+        if (!in_array($sortBy, $allowedSorts)) {
+            $sortBy = 'start_date';
+        }
+        $query->orderBy($sortBy, $sortDir);
+
+        $vouchers = $query->paginate($perPage)->withQueryString();
 
         return view('admin.voucher.index', compact('vouchers'));
     }
@@ -34,10 +55,11 @@ class VoucherController extends Controller
             'start_date'           => 'required|date',
             'end_date'             => 'required|date|after_or_equal:start_date',
             'active'               => 'nullable|boolean',
+            'points_required'      => 'nullable|integer|min:0',
         ]);
 
-        // Checkbox: nếu không tick thì không gửi; ép về 0/1
         $validated['active'] = $request->has('active') ? 1 : 0;
+        $validated['points_required'] = $request->filled('points_required') ? (int)$request->input('points_required') : null;
 
         Voucher::create($validated);
 
@@ -68,9 +90,11 @@ class VoucherController extends Controller
             'start_date'           => 'required|date',
             'end_date'             => 'required|date|after_or_equal:start_date',
             'active'               => 'nullable|boolean',
+            'points_required'      => 'nullable|integer|min:0',
         ]);
 
         $validated['active'] = $request->has('active') ? 1 : 0;
+        $validated['points_required'] = $request->filled('points_required') ? (int)$request->input('points_required') : null;
 
         $voucher->update($validated);
 

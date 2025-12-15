@@ -86,6 +86,8 @@
                                     <td>
                                         @if ($vatdung->loai === \App\Models\VatDung::LOAI_DO_AN)
                                             <span class="badge bg-info">Dịch vụ gọi thêm</span>
+                                        @elseif ($vatdung->loai === \App\Models\VatDung::LOAI_DICH_VU_KHAC)
+                                            <span class="badge bg-primary">Dịch vụ cơ bản</span>
                                         @else
                                             <span class="badge bg-secondary">Đồ dùng</span>
                                         @endif

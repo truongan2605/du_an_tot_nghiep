@@ -300,7 +300,7 @@
                             <li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i
                                         class="bi bi-heart fa-fw me-2"></i>Danh sách yêu thích của tôi</a></li>
                             <li><a class="dropdown-item" href="{{ route('client.vouchers.my') }}"><i
-                                        class="bi bi-heart fa-fw me-2"></i>Ví Voucher</a></li>
+                                        class="bi bi-ticket fa-fw me-2"></i>Ví Voucher</a></li>
                             <li><a class="dropdown-item" href="{{ route('account.settings') }}"><i
                                         class="bi bi-gear fa-fw me-2"></i>Cài đặt</a></li>
                             {{-- <li><a class="dropdown-item" href="{{ url('/help') }}"><i
@@ -351,88 +351,88 @@
 
     /* Chế độ sáng (Light Mode) */
     .notification-list::-webkit-scrollbar-track {
-        background: #f5f5f5;
+        background: #f0f4f8;
         border-radius: 10px;
         margin: 5px 0;
-        border: 1px solid #e0e0e0;
+        border: 1px solid #e0e8f0;
     }
 
     .notification-list::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #c0c0c0 0%, #a0a0a0 50%, #808080 100%);
+        background: linear-gradient(180deg, #4a90e2 0%, #357abd 50%, #2a5f8f 100%);
         border-radius: 10px;
-        border: 1px solid #d0d0d0;
+        border: 1px solid #5a9fe2;
         transition: all 0.3s ease;
     }
 
     .notification-list::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #a0a0a0 0%, #808080 50%, #606060 100%);
-        border-color: #909090;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
+        border-color: #6aaff2;
+        box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
     }
 
     .notification-list::-webkit-scrollbar-thumb:active {
-        background: linear-gradient(180deg, #808080 0%, #606060 50%, #404040 100%);
-        border-color: #707070;
+        background: linear-gradient(180deg, #357abd 0%, #2a5f8f 50%, #1f4a7a 100%);
+        border-color: #4580cd;
     }
 
     /* Firefox scrollbar - Light Mode */
     .notification-list {
         scrollbar-width: thin;
-        scrollbar-color: #a0a0a0 #f5f5f5;
+        scrollbar-color: #4a90e2 #f0f4f8;
     }
 
     /* Chế độ tối (Dark Mode) */
     @media (prefers-color-scheme: dark) {
         .notification-list::-webkit-scrollbar-track {
-            background: #1a1a1a;
-            border-color: #2d2d2d;
+            background: #1a1f2e;
+            border-color: #2d3444;
         }
 
         .notification-list::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 50%, #1a1a1a 100%);
-            border-color: #4a4a4a;
+            background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
+            border-color: #6aaff2;
         }
 
         .notification-list::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 50%, #2a2a2a 100%);
-            border-color: #5a5a5a;
-            box-shadow: 0 0 8px rgba(255, 255, 255, 0.1), inset 0 0 4px rgba(255, 255, 255, 0.05);
+            background: linear-gradient(180deg, #6ab0ff 0%, #5590dd 50%, #4580cd 100%);
+            border-color: #7abfff;
+            box-shadow: 0 0 8px rgba(90, 160, 242, 0.3), inset 0 0 4px rgba(90, 160, 242, 0.1);
         }
 
         .notification-list::-webkit-scrollbar-thumb:active {
-            background: linear-gradient(180deg, #5a5a5a 0%, #4a4a4a 50%, #3a3a3a 100%);
-            border-color: #6a6a6a;
+            background: linear-gradient(180deg, #4580cd 0%, #3570ad 50%, #2a5f8f 100%);
+            border-color: #5590dd;
         }
 
         /* Firefox scrollbar - Dark Mode */
         .notification-list {
-            scrollbar-color: #3a3a3a #1a1a1a;
+            scrollbar-color: #5aa0f2 #1a1f2e;
         }
     }
 
     /* Hỗ trợ class-based dark mode (nếu có class dark trên body/html) */
     body.dark-mode .notification-list::-webkit-scrollbar-track,
     html.dark-mode .notification-list::-webkit-scrollbar-track {
-        background: #1a1a1a;
-        border-color: #2d2d2d;
+        background: #1a1f2e;
+        border-color: #2d3444;
     }
 
     body.dark-mode .notification-list::-webkit-scrollbar-thumb,
     html.dark-mode .notification-list::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 50%, #1a1a1a 100%);
-        border-color: #4a4a4a;
+        background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
+        border-color: #6aaff2;
     }
 
     body.dark-mode .notification-list::-webkit-scrollbar-thumb:hover,
     html.dark-mode .notification-list::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 50%, #2a2a2a 100%);
-        border-color: #5a5a5a;
-        box-shadow: 0 0 8px rgba(255, 255, 255, 0.1), inset 0 0 4px rgba(255, 255, 255, 0.05);
+        background: linear-gradient(180deg, #6ab0ff 0%, #5590dd 50%, #4580cd 100%);
+        border-color: #7abfff;
+        box-shadow: 0 0 8px rgba(90, 160, 242, 0.3), inset 0 0 4px rgba(90, 160, 242, 0.1);
     }
 
     body.dark-mode .notification-list,
     html.dark-mode .notification-list {
-        scrollbar-color: #3a3a3a #1a1a1a;
+        scrollbar-color: #5aa0f2 #1a1f2e;
     }
 
     /* Smooth scroll behavior */

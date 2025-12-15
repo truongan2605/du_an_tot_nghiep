@@ -44,7 +44,7 @@
                                 <th>STT</th>
                                 <th>Icon</th>
                                 <th>Tên dịch vụ</th>
-                                <th>giá</th>
+                                <th>Giá</th>
                                 <th>Mô tả</th>
                                 <th>Trạng thái</th>
                                 <th>Ngày tạo</th>
