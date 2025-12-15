@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Client;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\Phong;
-use App\Models\DanhGia;
+use App\Models\DanhGia; // (đang dùng ở show() theo logic cũ)
 use App\Models\LoaiPhong;
 use App\Models\TienNghi;
 use App\Models\Wishlist;
@@ -71,15 +71,37 @@ class RoomController extends Controller
         }
 
         // Nếu có dính cuối tuần thì giá thực tế tăng 10%
-        $weekendMultiplier = $hasWeekend ? 1.10 : 1.0;
+        $weekendMultiplier = $hasWeekend ? self::WEEKEND_MULTIPLIER : 1.0;
 
         // ==== Query gốc ====
         $query = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis'])
-            ->orderByDesc('created_at');
+            ->orderByDesc('created_at')
+            // ====== TÍNH ĐÁNH GIÁ THỰC TẾ từ danh_gia_space ======
+            ->withAvg([
+                'danhGiaspace as avg_rating' => function ($q) {
+                    $q->whereNotNull('rating')
+                        ->whereNull('parent_id') // chỉ review gốc, không tính reply
+                        ->where('status', 1);    // chỉ tính review active
+                }
+            ], 'rating')
+            ->withCount([
+                'danhGiaspace as rating_count' => function ($q) {
+                    $q->whereNotNull('rating')
+                        ->whereNull('parent_id')
+                        ->where('status', 1);
+                }
+            ]);
 
         // =============== Lọc theo loại phòng ===============
         if ($request->filled('loai_phong_id')) {
             $query->where('loai_phong_id', $request->loai_phong_id);
+        }
+
+        // =============== Lọc theo đánh giá sao (THỰC TẾ) ===============
+        // UI: radio 5..1 -> hiểu là ">= X sao"
+        if ($request->filled('diem')) {
+            $diem = (int) $request->diem;
+            $query->havingRaw('COALESCE(avg_rating, 0) >= ?', [$diem]);
         }
 
         // =============== Lọc theo khoảng giá preset (1–4) dựa trên giá NGÀY THƯỜNG ===============
@@ -169,6 +191,8 @@ class RoomController extends Controller
             $room = $group->first();
             $room->so_luong_phong_cung_loai = $group->count();
             $room->so_phong_trong = $availableByType[$typeId] ?? null;
+
+            // avg_rating & rating_count đã có sẵn từ query (withAvg/withCount)
             return $room;
         })->values();
 
@@ -227,7 +251,7 @@ class RoomController extends Controller
 
         $giaMin = $baseMin;
         // Slider luôn cho phép tới giá cuối tuần tối đa (max + 10%)
-        $giaMax = (int) ceil($baseMax * 1.10);
+        $giaMax = (int) ceil($baseMax * self::WEEKEND_MULTIPLIER);
 
         return view('list-room', compact(
             'phongs',

@@ -181,6 +181,7 @@
                                             @for ($j = $i + 1; $j <= 5; $j++)
                                                 <i class="bi bi-star text-muted"></i>
                                             @endfor
+                                            <span class="small text-muted ms-1">({{ $i }}+)</span>
                                         </label>
                                     </li>
                                 @endfor
@@ -229,8 +230,7 @@
                                 }
 
                                 // =========================
-                                // SỨC CHỨA: lấy từ nhiều field để tránh null (đồng nhất theo dữ liệu thực tế dự án)
-                                // Ưu tiên sức chứa ở loại phòng, nếu không có thì fallback sang phòng
+                                // SỨC CHỨA
                                 // =========================
                                 $standardCapacity =
                                     $loaiPhong->suc_chua_toi_da ?? $loaiPhong->so_nguoi_toi_da ?? $loaiPhong->suc_chua ?? $loaiPhong->so_nguoi ?? $loaiPhong->max_nguoi ?? $loaiPhong->nguoi_toi_da ??
@@ -238,9 +238,18 @@
                                     null;
 
                                 $standardCapacity = is_numeric($standardCapacity) ? (int) $standardCapacity : null;
-
-                                // Logic dự án: mỗi loại phòng tối đa thêm 2 người (nếu dự án bạn đúng quy tắc này)
                                 $maxCapacity = $standardCapacity ? ($standardCapacity + 2) : null;
+
+                                // =========================
+                                // ĐÁNH GIÁ THỰC TẾ (từ RoomController withAvg/withCount)
+                                // avg_rating có thể null
+                                // rating_count có thể 0
+                                // =========================
+                                $avgRating = $phong->avg_rating !== null ? round((float) $phong->avg_rating, 1) : 0.0;
+                                $ratingCount = (int) ($phong->rating_count ?? 0);
+
+                                // Số sao fill hiển thị theo làm tròn xuống (floor)
+                                $starFill = (int) floor($avgRating);
                             @endphp
 
                             <div class="col-12">
@@ -293,12 +302,24 @@
                                         {{-- ========== THÔNG TIN LOẠI PHÒNG ========== --}}
                                         <div class="col-md-7">
                                             <div class="card-body py-4 px-4">
-                                                {{-- Đánh giá sao --}}
+
+                                                {{-- ✅ Đánh giá sao (THỰC TẾ) --}}
                                                 <div class="d-flex align-items-center mb-2">
                                                     @for ($i = 1; $i <= 5; $i++)
-                                                        <i
-                                                            class="bi bi-star{{ $i <= ($phong->so_sao ?? 4) ? '-fill text-warning' : '' }} me-1"></i>
+                                                        @if ($i <= $starFill)
+                                                            <i class="bi bi-star-fill text-warning me-1"></i>
+                                                        @else
+                                                            <i class="bi bi-star text-muted me-1"></i>
+                                                        @endif
                                                     @endfor
+
+                                                    <span class="small text-muted ms-2">
+                                                        @if ($ratingCount > 0)
+                                                            {{ number_format($avgRating, 1, ',', '.') }}/5 ({{ $ratingCount }} đánh giá)
+                                                        @else
+                                                            Chưa có đánh giá
+                                                        @endif
+                                                    </span>
                                                 </div>
 
                                                 {{-- Tên loại phòng --}}
@@ -322,7 +343,7 @@
                                                     @endif
                                                 </p>
 
-                                                {{-- ✅ SỨC CHỨA (HIỂN THỊ RÕ TRÊN VIEW) --}}
+                                                {{-- ✅ SỨC CHỨA --}}
                                                 <p class="text-muted mb-2">
                                                     <i class="bi bi-people me-1"></i>
                                                     @if ($standardCapacity)
