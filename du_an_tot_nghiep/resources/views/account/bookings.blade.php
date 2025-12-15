@@ -1114,7 +1114,7 @@
                                             }
                                         @endphp
 
-                                        <div class="card border mb-3">
+                                        <div class="card border mb-3 review-card">
                                             <div
                                                 class="card-header d-flex justify-content-between align-items-center bg-light">
                                                 <div>
@@ -1146,18 +1146,44 @@
                                                             VND</h6>
                                                     </div>
                                                     @if ($b->trang_thai == 'hoan_thanh')
-                                                        <a href="{{ route('account.danhgia.create', $b->id) }}"
-                                                            class="btn btn-warning">
-                                                            Đánh giá phòng
+                                                        <a href="#" class="review-bubble d-none d-md-flex"
+                                                            role="button" data-booking-id="{{ $b->id }}"
+                                                            data-rooms='@json($rooms->map(fn($p) => $p->ten_phong ?? ($p->name ?? 'Phòng chưa gán')))'
+                                                            title="Đánh giá phòng" aria-label="Đánh giá phòng">
+                                                            {{-- inline SVG icon: chat bubble with 3 dots --}}
+                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                                width="22" height="22" role="img"
+                                                                aria-hidden="true">
+                                                                <path fill="currentColor"
+                                                                    d="M20 2H4a2 2 0 0 0-2 2v14l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM8.5 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" />
+                                                            </svg>
                                                         </a>
+
+                                                        {{-- Mobile: full-width button that opens the same modal --}}
+                                                        <div class="d-block d-md-none mt-2">
+                                                            <button type="button"
+                                                                class="btn btn-warning w-100 open-review-btn"
+                                                                data-booking-id="{{ $b->id }}"
+                                                                data-rooms='@json($rooms->map(fn($p) => $p->ten_phong ?? ($p->name ?? 'Phòng chưa gán')))'>
+                                                                <svg xmlns="http://www.w3.org/2000/svg"
+                                                                    viewBox="0 0 24 24" width="16" height="16"
+                                                                    style="vertical-align:middle;margin-right:6px">
+                                                                    <path fill="currentColor"
+                                                                        d="M20 2H4a2 2 0 0 0-2 2v14l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM8.5 10a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" />
+                                                                </svg>
+                                                                Đánh giá phòng
+                                                            </button>
+                                                        </div>
+
+                                                        {{-- giữ session flash messages --}}
                                                         @if (session('success'))
-                                                            <div class="alert alert-success">
+                                                            <div class="alert alert-success mt-2 mb-0">
                                                                 {{ session('success') }}
                                                             </div>
                                                         @endif
 
                                                         @if (session('error'))
-                                                            <div class="alert alert-danger">
+                                                            <div class="alert alert-danger mt-2 mb-0">
                                                                 {{ session('error') }}
                                                             </div>
                                                         @endif
@@ -1205,6 +1231,53 @@
         </div>
     </section>
 @endsection
+
+<!-- Review Modal -->
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Đánh giá phòng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+
+            <div class="modal-body">
+                <div id="reviewRoomsList" class="mb-3">
+                    <!-- rooms inserted here by JS -->
+                </div>
+
+                <form id="reviewForm" method="POST" novalidate>
+                    @csrf
+                    {{-- rating: controlled by JS via stars --}}
+                    <input type="hidden" name="rating" id="reviewRating" required>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Chọn số sao</label>
+                        <div id="starRating" class="d-flex gap-2 align-items-center" style="font-size:1.25rem;">
+                            <button type="button" class="star btn p-0" data-value="1" aria-label="1 sao">☆</button>
+                            <button type="button" class="star btn p-0" data-value="2" aria-label="2 sao">☆</button>
+                            <button type="button" class="star btn p-0" data-value="3" aria-label="3 sao">☆</button>
+                            <button type="button" class="star btn p-0" data-value="4" aria-label="4 sao">☆</button>
+                            <button type="button" class="star btn p-0" data-value="5" aria-label="5 sao">☆</button>
+                            <small id="starHint" class="text-muted ms-2">Chưa chọn</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nội dung đánh giá</label>
+                        <textarea name="noi_dung" id="reviewContent" class="form-control" rows="4" required></textarea>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">Gửi đánh giá</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 @push('styles')
     <style>
@@ -1326,7 +1399,82 @@
             padding: 0.5rem 0.75rem;
         }
 
-        /* Responsive adjustments */
+        .review-card {
+            position: relative;
+            overflow: visible;
+        }
+
+        .review-bubble {
+            position: absolute;
+            right: 18px;
+            top: -24px;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #fff;
+            background: linear-gradient(135deg, #964bec 0%, #d92b4b 100%);
+            box-shadow: 0 8px 20px rgba(21, 45, 66, 0.18);
+            border: 4px solid #ffffff;
+            transform: rotate(-12deg);
+            transition: transform .18s cubic-bezier(.2, .9, .3, 1), box-shadow .18s;
+            z-index: 6;
+        }
+
+        .review-bubble svg {
+            width: 26px;
+            height: 26px;
+            fill: currentColor;
+        }
+
+        /* hover/focus */
+        .review-bubble:hover,
+        .review-bubble:focus {
+            transform: rotate(0deg) scale(1.04);
+            box-shadow: 0 12px 28px rgba(21, 45, 66, 0.24);
+            text-decoration: none;
+            outline: none;
+        }
+
+        @media (max-width: 575.98px) {
+            .review-bubble {
+                display: none;
+            }
+        }
+
+        .review-card .card-header {
+            padding-right: 90px;
+        }
+
+        .review-bubble::after {
+            content: "Đánh giá";
+            position: absolute;
+            right: calc(100% + 10px);
+            top: 50%;
+            transform: translateY(-50%) rotate(-6deg);
+            background: rgba(11, 20, 39, 0.9);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .12s;
+        }
+
+        .review-bubble:hover::after {
+            opacity: 1;
+        }
+
+        .review-bubble:focus {
+            box-shadow: 0 0 0 4px rgba(255, 106, 61, 0.18);
+        }
+
+
         @media (max-width: 768px) {
             .timeline-item {
                 padding-left: 35px;
@@ -1346,4 +1494,99 @@
             }
         }
     </style>
+@endpush
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const actionBase = "{{ url('account/danh-gia') }}";
+
+            const reviewModalEl = document.getElementById('reviewModal');
+            const reviewModal = new bootstrap.Modal(reviewModalEl);
+
+            const reviewForm = document.getElementById('reviewForm');
+            const reviewRatingInput = document.getElementById('reviewRating');
+            const reviewRoomsList = document.getElementById('reviewRoomsList');
+            const starButtons = Array.from(document.querySelectorAll('#starRating .star'));
+            const starHint = document.getElementById('starHint');
+
+            function renderRooms(rooms) {
+                if (!rooms || rooms.length === 0) {
+                    reviewRoomsList.innerHTML = '<p class="text-muted mb-2">Chưa có phòng nào được gán.</p>';
+                    return;
+                }
+                const ul = document.createElement('ul');
+                ul.className = 'mb-3';
+                rooms.forEach(function(r) {
+                    const li = document.createElement('li');
+                    li.textContent = r;
+                    ul.appendChild(li);
+                });
+                reviewRoomsList.innerHTML = '<div class="fw-semibold mb-2">Phòng bạn đánh giá:</div>';
+                reviewRoomsList.appendChild(ul);
+            }
+
+            document.querySelectorAll('.review-bubble, .open-review-btn').forEach(function(el) {
+                el.addEventListener('click', function(ev) {
+                    ev.preventDefault();
+                    const bookingId = el.getAttribute('data-booking-id');
+                    let rooms = [];
+                    try {
+                        rooms = JSON.parse(el.getAttribute('data-rooms') || '[]');
+                    } catch (e) {
+                        rooms = [];
+                    }
+
+                    reviewForm.action = actionBase + '/' + bookingId;
+
+                    reviewForm.reset();
+                    reviewRatingInput.value = '';
+                    starButtons.forEach(btn => {
+                        btn.classList.remove('text-warning');
+                        btn.textContent = '☆';
+                    });
+                    starHint.textContent = 'Chưa chọn';
+
+                    renderRooms(rooms);
+
+                    reviewModal.show();
+                });
+            });
+
+            starButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const v = parseInt(btn.getAttribute('data-value'), 10);
+                    reviewRatingInput.value = v;
+                    starButtons.forEach(function(b) {
+                        const bv = parseInt(b.getAttribute('data-value'), 10);
+                        if (bv <= v) {
+                            b.classList.add('text-warning');
+                            b.textContent = '★';
+                        } else {
+                            b.classList.remove('text-warning');
+                            b.textContent = '☆';
+                        }
+                    });
+                    starHint.textContent = v + ' / 5';
+                });
+            });
+
+            reviewForm.addEventListener('submit', function(ev) {
+                const rating = reviewRatingInput.value;
+                const content = document.getElementById('reviewContent').value.trim();
+                if (!rating) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    alert('Vui lòng chọn số sao trước khi gửi.');
+                    return false;
+                }
+                if (!content) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    alert('Vui lòng nhập nội dung đánh giá.');
+                    return false;
+                }
+            });
+        });
+    </script>
 @endpush
