@@ -265,6 +265,91 @@ class RoomController extends Controller
         ));
     }
 
+    private function ratingsGroupedByRoomType(array $typeIds = [])
+    {
+        // tìm tên cột rating đang sử dụng
+        $ratingCol = null;
+        if (Schema::hasTable('danh_gia')) {
+            if (Schema::hasColumn('danh_gia', 'diem')) {
+                $ratingCol = 'diem';
+            } elseif (Schema::hasColumn('danh_gia', 'rating')) {
+                $ratingCol = 'rating';
+            }
+        }
+
+        if (!$ratingCol) {
+            return [];
+        }
+
+        // approval column
+        $approvalCol = null;
+        if (Schema::hasTable('danh_gia')) {
+            if (Schema::hasColumn('danh_gia', 'trang_thai_kiem_duyet')) {
+                $approvalCol = 'trang_thai_kiem_duyet';
+            } elseif (Schema::hasColumn('danh_gia', 'status')) {
+                $approvalCol = 'status';
+            }
+        }
+
+        // build query that produces phong.loai_phong_id, avg(ratingCol), count
+        $q = null;
+
+        // prefer join paths that exist in your schema (try dat_phong -> phong)
+        if (Schema::hasTable('dat_phong') && Schema::hasColumn('dat_phong', 'phong_id')) {
+            $q = DB::table('danh_gia')
+                ->join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
+                ->join('phong', 'dat_phong.phong_id', '=', 'phong.id')
+                ->select('phong.loai_phong_id as type_id', DB::raw("AVG(danh_gia.{$ratingCol}) as avg_rating"), DB::raw("COUNT(danh_gia.id) as cnt"))
+                ->groupBy('phong.loai_phong_id');
+        }
+        // fallback: dat_phong_items table name variant
+        elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
+            $q = DB::table('danh_gia')
+                ->join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
+                ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
+                ->join('phong', 'dat_phong_items.phong_id', '=', 'phong.id')
+                ->select('phong.loai_phong_id as type_id', DB::raw("AVG(danh_gia.{$ratingCol}) as avg_rating"), DB::raw("COUNT(danh_gia.id) as cnt"))
+                ->groupBy('phong.loai_phong_id');
+        }
+        // fallback: danh_gia.phong_id exists
+        elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
+            $q = DB::table('danh_gia')
+                ->join('phong', 'danh_gia.phong_id', '=', 'phong.id')
+                ->select('phong.loai_phong_id as type_id', DB::raw("AVG(danh_gia.{$ratingCol}) as avg_rating"), DB::raw("COUNT(danh_gia.id) as cnt"))
+                ->groupBy('phong.loai_phong_id');
+        } else {
+            return [];
+        }
+
+        // apply approval filter
+        if ($approvalCol) {
+            if ($approvalCol === 'status') {
+                $q->where('danh_gia.status', 1);
+            } else {
+                // assume textual "da_dang"
+                $q->where('danh_gia.' . $approvalCol, 'da_dang');
+            }
+        }
+
+        $q->whereNotNull('danh_gia.' . $ratingCol);
+
+        if (!empty($typeIds)) {
+            $q->whereIn('phong.loai_phong_id', $typeIds);
+        }
+
+        $rows = $q->get();
+
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int)$r->type_id] = [
+                'avg' => $r->avg_rating !== null ? round((float)$r->avg_rating, 1) : 0.0,
+                'count' => (int) $r->cnt,
+            ];
+        }
+
+        return $map;
+    }
+
     public function show($id)
     {
         $phong = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis', 'bedTypes'])->findOrFail($id);
@@ -276,52 +361,72 @@ class RoomController extends Controller
             ->take(5)
             ->get();
 
-        // Ratings logic (giữ nguyên)
-        $avgRating = 0;
-        $reviews = collect();
-
-        if (Schema::hasTable('dat_phong') && Schema::hasColumn('dat_phong', 'phong_id')) {
-            $avgRating = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
-                ->where('dat_phong.phong_id', $phong->id)
-                ->where('danh_gia.trang_thai_kiem_duyet', 'da_dang')
-                ->avg('danh_gia.diem');
-
-            $reviews = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
-                ->where('dat_phong.phong_id', $phong->id)
-                ->where('danh_gia.trang_thai_kiem_duyet', 'da_dang')
-                ->select('danh_gia.*')
-                ->orderByDesc('danh_gia.created_at')
-                ->get();
-        } elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
-            $avgRating = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
-                ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
-                ->where('dat_phong_items.phong_id', $phong->id)
-                ->where('danh_gia.trang_thai_kiem_duyet', 'da_dang')
-                ->avg('danh_gia.diem');
-
-            $reviews = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
-                ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
-                ->where('dat_phong_items.phong_id', $phong->id)
-                ->where('danh_gia.trang_thai_kiem_duyet', 'da_dang')
-                ->select('danh_gia.*')
-                ->orderByDesc('danh_gia.created_at')
-                ->get();
-        } elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
-            $avgRating = DanhGia::where('phong_id', $phong->id)
-                ->where('trang_thai_kiem_duyet', 'da_dang')
-                ->avg('diem');
-
-            $reviews = DanhGia::where('phong_id', $phong->id)
-                ->where('trang_thai_kiem_duyet', 'da_dang')
-                ->orderByDesc('created_at')
-                ->get();
-        } else {
-            $avgRating = 0;
-            $reviews = collect();
+        $ratingCol = null;
+        if (Schema::hasTable('danh_gia')) {
+            if (Schema::hasColumn('danh_gia', 'diem')) {
+                $ratingCol = 'diem';
+            } elseif (Schema::hasColumn('danh_gia', 'rating')) {
+                $ratingCol = 'rating';
+            }
         }
 
-        $avgRating = $avgRating ? round(floatval($avgRating), 1) : 0.0;
+        $approvalCol = null;
+        if (Schema::hasTable('danh_gia')) {
+            if (Schema::hasColumn('danh_gia', 'trang_thai_kiem_duyet')) {
+                $approvalCol = 'trang_thai_kiem_duyet';
+            } elseif (Schema::hasColumn('danh_gia', 'status')) {
+                $approvalCol = 'status';
+            }
+        }
 
+        $avgRating = 0.0;
+        $rating_count = 0;
+        if ($phong->loai_phong_id) {
+            $ratings = $this->ratingsGroupedByRoomType([(int)$phong->loai_phong_id]);
+            $avgRating = $ratings[$phong->loai_phong_id]['avg'] ?? 0.0;
+            $rating_count = $ratings[$phong->loai_phong_id]['count'] ?? 0;
+        }
+
+        $reviews = collect();
+        $reviewIdsQuery = null;
+
+        if (Schema::hasTable('dat_phong') && Schema::hasColumn('dat_phong', 'phong_id')) {
+            $reviewIdsQuery = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
+                ->where('dat_phong.phong_id', $phong->id);
+        } elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
+            $reviewIdsQuery = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
+                ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
+                ->where('dat_phong_items.phong_id', $phong->id);
+        } elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
+            $reviewIdsQuery = DanhGia::where('phong_id', $phong->id);
+        }
+
+        $reviewIds = [];
+        if ($reviewIdsQuery instanceof \Illuminate\Database\Eloquent\Builder) {
+            if ($approvalCol) {
+                if ($approvalCol === 'status') {
+                    $reviewIdsQuery->where('danh_gia.status', 1);
+                } else {
+                    $reviewIdsQuery->where('danh_gia.' . $approvalCol, 'da_dang');
+                }
+            }
+            $reviewIds = $reviewIdsQuery->select('danh_gia.id')->pluck('id')->toArray();
+        }
+
+        if (!empty($reviewIds)) {
+            $reviews = DanhGia::with(['user', 'replies'])
+                ->whereIn('id', $reviewIds)
+                ->orderByDesc('created_at')
+                ->get();
+
+            foreach ($reviews as $rev) {
+                if (!isset($rev->rating) && isset($rev->diem)) {
+                    $rev->rating = $rev->diem;
+                }
+            }
+        }
+
+        // --- Bed summary ---
         $bedSummary = collect();
         $totalBeds = 0;
 
@@ -361,6 +466,7 @@ class RoomController extends Controller
             'phong',
             'related',
             'avgRating',
+            'rating_count',
             'reviews',
             'bedSummary',
             'totalBeds',
@@ -439,12 +545,12 @@ class RoomController extends Controller
     public function getRoomTypeQuickView($id)
     {
         $loaiPhong = LoaiPhong::with(['tienNghis'])->findOrFail($id);
-        
+
         // Get a sample room of this type to show additional details
         $sampleRoom = Phong::where('loai_phong_id', $id)
             ->with(['images', 'bedTypes'])
             ->first();
-        
+
         // Prepare bed types data
         $bedTypes = [];
         if ($sampleRoom && $sampleRoom->relationLoaded('bedTypes') && $sampleRoom->bedTypes->count()) {
@@ -460,7 +566,7 @@ class RoomController extends Controller
                 }
             }
         }
-        
+
         // Prepare images from sample room only (LoaiPhong doesn't have images)
         $images = [];
         if ($sampleRoom && $sampleRoom->relationLoaded('images') && $sampleRoom->images->count()) {
@@ -471,7 +577,7 @@ class RoomController extends Controller
                 ];
             })->toArray();
         }
-        
+
         // Prepare amenities
         $amenities = [];
         if ($loaiPhong->relationLoaded('tienNghis')) {
@@ -482,7 +588,7 @@ class RoomController extends Controller
                 ];
             })->toArray();
         }
-        
+
         return response()->json([
             'success' => true,
             'data' => [

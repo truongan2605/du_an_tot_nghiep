@@ -253,7 +253,7 @@
                         </div>
 
                         {{-- Related --}}
-                        <div class="card-body pt-4 p-0">
+                        {{-- <div class="card-body pt-4 p-0">
                             <div class="vstack gap-4">
                                 @if ($related && $related->count())
                                     @foreach ($related as $r)
@@ -326,7 +326,7 @@
                                     <div class="p-3">Không tìm thấy lựa chọn phòng khác cho loại này.</div>
                                 @endif
                             </div>
-                        </div>
+                        </div> --}}
                     </div>
 
                     <h3 class="mt-4 mb-3">Đánh giá của khách hàng</h3>
@@ -436,7 +436,7 @@
                                 $emptyStars = 5 - $fullStars - ($hasHalf ? 1 : 0);
                             @endphp
 
-                            <ul class="list-inline mb-2">
+                            {{-- <ul class="list-inline mb-2">
                                 <li class="list-inline-item me-2 h6 fw-light mb-0">{{ number_format($avg, 1) }}</li>
                                 @for ($i = 0; $i < $fullStars; $i++)
                                     <li class="list-inline-item me-0 small"><i class="fa-solid fa-star text-warning"></i></li>
@@ -447,7 +447,7 @@
                                 @for ($i = 0; $i < $emptyStars; $i++)
                                     <li class="list-inline-item me-0 small"><i class="fa-solid fa-star text-muted"></i></li>
                                 @endfor
-                            </ul>
+                            </ul> --}}
 
                             {{-- Đặt phòng ngay: đi thẳng sang booking + giữ dữ liệu lọc --}}
                             <div class="d-grid">

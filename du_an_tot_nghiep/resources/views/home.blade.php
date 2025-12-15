@@ -5,7 +5,7 @@
 @section('content')
 
     <!-- =======================
-        Main Banner START -->
+            Main Banner START -->
     <section class="pt-3 pt-lg-5">
         <div class="container">
             <!-- Content and Image START -->
@@ -27,7 +27,8 @@
                         </span>
                     </h1>
                     <!-- Info -->
-                    <p class="mb-4">Chúng tôi mang đến cho bạn không chỉ một lựa chọn lưu trú mà còn là một trải nghiệm tận hưởng sự sang trọng trong tầm giá của bạn.</p>
+                    <p class="mb-4">Chúng tôi mang đến cho bạn không chỉ một lựa chọn lưu trú mà còn là một trải nghiệm
+                        tận hưởng sự sang trọng trong tầm giá của bạn.</p>
 
                     <!-- Buttons -->
                     <div class="hstack gap-4 flex-wrap align-items-center">
@@ -89,15 +90,15 @@
 
             <!-- Search START -->
             <form action="{{ route('list-room.index') }}" method="GET"
-                  class="card home-search-card shadow rounded-4 position-relative p-4 p-lg-4">
+                class="card home-search-card shadow rounded-4 position-relative p-4 p-lg-4">
 
                 <div class="row gy-3 gx-4 align-items-end">
                     {{-- Loại phòng --}}
                     <div class="col-xl-3 col-md-6 d-flex align-items-center">
-                        <i class="bi bi-door-open fs-3 me-3 text-muted d-none d-md-block"></i>
                         <div class="flex-grow-1">
                             <label class="form-label home-search-label mb-1">Loại phòng</label>
-                            <select class="form-select form-control-lg rounded-3" name="loai_phong_id" data-search-enabled="true">
+                            <select class="form-select form-control-lg rounded-3" name="loai_phong_id"
+                                data-search-enabled="true">
                                 <option value="">-- Tất cả loại phòng --</option>
                                 @foreach ($loaiPhongs as $loaiPhong)
                                     <option value="{{ $loaiPhong->id }}"
@@ -111,23 +112,17 @@
 
                     {{-- Nhận phòng - Trả phòng (UI + Hidden submit chuẩn) --}}
                     <div class="col-xl-3 col-md-6 d-flex align-items-center">
-                        <i class="bi bi-calendar fs-3 me-3 text-muted d-none d-md-block"></i>
                         <div class="flex-grow-1">
                             <label class="form-label home-search-label mb-1">Nhận phòng - Trả phòng</label>
 
                             {{-- UI input (hiển thị) --}}
-                            <input type="text"
-                                   id="date_range_ui_home"
-                                   class="form-control form-control-lg rounded-3 flatpickr"
-                                   data-mode="range"
-                                   placeholder="Chọn ngày"
-                                   value="{{ request('date_range') }}">
+                            <input type="text" id="date_range_ui_home"
+                                class="form-control form-control-lg rounded-3 flatpickr" data-mode="range"
+                                placeholder="Chọn ngày" value="{{ request('date_range') }}">
 
                             {{-- Hidden input (submit lên server theo chuẩn Y-m-d to Y-m-d) --}}
-                            <input type="hidden"
-                                   name="date_range"
-                                   id="date_range_home"
-                                   value="{{ request('date_range') }}">
+                            <input type="hidden" name="date_range" id="date_range_home"
+                                value="{{ request('date_range') }}">
                         </div>
                     </div>
 
@@ -139,8 +134,8 @@
                         <div id="guestSelectorBtn" class="guest-selector-box">
                             <i class="bi bi-people me-2"></i>
                             <span id="guestSummary">
-                                {{ request('adults',1) }} Người lớn,
-                                {{ request('children',0) }} Trẻ em
+                                {{ request('adults', 1) }} Người lớn,
+                                {{ request('children', 0) }} Trẻ em
                             </span>
                             <i class="bi bi-chevron-down ms-auto"></i>
                         </div>
@@ -157,7 +152,7 @@
                                 </div>
                                 <div class="guest-control">
                                     <button type="button" class="btn-minus" data-target="adults">−</button>
-                                    <span id="adultsCount">{{ request('adults',1) }}</span>
+                                    <span id="adultsCount">{{ request('adults', 1) }}</span>
                                     <button type="button" class="btn-plus" data-target="adults">+</button>
                                 </div>
                             </div>
@@ -172,7 +167,7 @@
                                 </div>
                                 <div class="guest-control">
                                     <button type="button" class="btn-minus" data-target="children">−</button>
-                                    <span id="childrenCount">{{ request('children',0) }}</span>
+                                    <span id="childrenCount">{{ request('children', 0) }}</span>
                                     <button type="button" class="btn-plus" data-target="children">+</button>
                                 </div>
                             </div>
@@ -188,16 +183,16 @@
                         </div>
 
                         {{-- Hidden fields --}}
-                        <input type="hidden" name="adults" id="adultsInput" value="{{ request('adults',1) }}">
-                        <input type="hidden" name="children" id="childrenInput" value="{{ request('children',0) }}">
+                        <input type="hidden" name="adults" id="adultsInput" value="{{ request('adults', 1) }}">
+                        <input type="hidden" name="children" id="childrenInput" value="{{ request('children', 0) }}">
                     </div>
 
                     {{-- Số phòng --}}
                     <div class="col-xl-3 col-md-6">
                         <label class="form-label home-search-label mb-1">Số phòng</label>
                         <input type="number" name="rooms_count" id="home_rooms_count"
-                               class="form-control form-control-lg rounded-3"
-                               min="1" value="{{ request('rooms_count', 1) }}">
+                            class="form-control form-control-lg rounded-3" min="1"
+                            value="{{ request('rooms_count', 1) }}">
                     </div>
 
                     {{-- Hàng dưới: Giá + nút tìm kiếm --}}
@@ -205,7 +200,6 @@
                         <div class="row gy-3 gx-4 align-items-center mt-1">
                             {{-- Giá --}}
                             <div class="col-lg-10 d-flex align-items-center">
-                                <i class="bi bi-cash-stack fs-3 me-3 text-muted d-none d-md-block"></i>
                                 <div class="flex-grow-1">
                                     <label class="form-label home-search-label mb-1">Giá (VNĐ)</label>
                                     <div id="price-slider-home" class="my-2"></div>
@@ -214,16 +208,16 @@
                                         <span id="max-price-home">{{ number_format($giaMax, 0, ',', '.') }}đ</span>
                                     </div>
                                     <input type="hidden" id="gia_min_home" name="gia_min"
-                                           value="{{ request('gia_min', $giaMin) }}">
+                                        value="{{ request('gia_min', $giaMin) }}">
                                     <input type="hidden" id="gia_max_home" name="gia_max"
-                                           value="{{ request('gia_max', $giaMax) }}">
+                                        value="{{ request('gia_max', $giaMax) }}">
                                 </div>
                             </div>
 
                             {{-- Nút search --}}
                             <div class="col-lg-2 d-flex justify-content-lg-end justify-content-center">
                                 <button type="submit"
-                                        class="btn btn-primary home-search-btn d-inline-flex align-items-center justify-content-center">
+                                    class="btn btn-primary home-search-btn d-inline-flex align-items-center justify-content-center">
                                     <i class="bi bi-search fs-4"></i>
                                     <span class="d-none d-md-inline ms-2">Tìm phòng</span>
                                 </button>
@@ -236,10 +230,10 @@
         </div>
     </section>
     <!-- =======================
-        Main Banner END -->
+            Main Banner END -->
 
     <!-- =======================
-         Blog Best deal (slider) START -->
+             Blog Best deal (slider) START -->
     <section class="pb-2 pb-lg-5">
         <div class="container">
 
@@ -296,11 +290,11 @@
         </div>
     </section>
     <!-- =======================
-         Blog Best deal END -->
+             Blog Best deal END -->
 
 
     <!-- =======================
-        About START -->
+            About START -->
     <section class="pb-0 pb-xl-5">
         <div class="container">
             <div class="row g-4 justify-content-between align-items-center">
@@ -367,7 +361,8 @@
                 <!-- Right side START -->
                 <div class="col-lg-6">
                     <h2 class="mb-3 mb-lg-5">Kỳ nghỉ tuyệt vời nhất bắt đầu từ đây!</h2>
-                    <p class="mb-3 mb-lg-5">Đặt phòng khách sạn với chúng tôi và đừng quên nắm bắt ưu đãi khách sạn tuyệt vời để tiết kiệm đáng kể cho kỳ nghỉ của bạn.</p>
+                    <p class="mb-3 mb-lg-5">Đặt phòng khách sạn với chúng tôi và đừng quên nắm bắt ưu đãi khách sạn tuyệt
+                        vời để tiết kiệm đáng kể cho kỳ nghỉ của bạn.</p>
 
                     <!-- Features START -->
                     <div class="row g-4">
@@ -408,10 +403,10 @@
         </div>
     </section>
     <!-- =======================
-        About END -->
+            About END -->
 
     <!-- =======================
-        Featured Hotels START -->
+            Featured Hotels START -->
     <section>
         <div class="container mt-5">
             <!-- Title -->
@@ -467,12 +462,30 @@
                                     <h6 class="text-success mb-0">
                                         {{ number_format($phong->gia_cuoi_cung, 0, '.', ',') }} VND
                                     </h6>
-                                    <h6 class="mb-0">
-                                        4.8
-                                        <i class="fa-solid fa-star text-warning ms-1"></i>
-                                    </h6>
 
+                                    @php
+                                        $avg =
+                                            isset($phong->avg_rating) && $phong->avg_rating
+                                                ? round((float) $phong->avg_rating, 1)
+                                                : null;
+                                        $count = isset($phong->rating_count) ? (int) $phong->rating_count : 0;
+                                    @endphp
+
+                                    <div class="d-flex align-items-center text-muted small"
+                                        title="{{ $count }} đánh giá">
+                                        @if ($avg)
+                                            <span class="me-2 fw-semibold"
+                                                aria-label="Đánh giá trung bình">{{ number_format($avg, 1, '.', '') }}</span>
+                                            <span class="me-1" aria-hidden="true">
+                                                <i class="fa-solid fa-star text-warning"></i>
+                                            </span>
+                                            {{-- <span class="ms-1">({{ $count }})</span> --}}
+                                        @else
+                                            <span class="text-muted">Chưa có đánh giá</span>
+                                        @endif
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
                         <!-- Card END -->
@@ -484,10 +497,10 @@
         </div>
     </section>
     <!-- =======================
-        Featured Hotels END -->
+            Featured Hotels END -->
 
     <!-- =======================
-        Client START -->
+            Client START -->
     <section class="py-0 py-md-5">
         <div class="container">
             <div class="row g-4 g-lg-7 justify-content-center align-items-center">
@@ -525,10 +538,10 @@
         </div>
     </section>
     <!-- =======================
-        Client END -->
+            Client END -->
 
     <!-- =======================
-        Download app START -->
+            Download app START -->
     <section class="bg-light">
         <div class="container">
             <div class="row g-4">
@@ -539,7 +552,8 @@
                         <h3><i class="fa-solid fa-hand-holding-heart"></i></h3>
                         <div class="ms-3">
                             <h5>Hỗ trợ 24/7 </h5>
-                            <p class="mb-0">Nếu chúng tôi không đáp ứng được kỳ vọng của bạn theo bất kỳ cách nào, hãy cho chúng tôi biết</p>
+                            <p class="mb-0">Nếu chúng tôi không đáp ứng được kỳ vọng của bạn theo bất kỳ cách nào, hãy
+                                cho chúng tôi biết</p>
                         </div>
                     </div>
                 </div>
@@ -571,7 +585,7 @@
         </div>
     </section>
     <!-- =======================
-        Download app END -->
+            Download app END -->
 
 
     @push('scripts')
@@ -595,8 +609,18 @@
 
                     const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test((s || '').trim());
                     const monthMap = {
-                        jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
-                        jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+                        jan: '01',
+                        feb: '02',
+                        mar: '03',
+                        apr: '04',
+                        may: '05',
+                        jun: '06',
+                        jul: '07',
+                        aug: '08',
+                        sep: '09',
+                        oct: '10',
+                        nov: '11',
+                        dec: '12'
                     };
 
                     function pad2(n) {
@@ -609,14 +633,14 @@
                         let m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
                         if (m) {
                             const dd = pad2(m[1]);
-                            const mon = monthMap[String(m[2]).slice(0,3).toLowerCase()];
+                            const mon = monthMap[String(m[2]).slice(0, 3).toLowerCase()];
                             const yy = m[3];
                             if (mon) return `${yy}-${mon}-${dd}`;
                         }
                         m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})$/);
                         if (m) {
                             const dd = pad2(m[1]);
-                            const mon = monthMap[String(m[2]).slice(0,3).toLowerCase()];
+                            const mon = monthMap[String(m[2]).slice(0, 3).toLowerCase()];
                             const yy = String(new Date().getFullYear());
                             if (mon) return `${yy}-${mon}-${dd}`;
                         }
@@ -646,7 +670,7 @@
                     const fp = flatpickr(ui, {
                         mode: "range",
                         minDate: "today",
-                        dateFormat: "Y-m-d",     // chuẩn để dateStr là Y-m-d
+                        dateFormat: "Y-m-d", // chuẩn để dateStr là Y-m-d
                         defaultDate: normalized ? normalized : null,
                         onChange: function(selectedDates, dateStr) {
                             hidden.value = dateStr || '';
@@ -769,7 +793,9 @@
                                 const maxChildren = getMaxChildrenHome();
 
                                 if (v >= maxChildren) {
-                                    showGuestMsg(`Mỗi phòng tối đa 2 trẻ em. (${getRoomsHome()} phòng ⇒ tối đa ${maxChildren} trẻ em)`);
+                                    showGuestMsg(
+                                        `Mỗi phòng tối đa 2 trẻ em. (${getRoomsHome()} phòng ⇒ tối đa ${maxChildren} trẻ em)`
+                                        );
                                     return;
                                 }
 
@@ -838,6 +864,7 @@
             cursor: pointer;
             user-select: none;
         }
+
         .guest-selector-box:hover {
             border-color: #5E3EFF;
         }
@@ -884,7 +911,8 @@
             gap: 12px;
         }
 
-        .btn-minus, .btn-plus {
+        .btn-minus,
+        .btn-plus {
             width: 32px;
             height: 32px;
             background: #f2f2f2;
@@ -896,7 +924,9 @@
             align-items: center;
             justify-content: center;
         }
-        .btn-minus:hover, .btn-plus:hover {
+
+        .btn-minus:hover,
+        .btn-plus:hover {
             background: #e0e0e0;
         }
 
@@ -1006,8 +1036,8 @@
         }
 
         /* ========================
-        Best deal (blog slider)
-        ======================== */
+            Best deal (blog slider)
+            ======================== */
 
         .tiny-slider .card {
             height: 180px;
