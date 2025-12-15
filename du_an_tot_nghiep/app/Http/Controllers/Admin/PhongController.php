@@ -43,18 +43,22 @@ class PhongController extends Controller
             $query->where('tang_id', $request->tang_id);
         }
 
-        // Lấy dữ liệu
-        $phongs = $query->get();
+        $allowedPer = [10, 15, 25, 50, 100];
+        $perPage = (int) $request->get('per_page', 15);
+        if (!in_array($perPage, $allowedPer)) {
+            $perPage = 15;
+        }
 
-        // Dữ liệu cho dropdown
+        $phongs = $query->paginate($perPage)->withQueryString();
+
         $loaiPhongs = \App\Models\LoaiPhong::all();
         $tangs = \App\Models\Tang::all();
 
-        $phongIds = $phongs->pluck('id')->toArray();
+        $phongIds = $phongs->getCollection()->pluck('id')->toArray();
+
         $latestBookingIds = [];
 
-        // 1) từ dat_phong_item (nếu có cột phong_id)
-        if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id')) {
+        if (Schema::hasTable('dat_phong_item') && Schema::hasColumn('dat_phong_item', 'phong_id') && !empty($phongIds)) {
             $rows = DB::table('dat_phong_item')
                 ->select('phong_id', DB::raw('MAX(dat_phong_item.dat_phong_id) as last_id'))
                 ->whereIn('phong_id', $phongIds)
@@ -66,8 +70,7 @@ class PhongController extends Controller
             }
         }
 
-        // 2) bổ sung từ giu_phong (nếu có) — một phòng có thể được giữ trước khi dat_phong_item tồn tại
-        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id')) {
+        if (Schema::hasTable('giu_phong') && Schema::hasColumn('giu_phong', 'phong_id') && !empty($phongIds)) {
             $rows = DB::table('giu_phong')
                 ->select('phong_id', DB::raw('MAX(giu_phong.dat_phong_id) as last_id'))
                 ->whereIn('phong_id', $phongIds)
@@ -77,7 +80,6 @@ class PhongController extends Controller
             foreach ($rows as $r) {
                 $pid = (int)$r->phong_id;
                 $lid = (int)$r->last_id;
-                // nếu đã có id từ dat_phong_item thì lấy max — đảm bảo lấy booking mới nhất
                 if (!isset($latestBookingIds[$pid]) || $lid > $latestBookingIds[$pid]) {
                     $latestBookingIds[$pid] = $lid;
                 }
