@@ -19,11 +19,15 @@ class AdminMiddleware
 
         $user = Auth::user();
 
-        if (! $user->is_active) {
+        if ($user->is_disabled) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'Forbidden.'], 403);
+                return response()->json(['message' => 'Tài khoản đã bị vô hiệu hóa.'], 403);
             }
-            return redirect()->route('login');
+            return redirect()->route('login')->with('error', 'Tài khoản của bạn đã bị vô hiệu hóa.');
         }
 
   

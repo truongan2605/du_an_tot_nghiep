@@ -17,9 +17,9 @@
                         <p class="mb-0 small opacity-90">Mã NV: {{ $nhan_vien->id ?? 'N/A' }}</p>
                     </div>
                 </div>
-                <span class="badge fs-6 px-3 py-2 {{ $nhan_vien->is_active ? 'bg-success' : 'bg-secondary' }} shadow-sm">
-                    <i class="fas {{ $nhan_vien->is_active ? 'fa-check-circle me-1' : 'fa-pause-circle me-1' }}"></i>
-                    {{ $nhan_vien->is_active ? 'Hoạt động' : 'Không hoạt động' }}
+                <span class="badge fs-6 px-3 py-2 {{ $nhan_vien->is_disabled ? 'bg-danger' : 'bg-success' }} shadow-sm">
+                    <i class="fas {{ $nhan_vien->is_disabled ? 'fa-ban me-1' : 'fa-check-circle me-1' }}"></i>
+                    {{ $nhan_vien->is_disabled ? 'Đã vô hiệu hóa' : 'Hoạt động' }}
                 </span>
             </div>
 

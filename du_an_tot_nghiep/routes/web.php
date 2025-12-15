@@ -203,7 +203,7 @@ Route::prefix('admin')
     });
 
 // ==================== STAFF ====================
-Route::middleware(['auth', 'role:nhan_vien|admin'])
+Route::middleware(['auth', 'ensure.active', 'role:nhan_vien|admin'])
     ->prefix('staff')
     ->name('staff.')
     ->group(function () {
@@ -296,7 +296,7 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
 
 
 // ==================== ACCOUNT (client profile area) ====================
-Route::middleware('auth')
+Route::middleware(['auth', 'ensure.active'])
     ->prefix('account')
     ->name('account.')
     ->group(function () {
@@ -335,7 +335,7 @@ Route::get('account/bookings/change-room/callback', [BookingController::class, '
     ->name('booking.change-room.callback');
 
 // ==================== ACCOUNT  ====================  
-Route::middleware('auth')
+Route::middleware(['auth', 'ensure.active'])
     ->prefix('account')
     ->name('account.')
     ->group(function () {
@@ -352,7 +352,7 @@ Route::middleware('auth')
             ->name('danhgia.store');
     });
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::post('/vouchers/claim/{id}', [ClientVoucherController::class, 'claim'])->name('client.vouchers.claim');
     Route::get('/my-voucher', [ClientVoucherController::class, 'myVouchers'])->name('client.vouchers.my');
 });
@@ -361,7 +361,7 @@ Route::get('/blog', [ClientBlog::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [ClientBlog::class, 'show'])->name('blog.show');
 
 // ==================== PAYMENT ====================
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::get('/payment/pending-payments', [PaymentController::class, 'pendingPayments'])->name('payment.pending_payments');
     Route::get('/payment/create', [PaymentController::class, 'createPayment'])->name('payment.create');
     Route::post('/payment/initiate', [PaymentController::class, 'initiateVNPay'])->name('payment.initiate');
@@ -381,7 +381,7 @@ Route::middleware(['auth'])->group(function () {
 Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
 
 // ==================== NOTIFICATIONS ====================
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::get('notifications/{id}', [ThongBaoController::class, 'clientShow'])->name('notifications.show');
     Route::post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('notifications.read');
     Route::get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('notifications.modal');
