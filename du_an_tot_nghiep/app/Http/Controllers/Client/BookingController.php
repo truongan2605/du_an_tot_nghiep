@@ -697,8 +697,9 @@ class BookingController extends Controller
             $depositPct = $booking->snapshot_meta['deposit_percentage'] ?? 50;
 
             // Calculate new deposit based on FULL BOOKING total (not just changed room)
-            $newDepositRequired = $newBookingTotal * ($depositPct / 100);
-            $basePaymentNeeded = $newDepositRequired - $booking->deposit_amount;
+            // IMPORTANT: Round to avoid decimal amounts (VNPay requires integer)
+            $newDepositRequired = round($newBookingTotal * ($depositPct / 100));
+            $basePaymentNeeded = round($newDepositRequired - $booking->deposit_amount);
 
             // ===== NEW: Manual voucher selection (user chooses which vouchers to use) =====
             $selectedVoucherIds = $request->input('voucher_ids', []); // Array of voucher IDs from user
@@ -747,7 +748,8 @@ class BookingController extends Controller
             }
 
             // Calculate final payment after applying selected vouchers
-            $finalPaymentNeeded = max(0, $basePaymentNeeded - $voucherDiscount);
+            // IMPORTANT: Round to avoid decimal amounts (VNPay requires integer)
+            $finalPaymentNeeded = round(max(0, $basePaymentNeeded - $voucherDiscount));
 
 
             Log::info('📊 Upgrade payment calculation', [
@@ -896,7 +898,7 @@ class BookingController extends Controller
         $vnp_TxnRef = 'RC' . $roomChange->id . '_' . time();
         $vnp_OrderInfo = 'Thanh toán đổi phòng #' . $booking->ma_tham_chieu;
         $vnp_OrderType = 'billpayment';
-        $vnp_Amount = $amount * 100;
+        $vnp_Amount = round($amount) * 100;  // VNPay requires integer amount
         $vnp_Locale = 'vn';
         $vnp_IpAddr = request()->ip();
 
