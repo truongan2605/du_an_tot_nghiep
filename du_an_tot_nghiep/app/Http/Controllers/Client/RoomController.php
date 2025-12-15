@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Client;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\Phong;
-use App\Models\DanhGia;
+use App\Models\DanhGia; // (đang dùng ở show() theo logic cũ)
 use App\Models\LoaiPhong;
 use App\Models\TienNghi;
 use App\Models\Wishlist;
@@ -22,182 +22,333 @@ class RoomController extends Controller
     public const WEEKEND_MULTIPLIER = 1.10;
 
     public function index(Request $request)
-{
-    $perPage = 9;
+    {
+        $perPage = 9;
 
-    // ==== Phát hiện khoảng ngày & có dính cuối tuần hay không ====
-    $checkIn = null;
-    $checkOut = null;
-    $hasWeekend = false;
+        // ================== LOGIC SỐ KHÁCH / SỐ PHÒNG ==================
+        $adults     = max(1, (int) $request->input('adults', 1));   // Người lớn (13+)
+        $children   = max(0, (int) $request->input('children', 0)); // Trẻ em (<13) – không tính sức chứa
+        $roomsCount = max(1, (int) $request->input('rooms_count', 1));
 
-    if ($request->filled('date_range')) {
-        $dates = explode(' to ', $request->date_range);
-        if (count($dates) === 2) {
-            try {
-                $checkIn = Carbon::parse(trim($dates[0]))->startOfDay();
-                $checkOut = Carbon::parse(trim($dates[1]))->startOfDay();
-            } catch (\Throwable $e) {
-                $checkIn = $checkOut = null;
+        // Rule: mỗi phòng tối đa 2 trẻ em -> chỉ giới hạn, KHÔNG đưa vào sức chứa
+        $maxChildrenAllowed = $roomsCount * 2;
+        if ($children > $maxChildrenAllowed) {
+            $children = $maxChildrenAllowed;
+            // GHI NGƯỢC LẠI VÀO request để giao diện hiển thị đúng
+            $request->merge(['children' => $children]);
+        }
+
+        // Sức chứa chỉ tính theo người lớn
+        $minCapacityPerRoom = (int) ceil($adults / $roomsCount);
+
+        // ==== Phát hiện khoảng ngày & có dính cuối tuần hay không ====
+        $checkIn = null;
+        $checkOut = null;
+        $hasWeekend = false;
+
+        if ($request->filled('date_range')) {
+            $dates = explode(' to ', $request->date_range);
+            if (count($dates) === 2) {
+                try {
+                    $checkIn = Carbon::parse(trim($dates[0]))->startOfDay();
+                    $checkOut = Carbon::parse(trim($dates[1]))->startOfDay();
+                } catch (\Throwable $e) {
+                    $checkIn = $checkOut = null;
+                }
             }
         }
-    }
 
-    if ($checkIn && $checkOut && $checkIn->lt($checkOut)) {
-        $cursor = $checkIn->copy();
-        while ($cursor->lt($checkOut)) {
-            // ISO: 5=Fri, 6=Sat, 7=Sun
-            if (in_array($cursor->dayOfWeekIso, [5, 6, 7], true)) {
-                $hasWeekend = true;
-                break;
+        if ($checkIn && $checkOut && $checkIn->lt($checkOut)) {
+            $cursor = $checkIn->copy();
+            while ($cursor->lt($checkOut)) {
+                // ISO: 5=Fri, 6=Sat, 7=Sun
+                if (in_array($cursor->dayOfWeekIso, [5, 6, 7], true)) {
+                    $hasWeekend = true;
+                    break;
+                }
+                $cursor->addDay();
             }
-            $cursor->addDay();
         }
-    }
 
-    // Nếu có dính cuối tuần thì giá thực tế tăng 10%
-    $weekendMultiplier = $hasWeekend ? 1.10 : 1.0;
+        // Nếu có dính cuối tuần thì giá thực tế tăng 10%
+        $weekendMultiplier = $hasWeekend ? self::WEEKEND_MULTIPLIER : 1.0;
 
-    // ==== Query gốc ====
-    $query = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis'])
-        ->orderByDesc('created_at');
+        // ==== Query gốc ====
+        $query = Phong::with(['loaiPhong', 'tang', 'images', 'tienNghis'])
+            ->orderByDesc('created_at')
+            // ====== TÍNH ĐÁNH GIÁ THỰC TẾ từ danh_gia_space ======
+            ->withAvg([
+                'danhGiaspace as avg_rating' => function ($q) {
+                    $q->whereNotNull('rating')
+                        ->whereNull('parent_id') // chỉ review gốc, không tính reply
+                        ->where('status', 1);    // chỉ tính review active
+                }
+            ], 'rating')
+            ->withCount([
+                'danhGiaspace as rating_count' => function ($q) {
+                    $q->whereNotNull('rating')
+                        ->whereNull('parent_id')
+                        ->where('status', 1);
+                }
+            ]);
 
-    // =============== Lọc theo loại phòng ===============
-    if ($request->filled('loai_phong_id')) {
-        $query->where('loai_phong_id', $request->loai_phong_id);
-    }
-
-    // =============== Lọc theo khoảng giá preset (1–4) dựa trên giá NGÀY THƯỜNG ===============
-    if ($request->filled('gia_khoang')) {
-        switch ($request->gia_khoang) {
-            case '1':
-                $query->where('gia_mac_dinh', '<', 500000);
-                break;
-            case '2':
-                $query->whereBetween('gia_mac_dinh', [500000, 1000000]);
-                break;
-            case '3':
-                $query->whereBetween('gia_mac_dinh', [1000000, 1500000]);
-                break;
-            case '4':
-                $query->where('gia_mac_dinh', '>', 1500000);
-                break;
+        // =============== Lọc theo loại phòng ===============
+        if ($request->filled('loai_phong_id')) {
+            $query->where('loai_phong_id', $request->loai_phong_id);
         }
-    }
 
-    // =============== Lọc theo giá slider ===============
-    // Thanh giá thể hiện "giá khách phải trả" => nếu có weekend thì đó là base * 1.1
-    if ($request->filled('gia_min') && $request->filled('gia_max')) {
-        $filterMin = (float) $request->gia_min;
-        $filterMax = (float) $request->gia_max;
+        // =============== Lọc theo đánh giá sao (THỰC TẾ) ===============
+        // UI: radio 5..1 -> hiểu là ">= X sao"
+        if ($request->filled('diem')) {
+            $diem = (int) $request->diem;
+            $query->havingRaw('COALESCE(avg_rating, 0) >= ?', [$diem]);
+        }
 
-        // Quy đổi ngược về giá ngày thường để whereBetween trong DB
-        $mult = $weekendMultiplier > 0 ? $weekendMultiplier : 1.0;
-        $minBase = floor($filterMin / $mult);
-        $maxBase = ceil($filterMax / $mult);
+        // =============== Lọc theo khoảng giá preset (1–4) dựa trên giá NGÀY THƯỜNG ===============
+        if ($request->filled('gia_khoang')) {
+            switch ($request->gia_khoang) {
+                case '1':
+                    $query->where('gia_mac_dinh', '<', 500000);
+                    break;
+                case '2':
+                    $query->whereBetween('gia_mac_dinh', [500000, 1000000]);
+                    break;
+                case '3':
+                    $query->whereBetween('gia_mac_dinh', [1000000, 1500000]);
+                    break;
+                case '4':
+                    $query->where('gia_mac_dinh', '>', 1500000);
+                    break;
+            }
+        }
 
-        $query->whereBetween('gia_cuoi_cung', [$minBase, $maxBase]);
-    }
+        // =============== Lọc theo giá slider ===============
+        // Thanh giá thể hiện "giá khách phải trả" => nếu có weekend thì đó là base * 1.1
+        if ($request->filled('gia_min') && $request->filled('gia_max')) {
+            $filterMin = (float) $request->gia_min;
+            $filterMax = (float) $request->gia_max;
 
-    // =============== Lọc theo tiện nghi ===============
-    if ($request->filled('tien_nghi')) {
-        $tienNghiIds = (array) $request->tien_nghi;
-        $query->whereHas('tienNghis', function ($q) use ($tienNghiIds) {
-            $q->whereIn('tien_nghi.id', $tienNghiIds);
+            // Quy đổi ngược về giá ngày thường để whereBetween trong DB
+            $mult    = $weekendMultiplier > 0 ? $weekendMultiplier : 1.0;
+            $minBase = floor($filterMin / $mult);
+            $maxBase = ceil($filterMax / $mult);
+
+            $query->whereBetween('gia_cuoi_cung', [$minBase, $maxBase]);
+        }
+
+        // =============== Lọc theo tiện nghi ===============
+        if ($request->filled('tien_nghi')) {
+            $tienNghiIds = (array) $request->tien_nghi;
+            $query->whereHas('tienNghis', function ($q) use ($tienNghiIds) {
+                $q->whereIn('tien_nghi.id', $tienNghiIds);
+            });
+        }
+
+        // Sau khi áp tất cả filter -> lấy danh sách phòng
+        $allRooms = $query->get();
+
+        // Nhóm theo loại phòng
+        $groupedByType = $allRooms->groupBy('loai_phong_id');
+
+        // Tổng số phòng / loại
+        $totalRoomsByType = $groupedByType->map(function ($group) {
+            return $group->count();
         });
-    }
 
-    // Sau khi áp tất cả filter -> lấy danh sách phòng
-    $allRooms = $query->get();
+        // ===== Tính số phòng TRỐNG theo loại phòng trong khoảng ngày đã chọn (nếu có) =====
+        $availableByType = [];
 
-    // Nhóm theo loại phòng
-    $groupedByType = $allRooms->groupBy('loai_phong_id');
+        if ($checkIn && $checkOut) {
+            $from = $checkIn->toDateString();
+            $to   = $checkOut->toDateString();
 
-    // Tổng số phòng / loại
-    $totalRoomsByType = $groupedByType->map(function ($group) {
-        return $group->count();
-    });
+            $busyByType = DB::table('dat_phong')
+                ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+                ->join('phong', 'phong.id', '=', 'dat_phong_item.phong_id')
+                ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
+                ->where(function ($q) use ($from, $to) {
+                    $q->whereBetween('dat_phong.ngay_nhan_phong', [$from, $to])
+                        ->orWhereBetween('dat_phong.ngay_tra_phong', [$from, $to])
+                        ->orWhere(function ($q2) use ($from, $to) {
+                            $q2->where('dat_phong.ngay_nhan_phong', '<=', $from)
+                                ->where('dat_phong.ngay_tra_phong', '>=', $to);
+                        });
+                })
+                ->selectRaw('phong.loai_phong_id, COUNT(DISTINCT phong.id) as so_phong_ban')
+                ->groupBy('phong.loai_phong_id')
+                ->pluck('so_phong_ban', 'phong.loai_phong_id')
+                ->toArray();
 
-    // ===== Tính số phòng TRỐNG theo loại phòng trong khoảng ngày đã chọn (nếu có) =====
-    $availableByType = [];
-
-    if ($checkIn && $checkOut) {
-        $from = $checkIn->toDateString();
-        $to   = $checkOut->toDateString();
-
-        $busyByType = DB::table('dat_phong')
-            ->join('dat_phong_item', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
-            ->join('phong', 'phong.id', '=', 'dat_phong_item.phong_id')
-            ->whereNotIn('dat_phong.trang_thai', ['da_huy', 'huy'])
-            ->where(function ($q) use ($from, $to) {
-                $q->whereBetween('dat_phong.ngay_nhan_phong', [$from, $to])
-                    ->orWhereBetween('dat_phong.ngay_tra_phong', [$from, $to])
-                    ->orWhere(function ($q2) use ($from, $to) {
-                        $q2->where('dat_phong.ngay_nhan_phong', '<=', $from)
-                            ->where('dat_phong.ngay_tra_phong', '>=', $to);
-                    });
-            })
-            ->selectRaw('phong.loai_phong_id, COUNT(DISTINCT phong.id) as so_phong_ban')
-            ->groupBy('phong.loai_phong_id')
-            ->pluck('so_phong_ban', 'phong.loai_phong_id')
-            ->toArray();
-
-        foreach ($totalRoomsByType as $typeId => $totalCount) {
-            $busy = $busyByType[$typeId] ?? 0;
-            $availableByType[$typeId] = max($totalCount - $busy, 0);
+            foreach ($totalRoomsByType as $typeId => $totalCount) {
+                $busy = $busyByType[$typeId] ?? 0;
+                $availableByType[$typeId] = max($totalCount - $busy, 0);
+            }
         }
+
+        // Tạo collection loại phòng: 1 phòng đại diện + số lượng / số phòng trống
+        $roomTypeCollection = $groupedByType->map(function ($group, $typeId) use ($availableByType) {
+            /** @var \App\Models\Phong $room */
+            $room = $group->first();
+            $room->so_luong_phong_cung_loai = $group->count();
+            $room->so_phong_trong = $availableByType[$typeId] ?? null;
+
+            // avg_rating & rating_count đã có sẵn từ query (withAvg/withCount)
+            return $room;
+        })->values();
+
+        // ====== Lọc theo sức chứa (CHỈ tính người lớn) ======
+        $roomTypeCollection = $roomTypeCollection->filter(function ($room) use ($minCapacityPerRoom) {
+            // Ưu tiên lấy trên phòng, nếu không có thì lấy trên loại phòng
+            $capacity = $room->suc_chua
+                ?? $room->so_nguoi
+                ?? $room->so_nguoi_toi_da
+                ?? ($room->loaiPhong->suc_chua ?? null)
+                ?? ($room->loaiPhong->so_nguoi ?? null)
+                ?? ($room->loaiPhong->so_nguoi_toi_da ?? null);
+
+            // Nếu không có thông tin sức chứa thì không lọc theo tiêu chí này
+            if (is_null($capacity) || (int) $capacity <= 0) {
+                return true;
+            }
+
+            return (int) $capacity >= $minCapacityPerRoom;
+        })->values();
+
+        // ====== Nếu có chọn ngày thì loại luôn các loại phòng không đủ số phòng yêu cầu ======
+        if ($checkIn && $checkOut) {
+            $roomTypeCollection = $roomTypeCollection->filter(function ($room) use ($roomsCount) {
+                if (is_null($room->so_phong_trong)) {
+                    return true;
+                }
+                return $room->so_phong_trong >= $roomsCount;
+            })->values();
+        }
+
+        // Phân trang theo loại phòng
+        $page    = LengthAwarePaginator::resolveCurrentPage();
+        $total   = $roomTypeCollection->count();
+        $results = $roomTypeCollection->slice(($page - 1) * $perPage, $perPage)->values();
+
+        $phongs = new LengthAwarePaginator(
+            $results,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path'  => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        // Dữ liệu sidebar
+        $loaiPhongs = LoaiPhong::all();
+        $tienNghis  = TienNghi::where('active', 1)->get();
+
+        // ==== GIÁ MIN/MAX CHO SLIDER ====
+        // Giá ngày thường trong DB
+        $baseMin = (int) (Phong::min('gia_cuoi_cung') ?? 0);
+        $baseMax = (int) (Phong::max('gia_cuoi_cung') ?? 0);
+
+        $giaMin = $baseMin;
+        // Slider luôn cho phép tới giá cuối tuần tối đa (max + 10%)
+        $giaMax = (int) ceil($baseMax * self::WEEKEND_MULTIPLIER);
+
+        return view('list-room', compact(
+            'phongs',
+            'loaiPhongs',
+            'tienNghis',
+            'giaMin',
+            'giaMax',
+            'checkIn',
+            'checkOut',
+            'hasWeekend'
+        ));
     }
 
-    // Tạo collection loại phòng: 1 phòng đại diện + số lượng / số phòng trống
-    $roomTypeCollection = $groupedByType->map(function ($group, $typeId) use ($availableByType) {
-        /** @var \App\Models\Phong $room */
-        $room = $group->first();
-        $room->so_luong_phong_cung_loai = $group->count();
-        $room->so_phong_trong = $availableByType[$typeId] ?? null;
-        return $room;
-    })->values();
+    private function ratingsGroupedByRoomType(array $typeIds = [])
+    {
+        // tìm tên cột rating đang sử dụng
+        $ratingCol = null;
+        if (Schema::hasTable('danh_gia')) {
+            if (Schema::hasColumn('danh_gia', 'diem')) {
+                $ratingCol = 'diem';
+            } elseif (Schema::hasColumn('danh_gia', 'rating')) {
+                $ratingCol = 'rating';
+            }
+        }
 
-    // Phân trang theo loại phòng
-    $page = LengthAwarePaginator::resolveCurrentPage();
-    $total = $roomTypeCollection->count();
-    $results = $roomTypeCollection->slice(($page - 1) * $perPage, $perPage)->values();
+        if (!$ratingCol) {
+            return [];
+        }
 
-    $phongs = new LengthAwarePaginator(
-        $results,
-        $total,
-        $perPage,
-        $page,
-        [
-            'path'  => $request->url(),
-            'query' => $request->query(),
-        ]
-    );
+        // approval column
+        $approvalCol = null;
+        if (Schema::hasTable('danh_gia')) {
+            if (Schema::hasColumn('danh_gia', 'trang_thai_kiem_duyet')) {
+                $approvalCol = 'trang_thai_kiem_duyet';
+            } elseif (Schema::hasColumn('danh_gia', 'status')) {
+                $approvalCol = 'status';
+            }
+        }
 
-    // Dữ liệu sidebar
-    $loaiPhongs = LoaiPhong::all();
-    $tienNghis = TienNghi::where('active', 1)->get();
+        // build query that produces phong.loai_phong_id, avg(ratingCol), count
+        $q = null;
 
-    // ==== GIÁ MIN/MAX CHO SLIDER ====
-    // Giá ngày thường trong DB
-    $baseMin = (int) (Phong::min('gia_cuoi_cung') ?? 0);
-    $baseMax = (int) (Phong::max('gia_cuoi_cung') ?? 0);
+        // prefer join paths that exist in your schema (try dat_phong -> phong)
+        if (Schema::hasTable('dat_phong') && Schema::hasColumn('dat_phong', 'phong_id')) {
+            $q = DB::table('danh_gia')
+                ->join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
+                ->join('phong', 'dat_phong.phong_id', '=', 'phong.id')
+                ->select('phong.loai_phong_id as type_id', DB::raw("AVG(danh_gia.{$ratingCol}) as avg_rating"), DB::raw("COUNT(danh_gia.id) as cnt"))
+                ->groupBy('phong.loai_phong_id');
+        }
+        // fallback: dat_phong_items table name variant
+        elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
+            $q = DB::table('danh_gia')
+                ->join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
+                ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
+                ->join('phong', 'dat_phong_items.phong_id', '=', 'phong.id')
+                ->select('phong.loai_phong_id as type_id', DB::raw("AVG(danh_gia.{$ratingCol}) as avg_rating"), DB::raw("COUNT(danh_gia.id) as cnt"))
+                ->groupBy('phong.loai_phong_id');
+        }
+        // fallback: danh_gia.phong_id exists
+        elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
+            $q = DB::table('danh_gia')
+                ->join('phong', 'danh_gia.phong_id', '=', 'phong.id')
+                ->select('phong.loai_phong_id as type_id', DB::raw("AVG(danh_gia.{$ratingCol}) as avg_rating"), DB::raw("COUNT(danh_gia.id) as cnt"))
+                ->groupBy('phong.loai_phong_id');
+        } else {
+            return [];
+        }
 
-    $giaMin = $baseMin;
-    // Slider luôn cho phép tới giá cuối tuần tối đa (max + 10%)
-    $giaMax = (int) ceil($baseMax * 1.10);
+        // apply approval filter
+        if ($approvalCol) {
+            if ($approvalCol === 'status') {
+                $q->where('danh_gia.status', 1);
+            } else {
+                // assume textual "da_dang"
+                $q->where('danh_gia.' . $approvalCol, 'da_dang');
+            }
+        }
 
-    return view('list-room', compact(
-        'phongs',
-        'loaiPhongs',
-        'tienNghis',
-        'giaMin',
-        'giaMax',
-        'checkIn',
-        'checkOut',
-        'hasWeekend' // nếu sau này bạn muốn hiện note nhỏ
-    ));
-}
+        $q->whereNotNull('danh_gia.' . $ratingCol);
 
+        if (!empty($typeIds)) {
+            $q->whereIn('phong.loai_phong_id', $typeIds);
+        }
 
+        $rows = $q->get();
+
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int)$r->type_id] = [
+                'avg' => $r->avg_rating !== null ? round((float)$r->avg_rating, 1) : 0.0,
+                'count' => (int) $r->cnt,
+            ];
+        }
+
+        return $map;
+    }
 
     public function show($id)
     {
@@ -210,52 +361,72 @@ class RoomController extends Controller
             ->take(5)
             ->get();
 
-        // Ratings logic (giữ nguyên)
-        $avgRating = 0;
-        $reviews = collect();
-
-        if (Schema::hasTable('dat_phong') && Schema::hasColumn('dat_phong', 'phong_id')) {
-            $avgRating = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
-                ->where('dat_phong.phong_id', $phong->id)
-                ->where('danh_gia.trang_thai_kiem_duyet', 'da_dang')
-                ->avg('danh_gia.diem');
-
-            $reviews = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
-                ->where('dat_phong.phong_id', $phong->id)
-                ->where('danh_gia.trang_thai_kiem_duyet', 'da_dang')
-                ->select('danh_gia.*')
-                ->orderByDesc('danh_gia.created_at')
-                ->get();
-        } elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
-            $avgRating = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
-                ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
-                ->where('dat_phong_items.phong_id', $phong->id)
-                ->where('danh_gia.trang_thai_kiem_duyet', 'da_dang')
-                ->avg('danh_gia.diem');
-
-            $reviews = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
-                ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
-                ->where('dat_phong_items.phong_id', $phong->id)
-                ->where('danh_gia.trang_thai_kiem_duyet', 'da_dang')
-                ->select('danh_gia.*')
-                ->orderByDesc('danh_gia.created_at')
-                ->get();
-        } elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
-            $avgRating = DanhGia::where('phong_id', $phong->id)
-                ->where('trang_thai_kiem_duyet', 'da_dang')
-                ->avg('diem');
-
-            $reviews = DanhGia::where('phong_id', $phong->id)
-                ->where('trang_thai_kiem_duyet', 'da_dang')
-                ->orderByDesc('created_at')
-                ->get();
-        } else {
-            $avgRating = 0;
-            $reviews = collect();
+        $ratingCol = null;
+        if (Schema::hasTable('danh_gia')) {
+            if (Schema::hasColumn('danh_gia', 'diem')) {
+                $ratingCol = 'diem';
+            } elseif (Schema::hasColumn('danh_gia', 'rating')) {
+                $ratingCol = 'rating';
+            }
         }
 
-        $avgRating = $avgRating ? round(floatval($avgRating), 1) : 0.0;
+        $approvalCol = null;
+        if (Schema::hasTable('danh_gia')) {
+            if (Schema::hasColumn('danh_gia', 'trang_thai_kiem_duyet')) {
+                $approvalCol = 'trang_thai_kiem_duyet';
+            } elseif (Schema::hasColumn('danh_gia', 'status')) {
+                $approvalCol = 'status';
+            }
+        }
 
+        $avgRating = 0.0;
+        $rating_count = 0;
+        if ($phong->loai_phong_id) {
+            $ratings = $this->ratingsGroupedByRoomType([(int)$phong->loai_phong_id]);
+            $avgRating = $ratings[$phong->loai_phong_id]['avg'] ?? 0.0;
+            $rating_count = $ratings[$phong->loai_phong_id]['count'] ?? 0;
+        }
+
+        $reviews = collect();
+        $reviewIdsQuery = null;
+
+        if (Schema::hasTable('dat_phong') && Schema::hasColumn('dat_phong', 'phong_id')) {
+            $reviewIdsQuery = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
+                ->where('dat_phong.phong_id', $phong->id);
+        } elseif (Schema::hasTable('dat_phong_items') && Schema::hasColumn('dat_phong_items', 'phong_id')) {
+            $reviewIdsQuery = DanhGia::join('dat_phong', 'danh_gia.dat_phong_id', '=', 'dat_phong.id')
+                ->join('dat_phong_items', 'dat_phong_items.dat_phong_id', '=', 'dat_phong.id')
+                ->where('dat_phong_items.phong_id', $phong->id);
+        } elseif (Schema::hasTable('danh_gia') && Schema::hasColumn('danh_gia', 'phong_id')) {
+            $reviewIdsQuery = DanhGia::where('phong_id', $phong->id);
+        }
+
+        $reviewIds = [];
+        if ($reviewIdsQuery instanceof \Illuminate\Database\Eloquent\Builder) {
+            if ($approvalCol) {
+                if ($approvalCol === 'status') {
+                    $reviewIdsQuery->where('danh_gia.status', 1);
+                } else {
+                    $reviewIdsQuery->where('danh_gia.' . $approvalCol, 'da_dang');
+                }
+            }
+            $reviewIds = $reviewIdsQuery->select('danh_gia.id')->pluck('id')->toArray();
+        }
+
+        if (!empty($reviewIds)) {
+            $reviews = DanhGia::with(['user', 'replies'])
+                ->whereIn('id', $reviewIds)
+                ->orderByDesc('created_at')
+                ->get();
+
+            foreach ($reviews as $rev) {
+                if (!isset($rev->rating) && isset($rev->diem)) {
+                    $rev->rating = $rev->diem;
+                }
+            }
+        }
+
+        // --- Bed summary ---
         $bedSummary = collect();
         $totalBeds = 0;
 
@@ -295,6 +466,7 @@ class RoomController extends Controller
             'phong',
             'related',
             'avgRating',
+            'rating_count',
             'reviews',
             'bedSummary',
             'totalBeds',
@@ -337,7 +509,7 @@ class RoomController extends Controller
     {
         $ids = explode(',', $request->input('ids', ''));
         $ids = array_filter($ids, 'is_numeric');
-        
+
         if (empty($ids)) {
             return response()->json([], 200);
         }
@@ -373,12 +545,12 @@ class RoomController extends Controller
     public function getRoomTypeQuickView($id)
     {
         $loaiPhong = LoaiPhong::with(['tienNghis'])->findOrFail($id);
-        
+
         // Get a sample room of this type to show additional details
         $sampleRoom = Phong::where('loai_phong_id', $id)
             ->with(['images', 'bedTypes'])
             ->first();
-        
+
         // Prepare bed types data
         $bedTypes = [];
         if ($sampleRoom && $sampleRoom->relationLoaded('bedTypes') && $sampleRoom->bedTypes->count()) {
@@ -394,7 +566,7 @@ class RoomController extends Controller
                 }
             }
         }
-        
+
         // Prepare images from sample room only (LoaiPhong doesn't have images)
         $images = [];
         if ($sampleRoom && $sampleRoom->relationLoaded('images') && $sampleRoom->images->count()) {
@@ -405,7 +577,7 @@ class RoomController extends Controller
                 ];
             })->toArray();
         }
-        
+
         // Prepare amenities
         $amenities = [];
         if ($loaiPhong->relationLoaded('tienNghis')) {
@@ -416,7 +588,7 @@ class RoomController extends Controller
                 ];
             })->toArray();
         }
-        
+
         return response()->json([
             'success' => true,
             'data' => [

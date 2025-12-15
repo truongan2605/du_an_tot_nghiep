@@ -5,7 +5,7 @@
 @section('content')
 
     <!-- =======================
-                            Main Banner START -->
+            Main Banner START -->
     <section class="pt-3 pt-lg-5">
         <div class="container">
             <!-- Content and Image START -->
@@ -27,7 +27,8 @@
                         </span>
                     </h1>
                     <!-- Info -->
-                    <p class="mb-4">Chúng tôi mang đến cho bạn không chỉ một lựa chọn lưu trú mà còn là một trải nghiệm tận hưởng sự sang trọng trong tầm giá của bạn.</p>
+                    <p class="mb-4">Chúng tôi mang đến cho bạn không chỉ một lựa chọn lưu trú mà còn là một trải nghiệm
+                        tận hưởng sự sang trọng trong tầm giá của bạn.</p>
 
                     <!-- Buttons -->
                     <div class="hstack gap-4 flex-wrap align-items-center">
@@ -89,15 +90,15 @@
 
             <!-- Search START -->
             <form action="{{ route('list-room.index') }}" method="GET"
-                class="card shadow rounded-4 position-relative p-4 pb-5 pb-md-4">
-                <div class="row g-4 align-items-center">
+                class="card home-search-card shadow rounded-4 position-relative p-4 p-lg-4">
 
-                    <!-- Loại phòng -->
-                    <div class="col-lg-3 col-md-6 d-flex align-items-center">
-                        <i class="bi bi-door-open fs-3 me-2 text-muted"></i>
+                <div class="row gy-3 gx-4 align-items-end">
+                    {{-- Loại phòng --}}
+                    <div class="col-xl-3 col-md-6 d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <label class="form-label fw-semibold text-muted mb-1">Loại phòng</label>
-                            <select class="form-select js-choice" name="loai_phong_id" data-search-enabled="true">
+                            <label class="form-label home-search-label mb-1">Loại phòng</label>
+                            <select class="form-select form-control-lg rounded-3" name="loai_phong_id"
+                                data-search-enabled="true">
                                 <option value="">-- Tất cả loại phòng --</option>
                                 @foreach ($loaiPhongs as $loaiPhong)
                                     <option value="{{ $loaiPhong->id }}"
@@ -109,40 +110,119 @@
                         </div>
                     </div>
 
-                    <!-- Check in -->
-                    <div class="col-lg-3 col-md-6 d-flex align-items-center">
-                        <i class="bi bi-calendar fs-3 me-2 text-muted"></i>
+                    {{-- Nhận phòng - Trả phòng (UI + Hidden submit chuẩn) --}}
+                    <div class="col-xl-3 col-md-6 d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <label class="form-label fw-semibold text-muted mb-1">Nhận phòng - Trả phòng</label>
-                            <input type="text" class="form-control flatpickr" name="date_range" data-mode="range"
+                            <label class="form-label home-search-label mb-1">Nhận phòng - Trả phòng</label>
+
+                            {{-- UI input (hiển thị) --}}
+                            <input type="text" id="date_range_ui_home"
+                                class="form-control form-control-lg rounded-3 flatpickr" data-mode="range"
                                 placeholder="Chọn ngày" value="{{ request('date_range') }}">
+
+                            {{-- Hidden input (submit lên server theo chuẩn Y-m-d to Y-m-d) --}}
+                            <input type="hidden" name="date_range" id="date_range_home"
+                                value="{{ request('date_range') }}">
                         </div>
                     </div>
 
-                    <!-- Price Range -->
-                    <div class="col-lg-5 col-md-12 d-flex align-items-center">
-                        <i class="bi bi-cash-stack fs-3 me-3 text-muted"></i>
-                        <div class="flex-grow-1">
-                            <label class="form-label fw-semibold text-muted mb-1">Giá (VNĐ)</label>
-                            <div id="price-slider-home" class="my-1"></div>
-                            <div class="d-flex justify-content-between small text-muted mt-1">
-                                <span id="min-price-home">{{ number_format($giaMin, 0, ',', '.') }}đ</span>
-                                <span id="max-price-home">{{ number_format($giaMax, 0, ',', '.') }}đ</span>
+                    {{-- KHÁCH – POPUP --}}
+                    <div class="col-xl-3 col-md-6 position-relative">
+                        <label class="form-label home-search-label mb-1 d-block">Khách</label>
+
+                        {{-- Nút mở popup --}}
+                        <div id="guestSelectorBtn" class="guest-selector-box">
+                            <i class="bi bi-people me-2"></i>
+                            <span id="guestSummary">
+                                {{ request('adults', 1) }} Người lớn,
+                                {{ request('children', 0) }} Trẻ em
+                            </span>
+                            <i class="bi bi-chevron-down ms-auto"></i>
+                        </div>
+
+                        {{-- POPUP --}}
+                        <div id="guestPopup" class="guest-popup shadow">
+                            <div class="guest-row">
+                                <div class="guest-info">
+                                    <i class="bi bi-person icon"></i>
+                                    <div>
+                                        <div class="fw-bold">Người lớn</div>
+                                        <small class="text-muted">Từ 13 tuổi</small>
+                                    </div>
+                                </div>
+                                <div class="guest-control">
+                                    <button type="button" class="btn-minus" data-target="adults">−</button>
+                                    <span id="adultsCount">{{ request('adults', 1) }}</span>
+                                    <button type="button" class="btn-plus" data-target="adults">+</button>
+                                </div>
                             </div>
-                            <input type="hidden" id="gia_min_home" name="gia_min"
-                                value="{{ request('gia_min', $giaMin) }}">
-                            <input type="hidden" id="gia_max_home" name="gia_max"
-                                value="{{ request('gia_max', $giaMax) }}">
+
+                            <div class="guest-row">
+                                <div class="guest-info">
+                                    <i class="bi bi-emoji-smile icon"></i>
+                                    <div>
+                                        <div class="fw-bold">Trẻ em</div>
+                                        <small class="text-muted">Dưới 13 tuổi</small>
+                                    </div>
+                                </div>
+                                <div class="guest-control">
+                                    <button type="button" class="btn-minus" data-target="children">−</button>
+                                    <span id="childrenCount">{{ request('children', 0) }}</span>
+                                    <button type="button" class="btn-plus" data-target="children">+</button>
+                                </div>
+                            </div>
+
+                            <small class="text-muted d-block mt-2">Mỗi phòng tối đa 2 trẻ em.</small>
+
+                            {{-- THÔNG BÁO INLINE (thay cho alert) --}}
+                            <div id="guestPopupMsg" class="small text-danger mt-2" style="display:none;"></div>
+
+                            <button type="button" id="guestPopupDone" class="btn btn-primary w-100 mt-3 rounded-pill">
+                                Xong
+                            </button>
                         </div>
+
+                        {{-- Hidden fields --}}
+                        <input type="hidden" name="adults" id="adultsInput" value="{{ request('adults', 1) }}">
+                        <input type="hidden" name="children" id="childrenInput" value="{{ request('children', 0) }}">
                     </div>
 
-                    <!-- Button -->
-                    <div class="col-lg-1 col-md-12 d-flex justify-content-center">
-                        <button type="submit"
-                            class="btn btn-primary rounded-circle d-flex align-items-center justify-content-center"
-                            style="width: 50px; height: 50px; background-color: #5E3EFF;">
-                            <i class="bi bi-search fs-4"></i>
-                        </button>
+                    {{-- Số phòng --}}
+                    <div class="col-xl-3 col-md-6">
+                        <label class="form-label home-search-label mb-1">Số phòng</label>
+                        <input type="number" name="rooms_count" id="home_rooms_count"
+                            class="form-control form-control-lg rounded-3" min="1"
+                            value="{{ request('rooms_count', 1) }}">
+                    </div>
+
+                    {{-- Hàng dưới: Giá + nút tìm kiếm --}}
+                    <div class="col-12">
+                        <div class="row gy-3 gx-4 align-items-center mt-1">
+                            {{-- Giá --}}
+                            <div class="col-lg-10 d-flex align-items-center">
+                                <div class="flex-grow-1">
+                                    <label class="form-label home-search-label mb-1">Giá (VNĐ)</label>
+                                    <div id="price-slider-home" class="my-2"></div>
+                                    <div class="d-flex justify-content-between small text-muted mt-1">
+                                        <span id="min-price-home">{{ number_format($giaMin, 0, ',', '.') }}đ</span>
+                                        <span id="max-price-home">{{ number_format($giaMax, 0, ',', '.') }}đ</span>
+                                    </div>
+                                    <input type="hidden" id="gia_min_home" name="gia_min"
+                                        value="{{ request('gia_min', $giaMin) }}">
+                                    <input type="hidden" id="gia_max_home" name="gia_max"
+                                        value="{{ request('gia_max', $giaMax) }}">
+                                </div>
+                            </div>
+
+                            {{-- Nút search --}}
+                            <div class="col-lg-2 d-flex justify-content-lg-end justify-content-center">
+                                <button type="submit"
+                                    class="btn btn-primary home-search-btn d-inline-flex align-items-center justify-content-center">
+                                    <i class="bi bi-search fs-4"></i>
+                                    <span class="d-none d-md-inline ms-2">Tìm phòng</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -150,10 +230,10 @@
         </div>
     </section>
     <!-- =======================
-                            Main Banner END -->
+            Main Banner END -->
 
     <!-- =======================
-         Blog Best deal (slider) START -->
+             Blog Best deal (slider) START -->
     <section class="pb-2 pb-lg-5">
         <div class="container">
 
@@ -210,11 +290,11 @@
         </div>
     </section>
     <!-- =======================
-         Blog Best deal END -->
+             Blog Best deal END -->
 
 
     <!-- =======================
-                            About START -->
+            About START -->
     <section class="pb-0 pb-xl-5">
         <div class="container">
             <div class="row g-4 justify-content-between align-items-center">
@@ -281,7 +361,8 @@
                 <!-- Right side START -->
                 <div class="col-lg-6">
                     <h2 class="mb-3 mb-lg-5">Kỳ nghỉ tuyệt vời nhất bắt đầu từ đây!</h2>
-                    <p class="mb-3 mb-lg-5">Đặt phòng khách sạn với chúng tôi và đừng quên nắm bắt ưu đãi khách sạn tuyệt vời để tiết kiệm đáng kể cho kỳ nghỉ của bạn.</p>
+                    <p class="mb-3 mb-lg-5">Đặt phòng khách sạn với chúng tôi và đừng quên nắm bắt ưu đãi khách sạn tuyệt
+                        vời để tiết kiệm đáng kể cho kỳ nghỉ của bạn.</p>
 
                     <!-- Features START -->
                     <div class="row g-4">
@@ -322,10 +403,10 @@
         </div>
     </section>
     <!-- =======================
-                            About END -->
+            About END -->
 
     <!-- =======================
-                            Featured Hotels START -->
+            Featured Hotels START -->
     <section>
         <div class="container mt-5">
             <!-- Title -->
@@ -381,12 +462,30 @@
                                     <h6 class="text-success mb-0">
                                         {{ number_format($phong->gia_cuoi_cung, 0, '.', ',') }} VND
                                     </h6>
-                                   <h6 class="mb-0">
-    4.8
-    <i class="fa-solid fa-star text-warning ms-1"></i>
-</h6>
 
+                                    @php
+                                        $avg =
+                                            isset($phong->avg_rating) && $phong->avg_rating
+                                                ? round((float) $phong->avg_rating, 1)
+                                                : null;
+                                        $count = isset($phong->rating_count) ? (int) $phong->rating_count : 0;
+                                    @endphp
+
+                                    <div class="d-flex align-items-center text-muted small"
+                                        title="{{ $count }} đánh giá">
+                                        @if ($avg)
+                                            <span class="me-2 fw-semibold"
+                                                aria-label="Đánh giá trung bình">{{ number_format($avg, 1, '.', '') }}</span>
+                                            <span class="me-1" aria-hidden="true">
+                                                <i class="fa-solid fa-star text-warning"></i>
+                                            </span>
+                                            {{-- <span class="ms-1">({{ $count }})</span> --}}
+                                        @else
+                                            <span class="text-muted">Chưa có đánh giá</span>
+                                        @endif
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
                         <!-- Card END -->
@@ -398,10 +497,10 @@
         </div>
     </section>
     <!-- =======================
-                            Featured Hotels END -->
+            Featured Hotels END -->
 
     <!-- =======================
-                            Client START -->
+            Client START -->
     <section class="py-0 py-md-5">
         <div class="container">
             <div class="row g-4 g-lg-7 justify-content-center align-items-center">
@@ -439,10 +538,10 @@
         </div>
     </section>
     <!-- =======================
-                            Client END -->
+            Client END -->
 
     <!-- =======================
-                            Download app START -->
+            Download app START -->
     <section class="bg-light">
         <div class="container">
             <div class="row g-4">
@@ -453,7 +552,8 @@
                         <h3><i class="fa-solid fa-hand-holding-heart"></i></h3>
                         <div class="ms-3">
                             <h5>Hỗ trợ 24/7 </h5>
-                            <p class="mb-0">Nếu chúng tôi không đáp ứng được kỳ vọng của bạn theo bất kỳ cách nào, hãy cho chúng tôi biết</p>
+                            <p class="mb-0">Nếu chúng tôi không đáp ứng được kỳ vọng của bạn theo bất kỳ cách nào, hãy
+                                cho chúng tôi biết</p>
                         </div>
                     </div>
                 </div>
@@ -485,7 +585,7 @@
         </div>
     </section>
     <!-- =======================
-                            Download app END -->
+            Download app END -->
 
 
     @push('scripts')
@@ -494,37 +594,255 @@
 
         <script>
             document.addEventListener('DOMContentLoaded', function() {
-                var priceSlider = document.getElementById('price-slider-home');
-                if (!priceSlider) return;
 
+                // =========================
+                // HOME - Date range (UI + hidden submit chuẩn)
+                // Submit: YYYY-MM-DD to YYYY-MM-DD
+                // UI: d M
+                // =========================
+                (function initHomeDateRange() {
+                    const ui = document.getElementById('date_range_ui_home');
+                    const hidden = document.getElementById('date_range_home');
+                    if (!ui || !hidden || typeof flatpickr === 'undefined') return;
+
+                    if (ui._flatpickr) ui._flatpickr.destroy();
+
+                    const isYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test((s || '').trim());
+                    const monthMap = {
+                        jan: '01',
+                        feb: '02',
+                        mar: '03',
+                        apr: '04',
+                        may: '05',
+                        jun: '06',
+                        jul: '07',
+                        aug: '08',
+                        sep: '09',
+                        oct: '10',
+                        nov: '11',
+                        dec: '12'
+                    };
+
+                    function pad2(n) {
+                        n = String(n || '').trim();
+                        return n.length === 1 ? ('0' + n) : n;
+                    }
+
+                    function parseDMonAnyYear(str) {
+                        const s = (str || '').trim();
+                        let m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
+                        if (m) {
+                            const dd = pad2(m[1]);
+                            const mon = monthMap[String(m[2]).slice(0, 3).toLowerCase()];
+                            const yy = m[3];
+                            if (mon) return `${yy}-${mon}-${dd}`;
+                        }
+                        m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})$/);
+                        if (m) {
+                            const dd = pad2(m[1]);
+                            const mon = monthMap[String(m[2]).slice(0, 3).toLowerCase()];
+                            const yy = String(new Date().getFullYear());
+                            if (mon) return `${yy}-${mon}-${dd}`;
+                        }
+                        return null;
+                    }
+
+                    function normalizeRange(raw) {
+                        const val = (raw || '').trim();
+                        if (!val) return null;
+
+                        const parts = val.split(' to ').map(x => x.trim()).filter(Boolean);
+                        if (parts.length !== 2) return null;
+
+                        if (isYmd(parts[0]) && isYmd(parts[1])) return [parts[0], parts[1]];
+
+                        const a = parseDMonAnyYear(parts[0]);
+                        const b = parseDMonAnyYear(parts[1]);
+                        if (a && b) return [a, b];
+
+                        return null;
+                    }
+
+                    // Ưu tiên hidden (server trả về) nếu có, nếu không lấy ui.value
+                    const raw = (hidden.value || '').trim() || (ui.value || '').trim();
+                    const normalized = normalizeRange(raw);
+
+                    const fp = flatpickr(ui, {
+                        mode: "range",
+                        minDate: "today",
+                        dateFormat: "Y-m-d", // chuẩn để dateStr là Y-m-d
+                        defaultDate: normalized ? normalized : null,
+                        onChange: function(selectedDates, dateStr) {
+                            hidden.value = dateStr || '';
+                        },
+                        altInput: true,
+                        altFormat: "d M",
+                        altInputClass: ui.className,
+                    });
+
+                    if (normalized) {
+                        hidden.value = normalized[0] + ' to ' + normalized[1];
+                        fp.setDate(normalized, false);
+                    } else {
+                        // nếu format lạ -> clear hidden để tránh submit sai
+                        hidden.value = '';
+                    }
+                })();
+
+                // =========================
+                // Price slider
+                // =========================
+                var priceSlider = document.getElementById('price-slider-home');
                 var minInput = document.getElementById('gia_min_home');
                 var maxInput = document.getElementById('gia_max_home');
                 var minLabel = document.getElementById('min-price-home');
                 var maxLabel = document.getElementById('max-price-home');
 
-                var minVal = parseInt(minInput.value);
-                var maxVal = parseInt(maxInput.value);
+                if (priceSlider && minInput && maxInput && minLabel && maxLabel) {
+                    var minVal = parseInt(minInput.value);
+                    var maxVal = parseInt(maxInput.value);
 
-                noUiSlider.create(priceSlider, {
-                    start: [minVal, maxVal],
-                    connect: true,
-                    range: {
-                        'min': {{ $giaMin }},
-                        'max': {{ $giaMax }}
-                    },
-                    step: 50000,
-                    format: {
-                        to: value => Math.round(value),
-                        from: value => Math.round(value)
+                    noUiSlider.create(priceSlider, {
+                        start: [minVal, maxVal],
+                        connect: true,
+                        range: {
+                            'min': {{ $giaMin }},
+                            'max': {{ $giaMax }}
+                        },
+                        step: 50000,
+                        format: {
+                            to: value => Math.round(value),
+                            from: value => Math.round(value)
+                        }
+                    });
+
+                    priceSlider.noUiSlider.on('update', function(values) {
+                        minInput.value = values[0];
+                        maxInput.value = values[1];
+                        minLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[0]) + 'đ';
+                        maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[1]) + 'đ';
+                    });
+                }
+
+                // ========== Guest popup logic (HOME) ==========
+                const popup = document.getElementById("guestPopup");
+                const btn = document.getElementById("guestSelectorBtn");
+
+                const adultsCountEl = document.getElementById("adultsCount");
+                const childrenCountEl = document.getElementById("childrenCount");
+
+                const inputAdults = document.getElementById("adultsInput");
+                const inputChildren = document.getElementById("childrenInput");
+
+                const roomsInput = document.getElementById("home_rooms_count");
+                const summary = document.getElementById("guestSummary");
+
+                const msgEl = document.getElementById("guestPopupMsg");
+
+                function showGuestMsg(message) {
+                    if (!msgEl) return;
+                    msgEl.textContent = message;
+                    msgEl.style.display = "block";
+                }
+
+                function clearGuestMsg() {
+                    if (!msgEl) return;
+                    msgEl.textContent = "";
+                    msgEl.style.display = "none";
+                }
+
+                function getRoomsHome() {
+                    return parseInt(roomsInput?.value || '1', 10) || 1;
+                }
+
+                function getMaxChildrenHome() {
+                    return getRoomsHome() * 2;
+                }
+
+                function clampChildrenHome() {
+                    if (!childrenCountEl) return;
+                    let val = parseInt(childrenCountEl.textContent || '0', 10);
+                    const maxChildren = getMaxChildrenHome();
+                    if (val > maxChildren) {
+                        childrenCountEl.textContent = maxChildren;
                     }
-                });
+                    if (val <= maxChildren) clearGuestMsg();
+                }
 
-                priceSlider.noUiSlider.on('update', function(values) {
-                    minInput.value = values[0];
-                    maxInput.value = values[1];
-                    minLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[0]) + 'đ';
-                    maxLabel.textContent = new Intl.NumberFormat('vi-VN').format(values[1]) + 'đ';
-                });
+                if (roomsInput) {
+                    roomsInput.addEventListener('change', clampChildrenHome);
+                    roomsInput.addEventListener('input', clampChildrenHome);
+                }
+
+                if (popup && btn && adultsCountEl && childrenCountEl && inputAdults && inputChildren && summary) {
+                    btn.addEventListener("click", () => {
+                        popup.style.display = popup.style.display === "block" ? "none" : "block";
+                        if (popup.style.display === "block") clearGuestMsg();
+                    });
+
+                    popup.querySelectorAll(".btn-plus").forEach(button => {
+                        button.addEventListener("click", () => {
+                            const target = button.dataset.target;
+
+                            if (target === 'adults') {
+                                let v = parseInt(adultsCountEl.textContent || '1', 10);
+                                adultsCountEl.textContent = v + 1;
+                                clearGuestMsg();
+                            } else if (target === 'children') {
+                                let v = parseInt(childrenCountEl.textContent || '0', 10);
+                                const maxChildren = getMaxChildrenHome();
+
+                                if (v >= maxChildren) {
+                                    showGuestMsg(
+                                        `Mỗi phòng tối đa 2 trẻ em. (${getRoomsHome()} phòng ⇒ tối đa ${maxChildren} trẻ em)`
+                                        );
+                                    return;
+                                }
+
+                                childrenCountEl.textContent = v + 1;
+                                clearGuestMsg();
+                            }
+                        });
+                    });
+
+                    popup.querySelectorAll(".btn-minus").forEach(button => {
+                        button.addEventListener("click", () => {
+                            const target = button.dataset.target;
+
+                            if (target === 'adults') {
+                                let v = parseInt(adultsCountEl.textContent || '1', 10);
+                                if (v > 1) v--;
+                                adultsCountEl.textContent = v;
+                                clearGuestMsg();
+                            } else if (target === 'children') {
+                                let v = parseInt(childrenCountEl.textContent || '0', 10);
+                                if (v > 0) v--;
+                                childrenCountEl.textContent = v;
+                                clearGuestMsg();
+                            }
+                        });
+                    });
+
+                    document.getElementById("guestPopupDone").addEventListener("click", () => {
+                        clampChildrenHome();
+
+                        inputAdults.value = adultsCountEl.textContent;
+                        inputChildren.value = childrenCountEl.textContent;
+
+                        summary.textContent =
+                            `${adultsCountEl.textContent} Người lớn, ${childrenCountEl.textContent} Trẻ em`;
+
+                        clearGuestMsg();
+                        popup.style.display = "none";
+                    });
+
+                    document.addEventListener("click", (e) => {
+                        if (!popup.contains(e.target) && !btn.contains(e.target)) {
+                            clearGuestMsg();
+                            popup.style.display = "none";
+                        }
+                    });
+                }
             });
         </script>
     @endpush
@@ -534,6 +852,128 @@
 
 @push('styles')
     <style>
+        /* Nút mở popup */
+        .guest-selector-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #dadce0;
+            background: #fff;
+            padding: 12px 16px;
+            border-radius: 14px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .guest-selector-box:hover {
+            border-color: #5E3EFF;
+        }
+
+        /* Popup */
+        .guest-popup {
+            position: absolute;
+            top: 110%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            display: none;
+            z-index: 50;
+        }
+
+        .guest-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .guest-row:last-child {
+            border-bottom: none;
+        }
+
+        .guest-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .guest-info .icon {
+            font-size: 26px;
+            color: #5E3EFF;
+        }
+
+        .guest-control {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-minus,
+        .btn-plus {
+            width: 32px;
+            height: 32px;
+            background: #f2f2f2;
+            border: none;
+            border-radius: 50%;
+            font-size: 20px;
+            line-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-minus:hover,
+        .btn-plus:hover {
+            background: #e0e0e0;
+        }
+
+        /* SEARCH CARD */
+        .home-search-card {
+            max-width: 1120px;
+            margin: -40px auto 0 auto;
+            border-radius: 26px;
+            padding-top: 1.75rem !important;
+            padding-bottom: 1.75rem !important;
+        }
+
+        .home-search-label {
+            font-weight: 600;
+            color: #7a7a7a;
+            font-size: 0.9rem;
+        }
+
+        .home-search-card .form-control,
+        .home-search-card .form-select {
+            border-radius: 14px;
+            border-color: #e3e4ec;
+            height: 48px;
+        }
+
+        .home-search-card .form-control:focus,
+        .home-search-card .form-select:focus {
+            box-shadow: 0 0 0 0.15rem rgba(94, 62, 255, 0.15);
+            border-color: #5E3EFF;
+        }
+
+        .home-search-btn {
+            width: 100%;
+            max-width: 180px;
+            height: 48px;
+            border-radius: 999px;
+            background: #5E3EFF;
+            border: none;
+            box-shadow: 0 10px 20px rgba(94, 62, 255, 0.25);
+        }
+
+        .home-search-btn:hover {
+            background: #4a2de6;
+            box-shadow: 0 12px 24px rgba(74, 45, 230, 0.35);
+        }
+
+        /* CARD IMAGE */
         .card-img-scale-wrapper {
             aspect-ratio: 3 / 4;
             overflow: hidden;
@@ -595,25 +1035,20 @@
             top: -9px;
         }
 
-
         /* ========================
-        Best deal (blog slider)
-        ======================== */
+            Best deal (blog slider)
+            ======================== */
 
-        /* Giữ cho mọi thẻ card cùng chiều cao */
         .tiny-slider .card {
             height: 180px;
-            /* hoặc 160–200 tùy bạn muốn cao thấp */
             display: flex;
             align-items: stretch;
         }
 
-        /* Đảm bảo row con luôn full height */
         .tiny-slider .card .row {
             height: 100%;
         }
 
-        /* Cột ảnh bên trái: fix tỉ lệ và không co giãn */
         .tiny-slider .card .col-sm-6:first-child {
             flex: 0 0 45%;
             max-width: 45%;
@@ -628,7 +1063,6 @@
             display: block;
         }
 
-        /* Cột nội dung bên phải */
         .tiny-slider .card .col-sm-6:last-child {
             flex: 0 0 55%;
             max-width: 55%;
@@ -639,14 +1073,12 @@
             justify-content: center;
         }
 
-        /* Giới hạn dòng để nội dung không làm lệch chiều cao */
         .tiny-slider .card-title a {
             font-weight: 600;
             font-size: 15px;
             line-height: 1.3;
             display: -webkit-box;
             -webkit-line-clamp: 1;
-            /* 1 dòng tiêu đề */
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -657,15 +1089,20 @@
             margin-bottom: 6px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
-            /* 2 dòng mô tả */
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
 
-        /* Meta cuối cùng nhỏ, nhạt */
         .tiny-slider .card small {
             font-size: 12px;
             color: #999;
+        }
+
+        @media (max-width: 991.98px) {
+            .home-search-card {
+                margin-top: 1.5rem;
+                padding: 1.25rem 1rem !important;
+            }
         }
     </style>
 @endpush

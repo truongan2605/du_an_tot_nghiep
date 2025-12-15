@@ -55,7 +55,8 @@ class StaffController extends Controller
         $todayInvoiced = HoaDon::whereDate('created_at', $today)
             ->whereNotIn('trang_thai', ['da_huy'])
             ->sum('tong_thuc_thu');
-        $todayRevenue = $todayPaid + $todayInvoiced;
+        // Doanh thu hôm nay = Chỉ tính từ hóa đơn không bị hủy
+        $todayRevenue = $todayInvoiced;
         
         $todayRefund = RefundRequest::where('status', 'completed')
             ->whereDate('processed_at', $today)
@@ -69,7 +70,8 @@ class StaffController extends Controller
         $weeklyInvoiced = HoaDon::whereBetween(DB::raw('DATE(created_at)'), $weekRange)
             ->whereNotIn('trang_thai', ['da_huy'])
             ->sum('tong_thuc_thu');
-        $weeklyRevenue = $weeklyPaid + $weeklyInvoiced;
+        // Doanh thu tuần này = Chỉ tính từ hóa đơn không bị hủy
+        $weeklyRevenue = $weeklyInvoiced;
         
         $weeklyRefund = RefundRequest::where('status', 'completed')
             ->whereBetween(DB::raw('DATE(processed_at)'), $weekRange)
@@ -85,7 +87,8 @@ class StaffController extends Controller
             ->whereMonth('created_at', $month)
             ->whereNotIn('trang_thai', ['da_huy'])
             ->sum('tong_thuc_thu');
-        $monthlyRevenue = $monthlyPaid + $monthlyInvoiced;
+        // Doanh thu tháng này = Chỉ tính từ hóa đơn không bị hủy
+        $monthlyRevenue = $monthlyInvoiced;
         
         $monthlyRefund = RefundRequest::where('status', 'completed')
             ->whereYear('processed_at', $year)
@@ -97,7 +100,8 @@ class StaffController extends Controller
         $totalPaid = GiaoDich::where('trang_thai', 'thanh_cong')->sum('so_tien');
         $totalInvoiced = HoaDon::whereNotIn('trang_thai', ['da_huy'])
             ->sum('tong_thuc_thu');
-        $totalRevenue = $totalPaid + $totalInvoiced;
+        // Tổng cộng doanh thu = Chỉ tính từ hóa đơn không bị hủy
+        $totalRevenue = $totalInvoiced;
         
         $totalRefund = RefundRequest::where('status', 'completed')->sum('amount');
         $totalNetRevenue = $totalRevenue - $totalRefund;
@@ -406,12 +410,13 @@ class StaffController extends Controller
                 $startDate = Carbon::parse($request->start_date)->startOfDay();
                 $endDate = Carbon::parse($request->end_date)->endOfDay();
                 
-                // Chỉ tính theo giao dịch thanh toán (GiaoDich)
-                $customPaid = GiaoDich::where('trang_thai', 'thanh_cong')
-                    ->whereBetween('created_at', [$startDate, $endDate])
-                    ->sum('so_tien');
+                // Doanh thu tùy chỉnh = Chỉ tính từ hóa đơn không bị hủy
+                $customInvoiced = HoaDon::whereBetween('created_at', [$startDate, $endDate])
+                    ->whereNotIn('trang_thai', ['da_huy'])
+                    ->sum('tong_thuc_thu');
                 
-                $customRevenue = $customPaid;
+                $customRevenue = $customInvoiced;
+                $customPaid = $customInvoiced; // Gán giá trị cho customPaid để tương thích với view
                 
                 // Use RefundRequest instead of GiaoDich
                 $customRefund = RefundRequest::where('status', 'completed')
@@ -421,14 +426,14 @@ class StaffController extends Controller
                 $customNetRevenue = $customRevenue - $customRefund;
                 $customRangeLabel = $startDate->format('d/m/Y') . ' - ' . $endDate->format('d/m/Y');
                 
-                // Tính doanh thu theo ngày trong khoảng thời gian đã lọc (chỉ tính giao dịch thanh toán)
+                // Tính doanh thu theo ngày trong khoảng thời gian đã lọc (chỉ tính từ hóa đơn)
                 $currentDate = $startDate->copy();
                 while ($currentDate->lte($endDate)) {
                     $customChartLabels[] = $currentDate->format('d/m');
-                    $dayPaid = GiaoDich::where('trang_thai', 'thanh_cong')
-                        ->whereDate('created_at', $currentDate->toDateString())
-                        ->sum('so_tien');
-                    $customChartData[] = (int) $dayPaid;
+                    $dayInvoiced = HoaDon::whereDate('created_at', $currentDate->toDateString())
+                        ->whereNotIn('trang_thai', ['da_huy'])
+                        ->sum('tong_thuc_thu');
+                    $customChartData[] = (int) $dayInvoiced;
                     $currentDate->addDay();
                 }
             } catch (\Exception $e) {

@@ -300,7 +300,7 @@
                             <li><a class="dropdown-item" href="{{ url('/account/wishlist') }}"><i
                                         class="bi bi-heart fa-fw me-2"></i>Danh sách yêu thích của tôi</a></li>
                             <li><a class="dropdown-item" href="{{ route('client.vouchers.my') }}"><i
-                                        class="bi bi-heart fa-fw me-2"></i>Ví Voucher</a></li>
+                                        class="bi bi-ticket fa-fw me-2"></i>Ví Voucher</a></li>
                             <li><a class="dropdown-item" href="{{ route('account.settings') }}"><i
                                         class="bi bi-gear fa-fw me-2"></i>Cài đặt</a></li>
                             {{-- <li><a class="dropdown-item" href="{{ url('/help') }}"><i
