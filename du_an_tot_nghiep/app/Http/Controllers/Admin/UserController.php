@@ -94,23 +94,22 @@ class UserController extends Controller
         abort(403, 'Chỉ thay đổi trạng thái khách hàng!');
     }
 
-    // 2. Đảo ngược trạng thái
-    $user->is_active = !$user->is_active;
+    // 2. Đảo ngược trạng thái is_disabled (vô hiệu hóa bởi admin)
+    $user->is_disabled = !$user->is_disabled;
     $user->save();
 
     // 3. LOGIC BẢO MẬT: Logout người dùng nếu bị vô hiệu hóa
-    if (!$user->is_active && Auth::check() && Auth::id() === $user->id) { 
+    if ($user->is_disabled && Auth::check() && Auth::id() === $user->id) { 
         Auth::logout();
         
-        // SỬA LỖI TẠI ĐÂY: Dùng helper function request()
-        request()->session()->invalidate(); // Hủy session
-        request()->session()->regenerateToken(); // Tạo token mới
+        request()->session()->invalidate();
+        request()->session()->regenerateToken();
         
         return redirect()->route('login')->with('error', 'Tài khoản của bạn đã bị vô hiệu hóa!');
     }
 
     // 4. Trả về thông báo thành công
-    $message = $user->is_active ? 'Kích hoạt thành công!' : 'Vô hiệu hóa thành công!';
+    $message = $user->is_disabled ? 'Vô hiệu hóa thành công!' : 'Kích hoạt thành công!';
     return redirect()->route('admin.user.index')->with('success', $message);
 }
 }

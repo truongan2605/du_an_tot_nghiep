@@ -84,7 +84,7 @@
                                 <small class="text-muted">Không</small>
                             @endif
                         </td>
-                        
+
                         <td style="width:120px;">
                             @if ($p->images->isNotEmpty())
                                 <img src="{{ asset('storage/' . $p->images->first()->image_path) }}" width="100"
@@ -124,12 +124,26 @@
                                     </button> --}}
                                 @endif
                             @endif
-                            
                         </td>
 
                     </tr>
                 @endforeach
             </tbody>
         </table>
+
+        @if ($phongs->total() > 0)
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                    Hiển thị <strong>{{ $phongs->firstItem() }}</strong> - <strong>{{ $phongs->lastItem() }}</strong>
+                    / Tổng <strong>{{ $phongs->total() }}</strong> phòng
+                </div>
+
+                <div>
+                    {!! $phongs->links('pagination::bootstrap-5') !!}
+                </div>
+            </div>
+        @else
+            <div class="alert alert-info">Không có phòng nào.</div>
+        @endif
     </div>
 @endsection

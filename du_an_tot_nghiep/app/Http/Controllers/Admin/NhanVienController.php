@@ -88,17 +88,19 @@ class NhanVienController extends Controller
             abort(403, 'Chỉ thay đổi trạng thái nhân viên!');
         }
 
-        $nhan_vien->is_active = !$nhan_vien->is_active;  // Đổi $user → $nhan_vien
-        $nhan_vien->save();  // Đổi $user → $nhan_vien
+        // Đảo ngược trạng thái is_disabled (vô hiệu hóa bởi admin)
+        $nhan_vien->is_disabled = !$nhan_vien->is_disabled;
+        $nhan_vien->save();
 
-        if (!$nhan_vien->is_active && Auth::check() && Auth::id() === $nhan_vien->id) {  // Đổi $user → $nhan_vien
+        // Logout nếu bị vô hiệu hóa
+        if ($nhan_vien->is_disabled && Auth::check() && Auth::id() === $nhan_vien->id) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
             return redirect()->route('login')->with('error', 'Tài khoản của bạn đã bị vô hiệu hóa!');
         }
 
-        $message = $nhan_vien->is_active ? 'Kích hoạt thành công!' : 'Vô hiệu hóa thành công!';  // Đổi $user → $nhan_vien
+        $message = $nhan_vien->is_disabled ? 'Vô hiệu hóa thành công!' : 'Kích hoạt thành công!';
         return redirect()->route('admin.nhan-vien.index')->with('success', $message);
     }
 

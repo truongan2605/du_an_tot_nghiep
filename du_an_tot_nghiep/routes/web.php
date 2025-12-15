@@ -96,7 +96,7 @@ Route::prefix('admin')
         Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])->name('loai_phong.disable');
         Route::post('loai-phong/{id}/enable', [LoaiPhongController::class, 'enable'])->name('loai_phong.enable');
         Route::resource('loai_phong', LoaiPhongController::class)
-        ->parameters(['loai_phong' => 'loaiphong']);
+            ->parameters(['loai_phong' => 'loaiphong']);
 
 
         // Rooms
@@ -203,7 +203,7 @@ Route::prefix('admin')
     });
 
 // ==================== STAFF ====================
-Route::middleware(['auth', 'role:nhan_vien|admin'])
+Route::middleware(['auth', 'ensure.active', 'role:nhan_vien|admin'])
     ->prefix('staff')
     ->name('staff.')
     ->group(function () {
@@ -248,11 +248,11 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         });
         Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
             ->name('bookings.rooms.clear_cleaning');
-        
+
         // Staff cancel individual room
         Route::post('/bookings/{id}/cancel-room/{itemId}', [StaffController::class, 'cancelRoomItem'])
             ->name('bookings.cancel-room-item');
-        
+
         Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
 
@@ -296,7 +296,7 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
 
 
 // ==================== ACCOUNT (client profile area) ====================
-Route::middleware('auth')
+Route::middleware(['auth', 'ensure.active'])
     ->prefix('account')
     ->name('account.')
     ->group(function () {
@@ -321,24 +321,21 @@ Route::middleware('auth')
         Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
         Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
         Route::get('bookings/{booking}/available-vouchers', [BookingController::class, 'getAvailableVouchers'])->name('booking.available-vouchers');
-        
+
         // Room change
         Route::post('bookings/{booking}/change-room', [BookingController::class, 'changeRoom'])->name('booking.change-room');
 
         // Rewards (Ưu đãi & hạng thành viên)
         Route::get('rewards', [App\Http\Controllers\Account\RewardController::class, 'index'])
-        ->name('rewards');
-
- 
+            ->name('rewards');
     });
 
-// ==================== ROOM CHANGE CALLBACK (outside auth for VNPay) ====================
-// VNPay callback for room change - must be outside auth middleware
+// ==================== ROOM CHANGE CALLBACK  ====================
 Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])
     ->name('booking.change-room.callback');
 
-// ==================== ACCOUNT (continued after callback route) ====================  
-Route::middleware('auth')
+// ==================== ACCOUNT  ====================  
+Route::middleware(['auth', 'ensure.active'])
     ->prefix('account')
     ->name('account.')
     ->group(function () {
@@ -346,7 +343,6 @@ Route::middleware('auth')
         // Danh sách đặt phòng
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
 
-        // Hiển thị form đánh giá
         // Hiển thị form đánh giá
         Route::get('/danh-gia/{booking}', [ClientDanhGiaController::class, 'create'])
             ->name('danhgia.create');
@@ -356,7 +352,7 @@ Route::middleware('auth')
             ->name('danhgia.store');
     });
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::post('/vouchers/claim/{id}', [ClientVoucherController::class, 'claim'])->name('client.vouchers.claim');
     Route::get('/my-voucher', [ClientVoucherController::class, 'myVouchers'])->name('client.vouchers.my');
 });
@@ -365,7 +361,7 @@ Route::get('/blog', [ClientBlog::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [ClientBlog::class, 'show'])->name('blog.show');
 
 // ==================== PAYMENT ====================
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::get('/payment/pending-payments', [PaymentController::class, 'pendingPayments'])->name('payment.pending_payments');
     Route::get('/payment/create', [PaymentController::class, 'createPayment'])->name('payment.create');
     Route::post('/payment/initiate', [PaymentController::class, 'initiateVNPay'])->name('payment.initiate');
@@ -385,7 +381,7 @@ Route::middleware(['auth'])->group(function () {
 Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
 
 // ==================== NOTIFICATIONS ====================
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::get('notifications/{id}', [ThongBaoController::class, 'clientShow'])->name('notifications.show');
     Route::post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('notifications.read');
     Route::get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('notifications.modal');

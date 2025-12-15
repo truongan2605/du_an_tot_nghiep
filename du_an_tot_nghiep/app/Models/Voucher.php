@@ -27,12 +27,14 @@ class Voucher extends Model
         'note',
         'usage_limit_per_user',
         'active',
+        'points_required'
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'active' => 'boolean',
+        'points_required' => 'integer',
     ];
 
     // ======= Quan hệ tới User =======
@@ -59,9 +61,47 @@ class Voucher extends Model
     // ======= Hiển thị giá trị voucher (đẹp hơn) =======
     public function getGiaTriHienThiAttribute(): string
     {
-        if ($this->type === 'phan_tram') {
-            return $this->value . '%';
+        $candidates = ['value', 'discount', 'amount', 'discount_value', 'gia_tri', 'giatri'];
+
+        $val = null;
+        foreach ($candidates as $k) {
+            if (array_key_exists($k, $this->attributes) && $this->attributes[$k] !== null && $this->attributes[$k] !== '') {
+                $val = $this->attributes[$k];
+                break;
+            }
         }
-        return number_format($this->value, 0, ',', '.') . 'đ';
+
+        if ($val === null && isset($this->value) && $this->value !== null && $this->value !== '') {
+            $val = $this->value;
+        }
+
+        if ($val === null || $val === '') {
+            return '-';
+        }
+
+        $num = (float) $val;
+
+        $typeRaw = $this->type ?? ($this->attributes['type'] ?? null) ?? ($this->discount_type ?? null);
+        $type = strtolower(str_replace([' ', '_', '-'], '', (string) $typeRaw));
+
+        $isPercent = in_array($type, ['phantram', 'percent', 'phan_tram', '%', 'percento', 'percentdiscount']);
+
+        if ($isPercent) {
+            if (fmod($num, 1) === 0.0) {
+                return (int)$num . '%';
+            }
+            return rtrim(rtrim(number_format($num, 2, ',', '.'), '0'), ',') . '%';
+        }
+
+        if (fmod($num, 1) === 0.0) {
+            return number_format((int)$num, 0, ',', '.') . 'đ';
+        }
+
+        return number_format($num, 0, ',', '.') . 'đ';
+    }
+
+    public function getDisplayValueAttribute(): string
+    {
+        return $this->gia_tri_hien_thi;
     }
 }
