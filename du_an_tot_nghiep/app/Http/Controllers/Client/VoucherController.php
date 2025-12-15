@@ -9,18 +9,23 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\QueryException;
 use Carbon\Carbon;
 use App\Models\VoucherUsage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class VoucherController extends Controller
 {
     /** ====== HIỂN THỊ DANH SÁCH VOUCHER ====== */
+    /** ====== HIỂN THỊ DANH SÁCH VOUCHER ====== */
     public function index(Request $request)
     {
         $query = Voucher::query();
 
-        // Tìm kiếm theo mã
+        // Tìm kiếm theo mã / tên
         if ($request->filled('search')) {
-            $query->where('code', 'like', '%' . $request->search . '%');
+            $query->where(function ($q) use ($request) {
+                $q->where('code', 'like', '%' . $request->search . '%')
+                    ->orWhere('name', 'like', '%' . $request->search . '%');
+            });
         }
 
         // Lọc theo hiệu lực thời gian
@@ -52,11 +57,6 @@ class VoucherController extends Controller
                 ->pluck('voucher.id')
                 ->toArray();
 
-            // Logic hiển thị cho user đã đăng nhập:
-            // - Nếu user đã nhận voucher => luôn hiển thị (để hiện "Đã nhận")
-            // - Nếu chưa nhận:
-            //      + Nếu voucher có qty và đã đủ số lượng claim => ẩn
-            //      + Nếu qty null hoặc còn slot => hiển thị
             $vouchers = $vouchers->filter(function ($voucher) use ($claimedIds) {
                 // User đã nhận rồi → luôn hiển thị
                 if (in_array($voucher->id, $claimedIds)) {
@@ -84,7 +84,27 @@ class VoucherController extends Controller
             })->values();
         }
 
-        return view('client.voucher.index', compact('vouchers', 'claimedIds'));
+        // ----- TÍNH ĐIỂM HIỆN CÓ CỦA USER (nếu đã đăng nhập) -----
+        $currentPoints = null;
+        if (Auth::check()) {
+            $user = Auth::user();
+            $totalSpent = \App\Models\DatPhong::where('nguoi_dung_id', $user->id)
+                ->where('trang_thai', 'hoan_thanh')
+                ->sum('tong_tien');
+
+            $earnedPoints = (int) floor((float)$totalSpent / 1000);
+            $spentPoints = 0;
+            if (Schema::hasTable('user_voucher') && Schema::hasColumn('user_voucher', 'points_spent')) {
+                $spentPoints = (int) DB::table('user_voucher')
+                    ->where('user_id', $user->id)
+                    ->whereNotNull('points_spent')
+                    ->sum('points_spent');
+            }
+
+            $currentPoints = max(0, $earnedPoints - $spentPoints);
+        }
+
+        return view('client.voucher.index', compact('vouchers', 'claimedIds', 'currentPoints'));
     }
 
 
@@ -118,7 +138,7 @@ class VoucherController extends Controller
 
         // Kiểm tra số lượng phát hành (qty): nếu đã hết slot thì không cho nhận thêm
         if (!is_null($voucher->qty)) {
-            $currentClaims = $voucher->users()->count(); // số user đã nhận voucher này
+            $currentClaims = $voucher->users()->count();
             if ($currentClaims >= $voucher->qty) {
                 return response()->json([
                     'success' => false,
@@ -133,12 +153,63 @@ class VoucherController extends Controller
             return response()->json(['success' => false, 'message' => 'Bạn đã nhận voucher này trước đó.'], 400);
         }
 
+        // --- Phần điểm: kiểm tra nếu voucher yêu cầu điểm ---
+        $pointsRequired = 0;
+        if (Schema::hasColumn((new Voucher)->getTable(), 'points_required')) {
+            $pointsRequired = (int) ($voucher->points_required ?? 0);
+        }
+
+        if ($pointsRequired > 0) {
+            $totalSpent = \App\Models\DatPhong::where('nguoi_dung_id', $user->id)
+                ->where('trang_thai', 'hoan_thanh')
+                ->sum('tong_tien');
+
+            $totalSpent = (float) $totalSpent;
+
+            $earnedPoints = (int) floor($totalSpent / 1000);
+
+            $spentPoints = 0;
+            if (Schema::hasTable('user_voucher') && Schema::hasColumn('user_voucher', 'points_spent')) {
+                $spentPoints = (int) DB::table('user_voucher')
+                    ->where('user_id', $user->id)
+                    ->whereNotNull('points_spent')
+                    ->sum('points_spent');
+            }
+
+            $currentBalance = max(0, $earnedPoints - $spentPoints);
+
+            if ($currentBalance < $pointsRequired) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Bạn cần {$pointsRequired} điểm để đổi voucher này. Số điểm hiện có: {$currentBalance}."
+                ], 400);
+            }
+        }
+
         try {
-            // Gán voucher cho user (không trừ qty nữa, qty là tổng slot, kiểm tra bằng users()->count)
-            $user->vouchers()->attach($voucher->id, ['claimed_at' => now()]);
+            $attachData = ['claimed_at' => now()];
+            if ($pointsRequired > 0 && Schema::hasTable('user_voucher') && Schema::hasColumn('user_voucher', 'points_spent')) {
+                $attachData['points_spent'] = $pointsRequired;
+            }
+
+            $user->vouchers()->attach($voucher->id, $attachData);
         } catch (QueryException $e) {
             return response()->json(['success' => false, 'message' => 'Không thể nhận voucher.'], 400);
         }
+
+        $totalSpent = \App\Models\DatPhong::where('nguoi_dung_id', $user->id)
+            ->where('trang_thai', 'hoan_thanh')
+            ->sum('tong_tien');
+
+        $earnedPoints = (int) floor((float)$totalSpent / 1000);
+        $spentPoints = 0;
+        if (Schema::hasTable('user_voucher') && Schema::hasColumn('user_voucher', 'points_spent')) {
+            $spentPoints = (int) DB::table('user_voucher')
+                ->where('user_id', $user->id)
+                ->whereNotNull('points_spent')
+                ->sum('points_spent');
+        }
+        $currentPoints = max(0, $earnedPoints - $spentPoints);
 
         return response()->json([
             'success' => true,
@@ -146,83 +217,109 @@ class VoucherController extends Controller
             'voucher_id' => $voucher->id,
             'code' => $voucher->code,
             'claimed_at' => now()->toDateTimeString(),
+            'points_spent' => $pointsRequired > 0 ? $pointsRequired : 0,
+            'currentPoints' => $currentPoints
         ]);
     }
 
 
     /** ====== TRANG MY VOUCHERS ====== */
     public function myVouchers(Request $request)
-{
-    if (!Auth::check()) {
-        return redirect()->route('login');
-    }
-
-    $user = Auth::user();
-
-    // Danh sách voucher của user
-    $query = $user->vouchers()
-        ->orderByDesc('user_voucher.claimed_at');
-
-    // Tìm kiếm theo mã / ghi chú
-    if ($request->filled('search')) {
-        $search = $request->input('search');
-        $query->where(function ($q) use ($search) {
-            $q->where('code', 'like', '%' . $search . '%')
-                ->orWhere('note', 'like', '%' . $search . '%');
-        });
-    }
-
-    // Lọc theo hiệu lực theo NGÀY (chưa xét số lượt dùng)
-    if ($request->filled('filter')) {
-        if ($request->filter === 'valid') {
-            $query->whereDate('end_date', '>=', now());
-        } elseif ($request->filter === 'expired') {
-            $query->whereDate('end_date', '<', now());
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
         }
+
+        $user = Auth::user();
+
+        $perPage = (int) $request->get('per_page', 9);
+        if ($perPage <= 0) $perPage = 9;
+
+        $query = $user->vouchers()
+            ->orderByDesc('user_voucher.claimed_at');
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('code', 'like', '%' . $search . '%')
+                    ->orWhere('note', 'like', '%' . $search . '%');
+            });
+        }
+
+        if ($request->filled('filter')) {
+            if ($request->filter === 'valid') {
+                $query->whereDate('end_date', '>=', now());
+            } elseif ($request->filter === 'expired') {
+                $query->whereDate('end_date', '<', now());
+            }
+        }
+
+        $vouchers = $query->paginate($perPage)->withQueryString();
+
+        if (method_exists($vouchers, 'total') && $vouchers->total() === 0) {
+            $totalSpent = \App\Models\DatPhong::where('nguoi_dung_id', $user->id)
+                ->where('trang_thai', 'hoan_thanh')
+                ->sum('tong_tien');
+            $earnedPoints = (int) floor((float)$totalSpent / 1000);
+            $spentPoints = 0;
+            if (Schema::hasTable('user_voucher') && Schema::hasColumn('user_voucher', 'points_spent')) {
+                $spentPoints = (int) DB::table('user_voucher')
+                    ->where('user_id', $user->id)
+                    ->whereNotNull('points_spent')
+                    ->sum('points_spent');
+            }
+            $currentPoints = max(0, $earnedPoints - $spentPoints);
+
+            return view('account.my', [
+                'vouchers'    => $vouchers,
+                'usageCounts' => [],
+                'currentPoints' => $currentPoints,
+            ]);
+        }
+
+        $usageModel = new VoucherUsage();
+        $usageTable = $usageModel->getTable();
+
+        $userCol = null;
+        if (Schema::hasColumn($usageTable, 'nguoi_dung_id')) {
+            $userCol = 'nguoi_dung_id';
+        } elseif (Schema::hasColumn($usageTable, 'user_id')) {
+            $userCol = 'user_id';
+        }
+
+        $pageVoucherIds = $vouchers->getCollection()->pluck('id')->toArray();
+
+        $usageCounts = [];
+        if ($userCol && !empty($pageVoucherIds)) {
+            $usageCounts = VoucherUsage::query()
+                ->whereIn('voucher_id', $pageVoucherIds)
+                ->where($userCol, $user->id)
+                ->groupBy('voucher_id')
+                ->selectRaw('voucher_id, COUNT(*) as used_count')
+                ->pluck('used_count', 'voucher_id')
+                ->toArray();
+        }
+
+        $vouchers->getCollection()->transform(function ($voucher) use ($usageCounts) {
+            $voucher->used_count = $usageCounts[$voucher->id] ?? 0;
+            return $voucher;
+        });
+
+        // ----- TÍNH ĐIỂM CỦA USER -----
+        $totalSpent = \App\Models\DatPhong::where('nguoi_dung_id', $user->id)
+            ->where('trang_thai', 'hoan_thanh')
+            ->sum('tong_tien');
+
+        $earnedPoints = (int) floor((float)$totalSpent / 1000);
+        $spentPoints = 0;
+        if (Schema::hasTable('user_voucher') && Schema::hasColumn('user_voucher', 'points_spent')) {
+            $spentPoints = (int) DB::table('user_voucher')
+                ->where('user_id', $user->id)
+                ->whereNotNull('points_spent')
+                ->sum('points_spent');
+        }
+        $currentPoints = max(0, $earnedPoints - $spentPoints);
+
+        return view('account.my', compact('vouchers', 'usageCounts', 'currentPoints'));
     }
-
-    $vouchers = $query->get();
-
-    // Nếu không có voucher thì trả về luôn
-    if ($vouchers->isEmpty()) {
-        return view('account.my', [
-            'vouchers'     => $vouchers,
-            'usageCounts'  => [],
-        ]);
-    }
-
-    // Xác định bảng và cột user trong voucher_usage từ model
-    $usageModel = new VoucherUsage();
-    $usageTable = $usageModel->getTable(); // thường là voucher_usage
-
-    $userCol = null;
-    if (Schema::hasColumn($usageTable, 'nguoi_dung_id')) {
-        $userCol = 'nguoi_dung_id';
-    } elseif (Schema::hasColumn($usageTable, 'user_id')) {
-        $userCol = 'user_id';
-    }
-
-    // Lấy số lần user này đã dùng từng voucher
-    $usageCounts = [];
-    if ($userCol) {
-        $usageCounts = VoucherUsage::query()
-            ->whereIn('voucher_id', $vouchers->pluck('id'))
-            ->where($userCol, $user->id)
-            ->groupBy('voucher_id')
-            ->selectRaw('voucher_id, COUNT(*) as used_count')
-            ->pluck('used_count', 'voucher_id')
-            ->toArray();
-    }
-
-    // Gắn thuộc tính used_count vào từng voucher (0 nếu chưa dùng)
-    foreach ($vouchers as $voucher) {
-        $voucher->used_count = $usageCounts[$voucher->id] ?? 0;
-    }
-
-    // Nếu sau này muốn ẨN voucher đã dùng hết lượt khỏi ví, có thể lọc tiếp ở đây
-    // $vouchers = $vouchers->filter(fn ($v) => $v->used_count < ($v->usage_limit_per_user ?? PHP_INT_MAX))->values();
-
-    return view('account.my', compact('vouchers', 'usageCounts'));
-}
-
 }

@@ -65,7 +65,7 @@
                                                 @csrf
                                                 <button type="submit"
                                                     class="btn nav-link text-start text-danger bg-danger-soft-hover w-100">
-                                                    <i class="fas fa-sign-out-alt fa-fw me-2"></i>Sign Out
+                                                    <i class="fas fa-sign-out-alt fa-fw me-2"></i>Đăng xuất
                                                 </button>
                                             </form>
                                         </li>

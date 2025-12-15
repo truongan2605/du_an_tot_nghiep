@@ -382,10 +382,9 @@
                                         {{ number_format($phong->gia_cuoi_cung, 0, '.', ',') }} VND
                                     </h6>
                                    <h6 class="mb-0">
-    4.8
-    <i class="fa-solid fa-star text-warning ms-1"></i>
-</h6>
-
+                                        4.8
+                                        <i class="fa-solid fa-star text-warning ms-1"></i>
+                                    </h6>
                                 </div>
                             </div>
                         </div>
