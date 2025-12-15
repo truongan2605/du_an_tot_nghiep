@@ -329,19 +329,13 @@
                                                     @for ($i = 0; $i < 7; $i++)
                                                         @php
                                                             $date = $startOfWeek->copy()->addDays($i);
-                                                            $dayPaid = \App\Models\GiaoDich::where(
-                                                                'trang_thai',
-                                                                'thanh_cong',
-                                                            )
-                                                                ->whereDate('created_at', $date->toDateString())
-                                                                ->sum('so_tien');
-                                                            $dayInvoiced = \App\Models\HoaDon::whereDate(
+                                                            // Doanh thu theo ngày = Chỉ tính từ hóa đơn không bị hủy
+                                                            $dayRevenue = \App\Models\HoaDon::whereDate(
                                                                 'created_at',
                                                                 $date->toDateString(),
                                                             )
                                                                 ->whereNotIn('trang_thai', ['da_huy'])
                                                                 ->sum('tong_thuc_thu');
-                                                            $dayRevenue = $dayPaid + $dayInvoiced;
                                                         @endphp
                                                         <div
                                                             class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
@@ -427,12 +421,6 @@
                                                         <span class="small">Tháng này</span>
                                                         <strong
                                                             class="text-primary">{{ number_format($monthlyRevenue ?? 0, 0, '.', '.') }}đ</strong>
-                                                    </div>
-                                                    <hr>
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <span class="fw-bold">Tổng cộng</span>
-                                                        <strong
-                                                            class="text-primary fs-5">{{ number_format($totalRevenue ?? 0, 0, '.', '.') }}đ</strong>
                                                     </div>
                                                 </div>
                                                 <div class="alert alert-success mb-0">
