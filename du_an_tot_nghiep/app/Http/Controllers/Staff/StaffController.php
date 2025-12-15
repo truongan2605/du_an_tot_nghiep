@@ -2366,4 +2366,161 @@ class StaffController extends Controller
         }
         return redirect()->back()->with('success', 'Đã đánh dấu phòng là đã dọn xong.');
     }
+
+    /**
+     * Cancel individual room item from a multi-room booking (Staff/Admin)
+     */
+    public function cancelRoomItem(Request $request, $id, $itemId)
+    {
+        $booking = DatPhong::with(['datPhongItems.phong', 'datPhongItems.loaiPhong'])
+            ->findOrFail($id);
+
+        // Check booking status
+        if (!in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan'])) {
+            return back()->with('error', 'Không thể hủy phòng từ booking có trạng thái này.');
+        }
+
+        // Find the room item
+        $roomItem = $booking->datPhongItems->firstWhere('id', $itemId);
+        if (!$roomItem) {
+            return back()->with('error', 'Không tìm thấy phòng trong booking.');
+        }
+
+        // Check if there are at least 2 rooms
+        $activeRoomsCount = $booking->datPhongItems->count();
+        if ($activeRoomsCount <= 1) {
+            return back()->with('error', 'Không thể hủy phòng cuối cùng. Vui lòng hủy toàn bộ booking.');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Calculate room price
+            $roomPricePerNight = $roomItem->gia_tren_dem ?? 0;
+            $nights = $roomItem->so_dem ?? 1;
+            $qty = $roomItem->so_luong ?? 1;
+            $roomTotalPrice = $roomPricePerNight * $nights * $qty;
+            
+            // Calculate refund
+            $paidAmount = $booking->deposit_amount ?? 0;
+            $currentBookingTotal = $booking->tong_tien;
+            $roomProportion = $currentBookingTotal > 0 ? ($roomTotalPrice / $currentBookingTotal) : 0;
+            $roomDepositShare = $paidAmount * $roomProportion;
+
+            // Calculate refund percentage based on days until check-in
+            $checkInDate = Carbon::parse($booking->ngay_nhan_phong);
+            $now = Carbon::now();
+            $daysUntilCheckIn = $now->diffInDays($checkInDate, false);
+            
+            $depositPercentage = ($booking->snapshot_meta['deposit_percentage'] ?? 50);
+            
+            if ($depositPercentage == 100) {
+                if ($daysUntilCheckIn >= 7) $refundPercentage = 90;
+                elseif ($daysUntilCheckIn >= 3) $refundPercentage = 60;
+                elseif ($daysUntilCheckIn >= 1) $refundPercentage = 40;
+                else $refundPercentage = 20;
+            } else {
+                if ($daysUntilCheckIn >= 7) $refundPercentage = 100;
+                elseif ($daysUntilCheckIn >= 3) $refundPercentage = 70;
+                elseif ($daysUntilCheckIn >= 1) $refundPercentage = 30;
+                else $refundPercentage = 0;
+            }
+
+            $refundAmount = round($roomDepositShare * ($refundPercentage / 100));
+            
+            // Save room info before deletion
+            // Phong has 'name', LoaiPhong has 'ten'
+            $displayRoomName = $roomItem->phong->name ?? $roomItem->loaiPhong->ten ?? "Phòng #{$itemId}";
+            $roomPhongId = $roomItem->phong_id;
+
+            // Update booking totals
+            $newBookingTotal = max(0, $currentBookingTotal - $roomTotalPrice);
+            
+            // QUAN TRỌNG: Khi hủy 1 phòng, toàn bộ phần cọc của phòng đó bị loại bỏ:
+            // - Phần được hoàn (30%): trả về khách
+            // - Phần bị phạt (70%): khách sạn giữ lại (MẤT LUÔN)
+            // => Deposit còn lại = chỉ phần cọc của các phòng còn active
+            $newDepositAmount = max(0, $paidAmount - $roomDepositShare);
+            
+            // Tính số tiền khách sạn giữ lại (phần phạt)
+            $forfeitedAmount = $roomDepositShare - $refundAmount;
+            
+            $booking->update([
+                'tong_tien' => $newBookingTotal,
+                'deposit_amount' => $newDepositAmount,  // Chỉ còn cọc của các phòng active
+            ]);
+
+            // Delete related records
+            // phong_da_dat uses dat_phong_item_id, not dat_phong_id
+            PhongDaDat::where('dat_phong_item_id', $roomItem->id)->delete();
+            
+            // giu_phong uses dat_phong_id and phong_id
+            if ($roomPhongId) {
+                GiuPhong::where('dat_phong_id', $booking->id)
+                    ->where('phong_id', $roomPhongId)
+                    ->delete();
+            }
+
+            // Delete the room item
+            $roomItem->delete();
+
+            // Create refund transaction and request
+            if ($refundAmount > 0) {
+                // Note: GiaoDich table only has: dat_phong_id, nha_cung_cap, provider_txn_ref, so_tien, don_vi, trang_thai, ghi_chu
+                // Valid trang_thai values: dang_cho, thanh_cong, that_bai, da_hoan
+                GiaoDich::create([
+                    'dat_phong_id' => $booking->id,
+                    'nha_cung_cap' => 'hoan_tien',
+                    'provider_txn_ref' => 'REFUND_ROOM_' . $booking->id . '_' . $itemId . '_' . time(),
+                    'so_tien' => -$refundAmount,
+                    'trang_thai' => 'dang_cho',
+                    'ghi_chu' => "Hoàn tiền hủy phòng {$displayRoomName} (Staff) - {$refundPercentage}%",
+                ]);
+
+                RefundRequest::create([
+                    'dat_phong_id' => $booking->id,
+                    'user_id' => $booking->nguoi_dung_id,
+                    'amount' => $refundAmount,
+                    'percentage' => $refundPercentage,
+                    'status' => 'pending',
+                    'requested_at' => now(),
+                    'refund_type' => 'single_room',
+                    'dat_phong_item_id' => null,
+                    'admin_note' => "Hủy phòng: {$displayRoomName} | Giá: " . number_format($roomTotalPrice) . "đ | Cọc phòng: " . number_format($roomDepositShare) . "đ | Hoàn: {$refundPercentage}% | Bởi Staff: " . (Auth::user()->name ?? 'Unknown'),
+                ]);
+            }
+
+            DB::commit();
+
+            Log::info('Staff cancelled room item', [
+                'booking_id' => $booking->id,
+                'item_id' => $itemId,
+                'room_name' => $displayRoomName,
+                'old_deposit' => $paidAmount,
+                'room_deposit_share' => round($roomDepositShare),
+                'refund_amount' => $refundAmount,
+                'forfeited_amount' => $forfeitedAmount,  // Phần khách sạn giữ lại
+                'new_deposit' => $newDepositAmount,
+                'staff_id' => Auth::id(),
+            ]);
+
+            $message = sprintf(
+                'Đã hủy phòng "%s" thành công. Số tiền hoàn: %s ₫ (%d%%).',
+                $displayRoomName,
+                number_format($refundAmount, 0, ',', '.'),
+                $refundPercentage
+            );
+
+            return back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Staff room cancellation error', [
+                'booking_id' => $id,
+                'item_id' => $itemId,
+                'error' => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Có lỗi xảy ra khi hủy phòng: ' . $e->getMessage());
+        }
+    }
 }

@@ -95,7 +95,9 @@ Route::prefix('admin')
         Route::get('/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
         Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])->name('loai_phong.disable');
         Route::post('loai-phong/{id}/enable', [LoaiPhongController::class, 'enable'])->name('loai_phong.enable');
-        Route::resource('loai_phong', LoaiPhongController::class);
+        Route::resource('loai_phong', LoaiPhongController::class)
+            ->parameters(['loai_phong' => 'loaiphong']);
+
 
         // Rooms
         Route::resource('phong', PhongController::class);
@@ -246,6 +248,11 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         });
         Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
             ->name('bookings.rooms.clear_cleaning');
+
+        // Staff cancel individual room
+        Route::post('/bookings/{id}/cancel-room/{itemId}', [StaffController::class, 'cancelRoomItem'])
+            ->name('bookings.cancel-room-item');
+
         Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
 
@@ -310,26 +317,24 @@ Route::middleware('auth')
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
         Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel'])->name('booking.cancel');
+        Route::post('bookings/{id}/cancel-room-item/{itemId}', [BookingController::class, 'cancelRoomItem'])->name('booking.cancel-room-item');
         Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
         Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
         Route::get('bookings/{booking}/available-vouchers', [BookingController::class, 'getAvailableVouchers'])->name('booking.available-vouchers');
-        
+
         // Room change
         Route::post('bookings/{booking}/change-room', [BookingController::class, 'changeRoom'])->name('booking.change-room');
 
         // Rewards (Ưu đãi & hạng thành viên)
         Route::get('rewards', [App\Http\Controllers\Account\RewardController::class, 'index'])
-        ->name('rewards');
-
- 
+            ->name('rewards');
     });
 
-// ==================== ROOM CHANGE CALLBACK (outside auth for VNPay) ====================
-// VNPay callback for room change - must be outside auth middleware
+// ==================== ROOM CHANGE CALLBACK  ====================
 Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])
     ->name('booking.change-room.callback');
 
-// ==================== ACCOUNT (continued after callback route) ====================  
+// ==================== ACCOUNT  ====================  
 Route::middleware('auth')
     ->prefix('account')
     ->name('account.')
@@ -338,7 +343,6 @@ Route::middleware('auth')
         // Danh sách đặt phòng
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
 
-        // Hiển thị form đánh giá
         // Hiển thị form đánh giá
         Route::get('/danh-gia/{booking}', [ClientDanhGiaController::class, 'create'])
             ->name('danhgia.create');

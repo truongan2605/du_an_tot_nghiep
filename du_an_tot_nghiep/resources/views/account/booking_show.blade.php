@@ -341,12 +341,119 @@
                                             @endforeach
                                         </div>
                                     @endif
+
+                                    {{-- Cancelled Rooms Info (from RefundRequest) --}}
+                                    @php
+                                        // Lấy các yêu cầu hoàn tiền từ hủy phòng đơn lẻ
+                                        $cancelledRoomRefunds = \App\Models\RefundRequest::where('dat_phong_id', $booking->id)
+                                            ->where('refund_type', 'single_room')
+                                            ->orderBy('created_at', 'desc')
+                                            ->get();
+                                        $totalCancelledRefund = $cancelledRoomRefunds->sum('amount');
+                                    @endphp
+                                    @if($cancelledRoomRefunds->count() > 0)
+                                        <hr class="my-3">
+                                        <div>
+                                            <small class="text-muted d-block mb-2">
+                                                <i class="bi bi-x-circle me-1 text-danger"></i> Phòng đã hủy ({{ $cancelledRoomRefunds->count() }}):
+                                            </small>
+                                            @foreach($cancelledRoomRefunds as $refund)
+                                                @php
+                                                    $refundStatus = $refund->status;
+                                                    $statusLabel = match($refundStatus) {
+                                                        'pending' => 'Chờ xử lý',
+                                                        'approved' => 'Đã duyệt',
+                                                        'completed' => 'Đã hoàn',
+                                                        'rejected' => 'Từ chối',
+                                                        default => 'Không có'
+                                                    };
+                                                    $statusBadge = match($refundStatus) {
+                                                        'pending' => 'bg-warning text-dark',
+                                                        'approved' => 'bg-info',
+                                                        'completed' => 'bg-success',
+                                                        'rejected' => 'bg-danger',
+                                                        default => 'bg-secondary'
+                                                    };
+                                                    // Lấy tên phòng từ admin_note (format: "Hủy phòng: Tên phòng | ...")
+                                                    $roomNameFromNote = 'Phòng đã hủy';
+                                                    if ($refund->admin_note) {
+                                                        preg_match('/Hủy phòng:\s*([^|]+)/', $refund->admin_note, $matches);
+                                                        $roomNameFromNote = trim($matches[1] ?? 'Phòng đã hủy');
+                                                    }
+                                                    // Lấy URL ảnh chứng minh hoàn tiền
+                                                    $proofImageUrl = $refund->proof_image_url;
+                                                @endphp
+                                                <div class="bg-danger bg-opacity-10 rounded px-2 py-2 mb-2">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="small text-decoration-line-through text-muted me-2">
+                                                                {{ $roomNameFromNote }}
+                                                            </span>
+                                                            <span class="badge {{ $statusBadge }} small">{{ $statusLabel }}</span>
+                                                        </div>
+                                                        <span class="small {{ $refundStatus === 'completed' ? 'text-success fw-semibold' : 'text-muted' }}">
+                                                            {{ number_format($refund->amount, 0, ',', '.') }}đ ({{ $refund->percentage ?? 0 }}%)
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {{-- Hiển thị ảnh chứng minh hoàn tiền khi đã hoàn thành --}}
+                                                    @if($refundStatus === 'completed' && $proofImageUrl)
+                                                        <div class="mt-2 pt-2 border-top border-danger border-opacity-25">
+                                                            <div class="d-flex align-items-center">
+                                                                <i class="bi bi-check-circle-fill text-success me-1"></i>
+                                                                <small class="text-success fw-semibold me-2">Đã hoàn tiền:</small>
+                                                                <a href="{{ $proofImageUrl }}" 
+                                                                   target="_blank" 
+                                                                   class="btn btn-sm btn-outline-success py-0 px-2"
+                                                                   title="Xem ảnh chứng từ hoàn tiền">
+                                                                    <i class="bi bi-image me-1"></i>Xem chứng từ
+                                                                </a>
+                                                            </div>
+                                                            @if($refund->processed_at)
+                                                                <small class="text-muted d-block mt-1">
+                                                                    <i class="bi bi-calendar-check me-1"></i>
+                                                                    Hoàn ngày: {{ $refund->processed_at->format('d/m/Y H:i') }}
+                                                                </small>
+                                                            @endif
+                                                        </div>
+                                                    @elseif($refundStatus === 'rejected')
+                                                        <div class="mt-2 pt-2 border-top border-danger border-opacity-25">
+                                                            <small class="text-danger">
+                                                                <i class="bi bi-x-circle me-1"></i>
+                                                                Yêu cầu hoàn tiền đã bị từ chối.
+                                                                @if($refund->admin_note && !str_starts_with($refund->admin_note, 'Hủy phòng:'))
+                                                                    Lý do: {{ $refund->admin_note }}
+                                                                @endif
+                                                            </small>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                            @if($totalCancelledRefund > 0)
+                                                <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                                                    <span class="small fw-semibold">Tổng hoàn từ phòng đã hủy:</span>
+                                                    <span class="text-success fw-bold">{{ number_format($totalCancelledRefund, 0, ',', '.') }} ₫</span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
 
                             {{-- Rooms Table --}}
                             <div class="mb-4">
-                                <h6 class="mb-3 d-flex align-items-center"><i class="bi bi-door-open-fill me-2 text-primary"></i> Phòng</h6>
+                                @php
+                                    // Tất cả datPhongItems còn lại đều active (cancelled items đã bị xóa)
+                                    $activeRoomsCount = $booking->datPhongItems ? $booking->datPhongItems->count() : 0;
+                                    $canCancelIndividualRoom = $activeRoomsCount > 1 && in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']);
+                                @endphp
+                                
+                                <h6 class="mb-3 d-flex align-items-center">
+                                    <i class="bi bi-door-open-fill me-2 text-primary"></i> Phòng
+                                    @if($activeRoomsCount > 1)
+                                        <span class="badge bg-info ms-2">{{ $activeRoomsCount }} phòng</span>
+                                    @endif
+                                </h6>
                                 @if ($booking->datPhongItems && $booking->datPhongItems->count())
                                     <div class="table-responsive">
                                         <table class="table table-hover table-sm mb-0">
@@ -356,6 +463,9 @@
                                                     <th class="text-end">Giá/Đêm</th>
                                                     <th class="text-end">Số đêm</th>
                                                     <th class="text-end">Tổng phụ</th>
+                                                    @if($canCancelIndividualRoom)
+                                                        <th class="text-center" style="width: 100px;">Thao tác</th>
+                                                    @endif
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -365,19 +475,18 @@
                                                         $pricePer = $it->gia_tren_dem ?? 0;  // Post-voucher price
                                                         $nights = $it->so_dem ?? 1;
                                                         $qty = $it->so_luong ?? 1;
-                                                        // Always calculate from current price (handles room changes)
                                                         $subtotal = $pricePer * $nights * $qty;
                                                         
-                                                        // FIXED: Use voucher_allocated from THIS room (works after room changes too)
+                                                        // Voucher allocated to this room
                                                         $voucherForThisRoom = $it->voucher_allocated ?? 0;
                                                         $hasVoucherForRoom = $voucherForThisRoom > 0;
                                                         
-                                                        // Calculate original price by adding back the voucher allocated to THIS room
+                                                        // Calculate original price by adding back the voucher
                                                         $originalPricePerNight = $hasVoucherForRoom 
-                                                            ? ($pricePer + ($voucherForThisRoom / max(1, $nights)))  // Add voucher back
+                                                            ? ($pricePer + ($voucherForThisRoom / max(1, $nights)))
                                                             : $pricePer;
                                                         $originalSubtotal = $hasVoucherForRoom
-                                                            ? ($subtotal + $voucherForThisRoom)  // Total before voucher
+                                                            ? ($subtotal + $voucherForThisRoom)
                                                             : $subtotal;
                                                     @endphp
                                                     <tr>
@@ -407,6 +516,17 @@
                                                                 <span class="fw-semibold text-primary">{{ number_format($subtotal, 0, ',', '.') }} VND</span>
                                                             @endif
                                                         </td>
+                                                        @if($canCancelIndividualRoom)
+                                                            <td class="text-center">
+                                                                <button type="button" 
+                                                                        class="btn btn-outline-danger btn-sm" 
+                                                                        data-bs-toggle="modal" 
+                                                                        data-bs-target="#cancelRoomModal{{ $it->id }}"
+                                                                        title="Hủy phòng này">
+                                                                    <i class="bi bi-x-circle"></i>
+                                                                </button>
+                                                            </td>
+                                                        @endif
                                                     </tr>
                                                 @endforeach
                                             </tbody>
@@ -753,6 +873,92 @@
         </div>
     @endif
 
+    {{-- Cancel Individual Room Modals --}}
+    @if(in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']) && $booking->datPhongItems)
+        @php
+            // Tất cả items còn lại đều active (cancelled items đã bị xóa)
+            $activeRoomsForModal = $booking->datPhongItems;
+        @endphp
+        
+        @if($activeRoomsForModal->count() > 1)
+            @foreach($booking->datPhongItems as $roomItem)
+                    @php
+                        // Calculate estimated refund for this room
+                        $roomName = $roomItem->phong->name ?? ($roomItem->loaiPhong->name ?? 'Phòng #' . $roomItem->id);
+                        $roomPriceItem = ($roomItem->gia_tren_dem ?? 0) * ($roomItem->so_dem ?? 1) * ($roomItem->so_luong ?? 1);
+                        $totalBooking = $booking->tong_tien ?? 1;
+                        $roomProportionItem = $totalBooking > 0 ? ($roomPriceItem / $totalBooking) : 0;
+                        $roomDepositItem = ($booking->deposit_amount ?? 0) * $roomProportionItem;
+                        $roomRefundEstimate = $roomDepositItem * ($refundPercentage / 100);
+                    @endphp
+                    <div class="modal fade" id="cancelRoomModal{{ $roomItem->id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header bg-warning bg-opacity-10 border-0">
+                                    <h5 class="modal-title text-warning">
+                                        <i class="bi bi-exclamation-circle-fill me-2"></i>
+                                        Hủy phòng đơn lẻ
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body p-4">
+                                    <div class="alert alert-warning border-0 mb-3">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <strong>Lưu ý:</strong> Bạn đang hủy 1 phòng trong booking có nhiều phòng. Các phòng còn lại vẫn được giữ nguyên.
+                                    </div>
+                                    
+                                    <div class="card border-secondary mb-3">
+                                        <div class="card-body">
+                                            <h6 class="card-title d-flex align-items-center">
+                                                <i class="bi bi-door-closed-fill text-primary me-2"></i>
+                                                {{ $roomName }}
+                                            </h6>
+                                            <div class="row g-2 small">
+                                                <div class="col-6">
+                                                    <span class="text-muted">Giá phòng:</span>
+                                                </div>
+                                                <div class="col-6 text-end">
+                                                    <strong>{{ number_format($roomPriceItem, 0, ',', '.') }} ₫</strong>
+                                                </div>
+                                                <div class="col-6">
+                                                    <span class="text-muted">Phần cọc tương ứng:</span>
+                                                </div>
+                                                <div class="col-6 text-end">
+                                                    <strong>{{ number_format($roomDepositItem, 0, ',', '.') }} ₫</strong>
+                                                </div>
+                                                <div class="col-6">
+                                                    <span class="text-muted">Hoàn ước tính ({{ $refundPercentage }}%):</span>
+                                                </div>
+                                                <div class="col-6 text-end">
+                                                    <strong class="text-success">{{ number_format($roomRefundEstimate, 0, ',', '.') }} ₫</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="text-muted small mb-0">
+                                        <i class="bi bi-question-circle me-1"></i>
+                                        Số tiền hoàn thực tế sẽ được tính toán chính xác tại thời điểm hủy dựa trên chính sách hoàn tiền.
+                                    </p>
+                                </div>
+                                <div class="modal-footer border-0">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        <i class="bi bi-arrow-left me-1"></i>Quay lại
+                                    </button>
+                                    <form action="{{ route('account.booking.cancel-room-item', ['id' => $booking->id, 'itemId' => $roomItem->id]) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn btn-warning">
+                                            <i class="bi bi-x-circle me-1"></i>Xác nhận hủy phòng này
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+            @endforeach
+        @endif
+    @endif
+
     {{-- Room Change Modal --}}
     @if(in_array($booking->trang_thai, ['dang_cho', 'da_xac_nhan']) && $daysUntilCheckIn >= 1)
         <div class="modal fade" id="changeRoomModal" tabindex="-1" aria-hidden="true">
@@ -777,7 +983,7 @@
                             <div class="d-flex align-items-start">
                                 <i class="bi bi-info-circle-fill fs-5 me-3 flex-shrink-0 text-info"></i>
                                 <div class="small">
-                                    <strong>Chính sách:</strong> Trước 24h Nhận phòng • Đổi phòng tăng giá: Thanh toán chênh lệch • Đổi phòng dưới giá: Nhận voucher • Giới hạn 2 lần/Đổi phòng • Miễn phí nếu cùng giá
+                                    <strong>Chính sách:</strong> Trước 24h Nhận phòng • Đổi phòng tăng giá: Thanh toán chênh lệch • Đổi phòng dưới giá: Nhận voucher • Miễn phí nếu cùng giá
                                 </div>
                             </div>
                         </div>
@@ -2308,7 +2514,22 @@
                 
                 // Calculate based on FULL BOOKING total (not just changed room)
                 const newDepositRequired = newBookingTotal * (depositPct / 100);
-                const paymentNeeded = newDepositRequired - currentDeposit;
+                const basePaymentNeeded = Math.max(0, newDepositRequired - currentDeposit);
+                
+                // ===== NEW: Get selected vouchers discount =====
+                const selectedVouchers = document.querySelectorAll('.voucher-checkbox:checked');
+                let selectedVoucherTotal = 0;
+                let selectedVoucherCodes = [];
+                selectedVouchers.forEach(cb => {
+                    selectedVoucherTotal += parseFloat(cb.dataset.value) || 0;
+                    const label = cb.closest('.voucher-item')?.querySelector('strong.text-primary');
+                    if (label) selectedVoucherCodes.push(label.textContent.trim());
+                });
+                
+                // Calculate final payment after voucher
+                const finalPaymentNeeded = Math.max(0, basePaymentNeeded - selectedVoucherTotal);
+                const excessVoucher = Math.max(0, selectedVoucherTotal - basePaymentNeeded);
+                const actualVoucherUsed = Math.min(selectedVoucherTotal, basePaymentNeeded);
                 
                 console.log('💳 Upgrade confirmation:', {
                     depositPct,
@@ -2316,21 +2537,54 @@
                     newBookingTotal,
                     newDepositRequired,
                     currentDeposit,
-                    paymentNeeded
+                    basePaymentNeeded,
+                    selectedVoucherTotal,
+                    finalPaymentNeeded,
+                    excessVoucher
                 });
                 
                 // Build payment section HTML
                 let paymentSectionHtml = '';
                 let voucherBonusHtml = '';
+                let voucherWarningHtml = '';
                 let iconType = 'question';
                 let confirmButtonText = '';
                 let confirmButtonColor = '#0d6efd';
                 
-                if (paymentNeeded > 0) {
-                    // Need to pay more
+                // Build voucher warning if excess exists
+                if (excessVoucher > 0 && selectedVoucherTotal > 0) {
+                    voucherWarningHtml = `
+                        <div class="alert alert-warning border-warning mb-3">
+                            <h6 class="fw-semibold mb-2">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Lưu ý quan trọng
+                            </h6>
+                            <p class="mb-2 small">
+                                • Voucher của bạn: <strong>${formatMoney(selectedVoucherTotal)}</strong><br>
+                                • Số tiền cần thanh toán: <strong>${formatMoney(basePaymentNeeded)}</strong><br>
+                                • Số tiền thừa: <strong class="text-danger">${formatMoney(excessVoucher)}</strong>
+                            </p>
+                            <hr class="my-2">
+                            <p class="mb-0 small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Voucher sẽ được tính là <strong class="text-danger">ĐÃ SỬ DỤNG</strong> sau khi xác nhận. 
+                                Phần thừa ${formatMoney(excessVoucher)} sẽ <strong>KHÔNG</strong> được hoàn lại.
+                            </p>
+                        </div>
+                    `;
+                }
+                
+                if (finalPaymentNeeded > 0) {
+                    // Need to pay more (with or without voucher)
                     iconType = 'info';
                     confirmButtonColor = '#0d6efd';
                     confirmButtonText = '<i class="bi bi-credit-card me-1"></i> Thanh toán VNPay';
+                    
+                    let voucherAppliedText = selectedVoucherTotal > 0 
+                        ? `<small class="text-success d-block mt-2">
+                               <i class="bi bi-check-circle me-1"></i>
+                               Đã giảm ${formatMoney(selectedVoucherTotal)} từ voucher
+                           </small>` 
+                        : '';
                     
                     paymentSectionHtml = `
                         <div class="alert alert-warning border-warning mb-0">
@@ -2340,16 +2594,32 @@
                             <p class="mb-2 small">Bạn cần thanh toán thêm để hoàn tất nâng cấp:</p>
                             <div class="bg-white p-3 rounded shadow-sm text-center">
                                 <div class="text-muted small mb-1">Số tiền cần thanh toán</div>
-                                <div class="display-6 fw-bold text-danger">${formatMoney(paymentNeeded)}</div>
+                                <div class="display-6 fw-bold text-danger">${formatMoney(finalPaymentNeeded)}</div>
                             </div>
+                            ${voucherAppliedText}
                             <small class="text-muted d-block mt-2">
                                 <i class="bi bi-info-circle me-1"></i>
                                 Bạn sẽ được chuyển đến cổng thanh toán VNPay
                             </small>
                         </div>
                     `;
+                } else if (selectedVoucherTotal > 0) {
+                    // Voucher covers everything
+                    iconType = 'success';
+                    confirmButtonColor = '#28a745';
+                    confirmButtonText = '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng';
+                    
+                    paymentSectionHtml = `
+                        <div class="alert alert-success border-success mb-0">
+                            <div class="text-center">
+                                <div class="fs-2 mb-2">✓</div>
+                                <h6 class="fw-bold text-success mb-2">MIỄN PHÍ - VOUCHER ĐÃ COVER</h6>
+                                <p class="mb-0">Voucher ${formatMoney(selectedVoucherTotal)} đã cover toàn bộ chi phí nâng cấp!</p>
+                            </div>
+                        </div>
+                    `;
                 } else {
-                    // Already paid enough
+                    // Already paid enough (no voucher)
                     iconType = 'success';
                     confirmButtonColor = '#28a745';
                     confirmButtonText = '<i class="bi bi-check-circle me-1"></i> Xác nhận đổi phòng';
@@ -2484,15 +2754,25 @@
                                         <strong class="text-primary">${formatMoney(newDepositRequired)}</strong>
                                     </div>
                                     
+                                    ${selectedVoucherTotal > 0 ? `
+                                    <div class="d-flex justify-content-between mb-2 bg-success bg-opacity-10 p-2 rounded">
+                                        <span class="text-success">
+                                            <i class="bi bi-gift me-1"></i>Voucher DOWNGRADE áp dụng:
+                                        </span>
+                                        <strong class="text-success">-${formatMoney(selectedVoucherTotal)}</strong>
+                                    </div>
+                                    ` : ''}
+                                    
                                     <hr class="my-2">
                                     
-                                    <div class="d-flex justify-content-between p-2 ${paymentNeeded > 0 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'} rounded">
-                                        <span class="fw-semibold">${paymentNeeded > 0 ? 'Cần thanh toán thêm:' : 'Đã đủ:'}</span>
-                                        <h5 class="mb-0 ${paymentNeeded > 0 ? 'text-danger' : 'text-success'}">${paymentNeeded > 0 ? formatMoney(paymentNeeded) : '✓ 0đ'}</h5>
+                                    <div class="d-flex justify-content-between p-2 ${finalPaymentNeeded > 0 ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'} rounded">
+                                        <span class="fw-semibold">${finalPaymentNeeded > 0 ? 'Cần thanh toán thêm:' : 'Đã đủ:'}</span>
+                                        <h5 class="mb-0 ${finalPaymentNeeded > 0 ? 'text-danger' : 'text-success'}">${finalPaymentNeeded > 0 ? formatMoney(finalPaymentNeeded) : '✓ 0đ'}</h5>
                                     </div>
                                 </div>
                             </div>
                             
+                            ${voucherWarningHtml}
                             ${paymentSectionHtml}
                             ${voucherBonusHtml}
                         </div>
@@ -2819,7 +3099,7 @@
                 
                 // Update payment info with voucher discount
                 const paymentInfoEl = document.getElementById('paymentNeededInfo');
-                if (paymentInfoEl && paymentInfoEl.textContent.includes('Cần thanh toán')) {
+                if (paymentInfoEl) {
                     // Recalculate payment needed
                     const depositPct = {{ $meta['deposit_percentage'] ?? 50 }};
                     const currentDeposit = {{ $booking->deposit_amount ?? 0 }};
@@ -2828,8 +3108,30 @@
                     const basePaymentNeeded = Math.max(0, newDepositRequired - currentDeposit);
                     const finalPaymentNeeded = Math.max(0, basePaymentNeeded - totalVoucherDiscount);
                     
-                    const paymentInfoHtml = finalPaymentNeeded > 0 
-                        ? `<div class="d-flex justify-content-between">
+                    // Check for excess voucher value
+                    const excessVoucher = Math.max(0, totalVoucherDiscount - basePaymentNeeded);
+                    const actualUsed = Math.min(totalVoucherDiscount, basePaymentNeeded);
+                    
+                    let excessWarning = '';
+                    if (excessVoucher > 0 && totalVoucherDiscount > 0) {
+                        excessWarning = `<div class="alert alert-warning py-2 mt-2 small">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <strong>Lưu ý quan trọng:</strong><br>
+                            • Voucher của bạn: <strong>${formatMoney(totalVoucherDiscount)}</strong><br>
+                            • Số tiền cần thanh toán: <strong>${formatMoney(basePaymentNeeded)}</strong><br>
+                            • Số tiền thừa: <strong class="text-danger">${formatMoney(excessVoucher)}</strong><br>
+                            <hr class="my-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Voucher sẽ được tính là <strong class="text-danger">ĐÃ SỬ DỤNG</strong> sau khi xác nhận. 
+                            Phần thừa ${formatMoney(excessVoucher)} sẽ không được hoàn lại.
+                        </div>`;
+                    }
+                    
+                    let paymentInfoHtml = '';
+                    
+                    if (finalPaymentNeeded > 0) {
+                        // Need to pay via VNPay
+                        paymentInfoHtml = `<div class="d-flex justify-content-between">
                                <span class="text-danger fw-semibold">Cần thanh toán:</span>
                                <h5 class="mb-0 text-danger">${formatMoney(finalPaymentNeeded)}</h5>
                            </div>
@@ -2840,11 +3142,24 @@
                            <small class="text-muted d-block mt-2">
                                <i class="bi bi-info-circle me-1"></i>
                                Bạn sẽ được chuyển đến cổng thanh toán VNPay
-                           </small>`
-                         : `<div class="alert alert-success mb-0">
+                           </small>`;
+                    } else if (totalVoucherDiscount > 0) {
+                        // Voucher covers everything
+                        paymentInfoHtml = `<div class="alert alert-success mb-0">
                                 <i class="bi bi-check-circle me-1"></i>
                                 Miễn phí! Voucher đã cover toàn bộ chi phí.
-                            </div>`;
+                            </div>${excessWarning}`;
+                    } else {
+                        // No voucher, no payment (shouldn't happen in upgrade)
+                        paymentInfoHtml = `<div class="d-flex justify-content-between">
+                               <span class="text-danger fw-semibold">Cần thanh toán:</span>
+                               <h5 class="mb-0 text-danger">${formatMoney(basePaymentNeeded)}</h5>
+                           </div>
+                           <small class="text-muted d-block mt-2">
+                               <i class="bi bi-info-circle me-1"></i>
+                               Bạn sẽ được chuyển đến cổng thanh toán VNPay
+                           </small>`;
+                    }
                     
                     paymentInfoEl.innerHTML = paymentInfoHtml;
                 }

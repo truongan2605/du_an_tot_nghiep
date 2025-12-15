@@ -25,6 +25,11 @@ class RefundController extends Controller
             $query->where('status', $request->input('status'));
         }
 
+        // Filter by refund type (full_booking or single_room)
+        if ($request->filled('refund_type')) {
+            $query->where('refund_type', $request->input('refund_type'));
+        }
+
         // Search by booking reference
         if ($request->filled('q')) {
             $search = $request->input('q');
@@ -59,11 +64,15 @@ class RefundController extends Controller
         try {
             DB::beginTransaction();
 
+            // Giữ lại admin_note gốc (chứa thông tin phòng đã hủy) và thêm ghi chú mới
+            $existingNote = $refund->admin_note ?? '';
+            $newNote = $request->input('note') ? "\n[Ghi chú duyệt]: " . $request->input('note') : '';
+            
             $refund->update([
                 'status' => 'approved',
                 'processed_at' => now(),
                 'processed_by' => Auth::id(),
-                'admin_note' => $request->input('note', 'Đã phê duyệt yêu cầu hoàn tiền'),
+                'admin_note' => $existingNote . $newNote,
             ]);
 
             DB::commit();
@@ -190,6 +199,14 @@ class RefundController extends Controller
                 'admin_note' => ($refund->admin_note ?? '') . "\n" . $request->input('note', 'Đã chuyển tiền hoàn cho khách.'),
                 'proof_image_path' => $imagePath,
             ]);
+
+            // Cập nhật trạng thái GiaoDich liên quan thành 'da_hoan'
+            // Tìm các giao dịch hoàn tiền chưa được cập nhật
+            \App\Models\GiaoDich::where('dat_phong_id', $refund->dat_phong_id)
+                ->where('nha_cung_cap', 'hoan_tien')
+                ->where('trang_thai', 'dang_cho')
+                ->where('so_tien', '<', 0)  // Giao dịch hoàn tiền có số tiền âm
+                ->update(['trang_thai' => 'da_hoan']);
 
             Log::info('Refund marked as completed with proof image', [
                 'refund_id' => $refund->id,
