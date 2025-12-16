@@ -21,6 +21,7 @@ class User extends Authenticatable
         'phong_ban',
         'vai_tro',
         'is_active',
+        'is_disabled', // Thêm mới: true = bị admin vô hiệu hóa
         'country',
         'dob',
         'gender',
@@ -35,6 +36,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_active' => 'boolean',
+        'is_disabled' => 'boolean', // Thêm mới
         'dob' => 'date',
         'total_spent' => 'decimal:2',
         'member_level' => 'string',
