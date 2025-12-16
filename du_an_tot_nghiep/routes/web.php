@@ -234,6 +234,8 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/analytics/rooms', [StaffController::class, 'roomAnalytics'])->name('analytics.rooms');
         Route::get('/analytics/rooms/pdf', [StaffController::class, 'exportRoomAnalyticsPDF'])->name('analytics.rooms.pdf');
+        Route::get('/api/room-revenue-filter', [StaffController::class, 'getFilteredRoomRevenue'])->name('api.room-revenue-filter');
+        Route::get('/api/roomtype-revenue-filter', [StaffController::class, 'getFilteredRoomTypeRevenue'])->name('api.roomtype-revenue-filter');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
 
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');

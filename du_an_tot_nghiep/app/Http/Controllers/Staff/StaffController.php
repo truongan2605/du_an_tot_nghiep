@@ -488,7 +488,7 @@ class StaffController extends Controller
             'customRangeLabel',
             'customChartLabels',
             'customChartData',
-            'customPaid'
+            'customPaid',
         ));
     }
 
@@ -2130,20 +2130,39 @@ class StaffController extends Controller
      */
     public function roomAnalytics(Request $request)
     {
-        // Get month/year from request or default to current
+        // Get filters from request
         $month = $request->input('month', now()->month);
         $year = $request->input('year', now()->year);
+        $roomTypeId = $request->input('room_type_id');
+        $roomId = $request->input('room_id');
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
         
         // Create date for display
         $selectedDate = Carbon::create($year, $month, 1);
         
+        // Determine date range - use custom range if provided, otherwise use month/year
+        if ($startDate && $endDate) {
+            $dateStart = Carbon::parse($startDate)->startOfDay();
+            $dateEnd = Carbon::parse($endDate)->endOfDay();
+        } else {
+            $dateStart = Carbon::create($year, $month, 1)->startOfDay();
+            $dateEnd = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
+        }
+        
         // === 1. Stats by Room Type ===
-        $roomTypeStats = DB::table('dat_phong_item as dpi')
+        $roomTypeStatsQuery = DB::table('dat_phong_item as dpi')
             ->join('dat_phong as dp', 'dpi.dat_phong_id', '=', 'dp.id')
             ->join('loai_phong as lp', 'dpi.loai_phong_id', '=', 'lp.id')
-            ->whereYear('dp.ngay_nhan_phong', $year)
-            ->whereMonth('dp.ngay_nhan_phong', $month)
-            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh'])
+            ->whereBetween('dp.ngay_nhan_phong', [$dateStart, $dateEnd])
+            ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh']);
+        
+        // Apply room type filter
+        if ($roomTypeId) {
+            $roomTypeStatsQuery->where('lp.id', $roomTypeId);
+        }
+        
+        $roomTypeStats = $roomTypeStatsQuery
             ->select(
                 'lp.id',
                 'lp.ten',
@@ -2159,13 +2178,13 @@ class StaffController extends Controller
             ->groupBy('loai_phong_id')
             ->pluck('total_rooms', 'loai_phong_id');
         
-        // Calculate occupancy rate (days in month)
-        $daysInMonth = $selectedDate->daysInMonth;
+        // Calculate occupancy rate (days in range)
+        $daysInRange = $dateStart->diffInDays($dateEnd) + 1;
         
         // Enhance room type stats with totals and occupancy
-        $roomTypeStats = $roomTypeStats->map(function($stat) use ($roomCounts, $daysInMonth) {
+        $roomTypeStats = $roomTypeStats->map(function($stat) use ($roomCounts, $daysInRange) {
             $totalRooms = $roomCounts[$stat->id] ?? 0;
-            $maxPossibleBookings = $totalRooms * $daysInMonth;
+            $maxPossibleBookings = $totalRooms * $daysInRange;
             $occupancyRate = $maxPossibleBookings > 0 
                 ? round(($stat->total_bookings / $maxPossibleBookings) * 100, 1)
                 : 0;
@@ -2181,15 +2200,24 @@ class StaffController extends Controller
         });
         
         // === 2. Stats by Individual Room ===
-        $roomStats = DB::table('phong as p')
+        $roomStatsQuery = DB::table('phong as p')
             ->leftJoin('dat_phong_item as dpi', 'p.id', '=', 'dpi.phong_id')
-            ->leftJoin('dat_phong as dp', function($join) use ($year, $month) {
+            ->leftJoin('dat_phong as dp', function($join) use ($dateStart, $dateEnd) {
                 $join->on('dpi.dat_phong_id', '=', 'dp.id')
-                    ->whereYear('dp.ngay_nhan_phong', '=', $year)
-                    ->whereMonth('dp.ngay_nhan_phong', '=', $month)
+                    ->whereBetween('dp.ngay_nhan_phong', [$dateStart, $dateEnd])
                     ->whereIn('dp.trang_thai', ['da_xac_nhan', 'dang_su_dung', 'hoan_thanh']);
             })
-            ->join('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+            ->join('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id');
+        
+        // Apply filters
+        if ($roomTypeId) {
+            $roomStatsQuery->where('lp.id', $roomTypeId);
+        }
+        if ($roomId) {
+            $roomStatsQuery->where('p.id', $roomId);
+        }
+        
+        $roomStats = $roomStatsQuery
             ->select(
                 'p.id',
                 'p.ma_phong',
@@ -2204,9 +2232,10 @@ class StaffController extends Controller
             ->get();
         
         // Calculate occupancy for each room
-        $roomStats = $roomStats->map(function($room) use ($daysInMonth) {
-            $occupancyRate = $daysInMonth > 0 
-                ? round(($room->booking_count / $daysInMonth) * 100, 1)
+        $daysInRange = $dateStart->diffInDays($dateEnd) + 1;
+        $roomStats = $roomStats->map(function($room) use ($daysInRange) {
+            $occupancyRate = $daysInRange > 0 
+                ? round(($room->booking_count / $daysInRange) * 100, 1)
                 : 0;
             
             $room->occupancy_rate = $occupancyRate;
@@ -2217,13 +2246,21 @@ class StaffController extends Controller
         $chartLabels = $roomTypeStats->pluck('ten')->toArray();
         $chartData = $roomTypeStats->pluck('total_bookings')->toArray();
         
-        // === 4. Generate month options for filter ===
+        // === 4. Generate filter options ===
         $monthOptions = [];
         for ($i = 1; $i <= 12; $i++) {
             $monthOptions[$i] = Carbon::create(null, $i, 1)->locale('vi')->translatedFormat('F');
         }
         
         $yearOptions = range(date('Y'), date('Y') - 3); // Last 3 years
+        
+        // Get all room types for filter dropdown
+        $allRoomTypes = LoaiPhong::orderBy('ten')->get(['id', 'ten']);
+        
+        // Get all rooms for filter dropdown
+        $allRooms = Phong::with('loaiPhong:id,ten')
+            ->orderBy('ma_phong')
+            ->get(['id', 'ma_phong', 'loai_phong_id']);
         
         return view('staff.analytics.rooms', compact(
             'roomTypeStats',
@@ -2234,7 +2271,13 @@ class StaffController extends Controller
             'month',
             'year',
             'monthOptions',
-            'yearOptions'
+            'yearOptions',
+            'allRoomTypes',
+            'allRooms',
+            'roomTypeId',
+            'roomId',
+            'startDate',
+            'endDate'
         ));
     }
 
@@ -2527,5 +2570,223 @@ class StaffController extends Controller
             ]);
             return back()->with('error', 'Có lỗi xảy ra khi hủy phòng: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * API endpoint to get filtered room revenue data (AJAX)
+     */
+    public function getFilteredRoomRevenue(Request $request)
+    {
+        $today = now();
+        $todayDate = $today->toDateString();
+        $weekRange = [$today->copy()->startOfWeek()->toDateString(), $today->copy()->endOfWeek()->toDateString()];
+        $year = $request->input('year', $today->year);
+        $month = $request->input('month', $today->month);
+        
+        // Get date filter values
+        $filterStartDate = $request->input('filter_start_date');
+        $filterEndDate = $request->input('filter_end_date');
+        
+        // If date filter is provided, use it for all queries
+        $hasDateFilter = $filterStartDate && $filterEndDate;
+        
+        // Base query builder function
+        $buildRoomRevenueQuery = function() use ($hasDateFilter, $filterStartDate, $filterEndDate) {
+            $query = DB::table('hoa_don_items as hdi')
+                ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+                ->join('phong as p', 'hdi.phong_id', '=', 'p.id')
+                ->leftJoin('loai_phong as lp', 'p.loai_phong_id', '=', 'lp.id')
+                ->whereNotIn('hd.trang_thai', ['da_huy'])
+                ->whereNotNull('hdi.phong_id');
+            
+            // Apply date filter if provided
+            if ($hasDateFilter) {
+                $query->whereBetween(DB::raw('DATE(hd.created_at)'), [$filterStartDate, $filterEndDate]);
+            }
+            
+            return $query;
+        };
+        
+        // Room Revenue Today (or filtered date range)
+        $roomRevenueTodayQuery = $buildRoomRevenueQuery();
+        if (!$hasDateFilter) {
+            $roomRevenueTodayQuery->whereDate('hd.created_at', $todayDate);
+        }
+        $roomRevenueToday = $roomRevenueTodayQuery
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Room Revenue Week (or filtered date range)
+        $roomRevenueWeekQuery = $buildRoomRevenueQuery();
+        if (!$hasDateFilter) {
+            $roomRevenueWeekQuery->whereBetween(DB::raw('DATE(hd.created_at)'), $weekRange);
+        }
+        $roomRevenueWeek = $roomRevenueWeekQuery
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Room Revenue Month (or filtered date range)
+        $roomRevenueMonthQuery = $buildRoomRevenueQuery();
+        if (!$hasDateFilter) {
+            $roomRevenueMonthQuery->whereYear('hd.created_at', $year)
+                ->whereMonth('hd.created_at', $month);
+        }
+        
+        $roomRevenueMonth = $roomRevenueMonthQuery
+            ->select(
+                'p.id',
+                'p.ma_phong',
+                'p.trang_thai',
+                'lp.ten as loai_phong',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('p.id', 'p.ma_phong', 'p.trang_thai', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Calculate monthly revenue for percentage
+        if ($hasDateFilter) {
+            $monthlyRevenue = HoaDon::whereBetween(DB::raw('DATE(created_at)'), [$filterStartDate, $filterEndDate])
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->sum('tong_thuc_thu');
+        } else {
+            $monthlyRevenue = HoaDon::whereYear('created_at', $year)
+                ->whereMonth('created_at', $month)
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->sum('tong_thuc_thu');
+        }
+
+        return response()->json([
+            'success' => true,
+            'roomRevenueToday' => $roomRevenueToday,
+            'roomRevenueWeek' => $roomRevenueWeek,
+            'roomRevenueMonth' => $roomRevenueMonth,
+            'monthlyRevenue' => $monthlyRevenue
+        ]);
+    }
+
+    /**
+     * API endpoint to get filtered room type revenue data (AJAX)
+     */
+    public function getFilteredRoomTypeRevenue(Request $request)
+    {
+        $today = now();
+        $todayDate = $today->toDateString();
+        $weekRange = [$today->copy()->startOfWeek()->toDateString(), $today->copy()->endOfWeek()->toDateString()];
+        $year = $request->input('year', $today->year);
+        $month = $request->input('month', $today->month);
+        
+        // Get date filter values
+        $filterStartDate = $request->input('filter_roomtype_start_date');
+        $filterEndDate = $request->input('filter_roomtype_end_date');
+        
+        // If date filter is provided, use it for all queries
+        $hasDateFilter = $filterStartDate && $filterEndDate;
+        
+        // Base query builder function
+        $buildRoomTypeRevenueQuery = function() use ($hasDateFilter, $filterStartDate, $filterEndDate) {
+            $query = DB::table('hoa_don_items as hdi')
+                ->join('hoa_don as hd', 'hdi.hoa_don_id', '=', 'hd.id')
+                ->leftJoin('loai_phong as lp', 'hdi.loai_phong_id', '=', 'lp.id')
+                ->whereNotIn('hd.trang_thai', ['da_huy'])
+                ->whereNotNull('hdi.loai_phong_id')
+                ->where('hdi.type', 'room_booking');
+            
+            // Apply date filter if provided
+            if ($hasDateFilter) {
+                $query->whereBetween(DB::raw('DATE(hd.created_at)'), [$filterStartDate, $filterEndDate]);
+            }
+            
+            return $query;
+        };
+        
+        // Room Type Revenue Today (or filtered date range)
+        $roomTypeRevenueTodayQuery = $buildRoomTypeRevenueQuery();
+        if (!$hasDateFilter) {
+            $roomTypeRevenueTodayQuery->whereDate('hd.created_at', $todayDate);
+        }
+        $roomTypeRevenueToday = $roomTypeRevenueTodayQuery
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Room Type Revenue Week (or filtered date range)
+        $roomTypeRevenueWeekQuery = $buildRoomTypeRevenueQuery();
+        if (!$hasDateFilter) {
+            $roomTypeRevenueWeekQuery->whereBetween(DB::raw('DATE(hd.created_at)'), $weekRange);
+        }
+        $roomTypeRevenueWeek = $roomTypeRevenueWeekQuery
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Room Type Revenue Month (or filtered date range)
+        $roomTypeRevenueMonthQuery = $buildRoomTypeRevenueQuery();
+        if (!$hasDateFilter) {
+            $roomTypeRevenueMonthQuery->whereYear('hd.created_at', $year)
+                ->whereMonth('hd.created_at', $month);
+        }
+        
+        $roomTypeRevenueMonth = $roomTypeRevenueMonthQuery
+            ->select(
+                'lp.id',
+                'lp.ten',
+                DB::raw('SUM(hdi.amount) as revenue'),
+                DB::raw('COUNT(DISTINCT hd.dat_phong_id) as booking_count')
+            )
+            ->groupBy('lp.id', 'lp.ten')
+            ->orderByDesc('revenue')
+            ->get();
+
+        // Calculate monthly revenue for percentage
+        if ($hasDateFilter) {
+            $monthlyRevenue = HoaDon::whereBetween(DB::raw('DATE(created_at)'), [$filterStartDate, $filterEndDate])
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->sum('tong_thuc_thu');
+        } else {
+            $monthlyRevenue = HoaDon::whereYear('created_at', $year)
+                ->whereMonth('created_at', $month)
+                ->whereNotIn('trang_thai', ['da_huy'])
+                ->sum('tong_thuc_thu');
+        }
+
+        return response()->json([
+            'success' => true,
+            'roomTypeRevenueToday' => $roomTypeRevenueToday,
+            'roomTypeRevenueWeek' => $roomTypeRevenueWeek,
+            'roomTypeRevenueMonth' => $roomTypeRevenueMonth,
+            'monthlyRevenue' => $monthlyRevenue
+        ]);
     }
 }

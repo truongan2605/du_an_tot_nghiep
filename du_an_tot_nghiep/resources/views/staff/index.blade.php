@@ -28,103 +28,108 @@
         <div class="row g-3 mb-4">
             {{-- 1. Số phòng trống --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
-                <div class="card kpi-card border-0 shadow-sm h-100"
-                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-house-door-fill fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-house-door-fill fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Số phòng trống</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($availableRooms ?? 0) }}</h2>
-                        <small class="text-white-50">Lễ tân xem để bố trí khách</small>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Số phòng trống</h6>
+                        <h2 class="mb-2 fw-bold" style="font-size: 2rem; line-height: 1.2;">{{ number_format($availableRooms ?? 0) }}</h2>
+                        <small class="text-white-50 d-block" style="font-size: 0.75rem;">Lễ tân xem để bố trí khách</small>
                     </div>
                 </div>
             </div>
 
             {{-- 2. Số phòng đang có khách --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
-                <div class="card kpi-card border-0 shadow-sm h-100"
-                    style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-people-fill fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-people-fill fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Phòng đang có khách</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($soPhongDangCoKhach ?? 0) }}</h2>
-                        <small class="text-white-50">Theo dõi phòng đang sử dụng</small>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Phòng đang có khách</h6>
+                        <h2 class="mb-2 fw-bold" style="font-size: 2rem; line-height: 1.2;">{{ number_format($soPhongDangCoKhach ?? 0) }}</h2>
+                        <small class="text-white-50 d-block" style="font-size: 0.75rem;">Theo dõi phòng đang sử dụng</small>
                     </div>
                 </div>
             </div>
 
             {{-- 3. Số phòng chờ dọn / bảo trì --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
-                <div class="card kpi-card border-0 shadow-sm h-100"
-                    style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-tools fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-tools fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Chờ dọn / Bảo trì</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($soPhongChoDonBaoTri ?? 0) }}</h2>
-                        <small class="text-white-50">Quản lý dọn phòng</small>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Chờ dọn / Bảo trì</h6>
+                        <h2 class="mb-2 fw-bold" style="font-size: 2rem; line-height: 1.2;">{{ number_format($soPhongChoDonBaoTri ?? 0) }}</h2>
+                        <small class="text-white-50 d-block" style="font-size: 0.75rem;">Quản lý dọn phòng</small>
                     </div>
                 </div>
             </div>
 
             {{-- 4. Số đặt phòng hôm nay --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
-                <div class="card kpi-card border-0 shadow-sm h-100"
-                    style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-calendar-check-fill fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-calendar-check-fill fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Đặt phòng hôm nay</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($soDatPhongHomNay ?? 0) }}</h2>
-                        <small class="text-white-50">Xem khách đến trong ngày</small>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Đặt phòng hôm nay</h6>
+                        <h2 class="mb-2 fw-bold" style="font-size: 2rem; line-height: 1.2;">{{ number_format($soDatPhongHomNay ?? 0) }}</h2>
+                        <small class="text-white-50 d-block" style="font-size: 0.75rem;">Xem khách đến trong ngày</small>
                     </div>
                 </div>
             </div>
 
             {{-- 5. Tổng doanh thu hôm nay --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
-                <div class="card kpi-card border-0 shadow-sm h-100"
-                    style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-cash-coin fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-cash-coin fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Doanh thu hôm nay</h6>
-                        <h2 class="mb-0 fw-bold" style="font-size: 1.1rem;">{{ number_format($todayRevenue ?? 0, 0, '.', '.') }}đ</h2>
-                        <small class="text-white-50">Theo dõi thu nhập</small>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Doanh thu hôm nay</h6>
+                        <h2 class="mb-2 fw-bold" style="font-size: 1.5rem; line-height: 1.2; word-break: break-word;">{{ number_format($todayRevenue ?? 0, 0, '.', '.') }}đ</h2>
+                        <small class="text-white-50 d-block" style="font-size: 0.75rem;">Theo dõi thu nhập</small>
                     </div>
                 </div>
             </div>
 
             {{-- 6. Doanh thu tháng này --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
-                <div class="card kpi-card border-0 shadow-sm h-100"
-                    style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-graph-up-arrow fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-graph-up-arrow fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Doanh thu tháng này</h6>
-                        <h2 class="mb-0 fw-bold" style="font-size: 1.1rem;">{{ number_format($monthlyRevenue ?? 0, 0, '.', '.') }}đ
-                        </h2>
-                        <small class="text-white-50">Phục vụ quản lý</small>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Doanh thu tháng này</h6>
+                        <h2 class="mb-2 fw-bold" style="font-size: 1.5rem; line-height: 1.2; word-break: break-word;">{{ number_format($monthlyRevenue ?? 0, 0, '.', '.') }}đ</h2>
+                        <small class="text-white-50 d-block" style="font-size: 0.75rem;">Phục vụ quản lý</small>
                     </div>
                 </div>
             </div>
@@ -438,6 +443,37 @@
 
                             {{-- Tab Theo Loại Phòng --}}
                             <div class="tab-pane fade" id="roomtype" role="tabpanel" style="padding-bottom: 0;">
+                                {{-- Filter Section --}}
+                                <div class="card shadow-sm rounded-3 border-0 mb-3">
+                                    <div class="card-body p-3">
+                                        <form method="GET" action="{{ route('staff.index') }}" id="roomTypeFilterForm" class="row g-2 align-items-end">
+                                            <input type="hidden" name="tab" value="roomtype">
+                                            
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-semibold mb-1">Từ ngày</label>
+                                                <input type="date" name="filter_roomtype_start_date" class="form-control form-control-sm" id="filterRoomTypeStartDate" value="{{ request('filter_roomtype_start_date') }}">
+                                            </div>
+                                            
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-semibold mb-1">Đến ngày</label>
+                                                <input type="date" name="filter_roomtype_end_date" class="form-control form-control-sm" id="filterRoomTypeEndDate" value="{{ request('filter_roomtype_end_date') }}">
+                                            </div>
+                                            
+                                            <div class="col-md-2">
+                                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                    <i class="bi bi-funnel me-1"></i>Lọc
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="col-md-2">
+                                                <a href="{{ route('staff.index', ['tab' => 'roomtype']) }}" class="btn btn-outline-secondary btn-sm w-100">
+                                                    <i class="bi bi-x-circle me-1"></i>Xóa
+                                                </a>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                                
                                 <div class="row g-3">
                                     <div class="col-lg-8">
                                         <div class="mb-2">
@@ -495,7 +531,7 @@
                                                                 <th class="text-end pe-3 py-2">Số đơn</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody>
+                                                        <tbody id="roomTypeRevenueTableBody">
                                                             @php
                                                                 // Bắt đầu từ tháng này (dữ liệu chính) - đây là nguồn dữ liệu chính cho tab "Tháng này"
                                                                 $allRoomTypes = collect($roomTypeRevenueMonth ?? [])->filter(function($item) {
@@ -610,6 +646,37 @@
                             </style>
                             {{-- Tab Theo Phòng --}}
                             <div class="tab-pane fade" id="room" role="tabpanel" aria-labelledby="room-tab">
+                                {{-- Filter Section --}}
+                                <div class="card shadow-sm rounded-3 border-0 mb-3">
+                                    <div class="card-body p-3">
+                                        <form method="GET" action="{{ route('staff.index') }}" id="roomFilterForm" class="row g-2 align-items-end">
+                                            <input type="hidden" name="tab" value="room">
+                                            
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-semibold mb-1">Từ ngày</label>
+                                                <input type="date" name="filter_start_date" class="form-control form-control-sm" id="filterStartDate" value="{{ request('filter_start_date') }}">
+                                            </div>
+                                            
+                                            <div class="col-md-4">
+                                                <label class="form-label small fw-semibold mb-1">Đến ngày</label>
+                                                <input type="date" name="filter_end_date" class="form-control form-control-sm" id="filterEndDate" value="{{ request('filter_end_date') }}">
+                                            </div>
+                                            
+                                            <div class="col-md-2">
+                                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                    <i class="bi bi-funnel me-1"></i>Lọc
+                                                </button>
+                                            </div>
+                                            
+                                            <div class="col-md-2">
+                                                <a href="{{ route('staff.index', ['tab' => 'room']) }}" class="btn btn-outline-secondary btn-sm w-100">
+                                                    <i class="bi bi-x-circle me-1"></i>Xóa
+                                                </a>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                                
                                 <div class="row g-3">
                                     {{-- Biểu đồ --}}
                                     <div class="col-12">
@@ -626,7 +693,7 @@
                                         <div class="card bg-light border-0 h-100">
                                             <div class="card-body p-3">
                                                 <h6 class="text-muted mb-2">Top phòng doanh thu cao</h6>
-                                                <div style="max-height: 600px; overflow-y: auto;">
+                                                <div id="topRoomsList" style="max-height: 600px; overflow-y: auto;">
                                                     @php
                                                         // Lọc và sắp xếp các phòng cụ thể (chỉ lấy các phòng có ma_phong hợp lệ, không phải tên loại phòng)
                                                         $topRooms = collect($roomRevenueMonth ?? [])
@@ -698,7 +765,7 @@
                                                                 <th class="text-end pe-3 py-2">Số đơn</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody>
+                                                        <tbody id="roomRevenueTableBody">
                                                             @php
                                                                 $allRooms = collect();
                                                                 if (!empty($roomRevenueToday)) {
@@ -1332,6 +1399,9 @@
                             }
                         }
                     });
+                    
+                    // Store chart instance globally for update
+                    window.roomTypeRevenueChart = roomTypeRevenueChart;
                 }
 
                 // Biểu đồ doanh thu theo phòng
@@ -1429,6 +1499,9 @@
                             }
                         }
                     });
+                    
+                    // Store chart instance globally for update
+                    window.roomRevenueChart = roomRevenueChart;
                 }
 
                 // Biểu đồ doanh thu tùy chỉnh (khi có filter)
@@ -1603,6 +1676,433 @@
                     });
                 });
 
+                // === Room Filter Functionality (Date Range) ===
+                const filterStartDate = document.getElementById('filterStartDate');
+                const filterEndDate = document.getElementById('filterEndDate');
+                const roomFilterForm = document.getElementById('roomFilterForm');
+                
+                if (roomFilterForm) {
+                    // Validate date range
+                    function validateDateRange() {
+                        if (filterStartDate && filterEndDate && filterStartDate.value && filterEndDate.value) {
+                            if (new Date(filterStartDate.value) > new Date(filterEndDate.value)) {
+                                alert('Ngày bắt đầu không thể lớn hơn ngày kết thúc');
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    
+                    // When form is submitted, load data via AJAX instead of page reload
+                    roomFilterForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        
+                        // Validate date range
+                        if (!validateDateRange()) {
+                            return;
+                        }
+                        
+                        // Show loading state
+                        const submitBtn = this.querySelector('button[type="submit"]');
+                        const originalBtnText = submitBtn.innerHTML;
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lọc...';
+                        
+                        // Get form data
+                        const formData = new FormData(this);
+                        const params = new URLSearchParams();
+                        for (const [key, value] of formData.entries()) {
+                            if (key !== 'tab' && value) {
+                                params.append(key, value);
+                            }
+                        }
+                        
+                        // Add month and year from current page
+                        const currentMonth = {{ $month ?? now()->month }};
+                        const currentYear = {{ $year ?? now()->year }};
+                        params.append('month', currentMonth);
+                        params.append('year', currentYear);
+                        
+                        // Fetch filtered data
+                        fetch(`{{ route('staff.api.room-revenue-filter') }}?${params.toString()}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Update chart
+                                    updateRoomRevenueChart(data.roomRevenueMonth);
+                                    
+                                    // Update top rooms list
+                                    updateTopRoomsList(data.roomRevenueMonth, data.monthlyRevenue);
+                                    
+                                    // Update table
+                                    updateRoomRevenueTable(data.roomRevenueToday, data.roomRevenueWeek, data.roomRevenueMonth);
+                                    
+                                    // Update URL without reload
+                                    const newUrl = new URL(window.location);
+                                    if (formData.get('filter_start_date')) {
+                                        newUrl.searchParams.set('filter_start_date', formData.get('filter_start_date'));
+                                    } else {
+                                        newUrl.searchParams.delete('filter_start_date');
+                                    }
+                                    if (formData.get('filter_end_date')) {
+                                        newUrl.searchParams.set('filter_end_date', formData.get('filter_end_date'));
+                                    } else {
+                                        newUrl.searchParams.delete('filter_end_date');
+                                    }
+                                    window.history.pushState({}, '', newUrl);
+                                } else {
+                                    alert('Có lỗi xảy ra khi lọc dữ liệu');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Có lỗi xảy ra khi lọc dữ liệu');
+                            })
+                            .finally(() => {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalBtnText;
+                            });
+                    });
+                }
+                
+                // Activate room tab if filter parameters are present or tab parameter is set
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.get('tab') === 'room' || urlParams.get('filter_start_date') || urlParams.get('filter_end_date')) {
+                    setTimeout(() => {
+                        const roomTab = document.querySelector('#room-tab');
+                        if (roomTab) {
+                            roomTab.click();
+                        }
+                    }, 100);
+                }
+
+                // === Room Type Filter Functionality (Date Range) ===
+                const filterRoomTypeStartDate = document.getElementById('filterRoomTypeStartDate');
+                const filterRoomTypeEndDate = document.getElementById('filterRoomTypeEndDate');
+                const roomTypeFilterForm = document.getElementById('roomTypeFilterForm');
+                
+                if (roomTypeFilterForm) {
+                    // Validate date range
+                    function validateRoomTypeDateRange() {
+                        if (filterRoomTypeStartDate && filterRoomTypeEndDate && filterRoomTypeStartDate.value && filterRoomTypeEndDate.value) {
+                            if (new Date(filterRoomTypeStartDate.value) > new Date(filterRoomTypeEndDate.value)) {
+                                alert('Ngày bắt đầu không thể lớn hơn ngày kết thúc');
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    
+                    // When form is submitted, load data via AJAX instead of page reload
+                    roomTypeFilterForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        
+                        // Validate date range
+                        if (!validateRoomTypeDateRange()) {
+                            return;
+                        }
+                        
+                        // Show loading state
+                        const submitBtn = this.querySelector('button[type="submit"]');
+                        const originalBtnText = submitBtn.innerHTML;
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lọc...';
+                        
+                        // Get form data
+                        const formData = new FormData(this);
+                        const params = new URLSearchParams();
+                        for (const [key, value] of formData.entries()) {
+                            if (key !== 'tab' && value) {
+                                params.append(key, value);
+                            }
+                        }
+                        
+                        // Add month and year from current page
+                        const currentMonth = {{ $month ?? now()->month }};
+                        const currentYear = {{ $year ?? now()->year }};
+                        params.append('month', currentMonth);
+                        params.append('year', currentYear);
+                        
+                        // Fetch filtered data
+                        fetch(`{{ route('staff.api.roomtype-revenue-filter') }}?${params.toString()}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    // Update chart
+                                    updateRoomTypeRevenueChart(data.roomTypeRevenueMonth);
+                                    
+                                    // Update revenue list
+                                    updateRoomTypeRevenueList(data.roomTypeRevenueMonth, data.monthlyRevenue);
+                                    
+                                    // Update table
+                                    updateRoomTypeRevenueTable(data.roomTypeRevenueToday, data.roomTypeRevenueWeek, data.roomTypeRevenueMonth);
+                                    
+                                    // Update URL without reload
+                                    const newUrl = new URL(window.location);
+                                    if (formData.get('filter_roomtype_start_date')) {
+                                        newUrl.searchParams.set('filter_roomtype_start_date', formData.get('filter_roomtype_start_date'));
+                                    } else {
+                                        newUrl.searchParams.delete('filter_roomtype_start_date');
+                                    }
+                                    if (formData.get('filter_roomtype_end_date')) {
+                                        newUrl.searchParams.set('filter_roomtype_end_date', formData.get('filter_roomtype_end_date'));
+                                    } else {
+                                        newUrl.searchParams.delete('filter_roomtype_end_date');
+                                    }
+                                    window.history.pushState({}, '', newUrl);
+                                } else {
+                                    alert('Có lỗi xảy ra khi lọc dữ liệu');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Có lỗi xảy ra khi lọc dữ liệu');
+                            })
+                            .finally(() => {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalBtnText;
+                            });
+                    });
+                }
+                
+                // Activate room type tab if filter parameters are present or tab parameter is set
+                if (urlParams.get('tab') === 'roomtype' || urlParams.get('filter_roomtype_start_date') || urlParams.get('filter_roomtype_end_date')) {
+                    setTimeout(() => {
+                        const roomTypeTab = document.querySelector('#roomtype-tab');
+                        if (roomTypeTab) {
+                            roomTypeTab.click();
+                        }
+                    }, 100);
+                }
+
+                // Functions to update room revenue data
+                function updateRoomRevenueChart(roomRevenueMonth) {
+                    const roomLabels = roomRevenueMonth.map(r => r.ma_phong);
+                    const roomRevenueData = roomRevenueMonth.map(r => parseFloat(r.revenue || 0));
+                    
+                    if (window.roomRevenueChart) {
+                        window.roomRevenueChart.data.labels = roomLabels;
+                        window.roomRevenueChart.data.datasets[0].data = roomRevenueData;
+                        window.roomRevenueChart.update();
+                    }
+                }
+
+                function updateTopRoomsList(roomRevenueMonth, monthlyRevenue) {
+                    // Filter and sort top rooms
+                    const topRooms = roomRevenueMonth
+                        .filter(room => {
+                            if (!room.id || !room.ma_phong || !room.revenue || room.revenue <= 0) {
+                                return false;
+                            }
+                            const maPhong = String(room.ma_phong).trim();
+                            const hasNumber = /\d/.test(maPhong);
+                            const hasDash = maPhong.includes('-') || maPhong.includes('_');
+                            return hasNumber || hasDash;
+                        })
+                        .sort((a, b) => parseFloat(b.revenue) - parseFloat(a.revenue))
+                        .slice(0, 10);
+                    
+                    // Find the container for top rooms list
+                    const container = document.getElementById('topRoomsList');
+                    if (!container) return;
+                    
+                    if (topRooms.length === 0) {
+                        container.innerHTML = '<div class="text-center text-muted py-4 small"><i class="bi bi-inbox"></i> Không có dữ liệu</div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = topRooms.map(room => {
+                        const percentage = monthlyRevenue > 0 ? ((parseFloat(room.revenue) / monthlyRevenue) * 100).toFixed(1) : 0;
+                        return `
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                                <div>
+                                    <div class="fw-semibold text-dark">${room.ma_phong || 'N/A'}</div>
+                                    <small class="text-muted">${room.loai_phong || ''}</small><br>
+                                    <small class="text-muted">${room.booking_count || 0} đơn</small>
+                                </div>
+                                <div class="text-end">
+                                    <strong class="text-success d-block">${new Intl.NumberFormat('vi-VN').format(parseFloat(room.revenue || 0))}đ</strong>
+                                    <small class="text-muted">${percentage}%</small>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                function updateRoomRevenueTable(roomRevenueToday, roomRevenueWeek, roomRevenueMonth) {
+                    // Merge all rooms
+                    const allRoomsMap = new Map();
+                    
+                    [...roomRevenueToday, ...roomRevenueWeek, ...roomRevenueMonth].forEach(room => {
+                        if (!allRoomsMap.has(room.id)) {
+                            allRoomsMap.set(room.id, {
+                                id: room.id,
+                                ma_phong: room.ma_phong,
+                                loai_phong: room.loai_phong,
+                                trang_thai: room.trang_thai
+                            });
+                        }
+                    });
+                    
+                    const allRooms = Array.from(allRoomsMap.values());
+                    
+                    // Sort by month revenue
+                    allRooms.sort((a, b) => {
+                        const aMonth = roomRevenueMonth.find(r => r.id === a.id);
+                        const bMonth = roomRevenueMonth.find(r => r.id === b.id);
+                        return (parseFloat(bMonth?.revenue || 0)) - (parseFloat(aMonth?.revenue || 0));
+                    });
+                    
+                    const tbody = document.getElementById('roomRevenueTableBody');
+                    if (!tbody) return;
+                    
+                    if (allRooms.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> Không có dữ liệu</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = allRooms.map(room => {
+                        const todayData = roomRevenueToday.find(r => r.id === room.id);
+                        const weekData = roomRevenueWeek.find(r => r.id === room.id);
+                        const monthData = roomRevenueMonth.find(r => r.id === room.id);
+                        
+                        const todayRev = parseFloat(todayData?.revenue || 0);
+                        const weekRev = parseFloat(weekData?.revenue || 0);
+                        const monthRev = parseFloat(monthData?.revenue || 0);
+                        const bookingCount = monthData?.booking_count || 0;
+                        const roomStatus = monthData?.trang_thai || room.trang_thai || 'trong';
+                        
+                        let statusBadge = 'bg-secondary';
+                        let statusText = roomStatus;
+                        if (roomStatus === 'dang_o') {
+                            statusBadge = 'bg-danger';
+                            statusText = 'Đang ở';
+                        } else if (roomStatus === 'trong') {
+                            statusBadge = 'bg-success';
+                            statusText = 'Trong';
+                        } else if (roomStatus === 'bao_tri') {
+                            statusBadge = 'bg-warning';
+                            statusText = 'Bảo trì';
+                        }
+                        
+                        return `
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="fw-semibold">${room.ma_phong}</div>
+                                    <small class="badge ${statusBadge} text-white">${statusText}</small>
+                                </td>
+                                <td><small class="text-muted">${room.loai_phong || 'N/A'}</small></td>
+                                <td class="text-center">
+                                    <span class="badge bg-success-subtle text-success">${new Intl.NumberFormat('vi-VN').format(todayRev)}đ</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info-subtle text-info">${new Intl.NumberFormat('vi-VN').format(weekRev)}đ</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary-subtle text-primary">${new Intl.NumberFormat('vi-VN').format(monthRev)}đ</span>
+                                </td>
+                                <td class="text-end pe-3"><strong>${bookingCount}</strong></td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+
+                // Functions to update room type revenue data
+                function updateRoomTypeRevenueChart(roomTypeRevenueMonth) {
+                    const roomTypeLabels = roomTypeRevenueMonth.map(r => r.ten);
+                    const roomTypeRevenueData = roomTypeRevenueMonth.map(r => parseFloat(r.revenue || 0));
+                    
+                    if (window.roomTypeRevenueChart) {
+                        window.roomTypeRevenueChart.data.labels = roomTypeLabels;
+                        window.roomTypeRevenueChart.data.datasets[0].data = roomTypeRevenueData;
+                        window.roomTypeRevenueChart.update();
+                    }
+                }
+
+                function updateRoomTypeRevenueList(roomTypeRevenueMonth, monthlyRevenue) {
+                    const container = document.getElementById('roomTypeRevenueList');
+                    if (!container) return;
+                    
+                    if (roomTypeRevenueMonth.length === 0) {
+                        container.innerHTML = '<div class="text-center text-muted py-4 small"><i class="bi bi-inbox"></i> Không có dữ liệu</div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = roomTypeRevenueMonth.map(roomType => {
+                        const percentage = monthlyRevenue > 0 ? ((parseFloat(roomType.revenue) / monthlyRevenue) * 100).toFixed(1) : 0;
+                        return `
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                                <div>
+                                    <div class="fw-semibold text-dark">${roomType.ten || 'N/A'}</div>
+                                    <small class="text-muted">${roomType.booking_count || 0} đơn</small>
+                                </div>
+                                <div class="text-end">
+                                    <strong class="text-success d-block">${new Intl.NumberFormat('vi-VN').format(parseFloat(roomType.revenue || 0))}đ</strong>
+                                    <small class="text-muted">${percentage}%</small>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                function updateRoomTypeRevenueTable(roomTypeRevenueToday, roomTypeRevenueWeek, roomTypeRevenueMonth) {
+                    // Merge all room types
+                    const allRoomTypesMap = new Map();
+                    
+                    [...roomTypeRevenueToday, ...roomTypeRevenueWeek, ...roomTypeRevenueMonth].forEach(roomType => {
+                        if (!allRoomTypesMap.has(roomType.id)) {
+                            allRoomTypesMap.set(roomType.id, {
+                                id: roomType.id,
+                                ten: roomType.ten
+                            });
+                        }
+                    });
+                    
+                    const allRoomTypes = Array.from(allRoomTypesMap.values());
+                    
+                    // Sort by month revenue
+                    allRoomTypes.sort((a, b) => {
+                        const aMonth = roomTypeRevenueMonth.find(r => r.id === a.id);
+                        const bMonth = roomTypeRevenueMonth.find(r => r.id === b.id);
+                        return (parseFloat(bMonth?.revenue || 0)) - (parseFloat(aMonth?.revenue || 0));
+                    });
+                    
+                    const tbody = document.getElementById('roomTypeRevenueTableBody');
+                    if (!tbody) return;
+                    
+                    if (allRoomTypes.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-inbox"></i> Không có dữ liệu</td></tr>';
+                        return;
+                    }
+                    
+                    tbody.innerHTML = allRoomTypes.map(roomType => {
+                        const todayData = roomTypeRevenueToday.find(r => r.id === roomType.id);
+                        const weekData = roomTypeRevenueWeek.find(r => r.id === roomType.id);
+                        const monthData = roomTypeRevenueMonth.find(r => r.id === roomType.id);
+                        
+                        const todayRev = parseFloat(todayData?.revenue || 0);
+                        const weekRev = parseFloat(weekData?.revenue || 0);
+                        const monthRev = parseFloat(monthData?.revenue || 0);
+                        const bookingCount = monthData?.booking_count || 0;
+                        
+                        return `
+                            <tr>
+                                <td class="ps-3 fw-semibold">${roomType.ten || 'N/A'}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success-subtle text-success">${new Intl.NumberFormat('vi-VN').format(todayRev)}đ</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info-subtle text-info">${new Intl.NumberFormat('vi-VN').format(weekRev)}đ</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary-subtle text-primary">${new Intl.NumberFormat('vi-VN').format(monthRev)}đ</span>
+                                </td>
+                                <td class="text-end pe-3"><strong>${bookingCount}</strong></td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+
                 // FullCalendar
                 const calendarEl = document.getElementById('calendar');
                 if (calendarEl) {
@@ -1708,10 +2208,11 @@
     <style>
         /* KPI Cards */
         .kpi-card {
-            border-radius: 12px;
-            transition: all 0.3s ease;
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             position: relative;
+            cursor: pointer;
         }
 
         .kpi-card::before {
@@ -1721,21 +2222,37 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 100%);
             pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
-        .kpi-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+        .kpi-card:hover::before {
+            opacity: 1;
+        }
+
+        .kpi-card-hover:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
         }
 
         .kpi-icon-wrapper {
-            transition: transform 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
         }
 
         .kpi-card:hover .kpi-icon-wrapper {
-            transform: scale(1.1);
+            transform: scale(1.15) rotate(5deg);
+            background: rgba(255, 255, 255, 0.3) !important;
+        }
+
+        .kpi-card .card-body h2 {
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card:hover .card-body h2 {
+            transform: scale(1.05);
         }
 
         .chart-card {
