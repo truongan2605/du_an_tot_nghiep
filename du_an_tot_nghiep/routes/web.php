@@ -50,6 +50,7 @@ use App\Http\Controllers\Staff\CheckoutController;
 use App\Http\Controllers\Client\DanhGiaController as ClientDanhGiaController;
 
 use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
+use App\Http\Controllers\Staff\HoaDonController;
 use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 
 Route::post('/booking/validate-voucher', [BookingController::class, 'validateVoucher'])->name('booking.validate_voucher')->middleware('auth');
@@ -294,6 +295,9 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
 
     Route::post('/staff/bookings/{booking}/invoices/{hoaDon}/confirm', [CheckoutController::class, 'confirmPayment'])
         ->name('staff.bookings.invoices.confirm');
+
+    Route::get('/invoices', [HoaDonController::class, 'index'])->name('staff.invoices.index');
+    Route::get('/invoices/{hoaDon}', [HoaDonController::class, 'show'])->name('staff.invoices.show');
 });
 
 
