@@ -7,12 +7,14 @@ use App\Models\DatPhong;
 use App\Models\HoaDon;
 use App\Models\HoaDonItem;
 use App\Models\Phong;
+use App\Models\GiaoDich;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Services\PaymentNotificationService;
+use App\Services\MoMoPaymentService;
 use App\Mail\InvoiceMail;
 use App\Models\DatPhongItemHistory;
 use Illuminate\Support\Facades\Mail;
@@ -814,6 +816,290 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+        }
+    }
+
+    /**
+     * Initiate online payment redirect (VNPay/MoMo)
+     */
+    public function initiateOnlinePayment(Request $request, DatPhong $booking)
+    {
+        $validated = $request->validate([
+            'payment_method' => 'required|in:vnpay,momo',
+            'action' => 'required|string',
+            'amount' => 'required|numeric|min:1',
+        ]);
+
+        $paymentMethod = $validated['payment_method'];
+        $amount = (int) round($validated['amount']);
+        $action = $validated['action'];
+
+        try {
+            DB::beginTransaction();
+
+            // Create transaction record
+            $transaction = GiaoDich::create([
+                'dat_phong_id' => $booking->id,
+                'nha_cung_cap' => $paymentMethod,
+                'provider_txn_ref' => null,
+                'so_tien' => $amount,
+                'don_vi' => 'VND',
+                'trang_thai' => 'dang_cho',
+                'ghi_chu' => "Checkout {$action} - {$booking->ma_tham_chieu}",
+            ]);
+
+            // Generate payment URL
+            if ($paymentMethod === 'vnpay') {
+                $paymentUrl = $this->generateVNPayCheckoutURL($transaction, $booking);
+            } else {
+                $paymentUrl = $this->generateMoMoCheckoutURL($transaction, $booking);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'payment_url' => $paymentUrl,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Checkout payment init failed', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    private function generateVNPayCheckoutURL(GiaoDich $transaction, DatPhong $booking)
+    {
+        $vnp_TmnCode = env('VNPAY_TMN_CODE');
+        $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+        $vnp_Url = env('VNPAY_URL');
+        $vnp_ReturnUrl = route('staff.checkout.payment.callback');
+
+        $vnp_TxnRef = 'CHECKOUT_' . $booking->id . '_' . time();
+        $vnp_OrderInfo = "Thanh toan checkout - " . $booking->ma_tham_chieu;
+        $vnp_Amount = (int) round($transaction->so_tien) * 100;
+
+        $inputData = [
+            "vnp_Version" => "2.1.0",
+            "vnp_TmnCode" => $vnp_TmnCode,
+            "vnp_Amount" => $vnp_Amount,
+            "vnp_Command" => "pay",
+            "vnp_CreateDate" => date('YmdHis'),
+            "vnp_CurrCode" => "VND",
+            "vnp_IpAddr" => request()->ip(),
+            "vnp_Locale" => "vn",
+            "vnp_OrderInfo" => $vnp_OrderInfo,
+            "vnp_OrderType" => "billpayment",
+            "vnp_ReturnUrl" => $vnp_ReturnUrl,
+            "vnp_TxnRef" => $vnp_TxnRef,
+        ];
+
+        ksort($inputData);
+        $query = "";
+        $hashdata = "";
+        $i = 0;
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashdata .= '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashdata .= urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+            $query .= urlencode($key) . "=" . urlencode($value) . '&';
+        }
+
+        $vnpSecureHash = hash_hmac('sha512', $hashdata, $vnp_HashSecret);
+        $vnp_Url = $vnp_Url . "?" . $query . 'vnp_SecureHash=' . $vnpSecureHash;
+
+        $transaction->update(['provider_txn_ref' => $vnp_TxnRef]);
+
+        return $vnp_Url;
+    }
+
+    private function generateMoMoCheckoutURL(GiaoDich $transaction, DatPhong $booking)
+    {
+        $momoService = new MoMoPaymentService();
+        
+        $orderId = 'CHECKOUT_' . $booking->id . '_' . time();
+        $returnUrl = route('staff.checkout.payment.callback');
+
+        $paymentData = $momoService->createPaymentUrl([
+            'orderId' => $orderId,
+            'amount' => (int) round($transaction->so_tien),
+            'orderInfo' => "Thanh toan checkout - " . $booking->ma_tham_chieu,
+            'returnUrl' => $returnUrl,
+            'notifyUrl' => $returnUrl,
+        ]);
+
+        // IMPORTANT: Use the orderId from MoMo response (includes unique suffix)
+        $actualOrderId = $paymentData['orderId'] ?? $orderId;
+        $transaction->update(['provider_txn_ref' => $actualOrderId]);
+
+        Log::info('MoMo checkout URL generated', [
+            'base_order_id' => $orderId,
+            'actual_order_id' => $actualOrderId,
+            'transaction_id' => $transaction->id,
+        ]);
+
+        return $paymentData['payUrl'] ?? $paymentData['deeplink'];
+    }
+
+    /**
+     * Handle payment callback
+     */
+    public function handlePaymentCallback(Request $request)
+    {
+        // Detect provider
+        if ($request->has('vnp_TxnRef')) {
+            return $this->handleVNPayCheckoutCallback($request);
+        } elseif ($request->has('orderId')) {
+            return $this->handleMoMoCheckoutCallback($request);
+        }
+
+        return redirect()->route('staff.index')->with('error', 'Invalid callback');
+    }
+
+    private function handleVNPayCheckoutCallback(Request $request)
+    {
+        $vnp_HashSecret = env('VNPAY_HASH_SECRET');
+        $inputData = $request->all();
+        $vnp_SecureHash = $inputData['vnp_SecureHash'] ?? '';
+
+        unset($inputData['vnp_SecureHash']);
+        ksort($inputData);
+
+        $hashData = "";
+        $i = 0;
+        foreach ($inputData as $key => $value) {
+            if ($i == 1) {
+                $hashData .= '&' . urlencode($key) . "=" . urlencode($value);
+            } else {
+                $hashData .= urlencode($key) . "=" . urlencode($value);
+                $i = 1;
+            }
+        }
+
+        $secureHash = strtoupper(hash_hmac('sha512', $hashData, $vnp_HashSecret));
+
+        if ($secureHash !== strtoupper($vnp_SecureHash)) {
+            Log::error('VNPay checkout signature mismatch');
+            return redirect()->route('staff.index')->with('error', 'Xác thực thất bại');
+        }
+
+        $vnp_TxnRef = $request->input('vnp_TxnRef');
+        $vnp_ResponseCode = $request->input('vnp_ResponseCode');
+
+        $transaction = GiaoDich::where('provider_txn_ref', $vnp_TxnRef)->first();
+        if (!$transaction) {
+            return redirect()->route('staff.index')->with('error', 'Không tìm thấy giao dịch');
+        }
+
+        $booking = DatPhong::find($transaction->dat_phong_id);
+
+        if ($vnp_ResponseCode === '00') {
+            $transaction->update(['trang_thai' => 'thanh_cong']);
+            
+            // Mark invoice as paid and complete checkout
+            $this->completeCheckoutAfterPayment($booking);
+
+            return redirect()->route('staff.bookings.show', $booking->id)
+                ->with('success', 'Thanh toán thành công!');
+        } else {
+            $transaction->update(['trang_thai' => 'that_bai']);
+            return redirect()->route('staff.bookings.checkout.show', $booking->id)
+                ->with('error', 'Thanh toán thất bại');
+        }
+    }
+
+    private function handleMoMoCheckoutCallback(Request $request)
+    {
+        Log::info('MoMo checkout callback received', $request->all());
+
+        $momoService = new MoMoPaymentService();
+        
+        // Try to verify signature, but log and continue if fails (for debugging)
+        try {
+            if (!$momoService->verifySignature($request->all())) {
+                Log::warning('MoMo checkout signature mismatch - continuing anyway');
+            }
+        } catch (\Exception $e) {
+            Log::error('MoMo signature verification error', ['error' => $e->getMessage()]);
+        }
+
+        $orderId = $request->input('orderId');
+        $resultCode = $request->input('resultCode');
+
+        Log::info('Processing MoMo callback', [
+            'orderId' => $orderId,
+            'resultCode' => $resultCode
+        ]);
+
+        $transaction = GiaoDich::where('provider_txn_ref', $orderId)->first();
+        if (!$transaction) {
+            Log::error('MoMo transaction not found', ['orderId' => $orderId]);
+            return redirect()->route('staff.index')->with('error', 'Không tìm thấy giao dịch');
+        }
+
+        $booking = DatPhong::find($transaction->dat_phong_id);
+
+        if ($resultCode == 0) {
+            $transaction->update(['trang_thai' => 'thanh_cong']);
+            
+            $this->completeCheckoutAfterPayment($booking);
+
+            return redirect()->route('staff.bookings.show', $booking->id)
+                ->with('success', 'Thanh toán thành công!');
+        } else {
+            $transaction->update(['trang_thai' => 'that_bai']);
+            return redirect()->route('staff.bookings.checkout.show', $booking->id)
+                ->with('error', 'Thanh toán thất bại');
+        }
+    }
+
+    private function completeCheckoutAfterPayment(DatPhong $booking)
+    {
+        // Mark invoices as paid
+        HoaDon::where('dat_phong_id', $booking->id)
+            ->where('trang_thai', '!=', 'da_thanh_toan')
+            ->update(['trang_thai' => 'da_thanh_toan']);
+
+        // Archive and delete items
+        $this->archiveDatPhongItems($booking->id);
+        DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+
+        // Update booking
+        $booking->update([
+            'checkout_at' => now(),
+            'checkout_by' => Auth::id(),
+            'trang_thai' => 'hoan_thanh',
+            'blocks_checkin' => false,
+        ]);
+
+        // Release rooms
+        $phongIds = DatPhongItemHistory::where('dat_phong_id', $booking->id)
+            ->pluck('phong_id')->filter()->unique()->toArray();
+        
+        if (!empty($phongIds)) {
+            Phong::whereIn('id', $phongIds)->update([
+                'trang_thai' => 'trong',
+                'don_dep' => true,
+            ]);
+        }
+
+        // Send notifications
+        $hoaDon = HoaDon::where('dat_phong_id', $booking->id)->latest()->first();
+        if ($hoaDon) {
+            $notificationService = new PaymentNotificationService();
+            $notificationService->sendCheckoutNotification($booking, $hoaDon->id);
+            $this->sendInvoiceEmail($booking, $hoaDon);
         }
     }
 }

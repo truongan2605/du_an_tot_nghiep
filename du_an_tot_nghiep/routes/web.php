@@ -292,6 +292,12 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
 
     Route::post('/staff/bookings/{booking}/invoices/{hoaDon}/confirm', [CheckoutController::class, 'confirmPayment'])
         ->name('staff.bookings.invoices.confirm');
+
+    // Checkout online payment
+    Route::post('/staff/bookings/{booking}/checkout/pay-online', [CheckoutController::class, 'initiateOnlinePayment'])
+        ->name('staff.checkout.pay-online');
+    Route::match(['get', 'post'], '/staff/checkout/payment/callback', [CheckoutController::class, 'handlePaymentCallback'])
+        ->name('staff.checkout.payment.callback');
 });
 
 

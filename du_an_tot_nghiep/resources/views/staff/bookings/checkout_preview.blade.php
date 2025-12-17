@@ -274,6 +274,55 @@
                     </div>
                 @endif
 
+                {{-- Payment Method (when need to collect fees) --}}
+                @php
+                    $needPayment = false;
+                    $paymentAmount = 0;
+
+                    // Late checkout always needs payment
+                    if (!empty($lateEligible) && $lateEligible) {
+                        $needPayment = true;
+                        $paymentAmount = $lateNetDisplay;
+                    }
+                    // Early checkout needs payment if customer owes
+                    elseif (!empty($earlyEligible) && $earlyEligible && !$earlyNetIsRefund) {
+                        $needPayment = true;
+                        $paymentAmount = $earlyNetDisplay;
+                    }
+                @endphp
+
+                @if ($needPayment && $paymentAmount > 0)
+                    <div class="card mb-3 border-primary">
+                        <div class="card-header bg-primary bg-opacity-10">
+                            <strong><i class="bi bi-credit-card me-2"></i>Phương thức thanh toán</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                Số tiền cần thu: <strong class="text-danger">{{ number_format($paymentAmount, 0) }} ₫</strong>
+                            </div>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="payment_method" id="pay_cash" value="cash" checked>
+                                <label class="btn btn-outline-dark" for="pay_cash">
+                                    <i class="bi bi-cash-stack"></i> Tiền mặt
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="payment_method" id="pay_vnpay" value="vnpay">
+                                <label class="btn btn-outline-primary" for="pay_vnpay">
+                                    <i class="bi bi-credit-card"></i> VNPay
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="payment_method" id="pay_momo" value="momo">
+                                <label class="btn btn-outline-danger" for="pay_momo">
+                                    <i class="bi bi-wallet2"></i> MoMo
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="bi bi-info-circle"></i> Thanh toán online sẽ chuyển đến trang VNPay/MoMo
+                            </small>
+                        </div>
+                    </div>
+                @endif
+
                 {{-- Buttons --}}
                 <div class="d-flex gap-2 d-print-none">
                     <a href="{{ route('staff.bookings.show', $booking->id) }}" class="btn btn-outline-secondary btn">
@@ -307,4 +356,55 @@
         @endif
 
     </div>
+
+    @if ($needPayment ?? false)
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form[action="{{ route('staff.bookings.checkout.process', $booking->id) }}"]');
+            if (!form) return;
+
+            const checkoutButtons = form.querySelectorAll('button[type="submit"]');
+            
+            checkoutButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    const paymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
+                    
+                    if (paymentMethod && paymentMethod !== 'cash') {
+                        e.preventDefault();
+                        
+                        const amount = {{ $paymentAmount ?? 0 }};
+                        const action = btn.value || 'checkout';
+                        
+                        // Call API to get payment URL
+                        fetch('{{ route('staff.checkout.pay-online', $booking->id) }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                payment_method: paymentMethod,
+                                action: action,
+                                amount: amount
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success && data.payment_url) {
+                                window.location.href = data.payment_url;
+                            } else {
+                                alert('Lỗi: ' + (data.message || 'Không thể tạo thanh toán'));
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Có lỗi xảy ra, vui lòng thử lại');
+                        });
+                    }
+                    // If cash, let form submit normally
+                });
+            });
+        });
+    </script>
+    @endif
 @endsection
