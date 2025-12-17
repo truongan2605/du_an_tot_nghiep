@@ -156,6 +156,12 @@ class CheckoutController extends Controller
         }
 
 
+        // Check for ANY pending online payment transactions
+        $pendingPayment = GiaoDich::where('dat_phong_id', $booking->id)
+            ->where('trang_thai', 'dang_cho')
+            ->latest()
+            ->first();
+
         return view('staff.bookings.checkout_preview', compact(
             'booking',
             'roomLines',
@@ -184,6 +190,7 @@ class CheckoutController extends Controller
             'blockingNextBooking',
             'hasNextBooking',
             'blockingNextBookingStart',
+            'pendingPayment',
         ));
     }
 
@@ -837,7 +844,29 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
         try {
             DB::beginTransaction();
 
-            // Create transaction record
+            // Cancel ALL existing pending transactions for this booking + payment method
+            // This ensures no abandoned transactions remain
+            $existingPending = GiaoDich::where('dat_phong_id', $booking->id)
+                ->where('trang_thai', 'dang_cho')
+                ->where('nha_cung_cap', $paymentMethod)
+                ->get(); // Get ALL, not just recent ones
+
+            if ($existingPending->isNotEmpty()) {
+                foreach ($existingPending as $pending) {
+                    $pending->update([
+                        'trang_thai' => 'that_bai',
+                        'ghi_chu' => $pending->ghi_chu . ' (Tự động hủy - ' . now()->format('d/m/Y H:i') . ')',
+                    ]);
+                    
+                    Log::info('Auto-cancelled abandoned pending transaction', [
+                        'transaction_id' => $pending->id,
+                        'booking_id' => $booking->id,
+                        'age_minutes' => $pending->created_at->diffInMinutes(now()),
+                    ]);
+                }
+            }
+
+            // Create new transaction record
             $transaction = GiaoDich::create([
                 'dat_phong_id' => $booking->id,
                 'nha_cung_cap' => $paymentMethod,

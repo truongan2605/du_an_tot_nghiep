@@ -58,6 +58,19 @@
             </div>
         </div>
 
+        {{-- Pending Payment Warning --}}
+        @if (!empty($pendingPayment))
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Có thanh toán online đang chờ!</strong> 
+                Phát hiện giao dịch {{ strtoupper($pendingPayment->nha_cung_cap) }} chưa hoàn tất 
+                ({{ number_format($pendingPayment->so_tien, 0) }}₫, 
+                {{ $pendingPayment->created_at->diffForHumans() }}).
+                Nếu tạo thanh toán mới, giao dịch cũ sẽ tự động hủy.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
         {{-- Room lines --}}
         <h5>Chi tiết phòng</h5>
         <div class="table-responsive mb-3">
@@ -375,6 +388,8 @@
                         const amount = {{ $paymentAmount ?? 0 }};
                         const action = btn.value || 'checkout';
                         
+                        console.log('=== Payment Init ===', {paymentMethod, action, amount});
+                        
                         // Call API to get payment URL
                         fetch('{{ route('staff.checkout.pay-online', $booking->id) }}', {
                             method: 'POST',
@@ -390,14 +405,18 @@
                         })
                         .then(res => res.json())
                         .then(data => {
+                            console.log('=== Payment Response ===', data);
+                            
                             if (data.success && data.payment_url) {
+                                console.log('REDIRECTING TO:', data.payment_url);
                                 window.location.href = data.payment_url;
                             } else {
+                                console.error('NO PAYMENT URL!', data);
                                 alert('Lỗi: ' + (data.message || 'Không thể tạo thanh toán'));
                             }
                         })
                         .catch(err => {
-                            console.error(err);
+                            console.error('FETCH ERROR:', err);
                             alert('Có lỗi xảy ra, vui lòng thử lại');
                         });
                     }
