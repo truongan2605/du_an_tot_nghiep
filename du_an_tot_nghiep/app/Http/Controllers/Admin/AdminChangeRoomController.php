@@ -394,346 +394,277 @@ public function formError($id)
     $item = DatPhongItem::findOrFail($id);
     $booking = $item->datPhong;
 
-    // Kiểm tra đã check-in chưa
     if (!$booking->checked_in_at) {
         return back()->with('error', 'Chỉ có thể đổi phòng lỗi khi đã check-in!');
     }
 
+    // ✅ TÍNH PHỤ THU PHÒNG HIỆN TẠI (giống calculate)
+    $currentRoomBase = $item->phong->tong_gia ?? 0;
+    $currentExtraFee = ($item->number_adult * 150000) + ($item->number_child * 60000);
+    $currentTotalPerNight = $currentRoomBase + $currentExtraFee;
+    
+    $nights = \Carbon\Carbon::parse($booking->ngay_nhan_phong)
+        ->diffInDays(\Carbon\Carbon::parse($booking->ngay_tra_phong));
+
     return view('admin.dat-phong.change-room-error', [
         'item' => $item,
         'booking' => $booking,
+        'currentRoomBase' => $currentRoomBase,
+        'currentExtraFee' => $currentExtraFee,
+        'currentTotalPerNight' => $currentTotalPerNight,
+        'nights' => $nights,
     ]);
 }
 
 /**
  * API lấy phòng trống cho đổi phòng lỗi
  */
-public function getAvailableRoomsForError(Request $request, $id)
-{
-    $item = DatPhongItem::findOrFail($id);
-    $booking = $item->datPhong;
-    $currentRoom = $item->phong;
+ public function getAvailableRoomsForError(Request $request, $id)
+    {
+        $item = DatPhongItem::findOrFail($id);
+        $booking = $item->datPhong;
+        $currentRoom = $item->phong;
 
-    if (!$booking->checked_in_at) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Chưa check-in'
-        ], 403);
-    }
+        if (!$booking->checked_in_at) {
+            return response()->json(['success' => false, 'message' => 'Chưa check-in'], 403);
+        }
 
-    $checkIn = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
-    $checkOut = \Carbon\Carbon::parse($booking->ngay_tra_phong);
-    $nights = $checkIn->diffInDays($checkOut);
+        $checkIn = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+        $checkOut = \Carbon\Carbon::parse($booking->ngay_tra_phong);
+        $nights = $checkIn->diffInDays($checkOut);
 
-    // ✅ LẤY TẤT CẢ PHÒNG KHÔNG BẢO TRÌ (GIỐNG getAvailableRooms)
-    $allRooms = Phong::where('trang_thai', 'trong')
-        ->pluck('id')
-        ->toArray();
+        $allRooms = Phong::where('trang_thai', 'trong')->pluck('id')->toArray();
 
-    // ✅ LẤY PHÒNG ĐÃ ĐẶT TRONG KHOẢNG THỜI GIAN (GIỐNG getAvailableRooms)
-    $fromStartStr = $checkIn->copy()->setTime(14, 0)->toDateTimeString();
-    $toEndStr = $checkOut->copy()->setTime(12, 0)->toDateTimeString();
+        $fromStartStr = $checkIn->copy()->setTime(14, 0)->toDateTimeString();
+        $toEndStr = $checkOut->copy()->setTime(12, 0)->toDateTimeString();
 
-    $bookedRoomIds = \DB::table('dat_phong_item')
-        ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
-        ->whereNotNull('dat_phong_item.phong_id')
-        ->whereNotIn('dat_phong.trang_thai', ['da_xac_nhan', 'dang_cho_xac_nhan', 'dang_su_dung']) // ✅ LOGIC GIỐNG getAvailableRooms
-        ->where('dat_phong.id', '!=', $booking->id)
-        ->whereRaw(
-            "CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? 
-             AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?",
-            [$toEndStr, $fromStartStr]
-        )
-        ->pluck('dat_phong_item.phong_id')
-        ->toArray();
+        $bookedRoomIds = \DB::table('dat_phong_item')
+            ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+            ->whereNotNull('dat_phong_item.phong_id')
+            ->whereNotIn('dat_phong.trang_thai', ['da_xac_nhan', 'dang_cho_xac_nhan', 'dang_su_dung'])
+            ->where('dat_phong.id', '!=', $booking->id)
+            ->whereRaw("CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?",
+                [$toEndStr, $fromStartStr])
+            ->pluck('dat_phong_item.phong_id')
+            ->toArray();
 
-    // ✅ PHÒNG TRỐNG (GIỐNG getAvailableRooms)
-    $availableRoomIds = array_diff(
-        $allRooms,
-        $bookedRoomIds,
-        [$currentRoom->id]
-    );
+        $currentBookingRoomIds = $booking->datPhongItems()
+            ->whereNotNull('phong_id')
+            ->pluck('phong_id')
+            ->toArray();
 
-    // ✅ LOẠI BỎ PHÒNG ĐÃ GÁN TRONG BOOKING HIỆN TẠI (GIỐNG getAvailableRooms)
-    $currentBookingRoomIds = $booking->datPhongItems()
-        ->whereNotNull('phong_id')
-        ->pluck('phong_id')
-        ->toArray();
+        $excludeRoomIds = array_unique(array_merge($bookedRoomIds, $currentBookingRoomIds));
+        
+        // ✅ GIÁ PHÒNG HIỆN TẠI (giống calculate)
+        $currentRoomBasePrice = $currentRoom->tong_gia ?? 0;
+        $currentExtraFee = ($item->number_adult * 150000) + ($item->number_child * 60000);
+        $currentRoomTotalPrice = $currentRoomBasePrice + $currentExtraFee; // Tổng/đêm (có phụ thu)
+        
+        $showLowerPrice = $request->get('show_lower_price', false);
 
-    $excludeRoomIds = array_unique(array_merge(
-        $bookedRoomIds,
-        $currentBookingRoomIds
-    ));
+        $availableRooms = Phong::whereNotIn('id', $excludeRoomIds)
+            ->whereIn('trang_thai', ['dang_o', 'trong'])
+            ->with(['loaiPhong', 'images'])
+            ->get()
+            ->map(function ($room) use ($currentRoomTotalPrice, $nights, $item) {
+                $roomBasePrice = $room->tong_gia ?? 0;
+                $roomCapacity = $room->suc_chua ?? 2;
 
-    // Giá phòng hiện tại
-    $currentRoomBasePrice = $currentRoom->tong_gia ?? 0;
-
-    // ✅ Lọc theo giá (có toggle)
-    $showLowerPrice = $request->get('show_lower_price', false);
-
-    // ✅ LOAD CHI TIẾT (GIỐNG getAvailableRooms)
-    $availableRooms = Phong::whereNotIn('id', $excludeRoomIds)
-        ->whereIn('trang_thai', ['dang_o', 'trong']) // ✅ GIỐNG getAvailableRooms
-        ->with(['loaiPhong', 'images'])
-        ->get()
-        ->map(function ($room) use ($currentRoomBasePrice, $nights, $item) {
-            $roomBasePrice = $room->tong_gia ?? 0;
-            $roomCapacity = $room->suc_chua ?? 2;
-
-            // ✅ TÍNH LẠI PHỤ THU THEO SỨC CHỨA PHÒNG MỚI
-            $totalGuests = $item->so_nguoi_o ?? 0;
-            if ($totalGuests == 0) {
-                $oldRoomCapacity = $item->phong->suc_chua ?? 2;
-                $totalGuests = $oldRoomCapacity + ($item->number_adult ?? 0) + ($item->number_child ?? 0);
-            }
-
-            $extraGuestsInNewRoom = max(0, $totalGuests - $roomCapacity);
-            
-            $oldExtraAdults = $item->number_adult ?? 0;
-            $oldExtraChildren = $item->number_child ?? 0;
-            $oldTotalExtra = $oldExtraAdults + $oldExtraChildren;
-            
-            if ($extraGuestsInNewRoom > 0 && $oldTotalExtra > 0) {
-                $adultRatio = $oldExtraAdults / $oldTotalExtra;
-                $extraAdults = round($extraGuestsInNewRoom * $adultRatio);
-                $extraChildren = $extraGuestsInNewRoom - $extraAdults;
-            } else {
-                $extraAdults = 0;
-                $extraChildren = 0;
-            }
-            
-            $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
-
-            // So sánh giá
-            $priceDiff = $roomBasePrice - $currentRoomBasePrice;
-            $isUpgrade = $priceDiff >= 0;
-            $isDowngrade = $priceDiff < 0;
-
-            $imagePath = '/images/room-placeholder.jpg';
-            if ($room->images && $room->images->count() > 0) {
-                $firstImage = $room->images->first();
-                if ($firstImage->image_url) {
-                    $imagePath = $firstImage->image_url;
-                } elseif ($firstImage->image_path) {
-                    $imagePath = asset('storage/' . $firstImage->image_path);
+                $totalGuests = $item->so_nguoi_o ?? 0;
+                if ($totalGuests == 0) {
+                    $oldRoomCapacity = $item->phong->suc_chua ?? 2;
+                    $totalGuests = $oldRoomCapacity + ($item->number_adult ?? 0) + ($item->number_child ?? 0);
                 }
-            }
 
-            return [
-                'id' => $room->id,
-                'code' => $room->ma_phong,
-                'name' => $room->name,
-                'type_name' => $room->loaiPhong->ten ?? 'Standard',
-                'type_id' => $room->loai_phong_id,
-                'price_per_night' => $roomBasePrice,
-                'extra_charge' => $extraCharge,
-                'extra_adults' => $extraAdults,
-                'extra_children' => $extraChildren,
-                'price_difference' => $priceDiff,
-                'is_upgrade' => $isUpgrade,
-                'is_downgrade' => $isDowngrade,
-                'image' => $imagePath,
-                'capacity' => $roomCapacity,
-            ];
-        })
-        ->filter(function($room) use ($showLowerPrice) {
-            // ✅ Mặc định chỉ hiện phòng giá >= hiện tại
-            if (!$showLowerPrice) {
-                return $room['is_upgrade']; // >= giá hiện tại
-            }
-            return true; // Hiện tất cả
-        })
-        ->groupBy('type_id')
-        ->map(function($rooms, $typeId) {
-            return [
-                'type_id' => $typeId,
-                'type_name' => $rooms->first()['type_name'],
-                'rooms' => $rooms->values()->toArray()
-            ];
-        })
-        ->values();
+                $extraGuestsInNewRoom = max(0, $totalGuests - $roomCapacity);
+                $oldExtraAdults = $item->number_adult ?? 0;
+                $oldExtraChildren = $item->number_child ?? 0;
+                $oldTotalExtra = $oldExtraAdults + $oldExtraChildren;
 
-    return response()->json([
-        'success' => true,
-        'current_room' => [
-            'id' => $currentRoom->id,
-            'code' => $currentRoom->ma_phong,
-            'name' => $currentRoom->name,
-            'price' => $currentRoomBasePrice,
-        ],
-        'available_rooms' => $availableRooms,
-        'booking_info' => [
-            'nights' => $nights,
-            'is_checked_in' => true,
-        ],
-        'showing_lower_price' => (bool)$showLowerPrice,
-    ]);
-}
+                if ($extraGuestsInNewRoom > 0 && $oldTotalExtra > 0) {
+                    $adultRatio = $oldExtraAdults / $oldTotalExtra;
+                    $extraAdults = round($extraGuestsInNewRoom * $adultRatio);
+                    $extraChildren = $extraGuestsInNewRoom - $extraAdults;
+                } else {
+                    $extraAdults = 0;
+                    $extraChildren = 0;
+                }
 
-/**
- * Xử lý đổi phòng lỗi (KHÔNG tính tiền)
- */
-public function changeError(Request $request, $id)
-{
-    $item = DatPhongItem::findOrFail($id);
-    $booking = $item->datPhong;
-    $room = Phong::findOrFail($request->new_room_id);
+                $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
+                
+                // ✅ TỔNG GIÁ PHÒNG MỚI (GIÁ GỐC + PHỤ THU)
+                $newRoomTotalPrice = $roomBasePrice + $extraCharge;
+                
+                // ✅ SO SÁNH VỚI GIÁ ĐÃ LƯU (đã có phụ thu)
+                $priceDiff = $newRoomTotalPrice - $currentRoomTotalPrice;
+                $isUpgrade = $priceDiff >= 0;
 
-    if (!$booking->checked_in_at) {
-        return back()->with('error', 'Chỉ có thể đổi phòng lỗi khi đã check-in!');
+                $imagePath = '/images/room-placeholder.jpg';
+                if ($room->images && $room->images->count() > 0) {
+                    $firstImage = $room->images->first();
+                    if ($firstImage->image_url) {
+                        $imagePath = $firstImage->image_url;
+                    } elseif ($firstImage->image_path) {
+                        $imagePath = asset('storage/' . $firstImage->image_path);
+                    }
+                }
+
+                return [
+                    'id' => $room->id,
+                    'code' => $room->ma_phong,
+                    'name' => $room->name,
+                    'type_name' => $room->loaiPhong->ten ?? 'Standard',
+                    'type_id' => $room->loai_phong_id,
+                    'price_per_night' => $roomBasePrice,
+                    'extra_charge' => $extraCharge,
+                    'extra_adults' => $extraAdults,
+                    'extra_children' => $extraChildren,
+                    'price_difference' => $priceDiff, // ✅ Chênh lệch đã bao gồm phụ thu
+                    'is_upgrade' => $isUpgrade,
+                    'is_downgrade' => $priceDiff < 0,
+                    'image' => $imagePath,
+                    'capacity' => $roomCapacity,
+                ];
+            })
+            ->filter(function($room) use ($showLowerPrice) {
+                if (!$showLowerPrice) {
+                    return $room['is_upgrade'];
+                }
+                return true;
+            })
+            ->groupBy('type_id')
+            ->map(function($rooms, $typeId) {
+                return [
+                    'type_id' => $typeId,
+                    'type_name' => $rooms->first()['type_name'],
+                    'rooms' => $rooms->values()->toArray()
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'current_room' => [
+                'id' => $currentRoom->id,
+                'code' => $currentRoom->ma_phong,
+                'name' => $currentRoom->name,
+                'price' => $currentRoomTotalPrice, // ✅ Giá đã bao gồm phụ thu
+            ],
+            'available_rooms' => $availableRooms,
+            'booking_info' => [
+                'nights' => $nights,
+                'is_checked_in' => true,
+            ],
+            'showing_lower_price' => (bool)$showLowerPrice,
+        ]);
     }
 
-    $soDem = (int)$item->so_dem;
+    public function changeError(Request $request, $id)
+    {
+        $item = DatPhongItem::findOrFail($id);
+        $booking = $item->datPhong;
+        $room = Phong::findOrFail($request->new_room_id);
 
-    /* =====================================================
-     | 1️⃣ LƯU THÔNG TIN CŨ
-     ===================================================== */
-    $oldPhongId = $item->phong_id;
+        if (!$booking->checked_in_at) {
+            return back()->with('error', 'Chỉ có thể đổi phòng lỗi khi đã check-in!');
+        }
 
-    /* =====================================================
-     | 2️⃣ TÍNH LẠI PHỤ THU THEO SỨC CHỨA PHÒNG MỚI
-     ===================================================== */
-    $totalGuests = $item->so_nguoi_o ?? 0;
-    if ($totalGuests == 0) {
-        $oldRoomCapacity = $item->phong->suc_chua ?? 2;
-        $totalGuests = $oldRoomCapacity + ($item->number_adult ?? 0) + ($item->number_child ?? 0);
-    }
-    
-    $newRoomCapacity = $room->suc_chua ?? 2;
-    $extraGuestsInNewRoom = max(0, $totalGuests - $newRoomCapacity);
-    
-    $oldExtraAdults = $item->number_adult ?? 0;
-    $oldExtraChildren = $item->number_child ?? 0;
-    $oldTotalExtra = $oldExtraAdults + $oldExtraChildren;
-    
-    if ($extraGuestsInNewRoom > 0 && $oldTotalExtra > 0) {
-        $adultRatio = $oldExtraAdults / $oldTotalExtra;
-        $newExtraAdults = round($extraGuestsInNewRoom * $adultRatio);
-        $newExtraChildren = $extraGuestsInNewRoom - $newExtraAdults;
-    } else {
-        $newExtraAdults = 0;
-        $newExtraChildren = 0;
-    }
-    
-    $newExtraFee = ($newExtraAdults * 150000) + ($newExtraChildren * 60000);
-    $oldExtraFee = ($oldExtraAdults * 150000) + ($oldExtraChildren * 60000);
+        $soDem = (int)$item->so_dem;
+        $oldPhongId = $item->phong_id;
 
-    /* =====================================================
-     | 3️⃣ TÍNH VOUCHER
-     ===================================================== */
-    $roomCount = $booking->items->count() ?: 1;
-    $voucherItem = 0;
-    if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
-        $voucherItem = (float)$booking->discount_amount / $roomCount;
-    } elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
-        $voucherItem = (float)$booking->voucher_discount / $roomCount;
-    }
+        /* ===== PHÒNG CŨ (giống calculate) ===== */
+        $oldBase = $item->phong->tong_gia; // Giá gốc
+        $oldExtra = ($item->number_adult * 150000) + ($item->number_child * 60000);
+        $oldTotalPerNight = $oldBase + $oldExtra;
+        $oldTotal = $oldTotalPerNight * $soDem;
 
-    /* =====================================================
-     | 4️⃣ GIÁ PHÒNG CŨ VÀ MỚI
-     ===================================================== */
-    $oldRoomBasePrice = $item->phong->tong_gia ?? 0;
-    $newRoomBasePrice = $room->tong_gia ?? 0;
-    
-    $oldRoomTotalPrice = ($oldRoomBasePrice + $oldExtraFee) * $soDem;
-    $newRoomTotalPrice = ($newRoomBasePrice + $newExtraFee) * $soDem;
-
-    /* =====================================================
-     | 5️⃣ TÍNH CHÊNH LỆCH VÀ XÁC ĐỊNH LOẠI ĐỔI PHÒNG
-     ===================================================== */
-    $priceDifference = $newRoomTotalPrice - $oldRoomTotalPrice;
-    
-    $loaiDoiPhong = '';
-    $message = '';
-    
-    if ($priceDifference > 0) {
-        // Nâng cấp - MIỄN PHÍ
-        $loaiDoiPhong = 'nang_cap';
-        $message = "Đổi phòng lỗi thành công! (Nâng cấp miễn phí)";
+        /* ===== PHÒNG MỚI (giống calculate) ===== */
+        $newBase = $room->tong_gia ?? 0;
         
-    } elseif ($priceDifference < 0) {
-        // Hạ cấp - TRẢ LẠI TIỀN
-        $loaiDoiPhong = 'ha_cap';
-        $refundAmount = abs($priceDifference);
+        $totalGuests = $item->so_nguoi_o;
+        $capacity = $room->suc_chua ?? 2;
+        $extraGuests = max(0, $totalGuests - $capacity);
+
+        $oldExtraTotal = $item->number_adult + $item->number_child;
+        if ($extraGuests > 0 && $oldExtraTotal > 0) {
+            $adultRatio = $item->number_adult / $oldExtraTotal;
+            $newExtraAdults = round($extraGuests * $adultRatio);
+            $newExtraChildren = $extraGuests - $newExtraAdults;
+        } else {
+            $newExtraAdults = $newExtraChildren = 0;
+        }
+
+        $newExtra = ($newExtraAdults * 150000) + ($newExtraChildren * 60000);
+        $newTotalPerNight = $newBase + $newExtra;
+        $newTotal = $newTotalPerNight * $soDem;
+
+        /* ===== CHÊNH LỆCH ===== */
+        $priceDifference = $newTotal - $oldTotal;
+
+        $loaiDoiPhong = '';
+        $message = '';
+
+        if ($priceDifference > 0) {
+            $loaiDoiPhong = 'nang_cap';
+            $message = "Đổi phòng lỗi thành công! (Nâng cấp miễn phí)";
+        } elseif ($priceDifference < 0) {
+            $loaiDoiPhong = 'ha_cap';
+            $refundAmount = abs($priceDifference);
+            $booking->tong_tien -= $refundAmount;
+            $booking->save();
+            $message = "Đổi phòng lỗi thành công! Đã hoàn lại " . number_format($refundAmount) . "đ cho khách.";
+        } else {
+            $loaiDoiPhong = 'giu_nguyen';
+            $message = "Đổi phòng lỗi thành công! (Phòng ngang bằng)";
+        }
+
+        /* ===== UPDATE ITEM ===== */
+        // ✅ TÍNH GIÁ TRÊN ĐÊM (bao gồm phụ thu, trừ voucher)
+        $item->gia_tren_dem = $newBase + $newExtra; // ✅ ĐÚNG
         
-        $booking->tong_tien = $booking->tong_tien - $refundAmount;
-        $booking->save();
-        
-        $message = "Đổi phòng lỗi thành công! Đã hoàn lại " . number_format($refundAmount) . "đ cho khách.";
-        
-    } else {
-        // Ngang bằng - MIỄN PHÍ
-        $loaiDoiPhong = 'giu_nguyen';
-        $message = "Đổi phòng lỗi thành công! (Phòng ngang bằng)";
+        $item->phong_id = $room->id;
+        $item->loai_phong_id = $room->loai_phong_id;
+        $item->gia_tren_dem = $newBase; // ✅ Giá + phụ thu - voucher/đêm
+        $item->tong_item = $newBase * $soDem; // ✅ Chỉ lưu giá phòng gốc
+        $item->number_adult = $newExtraAdults;
+        $item->number_child = $newExtraChildren;
+        $item->so_nguoi_o = $totalGuests;
+        $item->save();
+
+        /* ===== GIỮ ĐỒ ĂN & DỊCH VỤ ===== */
+        \DB::table('hoa_don_items')
+            ->where('phong_id', $oldPhongId)
+            ->whereIn('hoa_don_id', function($query) use ($booking) {
+                $query->select('id')->from('hoa_don')->where('dat_phong_id', $booking->id);
+            })
+            ->update(['phong_id' => $room->id]);
+
+        \DB::table('phong_vat_dung_consumptions')
+            ->where('dat_phong_id', $booking->id)
+            ->where('phong_id', $oldPhongId)
+            ->update(['phong_id' => $room->id]);
+
+        \DB::table('vat_dung_incidents')
+            ->where('dat_phong_id', $booking->id)
+            ->where('phong_id', $oldPhongId)
+            ->update(['phong_id' => $room->id]);
+
+        /* ===== LỊCH SỬ ===== */
+        \App\Models\LichSuDoiPhong::create([
+            'dat_phong_id' => $booking->id,
+            'dat_phong_item_id' => $item->id,
+            'phong_cu_id' => $oldPhongId,
+            'phong_moi_id' => $room->id,
+            'gia_cu' => $oldTotal, // ✅ Giá cũ (đã có phụ thu)
+            'gia_moi' => $newTotal, // ✅ Giá mới (đã có phụ thu)
+            'so_dem' => $soDem,
+            'loai' => $loaiDoiPhong,
+            'nguoi_thuc_hien' => 'admin',
+        ]);
+
+        return back()->with('success', $message);
     }
 
-    /* =====================================================
-     | 6️⃣ CẬP NHẬT ITEM
-     ===================================================== */
-    $newRoomPrice = (float)$room->tong_gia * $soDem;
-    $newGiaTrenDem = ($newRoomPrice + $newExtraFee - $voucherItem) / $soDem;
-    
-    $item->phong_id = $room->id;
-    $item->loai_phong_id = $room->loai_phong_id;
-    $item->gia_tren_dem = $newGiaTrenDem;
-    $item->tong_item = $newRoomPrice;
-    $item->number_adult = $newExtraAdults;
-    $item->number_child = $newExtraChildren;
-    $item->so_nguoi_o = $totalGuests;
-    $item->save();
 
-    /* =====================================================
-     | 🆕 7️⃣ UPDATE CÁC BẢNG LIÊN QUAN - GIỮ DANH SÁCH PHÁT SINH
-     ===================================================== */
-    
-    // ✅ 7.1. Update hoa_don_items
-    \DB::table('hoa_don_items')
-        ->where('phong_id', $oldPhongId)
-        ->whereIn('hoa_don_id', function($query) use ($booking) {
-            $query->select('id')
-                  ->from('hoa_don')
-                  ->where('dat_phong_id', $booking->id);
-        })
-        ->update(['phong_id' => $room->id]);
 
-    // ✅ 7.2. Update phong_vat_dung_consumptions
-    \DB::table('phong_vat_dung_consumptions')
-        ->where('dat_phong_id', $booking->id)
-        ->where('phong_id', $oldPhongId)
-        ->update(['phong_id' => $room->id]);
-
-    // ✅ 7.3. Update vat_dung_incidents
-    \DB::table('vat_dung_incidents')
-        ->where('dat_phong_id', $booking->id)
-        ->where('phong_id', $oldPhongId)
-        ->update(['phong_id' => $room->id]);
-
-    /* =====================================================
-     | 8️⃣ LƯU LỊCH SỬ ĐỔI PHÒNG LỖI
-     ===================================================== */
-    \App\Models\LichSuDoiPhong::create([
-        'dat_phong_id' => $booking->id,
-        'dat_phong_item_id' => $item->id,
-        'phong_cu_id' => $oldPhongId,
-        'phong_moi_id' => $room->id,
-        'gia_cu' => $oldRoomBasePrice,
-        'gia_moi' => $newRoomBasePrice,
-        'so_dem' => $soDem,
-        'loai' => $loaiDoiPhong,
-        'nguoi_thuc_hien' =>'admin',
-    ]);
-
-    \Log::info('🔧 Room Error Change', [
-        'booking_id' => $booking->id,
-        'old_room_id' => $oldPhongId,
-        'new_room_id' => $room->id,
-        'old_price' => $oldRoomBasePrice,
-        'new_price' => $newRoomBasePrice,
-        'price_difference' => $priceDifference,
-        'type' => $loaiDoiPhong,
-        'refund' => $priceDifference < 0 ? abs($priceDifference) : 0,
-    ]);
-
-    return back()->with('success', $message);
-}
 }

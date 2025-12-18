@@ -278,34 +278,45 @@ function selectRoom(roomId, roomDataStr) {
 
         document.getElementById('new-room-summary').style.display = 'block';
         document.getElementById('new-room-name').textContent = `#${roomData.code} - ${roomData.name}`;
-        document.getElementById('new-room-price').textContent = `Giá: ${formatNumber(roomData.price_per_night)}đ/đêm`;
         
-        // ✅ TÍNH TOÁN CHÊNH LỆCH
+        const totalPerNight = roomData.price_per_night + roomData.extra_charge;
+        document.getElementById('new-room-price').textContent = 
+            `Giá: ${formatNumber(roomData.price_per_night)}đ/đêm` +
+            (roomData.extra_charge > 0 ? ` + Phụ thu: ${formatNumber(roomData.extra_charge)}đ` : '');
+        
+        // ✅ TÍNH TOÁN CHÊNH LỆCH (GIỐNG CALCULATE)
         const bookingCurrent = {{ $booking->tong_tien }};
-        const oldRoomPrice = {{ $item->phong->tong_gia ?? 0 }};
-        const oldExtraFee = {{ $extraFee ?? 0 }};
-        const nights = 2; // bookingData.nights
+        const nights = {{ $nights }};
         
-        const priceDiff = (roomData.price_per_night - oldRoomPrice) * nights;
-        const extraFeeDiff = (roomData.extra_charge - oldExtraFee) * nights;
-        const totalDiff = priceDiff + extraFeeDiff;
+        // Phòng cũ
+        const oldRoomBase = {{ $currentRoomBase }};
+        const oldExtraFee = {{ $currentExtraFee }};
+        const oldTotalPerNight = oldRoomBase + oldExtraFee;
+        const oldTotal = oldTotalPerNight * nights;
         
-        const bookingAfter = bookingCurrent + totalDiff;
+        // Phòng mới
+        const newRoomBase = roomData.price_per_night;
+        const newExtra = roomData.extra_charge;
+        const newTotalPerNight = newRoomBase + newExtra;
+        const newTotal = newTotalPerNight * nights;
+        
+        // Chênh lệch
+        const priceDiff = newTotal - oldTotal;
+        const bookingAfter = bookingCurrent + priceDiff;
         
         document.getElementById('booking-change-info').style.display = 'block';
-        document.getElementById('booking-after').textContent = formatNumber(Math.max(0, bookingAfter)) + 'đ';
         
         const alertBox = document.getElementById('change-alert');
         
-        if (totalDiff > 0) {
-            // Nâng cấp - miễn phí
+        if (priceDiff > 0) {
+            // Nâng cấp - miễn phí (KHÔNG CẬP NHẬT BOOKING)
             alertBox.className = 'alert alert-success mt-2 small text-center';
             alertBox.innerHTML = '<strong>NÂNG CẤP MIỄN PHÍ</strong><br>Không tính thêm tiền';
             document.getElementById('booking-after').textContent = formatNumber(bookingCurrent) + 'đ';
             
-        } else if (totalDiff < 0) {
-            // Hạ cấp - hoàn tiền
-            const refund = Math.abs(totalDiff);
+        } else if (priceDiff < 0) {
+            // Hạ cấp - hoàn tiền (CẬP NHẬT BOOKING)
+            const refund = Math.abs(priceDiff);
             alertBox.className = 'alert alert-warning mt-2 small text-center';
             alertBox.innerHTML = `<strong>HẠ CẤP</strong><br>Hoàn lại: ${formatNumber(refund)}đ`;
             document.getElementById('booking-after').textContent = formatNumber(bookingAfter) + 'đ';
@@ -317,19 +328,36 @@ function selectRoom(roomId, roomDataStr) {
             document.getElementById('booking-after').textContent = formatNumber(bookingCurrent) + 'đ';
         }
         
-        const comparison = roomData.is_upgrade 
+        const comparison = priceDiff >= 0
             ? `<span class="text-success"><i class="fas fa-arrow-up"></i> Nâng cấp (miễn phí)</span>`
-            : `<span class="text-warning"><i class="fas fa-arrow-down"></i> Hạ cấp (hoàn ${formatNumber(Math.abs(totalDiff))}đ)</span>`;
+            : `<span class="text-warning"><i class="fas fa-arrow-down"></i> Hạ cấp (hoàn ${formatNumber(Math.abs(priceDiff))}đ)</span>`;
         
         document.getElementById('new-room-comparison').innerHTML = comparison;
+
+        console.log('📊 Tính toán:', {
+            'Phòng cũ': {
+                base: oldRoomBase,
+                extra: oldExtraFee,
+                perNight: oldTotalPerNight,
+                total: oldTotal
+            },
+            'Phòng mới': {
+                base: newRoomBase,
+                extra: newExtra,
+                perNight: newTotalPerNight,
+                total: newTotal
+            },
+            'Chênh lệch': priceDiff,
+            'Booking trước': bookingCurrent,
+            'Booking sau': bookingAfter
+        });
 
     } catch (error) {
         console.error('Error:', error);
         alert('Lỗi khi chọn phòng!');
     }
+
 }
-
-
 // Toggle nút xem phòng giá thấp
 document.getElementById('toggle-lower-price').addEventListener('click', function() {
     showingLowerPrice = !showingLowerPrice;
