@@ -1095,6 +1095,73 @@
         </div>
     </div>
 
+    {{-- Top khách hàng chi tiêu nhiều nhất --}}
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-trophy-fill me-2 text-warning"></i>Top Khách Hàng Chi Tiêu Nhiều Nhất
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3" style="width: 50px;">#</th>
+                                    <th>Khách hàng</th>
+                                    <th class="text-center">Số đơn</th>
+                                    <th class="text-end pe-3">Tổng chi tiêu</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($topCustomers as $index => $customer)
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="d-flex align-items-center justify-content-center"
+                                                style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold;">
+                                                {{ $index + 1 }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold text-dark">{{ $customer->name ?? 'N/A' }}</div>
+                                            <div class="small text-muted">
+                                                <i class="bi bi-envelope me-1"></i>{{ $customer->email ?? 'N/A' }}
+                                            </div>
+                                            @if($customer->so_dien_thoai)
+                                                <div class="small text-muted">
+                                                    <i class="bi bi-telephone me-1"></i>{{ $customer->so_dien_thoai }}
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge bg-info-subtle text-info fs-6 px-3 py-2">
+                                                {{ number_format($customer->total_bookings ?? 0) }} đơn
+                                            </span>
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            <div class="fw-bold text-success" style="font-size: 1.1rem;">
+                                                {{ number_format($customer->total_spent ?? 0, 0, '.', '.') }}đ
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">
+                                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                            <span>Chưa có dữ liệu khách hàng</span>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Lịch đặt phòng --}}
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-gradient-primary text-white py-3">
