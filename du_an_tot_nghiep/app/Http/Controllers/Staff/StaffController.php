@@ -441,6 +441,29 @@ class StaffController extends Controller
             }
         }
 
+        // === Top khách hàng chi tiêu nhiều nhất ===
+        try {
+            $topCustomers = DB::table('users as u')
+                ->join('dat_phong as dp', 'u.id', '=', 'dp.nguoi_dung_id')
+                ->join('hoa_don as hd', 'dp.id', '=', 'hd.dat_phong_id')
+                ->whereNotIn('hd.trang_thai', ['da_huy'])
+                ->select(
+                    'u.id',
+                    'u.name',
+                    'u.email',
+                    'u.so_dien_thoai',
+                    DB::raw('SUM(hd.tong_thuc_thu) as total_spent'),
+                    DB::raw('COUNT(DISTINCT dp.id) as total_bookings')
+                )
+                ->groupBy('u.id', 'u.name', 'u.email', 'u.so_dien_thoai')
+                ->orderByDesc('total_spent')
+                ->limit(10)
+                ->get();
+        } catch (\Exception $e) {
+            Log::error('Error fetching top customers', ['error' => $e->getMessage()]);
+            $topCustomers = collect([]); // Trả về collection rỗng nếu có lỗi
+        }
+
         return view('staff.index', compact(
             'pendingBookings',
             'todayRevenue',
@@ -489,6 +512,7 @@ class StaffController extends Controller
             'customChartLabels',
             'customChartData',
             'customPaid',
+            'topCustomers',
         ));
     }
 
