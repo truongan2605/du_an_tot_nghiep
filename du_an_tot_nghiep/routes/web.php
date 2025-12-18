@@ -10,16 +10,19 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
 use App\Http\Controllers\Client\RoomController;
 use App\Http\Controllers\Staff\StaffController;
+use App\Http\Controllers\Staff\HoaDonController;
 use App\Http\Controllers\Staff\RefundController;
 use App\Http\Controllers\Admin\BedTypeController;
+use App\Http\Controllers\Admin\DanhGiaController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
 use App\Http\Controllers\Admin\ThongBaoController;
 use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\Client\PaymentController;
+
 use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Staff\AuditLogController;
-
+use App\Http\Controllers\Staff\CheckoutController;
 use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
@@ -29,26 +32,24 @@ use App\Http\Controllers\CustomerNotificationController;
 use App\Http\Controllers\InternalNotificationController;
 use App\Http\Controllers\Admin\VatDungIncidentController;
 use App\Http\Controllers\Client\BlogController as ClientBlog;
-use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
-use App\Http\Controllers\Admin\PhongConsumptionController;
-use App\Http\Controllers\Payment\ConfirmPaymentController;
 
 // Equipment/Room (extended)
-use App\Http\Controllers\Admin\AdminNotificationController;
-use App\Http\Controllers\Admin\BatchNotificationController;
+use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
+use App\Http\Controllers\Admin\PhongConsumptionController;
 
 
 // BLOG (Admin + Client)
+use App\Http\Controllers\Payment\ConfirmPaymentController;
+use App\Http\Controllers\Admin\AdminNotificationController;
+
+use App\Http\Controllers\Admin\BatchNotificationController;
+use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
-
-use App\Http\Controllers\Admin\DanhGiaController;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
-use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
-use App\Http\Controllers\Staff\CheckoutController;
-use App\Http\Controllers\Client\DanhGiaController as ClientDanhGiaController;
 
+use App\Http\Controllers\Client\DanhGiaController as ClientDanhGiaController;
 use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
 use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 
@@ -234,6 +235,8 @@ Route::middleware(['auth', 'ensure.active', 'role:nhan_vien|admin'])
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/analytics/rooms', [StaffController::class, 'roomAnalytics'])->name('analytics.rooms');
         Route::get('/analytics/rooms/pdf', [StaffController::class, 'exportRoomAnalyticsPDF'])->name('analytics.rooms.pdf');
+        Route::get('/api/room-revenue-filter', [StaffController::class, 'getFilteredRoomRevenue'])->name('api.room-revenue-filter');
+        Route::get('/api/roomtype-revenue-filter', [StaffController::class, 'getFilteredRoomTypeRevenue'])->name('api.roomtype-revenue-filter');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
 
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
@@ -298,6 +301,8 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
         ->name('staff.checkout.pay-online');
     Route::match(['get', 'post'], '/staff/checkout/payment/callback', [CheckoutController::class, 'handlePaymentCallback'])
         ->name('staff.checkout.payment.callback');
+    Route::get('/invoices', [HoaDonController::class, 'index'])->name('staff.invoices.index');
+    Route::get('/invoices/{hoaDon}', [HoaDonController::class, 'show'])->name('staff.invoices.show');
 });
 
 

@@ -25,85 +25,97 @@
         {{-- CÁC CHỈ SỐ KPI --}}
         <div class="row g-3 mb-4">
             <div class="col-6 col-md-4 col-lg-2">
-                <div class="card kpi-card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-house-door-fill fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-house-door-fill fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Số phòng trống</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($soPhongTrong ?? 0) }}</h2>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Số phòng trống</h6>
+                        <h2 class="mb-0 fw-bold" style="font-size: 2rem; line-height: 1.2;">{{ number_format($soPhongTrong ?? 0) }}</h2>
                     </div>
                 </div>
             </div>
 
             <div class="col-6 col-md-4 col-lg-2">
-                <div class="card kpi-card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-people-fill fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-people-fill fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Phòng đang có khách</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($soPhongDangCoKhach ?? 0) }}</h2>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Phòng đang có khách</h6>
+                        <h2 class="mb-0 fw-bold" style="font-size: 2rem; line-height: 1.2;">{{ number_format($soPhongDangCoKhach ?? 0) }}</h2>
                     </div>
                 </div>
             </div>
 
             <div class="col-6 col-md-4 col-lg-2">
-                <div class="card kpi-card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-tools fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-tools fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Chờ dọn / Bảo trì</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($soPhongChoDonBaoTri ?? 0) }}</h2>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Chờ dọn / Bảo trì</h6>
+                        <h2 class="mb-0 fw-bold" style="font-size: 2rem; line-height: 1.2;">{{ number_format($soPhongChoDonBaoTri ?? 0) }}</h2>
                     </div>
                 </div>
             </div>
 
             <div class="col-6 col-md-4 col-lg-2">
-                <div class="card kpi-card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-calendar-check-fill fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-calendar-check-fill fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Đặt phòng hôm nay</h6>
-                        <h2 class="mb-0 fw-bold">{{ number_format($soDatPhongHomNay ?? 0) }}</h2>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Đặt phòng hôm nay</h6>
+                        <h2 class="mb-0 fw-bold" style="font-size: 2rem; line-height: 1.2;">{{ number_format($soDatPhongHomNay ?? 0) }}</h2>
                     </div>
                 </div>
             </div>
 
             <div class="col-6 col-md-4 col-lg-2">
-                <div class="card kpi-card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-cash-coin fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-cash-coin fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Doanh thu hôm nay</h6>
-                        <h2 class="mb-0 fw-bold" style="font-size: 1.1rem;">{{ number_format($tongDoanhThuHomNay ?? 0, 0) }}đ</h2>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Doanh thu hôm nay</h6>
+                        <h2 class="mb-0 fw-bold" style="font-size: 1.5rem; line-height: 1.2; word-break: break-word;">{{ number_format($tongDoanhThuHomNay ?? 0, 0) }}đ</h2>
                     </div>
                 </div>
             </div>
 
             <div class="col-6 col-md-4 col-lg-2">
-                <div class="card kpi-card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                    <div class="card-body text-white p-3">
-                        <div class="d-flex align-items-start justify-content-between mb-2">
-                            <div class="kpi-icon-wrapper bg-white bg-opacity-20 rounded-circle p-2">
-                                <i class="bi bi-graph-up-arrow fs-4"></i>
+                <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
+                    style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); transition: all 0.3s ease;">
+                    <div class="card-body text-white p-4">
+                        <div class="d-flex align-items-start justify-content-between mb-3">
+                            <div class="kpi-icon-wrapper bg-white bg-opacity-25 rounded-circle p-3 shadow-sm"
+                                style="transition: transform 0.3s ease;">
+                                <i class="bi bi-graph-up-arrow fs-3"></i>
                             </div>
                         </div>
-                        <h6 class="mb-1 text-white-50 small fw-normal">Doanh thu tháng này</h6>
-                        <h2 class="mb-0 fw-bold" style="font-size: 1.1rem;">{{ number_format($doanhThuThangNay ?? 0, 0) }}đ</h2>
+                        <h6 class="mb-2 text-white-75 small fw-semibold text-uppercase" style="letter-spacing: 0.5px;">Doanh thu tháng này</h6>
+                        <h2 class="mb-0 fw-bold" style="font-size: 1.5rem; line-height: 1.2; word-break: break-word;">{{ number_format($doanhThuThangNay ?? 0, 0) }}đ</h2>
                     </div>
                 </div>
             </div>
@@ -918,12 +930,13 @@
 
         /* KPI Cards */
         .kpi-card {
-            border-radius: 12px;
-            transition: all 0.3s ease;
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             position: relative;
+            cursor: pointer;
         }
-        
+
         .kpi-card::before {
             content: '';
             position: absolute;
@@ -931,21 +944,37 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 100%);
             pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
-        
-        .kpi-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+
+        .kpi-card:hover::before {
+            opacity: 1;
         }
-        
+
+        .kpi-card-hover:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2) !important;
+        }
+
         .kpi-icon-wrapper {
-            transition: transform 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
         }
-        
+
         .kpi-card:hover .kpi-icon-wrapper {
-            transform: scale(1.1);
+            transform: scale(1.15) rotate(5deg);
+            background: rgba(255, 255, 255, 0.3) !important;
+        }
+
+        .kpi-card .card-body h2 {
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card:hover .card-body h2 {
+            transform: scale(1.05);
         }
 
         @media (max-width: 768px) {

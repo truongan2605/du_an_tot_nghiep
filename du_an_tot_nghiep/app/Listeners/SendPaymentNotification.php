@@ -81,7 +81,7 @@ class SendPaymentNotification implements ShouldQueue
                 'payload' => [
                     'title' => 'Nhận thanh toán mới',
                     'message' => "Khách {$booking->nguoiDung->name} đã thanh toán đơn #{$booking->ma_tham_chieu}. Số tiền: " . number_format($transaction->so_tien, 0, ',', '.') . " VNĐ",
-                    'link' => "/admin/giao-dich/{$transaction->id}",
+                    'link' => "/staff/bookings/{$booking->id}",
                     'booking_id' => $booking->id,
                     'transaction_id' => $transaction->id,
                     'customer_name' => $booking->nguoiDung->name,
