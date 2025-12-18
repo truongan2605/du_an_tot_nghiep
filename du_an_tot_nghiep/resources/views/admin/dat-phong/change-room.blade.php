@@ -218,6 +218,8 @@
 <script>
 let bookingData = null;
 let selectedRoomData = null;
+const OLD_ROOM_PRICE_PER_NIGHT = {{ $item->gia_tren_dem }};
+const OLD_EXTRA_PER_NIGHT = {{ $extraFee / $soDem }};
 
 async function loadAvailableRooms() {
     try {
@@ -395,63 +397,78 @@ function renderAvailableRooms(roomsData) {
 // ===== CHỌN PHÒNG =====
 function selectRoom(roomId, roomDataStr) {
     try {
-        const roomData = typeof roomDataStr === 'string' ? JSON.parse(roomDataStr) : roomDataStr;
-        
-        console.log('🎯 Selected room:', roomData);
-        
-        // Highlight selected
-        document.querySelectorAll('.room-card').forEach(e => e.classList.remove('selected'));
+        const roomData = typeof roomDataStr === 'string'
+            ? JSON.parse(roomDataStr)
+            : roomDataStr;
+
+        // Highlight
+        document.querySelectorAll('.room-card')
+            .forEach(e => e.classList.remove('selected'));
         document.getElementById('room-' + roomId)?.classList.add('selected');
 
-        // Save data
         selectedRoomData = roomData;
         document.getElementById('new_room_id').value = roomId;
         document.getElementById('confirm-btn').disabled = false;
 
-        // Update summary
+        // ===== GIÁ PHÒNG CŨ (ĐÃ CÓ PHỤ THU) =====
+        const oldPerNight = {{ round(($currentRoomOriginalPrice + $extraFee) / $soDem) }};
+        const nights = bookingData.nights;
+
+        // ===== GIÁ PHÒNG MỚI =====
+        const newPerNight = roomData.price_per_night + (roomData.extra_charge || 0);
+
+        // ===== CHÊNH LỆCH =====
+        const diffPerNight = newPerNight - oldPerNight;
+        const totalDiff = diffPerNight * nights;
+
+        // ===== UPDATE UI =====
         document.getElementById('new-room-summary').style.display = 'block';
-        document.getElementById('new-room-name').textContent = `#${roomData.code} - ${roomData.name}`;
-        
-        const totalNew = (roomData.price_per_night + roomData.extra_charge) * bookingData.nights;
-        document.getElementById('new-room-total').textContent = formatNumber(totalNew) + 'đ';
-        
-        if (roomData.extra_charge > 0) {
-            document.getElementById('new-room-extra').textContent = 
-                `${bookingData.nights} đêm × ${formatNumber(roomData.price_per_night)}đ + Phụ thu ${formatNumber(roomData.extra_charge * bookingData.nights)}đ`;
+        document.getElementById('new-room-name').textContent =
+            `#${roomData.code} - ${roomData.name}`;
+
+        document.getElementById('new-room-total').textContent =
+            formatNumber(newPerNight * nights) + 'đ';
+
+        // 👉 NOTE PHỤ THU
+        if ((roomData.extra_charge || 0) > 0) {
+            document.getElementById('new-room-extra').textContent =
+                `Phụ thu: ${formatNumber(roomData.extra_charge)}đ / đêm × ${nights} đêm`;
         } else {
-            document.getElementById('new-room-extra').textContent = 
-                `${bookingData.nights} đêm × ${formatNumber(roomData.price_per_night)}đ`;
+            document.getElementById('new-room-extra').textContent =
+                'Không có phụ thu';
         }
 
-        // Tính tổng booking mới
+        // ===== TỔNG BOOKING =====
         const bookingCurrent = {{ $booking->tong_tien }};
-        const priceDiff = roomData.price_difference * bookingData.nights;
-        const bookingNew = bookingCurrent + priceDiff;
+        const bookingNew = bookingCurrent + totalDiff;
 
-        console.log('💰 Price calculation:', {
-            bookingCurrent,
-            priceDiff,
+        const txt = document.getElementById('booking-new-total-txt');
+        txt.textContent = formatNumber(bookingNew) + 'đ';
+
+        txt.classList.remove('text-success', 'text-danger', 'text-primary');
+        if (totalDiff > 0) {
+            txt.classList.add('text-danger'); // tăng tiền
+        } else if (totalDiff < 0) {
+            txt.classList.add('text-success'); // giảm tiền
+        } else {
+            txt.classList.add('text-primary'); // không đổi
+        }
+
+        console.log('💰 CALC OK', {
+            oldPerNight,
+            newPerNight,
+            diffPerNight,
+            totalDiff,
             bookingNew
         });
 
-        document.getElementById('booking-new-total-txt').textContent = formatNumber(bookingNew) + 'đ';
-        
-        // Đổi màu theo chênh lệch
-        const newTotalElement = document.getElementById('booking-new-total-txt');
-        newTotalElement.classList.remove('text-success', 'text-danger', 'text-primary');
-        if (priceDiff > 0) {
-            newTotalElement.classList.add('text-danger');
-        } else if (priceDiff < 0) {
-            newTotalElement.classList.add('text-success');
-        } else {
-            newTotalElement.classList.add('text-primary');
-        }
-
-    } catch (error) {
-        console.error('❌ Error selecting room:', error);
-        alert('Lỗi khi chọn phòng. Vui lòng thử lại!');
+    } catch (err) {
+        console.error('❌ selectRoom error', err);
+        alert('Lỗi khi chọn phòng');
     }
 }
+
+
 
 // ===== FORMAT NUMBER =====
 function formatNumber(num) {

@@ -13,6 +13,7 @@ use App\Events\BookingCreated;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use App\Models\LichSuDoiPhong;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 
@@ -2537,6 +2538,26 @@ class BookingController extends Controller
             return back()->with('error', 'Có lỗi xảy ra khi hủy đặt phòng. Vui lòng thử lại sau.');
         }
     }
+    // AdminDatPhongController.php
+public function showdoiphongadmin($id)
+{
+    
+$booking = DatPhong::with('items.phong')->findOrFail($id);
+
+    $lichSuDoiPhong = LichSuDoiPhong::with([
+            'phongCu',
+            'phongMoi'
+        ])
+        ->where('dat_phong_id', $booking->id)
+        ->orderByDesc('created_at')
+        ->get();
+
+    return view('admin.dat-phong.show', compact(
+        'booking',
+        'lichSuDoiPhong'
+    ));
+}
+
 
     /**
      * Calculate refund percentage based on Option B policy:

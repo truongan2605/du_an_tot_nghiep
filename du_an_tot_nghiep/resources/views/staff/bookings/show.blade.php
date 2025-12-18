@@ -12,14 +12,7 @@
             </h1>
             <p class="text-muted">Thông tin chi tiết đặt phòng</p>
             
-            {{-- Staff Action Buttons --}}
-            @if(in_array($booking->trang_thai, ['da_xac_nhan', 'dang_su_dung']))
-                <div class="mt-3">
-                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#staffChangeRoomModal">
-                        <i class="bi bi-shuffle me-2"></i>Đổi phòng
-                    </button>
-                </div>
-            @endif
+          
         </div>
 
         <!-- Main Card -->
@@ -575,6 +568,17 @@
     </a>
 @endif
 
+@if($booking->checked_in_at  )
+   @if(
+    !in_array($booking->trang_thai, ['da_huy', 'da_hoan_thanh'])
+    && is_object($item)
+) {{-- Đã check-in → Hiện nút đổi phòng lỗi --}}
+    <a href="{{ route('admin.change-room-error.form', $item->id) }}" 
+       class="btn btn-danger">
+        <i class="fas fa-exclamation-triangle"></i> Đổi phòng lỗi
+    </a>
+    @endif
+@endif
 </div>
                                 </div>
                             </div>
@@ -586,6 +590,11 @@
                         <p>Chưa có phòng nào được gán.</p>
                     </div>
                 @endif
+                <a href="{{ route('admin.dat-phong.lich-su-doi-phong', $booking->id) }}"
+   class="btn btn-outline-primary">
+    Lịch sử đổi phòng
+</a>
+
 
                 <!-- Modal: Thêm đồ ăn (gọi thêm) -->
                 <div class="modal fade" id="addFoodModal" tabindex="-1" aria-labelledby="addFoodModalLabel"

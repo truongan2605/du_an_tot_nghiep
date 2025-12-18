@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminChangeRoomController;
+use App\Http\Controllers\Admin\AdminLichSuDoiPhongController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\HomeController;
@@ -180,8 +181,8 @@ Route::prefix('admin')
         Route::get('/danh-gia', [DanhGiaController::class, 'index'])->name('danhgia.index');
         Route::get('/danh-gia/{id}', [DanhGiaController::class, 'show'])->name('danhgia.show');
         Route::post('/danh-gia/{id}/toggle', [DanhGiaController::class, 'toggleStatus'])->name('danhgia.toggle');
-         Route::delete('/danh-gia/{id}/delete', [DanhGiaController::class, 'destroy'])->name('danhgia.delete');
-       
+        Route::delete('/danh-gia/{id}/delete', [DanhGiaController::class, 'destroy'])->name('danhgia.delete');
+
         // trả lời
         Route::post(
             '/danh-gia/{id}/reply',
@@ -289,33 +290,58 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])->group(function () {
     Route::post('/staff/bookings/{booking}/invoices/{hoaDon}/confirm', [CheckoutController::class, 'confirmPayment'])
         ->name('staff.bookings.invoices.confirm');
 
-        Route::post('/bookings/{id}/change-room', [BookingController::class, 'changeRoom'])
-    ->name('booking.changeRoom');
+    Route::post('/bookings/{id}/change-room', [BookingController::class, 'changeRoom'])
+        ->name('booking.changeRoom');
 
-// Đổi phòng – Hiển thị form
-Route::get('/admin/change-room/{id}', 
-    [AdminChangeRoomController::class, 'form']
-)->name('admin.change-room.form');
+    // Đổi phòng – Hiển thị form
+    Route::get(
+        '/admin/change-room/{id}',
+        [AdminChangeRoomController::class, 'form']
+    )->name('admin.change-room.form');
 
-// Đổi phòng – Xử lý
-Route::post('/admin/change-room/{id}', 
-    [AdminChangeRoomController::class, 'change']
-)->name('admin.change-room.apply');
+    // Đổi phòng – Xử lý
+    Route::post(
+        '/admin/change-room/{id}',
+        [AdminChangeRoomController::class, 'change']
+    )->name('admin.change-room.apply');
 
-// Ajax tính giá
-Route::get('/admin/dat-phong/change-room/{id}/calculate',
-    [AdminChangeRoomController::class, 'calculate']
-)->name('admin.change-room.calculate');
+    // Ajax tính giá
+    Route::get(
+        '/admin/dat-phong/change-room/{id}/calculate',
+        [AdminChangeRoomController::class, 'calculate']
+    )->name('admin.change-room.calculate');
 
-// API lấy phòng trống
+    // API lấy phòng trống
     Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])
         ->name('booking.available-rooms');
 
-// Đổi phòng - API lấy phòng trống
-Route::get('/admin/change-room/{id}/available-rooms', [
-    AdminChangeRoomController::class, 
-    'getAvailableRooms'
-])->name('admin.change-room.available-rooms')->middleware('auth');
+    // Đổi phòng - API lấy phòng trống
+    Route::get('/admin/change-room/{id}/available-rooms', [
+        AdminChangeRoomController::class,
+        'getAvailableRooms'
+    ])->name('admin.change-room.available-rooms')->middleware('auth');
+    Route::get(
+    '/dat-phong/{id}/lich-su-doi-phong',
+    [AdminLichSuDoiPhongController::class, 'index']
+)->name('admin.dat-phong.lich-su-doi-phong');
+
+
+
+// Đổi phòng lỗi (không tính tiền)
+Route::get('/admin/change-room-error/{id}', [
+    App\Http\Controllers\Admin\AdminChangeRoomController::class, 
+    'formError'
+])->name('admin.change-room-error.form');
+
+Route::get('/admin/change-room-error/{id}/available-rooms', [
+    App\Http\Controllers\Admin\AdminChangeRoomController::class, 
+    'getAvailableRoomsForError'
+])->name('admin.change-room-error.available-rooms');
+
+Route::post('/admin/change-room-error/{id}/apply', [
+    App\Http\Controllers\Admin\AdminChangeRoomController::class, 
+    'changeError'
+])->name('admin.change-room-error.apply');
 });
 
 
@@ -345,7 +371,7 @@ Route::middleware('auth')
         Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
 
         Route::get('bookings/{booking}/available-vouchers', [BookingController::class, 'getAvailableVouchers'])->name('booking.available-vouchers');
-        
+
         // Room change
         Route::post('bookings/{booking}/change-room', [BookingController::class, 'changeRoom'])->name('booking.change-room');
 
@@ -357,7 +383,6 @@ Route::middleware('auth')
 
         // Room change callback (outside auth middleware to accept VNPay callback)
         Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
- 
     });
 
 // ==================== ROOM CHANGE CALLBACK (outside auth for VNPay) ====================
@@ -383,7 +408,7 @@ Route::middleware('auth')
         Route::post('/danh-gia/{booking}', [ClientDanhGiaController::class, 'store'])
             ->name('danhgia.store');
         // xóa đánh giá
-    
+
 
     });
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
