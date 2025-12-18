@@ -52,7 +52,7 @@
                 </thead>
                 <tbody>
                     @forelse($users as $user)
-                        <tr data-name="{{ strtolower($user->name) }}" data-email="{{ strtolower($user->email) }}" data-status="{{ $user->is_active ? 'active' : 'inactive' }}">
+                        <tr data-name="{{ strtolower($user->name) }}" data-email="{{ strtolower($user->email) }}" data-status="{{ $user->is_disabled ? 'inactive' : 'active' }}">
                             <td class="ps-4 small text-muted">{{ $user->id }}</td>
                             <td>
                                 <div class="d-flex align-items-center">
@@ -64,8 +64,8 @@
                             <td class="small"><i class="fas fa-envelope text-muted me-1"></i>{{ $user->email }}</td>
                             <td class="small">{{ $user->so_dien_thoai ?? 'N/A' }}</td>
                             <td>
-                                <span class="badge {{ $user->is_active ? 'bg-success' : 'bg-secondary' }}">
-                                    {{ $user->is_active ? 'Hoạt động' : 'Không hoạt động' }}
+                                <span class="badge {{ $user->is_disabled ? 'bg-danger' : 'bg-success' }}">
+                                    {{ $user->is_disabled ? 'Đã vô hiệu hóa' : 'Hoạt động' }}
                                 </span>
                             </td>
                             <td class="pe-4 text-end">
@@ -78,8 +78,8 @@
                                     </a>
                                     <form action="{{ route('admin.user.toggle', $user) }}" method="POST" style="display:inline;" class="d-inline me-1">
                                         @csrf @method('PATCH')
-                                        <button type="submit" class="btn {{ $user->is_active ? 'btn-outline-danger' : 'btn-outline-success' }}" title="{{ $user->is_active ? 'Vô Hiệu Hóa' : 'Kích Hoạt' }}" onclick="return confirm('Xác nhận {{ $user->is_active ? 'vô hiệu hóa' : 'kích hoạt' }} tài khoản?')">
-                                            <i class="fas {{ $user->is_active ? 'fa-ban' : 'fa-check' }}"></i>
+                                        <button type="submit" class="btn {{ $user->is_disabled ? 'btn-outline-success' : 'btn-outline-danger' }}" title="{{ $user->is_disabled ? 'Kích Hoạt' : 'Vô Hiệu Hóa' }}" onclick="return confirm('Xác nhận {{ $user->is_disabled ? 'kích hoạt' : 'vô hiệu hóa' }} tài khoản?')">
+                                            <i class="fas {{ $user->is_disabled ? 'fa-check' : 'fa-ban' }}"></i>
                                         </button>
                                     </form>
                                 </div>

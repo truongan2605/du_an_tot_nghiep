@@ -34,10 +34,18 @@ class AuthenticatedSessionController extends Controller
             'password' => ['required'],
         ]);
 
+        // Kiểm tra user bị admin vô hiệu hóa TRƯỚC khi attempt login
+        $user = User::where('email', $request->email)->first();
+        
+        if ($user && $user->is_disabled) {
+            throw ValidationException::withMessages([
+                'email' => 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.',
+            ]);
+        }
 
         if (!$this->attemptLogin($request)) {
             throw ValidationException::withMessages([
-                'email' => 'Thông tin đăng nhập không chính xác hoặc tài khoản đã bị vô hiệu hóa.',
+                'email' => 'Thông tin đăng nhập không chính xác.',
             ]);
         }
 

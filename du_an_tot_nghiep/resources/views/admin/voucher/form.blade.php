@@ -60,12 +60,11 @@
 </div>
 
 <div class="mb-3">
-    <label for="points_required">Điểm đổi (nullable)</label>
+    <label for="points_required">Điểm đổi </label>
     <input type="number" name="points_required" id="points_required" class="form-control"
         value="{{ old('points_required', isset($voucher) ? $voucher->points_required : '') }}" min="0"
         step="1" placeholder="Để trống hoặc 0 = miễn phí">
-    <small class="text-muted">Nếu đặt số điểm (vd: 1000) thì user cần có >= số điểm này để đổi voucher. Để trống = không
-        cần điểm.</small>
+    
 </div>
 
 <div class="mb-3">

@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\CheckRole::class,
             'manage.users' => \App\Http\Middleware\ManageUsers::class,
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'ensure.active' => \App\Http\Middleware\EnsureUserIsActive::class,
         ]);
 
       
