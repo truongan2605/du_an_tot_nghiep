@@ -221,6 +221,47 @@ let selectedRoomData = null;
 const OLD_ROOM_PRICE_PER_NIGHT = {{ $item->gia_tren_dem }};
 const OLD_EXTRA_PER_NIGHT = {{ $extraFee / $soDem }};
 
+// ✅ HÀM TÍNH GIÁ VỚI WEEKEND +10%
+function calculatePriceWithWeekend(pricePerNight, checkInDate, checkOutDate) {
+    const start = new Date(checkInDate);
+    const end = new Date(checkOutDate);
+    
+    let total = 0;
+    let details = [];
+    
+    let current = new Date(start);
+    while (current < end) {
+        const dayOfWeek = current.getDay(); // 0=CN, 5=T6, 6=T7
+        
+        let nightPrice;
+        let isWeekend = false;
+        
+        // Kiểm tra weekend
+        if ([0, 5, 6].includes(dayOfWeek)) {
+            nightPrice = pricePerNight * 1.10; // +10%
+            isWeekend = true;
+        } else {
+            nightPrice = pricePerNight;
+        }
+        
+        total += nightPrice;
+        
+        details.push({
+            date: current.toISOString().split('T')[0],
+            dayOfWeek: dayOfWeek,
+            price: nightPrice,
+            isWeekend: isWeekend
+        });
+        
+        current.setDate(current.getDate() + 1);
+    }
+    
+    return {
+        total: total,
+        details: details
+    };
+}
+
 async function loadAvailableRooms() {
     try {
         const response = await fetch("/admin/change-room/{{ $item->id }}/available-rooms?old_room_id={{ $item->phong_id }}", {
@@ -239,7 +280,6 @@ async function loadAvailableRooms() {
         console.log('📦 Full API Response:', data);
 
         if (data.success) {
-            // ✅ QUAN TRỌNG: SET bookingData TRƯỚC KHI render
             if (!data.booking_info) {
                 throw new Error('Missing booking_info in response');
             }
@@ -247,7 +287,6 @@ async function loadAvailableRooms() {
             bookingData = data.booking_info;
             console.log('✅ bookingData set:', bookingData);
             
-            // ✅ SAU ĐÓ MỚI render
             if (!data.available_rooms) {
                 throw new Error('Missing available_rooms in response');
             }
@@ -263,7 +302,6 @@ async function loadAvailableRooms() {
 }
 
 // ===== HIỂN THỊ DANH SÁCH PHÒNG =====
-
 function renderAvailableRooms(roomsData) {
     const container = document.getElementById('rooms-container');
     
@@ -274,7 +312,6 @@ function renderAvailableRooms(roomsData) {
         return;
     }
     
-    // Convert object to array nếu cần
     if (!Array.isArray(roomsData)) {
         roomsData = Object.values(roomsData);
     }
@@ -289,7 +326,6 @@ function renderAvailableRooms(roomsData) {
         return;
     }
 
-    // ✅ GROUP ROOMS BY TYPE_ID
     const groupedRooms = {};
     roomsData.forEach(room => {
         const typeId = room.type_id || 'unknown';
@@ -329,10 +365,11 @@ function renderAvailableRooms(roomsData) {
                 return;
             }
             
-            const totalDiff = (room.price_difference || 0) * bookingData.nights;
-            const diffBadge = room.price_difference < 0 
+            // ✅ SỬ DỤNG PRICE_TOTAL TỪ API (đã tính weekend)
+            const totalDiff = room.price_difference || 0;
+            const diffBadge = totalDiff < 0 
                 ? `<span class="badge bg-success"><i class="fas fa-arrow-down"></i> Tiết kiệm ${formatNumber(Math.abs(totalDiff))}đ</span>`
-                : room.price_difference > 0
+                : totalDiff > 0
                 ? `<span class="badge bg-danger"><i class="fas fa-arrow-up"></i> Tăng ${formatNumber(totalDiff)}đ</span>`
                 : `<span class="badge bg-secondary">Không đổi</span>`;
 
@@ -361,8 +398,8 @@ function renderAvailableRooms(roomsData) {
                         </div>
 
                         <div class="d-flex justify-content-between mt-1">
-                            <span class="small text-muted">× ${bookingData.nights} đêm</span>
-                            <span>${formatNumber((room.price_per_night || 0) * bookingData.nights)}đ</span>
+                            <span class="small text-muted">Tổng (có weekend)</span>
+                            <span class="fw-bold text-primary">${formatNumber(room.price_total || 0)}đ</span>
                         </div>
 
                         ${(room.extra_charge || 0) > 0 ? `
@@ -394,6 +431,7 @@ function renderAvailableRooms(roomsData) {
     container.innerHTML = html;
     console.log('✅ Rooms rendered successfully');
 }
+
 // ===== CHỌN PHÒNG =====
 function selectRoom(roomId, roomDataStr) {
     try {
@@ -401,7 +439,6 @@ function selectRoom(roomId, roomDataStr) {
             ? JSON.parse(roomDataStr)
             : roomDataStr;
 
-        // Highlight
         document.querySelectorAll('.room-card')
             .forEach(e => e.classList.remove('selected'));
         document.getElementById('room-' + roomId)?.classList.add('selected');
@@ -410,16 +447,9 @@ function selectRoom(roomId, roomDataStr) {
         document.getElementById('new_room_id').value = roomId;
         document.getElementById('confirm-btn').disabled = false;
 
-        // ===== GIÁ PHÒNG CŨ (ĐÃ CÓ PHỤ THU) =====
-        const oldPerNight = {{ round(($currentRoomOriginalPrice + $extraFee) / $soDem) }};
-        const nights = bookingData.nights;
-
-        // ===== GIÁ PHÒNG MỚI =====
-        const newPerNight = roomData.price_per_night + (roomData.extra_charge || 0);
-
-        // ===== CHÊNH LỆCH =====
-        const diffPerNight = newPerNight - oldPerNight;
-        const totalDiff = diffPerNight * nights;
+        // ✅ SỬ DỤNG price_total TỪ API (đã tính weekend ở backend)
+        const newTotal = roomData.price_total || 0;
+        const totalDiff = roomData.price_difference || 0;
 
         // ===== UPDATE UI =====
         document.getElementById('new-room-summary').style.display = 'block';
@@ -427,12 +457,11 @@ function selectRoom(roomId, roomDataStr) {
             `#${roomData.code} - ${roomData.name}`;
 
         document.getElementById('new-room-total').textContent =
-            formatNumber(newPerNight * nights) + 'đ';
+            formatNumber(newTotal) + 'đ (đã tính weekend)';
 
-        // 👉 NOTE PHỤ THU
         if ((roomData.extra_charge || 0) > 0) {
             document.getElementById('new-room-extra').textContent =
-                `Phụ thu: ${formatNumber(roomData.extra_charge)}đ / đêm × ${nights} đêm`;
+                `Phụ thu: ${formatNumber(roomData.extra_charge)}đ / đêm × ${bookingData.nights} đêm`;
         } else {
             document.getElementById('new-room-extra').textContent =
                 'Không có phụ thu';
@@ -447,17 +476,15 @@ function selectRoom(roomId, roomDataStr) {
 
         txt.classList.remove('text-success', 'text-danger', 'text-primary');
         if (totalDiff > 0) {
-            txt.classList.add('text-danger'); // tăng tiền
+            txt.classList.add('text-danger');
         } else if (totalDiff < 0) {
-            txt.classList.add('text-success'); // giảm tiền
+            txt.classList.add('text-success');
         } else {
-            txt.classList.add('text-primary'); // không đổi
+            txt.classList.add('text-primary');
         }
 
         console.log('💰 CALC OK', {
-            oldPerNight,
-            newPerNight,
-            diffPerNight,
+            newTotal,
             totalDiff,
             bookingNew
         });
@@ -468,14 +495,10 @@ function selectRoom(roomId, roomDataStr) {
     }
 }
 
-
-
-// ===== FORMAT NUMBER =====
 function formatNumber(num) {
     return new Intl.NumberFormat('vi-VN').format(Math.round(num));
 }
 
-// ===== SHOW ERROR =====
 function showError(message) {
     document.getElementById('rooms-container').innerHTML = `
         <div class="alert alert-danger">
@@ -485,12 +508,10 @@ function showError(message) {
     `;
 }
 
-// ===== INIT =====
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Page loaded, loading rooms...');
     loadAvailableRooms();
     
-    // Confirm trước khi submit
     document.getElementById('submit-change').addEventListener('submit', function(e) {
         if (!selectedRoomData) {
             e.preventDefault();

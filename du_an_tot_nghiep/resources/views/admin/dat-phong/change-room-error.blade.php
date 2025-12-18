@@ -5,7 +5,6 @@
 @section('content')
 
 <style>
-    /* Copy style từ change-room.blade.php */
     .room-type-section { margin-bottom: 32px; }
     .room-type-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #dc3545; }
     .rooms-slider { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 6px; }
@@ -91,22 +90,22 @@
                     <hr>
                 </div>
 
-             {{-- TỔNG BOOKING --}}
-<div class="d-flex justify-content-between">
-    <span class="fw-bold">Tổng booking hiện tại</span>
-    <span class="fw-bold" id="booking-current">{{ number_format($booking->tong_tien) }}đ</span>
-</div>
+                {{-- TỔNG BOOKING --}}
+                <div class="d-flex justify-content-between">
+                    <span class="fw-bold">Tổng booking hiện tại</span>
+                    <span class="fw-bold" id="booking-current">{{ number_format($booking->tong_tien) }}đ</span>
+                </div>
 
-<div id="booking-change-info" class="mt-2" style="display:none;">
-    <div class="d-flex justify-content-between">
-        <span class="text-primary fw-bold">Tổng booking sau đổi</span>
-        <span class="text-primary fw-bold" id="booking-after">-</span>
-    </div>
-    
-    <div class="alert mt-2 small text-center" id="change-alert">
-        <!-- Sẽ được update bằng JS -->
-    </div>
-</div>
+                <div id="booking-change-info" class="mt-2" style="display:none;">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-primary fw-bold">Tổng booking sau đổi</span>
+                        <span class="text-primary fw-bold" id="booking-after">-</span>
+                    </div>
+                    
+                    <div class="alert mt-2 small text-center" id="change-alert">
+                        <!-- Sẽ được update bằng JS -->
+                    </div>
+                </div>
 
                 <hr>
 
@@ -132,6 +131,47 @@
 {{-- JAVASCRIPT --}}
 <script>
 let showingLowerPrice = false;
+
+// ✅ HÀM TÍNH GIÁ VỚI WEEKEND +10%
+function calculatePriceWithWeekend(pricePerNight, checkInDate, checkOutDate) {
+    const start = new Date(checkInDate);
+    const end = new Date(checkOutDate);
+    
+    let total = 0;
+    let details = [];
+    
+    let current = new Date(start);
+    while (current < end) {
+        const dayOfWeek = current.getDay(); // 0=CN, 5=T6, 6=T7
+        
+        let nightPrice;
+        let isWeekend = false;
+        
+        // Kiểm tra weekend
+        if ([0, 5, 6].includes(dayOfWeek)) {
+            nightPrice = pricePerNight * 1.10; // +10%
+            isWeekend = true;
+        } else {
+            nightPrice = pricePerNight;
+        }
+        
+        total += nightPrice;
+        
+        details.push({
+            date: current.toISOString().split('T')[0],
+            dayOfWeek: dayOfWeek,
+            price: nightPrice,
+            isWeekend: isWeekend
+        });
+        
+        current.setDate(current.getDate() + 1);
+    }
+    
+    return {
+        total: total,
+        details: details
+    };
+}
 
 // Load phòng trống
 async function loadAvailableRooms() {
@@ -168,9 +208,19 @@ async function loadAvailableRooms() {
 function renderRooms(roomsByType) {
     const container = document.getElementById('rooms-container');
     
-    if (!roomsByType || !Array.isArray(roomsByType)) {
-        roomsByType = Object.values(roomsByType || {});
+    console.log('🎨 renderRooms called with:', roomsByType);
+    
+    if (!roomsByType) {
+        showError('Dữ liệu phòng không hợp lệ');
+        return;
     }
+    
+    // Convert to array if needed
+    if (!Array.isArray(roomsByType)) {
+        roomsByType = Object.values(roomsByType);
+    }
+    
+    console.log('📊 roomsByType after conversion:', roomsByType);
     
     if (roomsByType.length === 0) {
         container.innerHTML = `
@@ -182,36 +232,29 @@ function renderRooms(roomsByType) {
         return;
     }
 
-    // Group phòng
-    const groupedRooms = {};
-    roomsByType.forEach(typeGroup => {
-        if (typeGroup.rooms) {
-            typeGroup.rooms.forEach(room => {
-                const typeId = room.type_id;
-                if (!groupedRooms[typeId]) {
-                    groupedRooms[typeId] = {
-                        type_name: room.type_name,
-                        rooms: []
-                    };
-                }
-                groupedRooms[typeId].rooms.push(room);
-            });
-        }
-    });
-
     let html = '';
     
-    Object.values(groupedRooms).forEach((typeGroup) => {
+    // Duyệt qua từng type group
+    roomsByType.forEach((typeGroup, index) => {
+        console.log(`🏨 Processing type group ${index}:`, typeGroup);
+        
+        if (!typeGroup.rooms || typeGroup.rooms.length === 0) {
+            console.warn(`⚠️ Type group ${index} has no rooms`);
+            return;
+        }
+        
         html += `
             <div class="room-type-section">
                 <div class="room-type-title">
-                    <i class="fas fa-door-open"></i> ${typeGroup.type_name}
+                    <i class="fas fa-door-open"></i> ${typeGroup.type_name || 'Không xác định'}
                 </div>
                 <div class="rooms-slider">
         `;
 
         typeGroup.rooms.forEach((room) => {
-            const isDowngrade = room.is_downgrade;
+            console.log('🏠 Processing room:', room);
+            
+            const isDowngrade = room.is_downgrade || false;
             const downgradeClass = isDowngrade ? 'downgrade' : '';
             
             const badge = room.is_upgrade 
@@ -225,7 +268,7 @@ function renderRooms(roomsByType) {
             html += `
                 <div class="room-card ${downgradeClass}" id="room-${room.id}" 
                      onclick='selectRoom(${room.id}, \`${roomJsonEscaped}\`)'>
-                    <img src="${room.image}" 
+                    <img src="${room.image || '/images/room-placeholder.jpg'}" 
                          style="height:150px;width:100%;object-fit:cover;" 
                          class="rounded mb-2"
                          onerror="this.src='/images/room-placeholder.jpg'">
@@ -241,7 +284,7 @@ function renderRooms(roomsByType) {
                             <span class="fw-bold">${formatNumber(room.price_per_night)}đ</span>
                         </div>
 
-                        ${room.extra_charge > 0 ? `
+                        ${(room.extra_charge || 0) > 0 ? `
                         <div class="d-flex justify-content-between mt-1">
                             <span class="small text-muted">Phụ thu/đêm</span>
                             <span class="text-warning">${formatNumber(room.extra_charge)}đ</span>
@@ -262,7 +305,13 @@ function renderRooms(roomsByType) {
         `;
     });
 
+    if (html === '') {
+        showError('Không có phòng nào để hiển thị');
+        return;
+    }
+
     container.innerHTML = html;
+    console.log('✅ Rooms rendered successfully');
 }
 
 // Chọn phòng
@@ -279,43 +328,49 @@ function selectRoom(roomId, roomDataStr) {
         document.getElementById('new-room-summary').style.display = 'block';
         document.getElementById('new-room-name').textContent = `#${roomData.code} - ${roomData.name}`;
         
-        const totalPerNight = roomData.price_per_night + roomData.extra_charge;
-        document.getElementById('new-room-price').textContent = 
-            `Giá: ${formatNumber(roomData.price_per_night)}đ/đêm` +
-            (roomData.extra_charge > 0 ? ` + Phụ thu: ${formatNumber(roomData.extra_charge)}đ` : '');
-        
-        // ✅ TÍNH TOÁN CHÊNH LỆCH (GIỐNG CALCULATE)
+        // ✅ TÍNH TOÁN VỚI WEEKEND
         const bookingCurrent = {{ $booking->tong_tien }};
-        const nights = {{ $nights }};
+        const checkIn = '{{ $booking->ngay_nhan_phong }}';
+        const checkOut = '{{ $booking->ngay_tra_phong }}';
         
         // Phòng cũ
         const oldRoomBase = {{ $currentRoomBase }};
         const oldExtraFee = {{ $currentExtraFee }};
         const oldTotalPerNight = oldRoomBase + oldExtraFee;
-        const oldTotal = oldTotalPerNight * nights;
+        
+        const oldPricing = calculatePriceWithWeekend(oldTotalPerNight, checkIn, checkOut);
+        const oldTotal = oldPricing.total;
         
         // Phòng mới
         const newRoomBase = roomData.price_per_night;
         const newExtra = roomData.extra_charge;
         const newTotalPerNight = newRoomBase + newExtra;
-        const newTotal = newTotalPerNight * nights;
+        
+        const newPricing = calculatePriceWithWeekend(newTotalPerNight, checkIn, checkOut);
+        const newTotal = newPricing.total;
         
         // Chênh lệch
         const priceDiff = newTotal - oldTotal;
         const bookingAfter = bookingCurrent + priceDiff;
+        
+        // Hiển thị
+        const totalPerNight = roomData.price_per_night + roomData.extra_charge;
+        document.getElementById('new-room-price').textContent = 
+            `Tổng: ${formatNumber(newTotal)}đ (có weekend)` +
+            (roomData.extra_charge > 0 ? ` (Phụ thu: ${formatNumber(roomData.extra_charge)}đ/đêm)` : '');
         
         document.getElementById('booking-change-info').style.display = 'block';
         
         const alertBox = document.getElementById('change-alert');
         
         if (priceDiff > 0) {
-            // Nâng cấp - miễn phí (KHÔNG CẬP NHẬT BOOKING)
+            // Nâng cấp - miễn phí
             alertBox.className = 'alert alert-success mt-2 small text-center';
             alertBox.innerHTML = '<strong>NÂNG CẤP MIỄN PHÍ</strong><br>Không tính thêm tiền';
             document.getElementById('booking-after').textContent = formatNumber(bookingCurrent) + 'đ';
             
         } else if (priceDiff < 0) {
-            // Hạ cấp - hoàn tiền (CẬP NHẬT BOOKING)
+            // Hạ cấp - hoàn tiền
             const refund = Math.abs(priceDiff);
             alertBox.className = 'alert alert-warning mt-2 small text-center';
             alertBox.innerHTML = `<strong>HẠ CẤP</strong><br>Hoàn lại: ${formatNumber(refund)}đ`;
@@ -334,30 +389,21 @@ function selectRoom(roomId, roomDataStr) {
         
         document.getElementById('new-room-comparison').innerHTML = comparison;
 
-        console.log('📊 Tính toán:', {
-            'Phòng cũ': {
-                base: oldRoomBase,
-                extra: oldExtraFee,
-                perNight: oldTotalPerNight,
-                total: oldTotal
-            },
-            'Phòng mới': {
-                base: newRoomBase,
-                extra: newExtra,
-                perNight: newTotalPerNight,
-                total: newTotal
-            },
+        console.log('📊 Tính toán (có weekend):', {
+            'Phòng cũ': oldTotal,
+            'Phòng mới': newTotal,
             'Chênh lệch': priceDiff,
-            'Booking trước': bookingCurrent,
-            'Booking sau': bookingAfter
+            'Booking sau': bookingAfter,
+            'Old details': oldPricing.details,
+            'New details': newPricing.details
         });
 
     } catch (error) {
         console.error('Error:', error);
         alert('Lỗi khi chọn phòng!');
     }
-
 }
+
 // Toggle nút xem phòng giá thấp
 document.getElementById('toggle-lower-price').addEventListener('click', function() {
     showingLowerPrice = !showingLowerPrice;
