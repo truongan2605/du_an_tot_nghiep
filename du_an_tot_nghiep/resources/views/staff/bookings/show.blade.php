@@ -478,121 +478,242 @@
 
                 <h6 class="text-primary fw-bold mb-4"><i class="bi bi-door-open-fill me-2"></i>Phòng Đã Gán</h6>
 
-                @php
-                    $availableFoods = \App\Models\VatDung::where('active', 1)
-                        ->where('loai', \App\Models\VatDung::LOAI_DO_AN ?? 'do_an')
-                        ->orderBy('ten')
-                        ->get();
+@php
+    $availableFoods = \App\Models\VatDung::where('active', 1)
+        ->where('loai', \App\Models\VatDung::LOAI_DO_AN ?? 'do_an')
+        ->orderBy('ten')
+        ->get();
 
-                    $roomSource =
-                        $booking->trang_thai === 'hoan_thanh' &&
-                        isset($roomLinesFromInvoice) &&
-                        $roomLinesFromInvoice->isNotEmpty()
-                            ? $roomLinesFromInvoice
-                            : $booking->datPhongItems;
-                @endphp
+    $roomSource =
+        $booking->trang_thai === 'hoan_thanh' &&
+        isset($roomLinesFromInvoice) &&
+        $roomLinesFromInvoice->isNotEmpty()
+            ? $roomLinesFromInvoice
+            : $booking->datPhongItems;
+    
+    // Tính số đêm cuối tuần
+    function calculateWeekendNights($checkIn, $checkOut) {
+        $start = \Carbon\Carbon::parse($checkIn);
+        $end = \Carbon\Carbon::parse($checkOut);
+        $weekendNights = 0;
+        $current = $start->copy();
+        
+        while ($current->lt($end)) {
+            $dayOfWeek = $current->dayOfWeek;
+            if ($dayOfWeek == \Carbon\Carbon::FRIDAY || 
+                $dayOfWeek == \Carbon\Carbon::SATURDAY || 
+                $dayOfWeek == \Carbon\Carbon::SUNDAY) {
+                $weekendNights++;
+            }
+            $current->addDay();
+        }
+        return $weekendNights;
+    }
+    
+    $totalNights = \Carbon\Carbon::parse($booking->ngay_nhan_phong)->diffInDays(\Carbon\Carbon::parse($booking->ngay_tra_phong));
+    $weekendNights = calculateWeekendNights($booking->ngay_nhan_phong, $booking->ngay_tra_phong);
+    $weekdayNights = $totalNights - $weekendNights;
+@endphp
 
-                @if ($roomSource instanceof \Illuminate\Support\Collection && $roomSource->isNotEmpty())
-                    @foreach ($roomSource as $item)
-                    
+@if ($roomSource instanceof \Illuminate\Support\Collection && $roomSource->isNotEmpty())
+    @foreach ($roomSource as $item)
+    
+        @php
+            // item có thể là model (dat_phong_item) hoặc array (từ roomLinesFromInvoice)
+            $isArrayLine = is_array($item);
+            $phongId = $isArrayLine ? $item['phong_id'] ?? null : $item->phong?->id ?? null;
+            $phongCode = $isArrayLine ? $item['ma_phong'] ?? null : $item->phong?->ma_phong ?? null;
+            $loaiText = $isArrayLine ? $item['loai'] ?? 'N/A' : $item->loaiPhong?->ten ?? 'N/A';
+            $qty = $isArrayLine ? $item['qty'] ?? 1 : $item->so_luong ?? 1;
+            
+            // ===== TÍNH GIÁ THỰC TẾ =====
+            if (!$isArrayLine && $item->phong) {
+                // Giá gốc phòng
+                $basePrice = $item->phong->tong_gia ?? 0;
+                
+                // Phụ thu
+                $extraAdults = $item->number_adult ?? 0;
+                $extraChildren = $item->number_child ?? 0;
+                $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
+                
+                // Giá/đêm (chưa tính cuối tuần)
+                $pricePerNight = $basePrice + $extraCharge;
+                
+                // Tính tổng có cuối tuần
+                $weekdayTotal = $pricePerNight * $weekdayNights;
+                $weekendTotal = $pricePerNight * 1.1 * $weekendNights;
+                $weekendSurcharge = $pricePerNight * 0.1 * $weekendNights;
+                $totalRoomPrice = $weekdayTotal + $weekendTotal;
+                
+                // Giá trung bình/đêm (để hiển thị)
+                $avgPricePerNight = $totalNights > 0 ? $totalRoomPrice / $totalNights : 0;
+                
+                $hasWeekendSurcharge = $weekendNights > 0;
+            } else {
+                $basePrice = $isArrayLine ? $item['unit_price'] ?? 0 : $item->gia_tren_dem ?? 0;
+                $extraCharge = 0;
+                $extraAdults = 0;
+                $extraChildren = 0;
+                $pricePerNight = $basePrice;
+                $totalRoomPrice = $basePrice * $totalNights;
+                $avgPricePerNight = $basePrice;
+                $hasWeekendSurcharge = false;
+                $weekendSurcharge = 0;
+            }
+        @endphp
+
+        <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
+            <div class="card-body py-3 px-4">
+                <div class="row align-items-center text-sm">
+                    <div class="col-md-3 d-flex align-items-center">
+                        <strong class="text-primary">#{{ $phongCode ?? 'Chưa gán' }}</strong>
                         @php
-                            // item có thể là model (dat_phong_item) hoặc array (từ roomLinesFromInvoice)
-                            $isArrayLine = is_array($item);
-                            $phongId = $isArrayLine ? $item['phong_id'] ?? null : $item->phong?->id ?? null;
-                            $phongCode = $isArrayLine ? $item['ma_phong'] ?? null : $item->phong?->ma_phong ?? null;
-                            $loaiText = $isArrayLine ? $item['loai'] ?? 'N/A' : $item->loaiPhong?->ten ?? 'N/A';
-                            $qty = $isArrayLine ? $item['qty'] ?? 1 : $item->so_luong ?? 1;
-                            $unitPrice = $isArrayLine ? $item['unit_price'] ?? 0 : $item->gia_tren_dem ?? 0;
+                            $phongObj = $isArrayLine ? null : $item->phong ?? null;
                         @endphp
 
-                        <div class="card border-0 shadow-sm mb-3 rounded-3 overflow-hidden">
-                            <div class="card-body py-3 px-4">
-                                <div class="row align-items-center text-sm">
-                                    <div class="col-md-3 d-flex align-items-center">
-                                        <strong class="text-primary">#{{ $phongCode ?? 'Chưa gán' }}</strong>
-                                        @php
-                                            $phongObj = $isArrayLine ? null : $item->phong ?? null;
-                                        @endphp
+                        @if ($booking->trang_thai === 'da_xac_nhan' && !empty($phongId) && ($phongObj?->don_dep ?? false))
+                            <form
+                                action="{{ route('staff.bookings.rooms.clear_cleaning', ['booking' => $booking->id, 'room' => $phongId]) }}"
+                                method="POST" class="d-inline ms-2">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-success"
+                                    title="Đánh dấu đã dọn xong">
+                                    <i class="bi bi-check-lg me-1"></i>Đã dọn xong
+                                </button>
+                            </form>
+                        @endif
 
-                                        @if ($booking->trang_thai === 'da_xac_nhan' && !empty($phongId) && ($phongObj?->don_dep ?? false))
-                                            <form
-                                                action="{{ route('staff.bookings.rooms.clear_cleaning', ['booking' => $booking->id, 'room' => $phongId]) }}"
-                                                method="POST" class="d-inline ms-2">
-                                                @csrf
-                                                <button type="submit" class="btn btn-sm btn-success"
-                                                    title="Đánh dấu đã dọn xong">
-                                                    <i class="bi bi-check-lg me-1"></i>Đã dọn xong
-                                                </button>
-                                            </form>
+                        {{-- Dịch vụ gọi thêm chỉ khi booking đang sử dụng --}}
+                        @if ($booking->trang_thai === 'dang_su_dung')
+                            <button type="button" class="btn btn-sm btn-outline-primary ms-3"
+                                data-bs-toggle="modal" data-bs-target="#addFoodModal"
+                                data-phong-id="{{ $phongId }}"
+                                data-phong-code="{{ $phongCode }}">
+                                <i class="bi bi-plus-lg me-1"></i> Dịch vụ gọi thêm
+                            </button>
+                        @endif
+
+                        {{-- Bản thể: chỉ hiện khi booking dang_su_dung --}}
+                        @if ($booking->trang_thai === 'dang_su_dung' && !empty($phongId))
+                            <button type="button"
+                                class="btn btn-sm btn-outline-secondary ms-2 btn-open-room-instances"
+                                data-phong-id="{{ $phongId }}"
+                                data-phong-code="{{ $phongCode }}">
+                                <i class="bi bi-gear me-1"></i> Bản thể
+                            </button>
+                        @endif
+                    </div>
+
+                    <div class="col-md-3">
+                        <i class="bi bi-building me-1"></i> {{ $loaiText }}
+                        <div class="small text-muted mt-1">
+                            <span class="badge bg-light text-dark border">{{ $qty }} phòng</span>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 text-end">
+                        {{-- GIÁ CHI TIẾT --}}
+                        <div class="mb-2">
+                            <div class="d-flex justify-content-end align-items-center gap-3">
+                                {{-- Giá gốc --}}
+                                <div class="text-start">
+                                    <small class="text-muted d-block">Giá gốc</small>
+                                    <strong>{{ number_format($basePrice, 0) }}₫</strong>/đêm
+                                </div>
+                                
+                                {{-- Phụ thu --}}
+                                @if($extraCharge > 0)
+                                <div class="text-start border-start ps-3">
+                                    <small class="text-muted d-block">Phụ thu</small>
+                                    <span class="text-warning">
+                                        <i class="bi bi-plus-circle me-1"></i>
+                                        {{ number_format($extraCharge, 0) }}₫/đêm
+                                    </span>
+                                    <div class="small text-muted">
+                                        @if($extraAdults > 0)
+                                            {{ $extraAdults }} người lớn
                                         @endif
-
-                                        {{-- Dịch vụ gọi thêm chỉ khi booking đang sử dụng --}}
-                                        @if ($booking->trang_thai === 'dang_su_dung')
-                                            <button type="button" class="btn btn-sm btn-outline-primary ms-3"
-                                                data-bs-toggle="modal" data-bs-target="#addFoodModal"
-                                                data-phong-id="{{ $phongId }}"
-                                                data-phong-code="{{ $phongCode }}">
-                                                <i class="bi bi-plus-lg me-1"></i> Dịch vụ gọi thêm
-                                            </button>
-                                        @endif
-
-                                        {{-- Bản thể: chỉ hiện khi booking dang_su_dung --}}
-                                        @if ($booking->trang_thai === 'dang_su_dung' && !empty($phongId))
-                                            <button type="button"
-                                                class="btn btn-sm btn-outline-secondary ms-2 btn-open-room-instances"
-                                                data-phong-id="{{ $phongId }}"
-                                                data-phong-code="{{ $phongCode }}">
-                                                <i class="bi bi-gear me-1"></i> Bản thể
-                                            </button>
+                                        @if($extraChildren > 0)
+                                            @if($extraAdults > 0), @endif
+                                            {{ $extraChildren }} trẻ em
                                         @endif
                                     </div>
-
-                                    <div class="col-md-3">
-                                        <i class="bi bi-building me-1"></i> {{ $loaiText }}
+                                </div>
+                                @endif
+                                
+                                {{-- Tăng giá cuối tuần --}}
+                                @if($hasWeekendSurcharge)
+                                <div class="text-start border-start ps-3">
+                                    <small class="text-muted d-block">Phụ thu cuối tuần</small>
+                                    <span class="text-danger">
+                                        <i class="bi bi-calendar-week me-1"></i>
+                                        +{{ number_format($weekendSurcharge, 0) }}₫
+                                    </span>
+                                    <div class="small text-muted">
+                                        +10% × {{ $weekendNights }} đêm
                                     </div>
-
-                                    <div class="col-md-2 text-center">
-                                        <span class="badge bg-light text-dark border">{{ $qty }} phòng</span>
+                                </div>
+                                @endif
+                            </div>
+                        </div>
+                        
+                        {{-- TỔNG GIÁ --}}
+                        <div class="border-top pt-2 mt-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-start">
+                                    <small class="text-muted">Giá TB/đêm</small>
+                                    <div>
+                                        <strong class="text-success fs-5">{{ number_format($avgPricePerNight, 0) }}₫</strong>
                                     </div>
-
-                                    <div class="col-md-4 text-end">
-                                        <strong class="text-success">{{ number_format($unitPrice, 0) }} ₫</strong>/đêm
-                                    
-@if(
-    !in_array($booking->trang_thai, ['da_huy', 'da_hoan_thanh'])
-    && is_object($item)
-)
-    <a href="{{ route('admin.change-room.form', $item->id) }}"
-       class="btn btn-warning">
-        Đổi phòng
-    </a>
-@endif
-
-@if($booking->checked_in_at  )
-   @if(
-    !in_array($booking->trang_thai, ['da_huy', 'da_hoan_thanh'])
-    && is_object($item)
-) {{-- Đã check-in → Hiện nút đổi phòng lỗi --}}
-    <a href="{{ route('admin.change-room-error.form', $item->id) }}" 
-       class="btn btn-danger">
-        <i class="fas fa-exclamation-triangle"></i> Đổi phòng lỗi
-    </a>
-    @endif
-@endif
-</div>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted">Tổng {{ $totalNights }} đêm</small>
+                                    <div>
+                                        <strong class="text-primary fs-4">{{ number_format($totalRoomPrice, 0) }}₫</strong>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    @endforeach
-                @else
-                    <div class="text-center py-5 text-muted">
-                        <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
-                        <p>Chưa có phòng nào được gán.</p>
+                        
+                        {{-- BUTTONS --}}
+                        <div class="mt-3 d-flex justify-content-end gap-2">
+                            @if(
+                                !in_array($booking->trang_thai, ['da_huy', 'da_hoan_thanh'])
+                                && is_object($item)
+                            )
+                                <a href="{{ route('admin.change-room.form', $item->id) }}"
+                                   class="btn btn-sm btn-warning">
+                                    <i class="bi bi-arrow-left-right me-1"></i> Đổi phòng
+                                </a>
+                            @endif
+
+                            @if($booking->checked_in_at)
+                               @if(
+                                !in_array($booking->trang_thai, ['da_huy', 'da_hoan_thanh'])
+                                && is_object($item)
+                            )
+                                <a href="{{ route('admin.change-room-error.form', $item->id) }}" 
+                                   class="btn btn-sm btn-danger">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> Đổi phòng lỗi
+                                </a>
+                                @endif
+                            @endif
+                        </div>
                     </div>
-                @endif
-                <a href="{{ route('admin.dat-phong.lich-su-doi-phong', $booking->id) }}"
+                </div>
+            </div>
+        </div>
+    @endforeach
+@else
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
+        <p>Chưa có phòng nào được gán.</p>
+    </div>
+@endif
+
+<a href="{{ route('admin.dat-phong.lich-su-doi-phong', $booking->id) }}"
    class="btn btn-outline-primary">
-    Lịch sử đổi phòng
+    <i class="bi bi-clock-history me-2"></i> Lịch sử đổi phòng
 </a>
 
 
@@ -1434,6 +1555,142 @@
             background-color: #5f3dc4 !important;
         }
     </style>
+    <style>
+<style>
+.text-sm {
+    font-size: 0.875rem;
+}
+
+.gap-3 {
+    gap: 1rem !important;
+}
+
+.gap-2 {
+    gap: 0.5rem !important;
+}
+
+.room-item-simple {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+}
+
+.room-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.room-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.room-code {
+    color: #2563eb;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.room-type {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.room-center {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.price-item-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.price-label-inline {
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+
+.price-value-inline {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.price-total-inline {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2563eb;
+}
+
+.weekend-badge-inline {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.room-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-simple {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border: none;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-yellow {
+    background: #fbbf24;
+    color: #fff;
+}
+
+.btn-red {
+    background: #dc2626;
+    color: #fff;
+}
+
+.btn-blue {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.btn-gray {
+    background: #6b7280;
+    color: #fff;
+}
+
+.btn-green {
+    background: #10b981;
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .room-info-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
 
     @push('scripts')
     <script>
