@@ -462,7 +462,7 @@
                                                     <th>Phòng</th>
                                                     <th class="text-end">Giá/Đêm</th>
                                                     <th class="text-end">Số đêm</th>
-                                                    <th class="text-end">Tổng phụ</th>
+                                                    <th class="text-end">Tổng tiền</th>
                                                     @if($canCancelIndividualRoom)
                                                         <th class="text-center" style="width: 100px;">Thao tác</th>
                                                     @endif
