@@ -9,6 +9,8 @@ class RefundRequest extends Model
 {
     protected $fillable = [
         'dat_phong_id',
+        'dat_phong_item_id',  // Liên kết với phòng cụ thể bị hủy
+        'refund_type',        // 'full_booking' hoặc 'single_room'
         'amount',
         'percentage',
         'status',
@@ -29,6 +31,14 @@ class RefundRequest extends Model
     public function datPhong(): BelongsTo
     {
         return $this->belongsTo(DatPhong::class, 'dat_phong_id');
+    }
+
+    /**
+     * Liên kết với phòng cụ thể bị hủy (nullable - null nếu hủy toàn bộ booking)
+     */
+    public function datPhongItem(): BelongsTo
+    {
+        return $this->belongsTo(DatPhongItem::class, 'dat_phong_item_id');
     }
 
     public function processedBy(): BelongsTo

@@ -169,6 +169,16 @@
                                     $hasBlockedRoom = $booking->checkin_blocked_due_to === 'late_checkout';
 
                                     $canCheckin = $booking->remaining <= 0 && !$hasDonDep && !$hasBlockedRoom;
+                                    
+                                    // Tính tổng tiền cần thanh toán (bao gồm phụ thu checkin sớm nếu có)
+                                    $totalToPay = $booking->remaining;
+                                    if ($booking->remaining > 0 && isset($booking->is_early_checkin_possible) && $booking->is_early_checkin_possible && $booking->early_checkin_fee_estimate > 0) {
+                                        // Kiểm tra xem đã thanh toán phụ thu chưa
+                                        $hasPaidEarlyFee = !empty($meta['early_checkin_fee_paid']) && $meta['early_checkin_fee_paid'] > 0;
+                                        if (!$hasPaidEarlyFee) {
+                                            $totalToPay = $booking->remaining + $booking->early_checkin_fee_estimate;
+                                        }
+                                    }
                                 @endphp
 
                                 <tr class="border-bottom">
@@ -282,32 +292,58 @@
                                                                 title="Vui lòng nhập CCCD/CMND trước khi thanh toán">
                                                                 <i class="bi bi-lock me-1"></i>Chưa thể thanh toán
                                                             </button>
-                                                        @else
-                                                            <span
-                                                                class="badge bg-success-subtle text-success border border-success rounded-pill px-2 py-1 small">
-                                                                <i class="bi bi-check-circle me-1"></i>Đã có CCCD
-                                                            </span>
-                                                            <form action="{{ route('payment.remaining', $booking->id) }}"
-                                                                method="POST" class="d-inline">
-                                                                @csrf
-                                                                <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden"
-                                                                    style="width: 120px;">
-                                                                    <select name="nha_cung_cap"
-                                                                        class="form-select form-select-sm border-0 px-2"
-                                                                        required>
-                                                                        <option value="">Chọn</option>
-                                                                       <option value="tien_mat">Tiền mặt</option>
-                                                                        <option value="vnpay">VNPAY</option>
-                                                                        <option value="momo">MoMo</option>
-                                                                    </select>
-                                                                    <button type="submit"
-                                                                        class="btn btn-warning border-0 px-2"
-                                                                        title="Thanh toán phần còn lại">
-                                                                        <i class="bi bi-arrow-right"></i>
-                                                                    </button>
-                                                                </div>
-                                                            </form>
-                                                        @endif
+                                        @else
+                                            <div class="d-flex flex-column gap-1 align-items-center w-100">
+                                                <span
+                                                    class="badge bg-success-subtle text-success border border-success rounded-pill px-2 py-1 small">
+                                                    <i class="bi bi-check-circle me-1"></i>Đã có CCCD
+                                                </span>
+                                                
+                                                {{-- Hiển thị số tiền cần thanh toán với phụ thu --}}
+                                                @php
+                                                    $hasEarlyFee = isset($booking->is_early_checkin_possible) && $booking->is_early_checkin_possible && $booking->early_checkin_fee_estimate > 0;
+                                                    $hasPaidEarlyFee = !empty($meta['early_checkin_fee_paid']) && $meta['early_checkin_fee_paid'] > 0;
+                                                    $showEarlyFee = $hasEarlyFee && !$hasPaidEarlyFee;
+                                                @endphp
+                                                
+                                                @if ($showEarlyFee)
+                                                    <div class="alert alert-warning mb-2 small w-100 text-center">
+                                                        <i class="bi bi-info-circle-fill me-1"></i>
+                                                        <strong class="text-danger">{{ number_format($booking->remaining) }}đ</strong>
+                                                        <span class="text-warning"> + {{ number_format($booking->early_checkin_fee_estimate) }}đ</span>
+                                                        <span class="text-primary fw-bold"> = {{ number_format($booking->remaining + $booking->early_checkin_fee_estimate) }}đ</span>
+                                                        <br>
+                                                        <small class="text-muted">(Phụ thu checkin sớm)</small>
+                                                    </div>
+                                                @elseif (isset($booking->is_late_checkin_warning) && $booking->is_late_checkin_warning)
+                                                    <div class="alert alert-info mb-2 small w-100 text-center">
+                                                        <i class="bi bi-clock-history me-1"></i>
+                                                        Checkin muộn trong ngày
+                                                    </div>
+                                                @endif
+                                                
+                                                <form action="{{ route('payment.remaining', $booking->id) }}"
+                                                    method="POST" class="d-inline w-100">
+                                                    @csrf
+                                                    <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden"
+                                                        style="width: 100%;">
+                                                        <select name="nha_cung_cap"
+                                                            class="form-select form-select-sm border-0 px-2"
+                                                            required>
+                                                            <option value="">Chọn</option>
+                                                           <option value="tien_mat">Tiền mặt</option>
+                                                            <option value="vnpay">VNPAY</option>
+                                                            <option value="momo">MoMo</option>
+                                                        </select>
+                                                        <button type="submit"
+                                                            class="btn btn-warning border-0 px-2"
+                                                            title="Thanh toán phần còn lại">
+                                                            <i class="bi bi-arrow-right"></i>
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        @endif
                                                     @endif
                                                 </div>
                                             @else
@@ -447,8 +483,21 @@
                                             </div>
                                             <div class="col-6">
                                                 <small class="text-muted d-block">Còn nợ:</small>
-                                                <strong
-                                                    class="text-danger">{{ number_format($booking->remaining) }}đ</strong>
+                                                @if(isset($totalToPay) && $totalToPay > $booking->remaining && isset($booking->early_checkin_fee_estimate) && $booking->early_checkin_fee_estimate > 0)
+                                                    <div class="d-flex flex-column">
+                                                        <strong class="text-danger">
+                                                            {{ number_format($booking->remaining) }}đ
+                                                            <span class="text-warning">+ {{ number_format($booking->early_checkin_fee_estimate) }}đ</span>
+                                                            <span class="text-primary">= {{ number_format($totalToPay) }}đ</span>
+                                                        </strong>
+                                                        <small class="text-muted mt-1">
+                                                            <i class="bi bi-info-circle me-1"></i>
+                                                            (Phụ thu checkin sớm)
+                                                        </small>
+                                                    </div>
+                                                @else
+                                                    <strong class="text-danger">{{ number_format($booking->remaining) }}đ</strong>
+                                                @endif
                                             </div>
                                             <div class="col-6">
                                                 <small class="text-muted d-block">Tổng tiền:</small>

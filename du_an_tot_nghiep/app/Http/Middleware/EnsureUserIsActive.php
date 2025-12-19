@@ -12,12 +12,19 @@ class EnsureUserIsActive
     {
         if (Auth::check()) {
             $user = Auth::user();
-            if (!$user->is_active) {
+            
+            // Chỉ chặn nếu user bị admin vô hiệu hóa (is_disabled = true)
+            // User mới đăng ký (is_active = false) vẫn được truy cập
+            if ($user->is_disabled) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+                
                 if ($request->expectsJson()) {
-                    return response()->json(['message' => 'Account not active.'], 403);
+                    return response()->json(['message' => 'Tài khoản đã bị vô hiệu hóa.'], 403);
                 }
 
-                return redirect()->route('account.settings')->with('warning', 'Your account is not activated yet. Please check your email to verify or contact support.');
+                return redirect()->route('login')->with('error', 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.');
             }
         }
 

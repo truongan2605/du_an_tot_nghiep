@@ -96,37 +96,14 @@
                             $typeAmenities = $phong->loaiPhong?->tienNghis ?? collect();
                             $roomAmenitiesAll = $phong->tienNghis ?? collect();
 
-                            $typeAmenitiesSum = $typeAmenities->sum('gia');
-
-                            $boSung = $roomAmenitiesAll->reject(function ($item) use ($typeAmenities) {
-                                return $typeAmenities->contains('id', $item->id);
-                            });
-                            $boSungSum = $boSung->sum('gia');
-
-                            $allIds = array_values(
-                                array_unique(
-                                    array_merge(
-                                        $typeAmenities->pluck('id')->toArray(),
-                                        $roomAmenitiesAll->pluck('id')->toArray(),
-                                    ),
-                                ),
-                            );
-                            $allAmenitiesSum = \App\Models\TienNghi::whereIn('id', $allIds)->sum('gia');
-
-                            $bedTotal = 0;
-                            if ($phong->relationLoaded('bedTypes') || $phong->bedTypes()->exists()) {
-                                $bts = $phong->bedTypes()->get();
-                                foreach ($bts as $bt) {
-                                    $qty = (int) ($bt->pivot->quantity ?? 0);
-                                    $pricePer =
-                                        $bt->pivot->price !== null
-                                            ? (float) $bt->pivot->price
-                                            : (float) ($bt->price ?? 0);
-                                    $bedTotal += $qty * $pricePer;
-                                }
-                            }
-
+                            // DÙNG GIÁ ĐÃ TÍNH SẴN TRONG MODEL → LUÔN CHÍNH XÁC NHẤT
                             $totalDisplay = $phong->tong_gia;
+
+                            // Tính lại tổng dịch vụ từ loại phòng (có hỗ trợ giá riêng)
+                            $typeAmenitiesSum =
+                                $phong->loaiPhong?->tienNghis->sum(fn($tn) => $tn->pivot->price ?? $tn->gia) ?? 0;
+
+                            $bedTotal = $phong->getTotalBedPrice();
                         @endphp
 
 
@@ -223,10 +200,26 @@
                                     @if ($tienNghiLoaiPhong->count())
                                         <ul class="list-unstyled mb-0">
                                             @foreach ($tienNghiLoaiPhong as $tn)
+                                                @php
+                                                    $giaHienThi = $tn->pivot->price ?? ($tn->gia ?? 0);
+                                                    $coGiaRieng =
+                                                        $tn->pivot->price !== null && $tn->pivot->price != $tn->gia;
+                                                @endphp
                                                 <li>
-                                                    ✔ {{ $tn->ten }}
+                                                    {{ $tn->ten }}
                                                     <small class="text-muted"> —
-                                                        {{ number_format($tn->gia ?? 0, 0, ',', '.') }} đ</small>
+                                                        @if ($coGiaRieng)
+                                                            <del>{{ number_format($tn->gia, 0, ',', '.') }} đ</del>
+                                                            <span class="text-success fw-bold">
+                                                                → {{ number_format($giaHienThi, 0, ',', '.') }} đ
+                                                            </span>
+                                                            <span class="badge bg-success text-white ms-1">giá riêng</span>
+                                                        @else
+                                                            <span
+                                                                class="text-success">{{ number_format($giaHienThi, 0, ',', '.') }}
+                                                                đ</span>
+                                                        @endif
+                                                    </small>
                                                 </li>
                                             @endforeach
                                         </ul>

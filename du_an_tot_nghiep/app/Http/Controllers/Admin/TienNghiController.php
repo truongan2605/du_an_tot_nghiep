@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\TienNghi;
+use App\Models\VatDung;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 
 class TienNghiController extends Controller
@@ -47,10 +49,30 @@ class TienNghiController extends Controller
 
         $data['active'] = $request->has('active');
 
-        TienNghi::create($data);
+        DB::transaction(function () use ($data, $request) {
+            // Tạo TienNghi
+            $tienNghi = TienNghi::create($data);
+
+            // Tự động tạo VatDung với loại 'dich_vu_khac'
+            $vatDungData = [
+                'ten' => $data['ten'],
+                'mo_ta' => $data['mo_ta'] ?? null,
+                'gia' => $data['gia'] ?? 0,
+                'loai' => VatDung::LOAI_DICH_VU_KHAC,
+                'active' => $data['active'],
+                'tracked_instances' => false, // Dịch vụ không cần tracked instances
+            ];
+
+            // Copy icon nếu có
+            if (isset($data['icon'])) {
+                $vatDungData['icon'] = $data['icon'];
+            }
+
+            VatDung::create($vatDungData);
+        });
 
         return redirect()->route('admin.tien-nghi.index')
-            ->with('success', 'Dịch vụ đã được tạo thành công!');
+            ->with('success', 'Dịch vụ đã được tạo thành công và đã được thêm vào quản lý vật dụng phòng!');
     }
 
     public function show(TienNghi $tienNghi)
@@ -98,7 +120,57 @@ class TienNghiController extends Controller
 
         $data['active'] = $request->has('active');
 
-        $tienNghi->update($data);
+        DB::transaction(function () use ($tienNghi, $data) {
+            // Lưu tên cũ trước khi update
+            $oldTen = $tienNghi->ten;
+            
+            // Cập nhật TienNghi
+            $tienNghi->update($data);
+
+            // Tìm VatDung tương ứng bằng tên cũ hoặc tên mới
+            $vatDung = VatDung::where(function($query) use ($oldTen, $data) {
+                $query->where('ten', $oldTen)
+                      ->orWhere('ten', $data['ten']);
+            })
+            ->where('loai', VatDung::LOAI_DICH_VU_KHAC)
+            ->first();
+
+            if ($vatDung) {
+                $vatDungData = [
+                    'ten' => $data['ten'],
+                    'mo_ta' => $data['mo_ta'] ?? null,
+                    'gia' => $data['gia'] ?? 0,
+                    'active' => $data['active'],
+                ];
+
+                // Cập nhật icon nếu có
+                if (isset($data['icon'])) {
+                    // Xóa icon cũ nếu có
+                    if ($vatDung->icon && Storage::disk('public')->exists($vatDung->icon)) {
+                        Storage::disk('public')->delete($vatDung->icon);
+                    }
+                    $vatDungData['icon'] = $data['icon'];
+                }
+
+                $vatDung->update($vatDungData);
+            } else {
+                // Nếu không tìm thấy, tạo mới VatDung
+                $vatDungData = [
+                    'ten' => $data['ten'],
+                    'mo_ta' => $data['mo_ta'] ?? null,
+                    'gia' => $data['gia'] ?? 0,
+                    'loai' => VatDung::LOAI_DICH_VU_KHAC,
+                    'active' => $data['active'],
+                    'tracked_instances' => false,
+                ];
+
+                if (isset($data['icon'])) {
+                    $vatDungData['icon'] = $data['icon'];
+                }
+
+                VatDung::create($vatDungData);
+            }
+        });
 
         return redirect()->route('admin.tien-nghi.index')
             ->with('success', 'Dịch vụ đã được cập nhật thành công!');
@@ -107,12 +179,28 @@ class TienNghiController extends Controller
 
     public function destroy(TienNghi $tienNghi)
     {
-        // Delete icon if exists
-        if ($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon)) {
-            Storage::disk('public')->delete($tienNghi->icon);
-        }
+        DB::transaction(function () use ($tienNghi) {
+            // Xóa icon của TienNghi nếu có
+            if ($tienNghi->icon && Storage::disk('public')->exists($tienNghi->icon)) {
+                Storage::disk('public')->delete($tienNghi->icon);
+            }
 
-        $tienNghi->delete();
+            // Tìm và xóa VatDung tương ứng (nếu có)
+            $vatDung = VatDung::where('ten', $tienNghi->ten)
+                ->where('loai', VatDung::LOAI_DICH_VU_KHAC)
+                ->first();
+
+            if ($vatDung) {
+                // Xóa icon của VatDung nếu có
+                if ($vatDung->icon && Storage::disk('public')->exists($vatDung->icon)) {
+                    Storage::disk('public')->delete($vatDung->icon);
+                }
+                $vatDung->delete();
+            }
+
+            // Xóa TienNghi
+            $tienNghi->delete();
+        });
 
         return redirect()->route('admin.tien-nghi.index')
             ->with('success', 'Dịch vụ đã được xóa thành công!');

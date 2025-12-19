@@ -41,6 +41,7 @@ class LoaiPhong extends Model
     public function tienNghis()
     {
         return $this->belongsToMany(TienNghi::class, 'loai_phong_tien_nghi')
+            ->withPivot('price') //Them
             ->where('tien_nghi.active', true);
     }
 

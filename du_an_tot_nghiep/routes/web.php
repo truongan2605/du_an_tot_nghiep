@@ -12,16 +12,19 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PhongController;
 use App\Http\Controllers\Client\RoomController;
 use App\Http\Controllers\Staff\StaffController;
+use App\Http\Controllers\Staff\HoaDonController;
 use App\Http\Controllers\Staff\RefundController;
 use App\Http\Controllers\Admin\BedTypeController;
+use App\Http\Controllers\Admin\DanhGiaController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\Admin\NhanVienController;
 use App\Http\Controllers\Admin\ThongBaoController;
 use App\Http\Controllers\Client\BookingController;
 use App\Http\Controllers\Client\PaymentController;
+
 use App\Http\Controllers\Client\ProfileController;
 use App\Http\Controllers\Staff\AuditLogController;
-
+use App\Http\Controllers\Staff\CheckoutController;
 use App\Http\Controllers\Admin\LoaiPhongController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Client\WishlistController;
@@ -31,26 +34,24 @@ use App\Http\Controllers\CustomerNotificationController;
 use App\Http\Controllers\InternalNotificationController;
 use App\Http\Controllers\Admin\VatDungIncidentController;
 use App\Http\Controllers\Client\BlogController as ClientBlog;
-use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
-use App\Http\Controllers\Admin\PhongConsumptionController;
-use App\Http\Controllers\Payment\ConfirmPaymentController;
 
 // Equipment/Room (extended)
-use App\Http\Controllers\Admin\AdminNotificationController;
-use App\Http\Controllers\Admin\BatchNotificationController;
+use App\Http\Controllers\Admin\Blog\TagController as AdminTag;
+use App\Http\Controllers\Admin\PhongConsumptionController;
 
 
 // BLOG (Admin + Client)
+use App\Http\Controllers\Payment\ConfirmPaymentController;
+use App\Http\Controllers\Admin\AdminNotificationController;
+
+use App\Http\Controllers\Admin\BatchNotificationController;
+use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
 use App\Http\Controllers\Admin\PhongVatDungInstanceController;
 use App\Http\Controllers\Admin\Blog\CategoryController as AdminCategory;
-
-use App\Http\Controllers\Admin\DanhGiaController;
 use App\Http\Controllers\Admin\VatDungController as AdminVatDungController;
 use App\Http\Controllers\Admin\TienNghiController as AdminTienNghiController;
-use App\Http\Controllers\Admin\Blog\PostController as AdminPost;
-use App\Http\Controllers\Staff\CheckoutController;
-use App\Http\Controllers\Client\DanhGiaController as ClientDanhGiaController;
 
+use App\Http\Controllers\Client\DanhGiaController as ClientDanhGiaController;
 use App\Http\Controllers\Client\VoucherController as ClientVoucherController;
 use App\Http\Controllers\Staff\VatDungIncidentController as StaffVatDungIncidentController;
 
@@ -97,7 +98,9 @@ Route::prefix('admin')
         Route::get('/loai-phong/{id}/tien-nghi', [LoaiPhongController::class, 'getTienNghi']);
         Route::post('loai-phong/{id}/disable', [LoaiPhongController::class, 'disable'])->name('loai_phong.disable');
         Route::post('loai-phong/{id}/enable', [LoaiPhongController::class, 'enable'])->name('loai_phong.enable');
-        Route::resource('loai_phong', LoaiPhongController::class);
+        Route::resource('loai_phong', LoaiPhongController::class)
+            ->parameters(['loai_phong' => 'loaiphong']);
+
 
         // Rooms
         Route::resource('phong', PhongController::class);
@@ -205,7 +208,7 @@ Route::prefix('admin')
     });
 
 // ==================== STAFF ====================
-Route::middleware(['auth', 'role:nhan_vien|admin'])
+Route::middleware(['auth', 'ensure.active', 'role:nhan_vien|admin'])
     ->prefix('staff')
     ->name('staff.')
     ->group(function () {
@@ -236,6 +239,8 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         Route::get('/reports', [StaffController::class, 'reports'])->name('reports');
         Route::get('/analytics/rooms', [StaffController::class, 'roomAnalytics'])->name('analytics.rooms');
         Route::get('/analytics/rooms/pdf', [StaffController::class, 'exportRoomAnalyticsPDF'])->name('analytics.rooms.pdf');
+        Route::get('/api/room-revenue-filter', [StaffController::class, 'getFilteredRoomRevenue'])->name('api.room-revenue-filter');
+        Route::get('/api/roomtype-revenue-filter', [StaffController::class, 'getFilteredRoomTypeRevenue'])->name('api.roomtype-revenue-filter');
         Route::get('/room-overview', [StaffController::class, 'roomOverview'])->name('room-overview');
 
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
@@ -250,6 +255,11 @@ Route::middleware(['auth', 'role:nhan_vien|admin'])
         });
         Route::post('/bookings/{booking}/rooms/{room}/clear-cleaning', [StaffController::class, 'clearRoomCleaning'])
             ->name('bookings.rooms.clear_cleaning');
+
+        // Staff cancel individual room
+        Route::post('/bookings/{id}/cancel-room/{itemId}', [StaffController::class, 'cancelRoomItem'])
+            ->name('bookings.cancel-room-item');
+
         Route::get('/calendar', [StaffController::class, 'calendar'])->name('calendar');
     });
 
@@ -342,11 +352,18 @@ Route::post('/admin/change-room-error/{id}/apply', [
     App\Http\Controllers\Admin\AdminChangeRoomController::class, 
     'changeError'
 ])->name('admin.change-room-error.apply');
+    // Checkout online payment
+    Route::post('/staff/bookings/{booking}/checkout/pay-online', [CheckoutController::class, 'initiateOnlinePayment'])
+        ->name('staff.checkout.pay-online');
+    Route::match(['get', 'post'], '/staff/checkout/payment/callback', [CheckoutController::class, 'handlePaymentCallback'])
+        ->name('staff.checkout.payment.callback');
+    Route::get('/invoices', [HoaDonController::class, 'index'])->name('staff.invoices.index');
+    Route::get('/invoices/{hoaDon}', [HoaDonController::class, 'show'])->name('staff.invoices.show');
 });
 
 
 // ==================== ACCOUNT (client profile area) ====================
-Route::middleware('auth')
+Route::middleware(['auth', 'ensure.active'])
     ->prefix('account')
     ->name('account.')
     ->group(function () {
@@ -367,6 +384,7 @@ Route::middleware('auth')
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
         Route::get('bookings/{dat_phong}', [BookingController::class, 'show'])->name('booking.show');
         Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel'])->name('booking.cancel');
+        Route::post('bookings/{id}/cancel-room-item/{itemId}', [BookingController::class, 'cancelRoomItem'])->name('booking.cancel-room-item');
         Route::get('bookings/{id}/retry-payment', [BookingController::class, 'retryPayment'])->name('booking.retry-payment');
         Route::get('bookings/{booking}/available-rooms', [BookingController::class, 'getAvailableRooms'])->name('booking.available-rooms');
 
@@ -385,13 +403,12 @@ Route::middleware('auth')
         Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])->name('booking.change-room.callback');
     });
 
-// ==================== ROOM CHANGE CALLBACK (outside auth for VNPay) ====================
-// VNPay callback for room change - must be outside auth middleware
+// ==================== ROOM CHANGE CALLBACK  ====================
 Route::get('account/bookings/change-room/callback', [BookingController::class, 'changeRoomCallback'])
     ->name('booking.change-room.callback');
 
-// ==================== ACCOUNT (continued after callback route) ====================  
-Route::middleware('auth')
+// ==================== ACCOUNT  ====================  
+Route::middleware(['auth', 'ensure.active'])
     ->prefix('account')
     ->name('account.')
     ->group(function () {
@@ -399,7 +416,6 @@ Route::middleware('auth')
         // Danh sách đặt phòng
         Route::get('bookings', [BookingController::class, 'index'])->name('booking.index');
 
-        // Hiển thị form đánh giá
         // Hiển thị form đánh giá
         Route::get('/danh-gia/{booking}', [ClientDanhGiaController::class, 'create'])
             ->name('danhgia.create');
@@ -412,7 +428,7 @@ Route::middleware('auth')
 
     });
 // ==================== VOUCHER CLIENT (moved outside account for direct name access) ====================
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::post('/vouchers/claim/{id}', [ClientVoucherController::class, 'claim'])->name('client.vouchers.claim');
     Route::get('/my-voucher', [ClientVoucherController::class, 'myVouchers'])->name('client.vouchers.my');
 });
@@ -421,7 +437,7 @@ Route::get('/blog', [ClientBlog::class, 'index'])->name('blog.index');
 Route::get('/blog/{slug}', [ClientBlog::class, 'show'])->name('blog.show');
 
 // ==================== PAYMENT ====================
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::get('/payment/pending-payments', [PaymentController::class, 'pendingPayments'])->name('payment.pending_payments');
     Route::get('/payment/create', [PaymentController::class, 'createPayment'])->name('payment.create');
     Route::post('/payment/initiate', [PaymentController::class, 'initiateVNPay'])->name('payment.initiate');
@@ -441,7 +457,7 @@ Route::middleware(['auth'])->group(function () {
 Route::get('/payment/simulate-callback', [PaymentController::class, 'simulateCallback']);
 
 // ==================== NOTIFICATIONS ====================
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'ensure.active'])->group(function () {
     Route::get('notifications/{id}', [ThongBaoController::class, 'clientShow'])->name('notifications.show');
     Route::post('notifications/{id}/read', [ThongBaoController::class, 'markReadOnView'])->name('notifications.read');
     Route::get('notifications/{id}/modal', [ThongBaoController::class, 'clientModal'])->name('notifications.modal');

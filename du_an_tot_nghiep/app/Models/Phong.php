@@ -202,7 +202,8 @@ public function danhGiaspace()
             if ($canSumFromCollections) {
                 $merged = $this->tienNghis->merge($this->loaiPhong->tienNghis)->unique('id');
                 $amenitiesSum = (float) $merged->sum(function ($a) {
-                    return (float) ($a->gia ?? 0);
+                    // DÙNG GIÁ RIÊNG NẾU CÓ, KHÔNG THÌ DÙNG GIÁ MẶC ĐỊNH
+                    return (float) ($a->pivot->price ?? $a->gia ?? 0);
                 });
             } else {
                 $amenitiesSum = (float) TienNghi::whereIn('id', $allAmenityIds)->sum('gia');
