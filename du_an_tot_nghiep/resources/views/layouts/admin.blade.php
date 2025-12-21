@@ -218,37 +218,37 @@
         }
 
         /* Custom Scrollbar cho notification dropdown - Admin */
-        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar {
+        #adminNotificationDropdown+.dropdown-menu::-webkit-scrollbar {
             width: 10px;
         }
 
-        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar-track {
+        #adminNotificationDropdown+.dropdown-menu::-webkit-scrollbar-track {
             background: #f0f4f8;
             border-radius: 10px;
             margin: 5px 0;
             border: 1px solid #e0e8f0;
         }
 
-        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb {
+        #adminNotificationDropdown+.dropdown-menu::-webkit-scrollbar-thumb {
             background: linear-gradient(180deg, #4a90e2 0%, #357abd 50%, #2a5f8f 100%);
             border-radius: 10px;
             border: 1px solid #5a9fe2;
             transition: all 0.3s ease;
         }
 
-        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb:hover {
+        #adminNotificationDropdown+.dropdown-menu::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(180deg, #5aa0f2 0%, #4580cd 50%, #3570ad 100%);
             border-color: #6aaff2;
             box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
         }
 
-        #adminNotificationDropdown + .dropdown-menu::-webkit-scrollbar-thumb:active {
+        #adminNotificationDropdown+.dropdown-menu::-webkit-scrollbar-thumb:active {
             background: linear-gradient(180deg, #357abd 0%, #2a5f8f 50%, #1f4a7a 100%);
             border-color: #4580cd;
         }
 
         /* Firefox scrollbar */
-        #adminNotificationDropdown + .dropdown-menu {
+        #adminNotificationDropdown+.dropdown-menu {
             scrollbar-width: thin;
             scrollbar-color: #4a90e2 #f0f4f8;
         }
@@ -285,7 +285,7 @@
                         data-url="{{ route('admin.bed-types.index') }}" data-section="section-coso">
                         <i class="fas fa-bed"></i>Loại Giường
                     </a>
-                     <a class="nav-link {{ request()->routeIs('admin.danhgia.*') ? 'active' : '' }}"
+                    <a class="nav-link {{ request()->routeIs('admin.danhgia.*') ? 'active' : '' }}"
                         data-url="{{ route('admin.danhgia.index') }}" data-section="section-coso">
                         <i class="fas fa-bed"></i>Đánh giá
                     </a>
@@ -355,86 +355,98 @@
             </div>
 
             {{-- Menu Staff (hiển thị cho cả admin và nhan_vien, bỏ Thanh toán và Tổng quan) --}}
-           @if (auth()->check() && in_array(auth()->user()->vai_tro, ['nhan_vien', 'admin']))
-    <div class="sidebar-divider"></div>
-    <div class="sidebar-section">
-        <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
-            data-bs-target="#section-staff" aria-expanded="false">
-            <span>Quản lý đơn hàng</span>
-            <i class="fas fa-chevron-down"></i>
-        </div>
+            @if (auth()->check() && in_array(auth()->user()->vai_tro, ['nhan_vien', 'admin']))
+                <div class="sidebar-divider"></div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-header collapsed" data-bs-toggle="collapse"
+                        data-bs-target="#section-staff" aria-expanded="false">
+                        <span>Quản lý đơn hàng</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
 
-        <div class="sidebar-section-content collapse" id="section-staff">
-            <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}"
-               data-url="{{ route('staff.index') }}" data-section="section-staff">
-                <i class="fas fa-tachometer-alt"></i> Dashboard
-            </a>
+                    <div class="sidebar-section-content collapse" id="section-staff">
+                        <a class="nav-link {{ request()->routeIs('staff.index') ? 'active' : '' }}"
+                            data-url="{{ route('staff.index') }}" data-section="section-staff">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard
+                        </a>
 
-            <a class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}"
-               href="{{ route('staff.bookings') }}" data-section="section-staff">
-                <i class="fas fa-calendar-check"></i> Bookings
-            </a>
+                        <a class="nav-link {{ request()->routeIs('staff.bookings') ? 'active' : '' }}"
+                            href="{{ route('staff.bookings') }}" data-section="section-staff">
+                            <i class="fas fa-calendar-check"></i> Bookings
+                        </a>
 
-            <a class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"
-               href="{{ route('staff.rooms') }}" data-section="section-staff">
-                <i class="fas fa-door-open"></i> Phòng
-            </a>
+                        <a class="nav-link {{ request()->routeIs('staff.rooms') ? 'active' : '' }}"
+                            href="{{ route('staff.rooms') }}" data-section="section-staff">
+                            <i class="fas fa-door-open"></i> Phòng
+                        </a>
 
-            <a class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}"
-               href="{{ route('staff.checkin') }}" data-section="section-staff">
-                <i class="fas fa-sign-in-alt"></i> Check-in
-            </a>
+                        <a class="nav-link {{ request()->routeIs('staff.checkin') ? 'active' : '' }}"
+                            href="{{ route('staff.checkin') }}" data-section="section-staff">
+                            <i class="fas fa-sign-in-alt"></i> Check-in
+                        </a>
 
-            {{-- Nhật ký thao tác - chỉ hiển thị cho admin (nếu muốn staff cũng xem, bỏ điều kiện) --}}
-            @if(auth()->user()->vai_tro === 'admin')
-                @php
-                    // Quick count của audit logs trong 24 giờ; tốt hơn là truyền biến từ controller/view composer
-                    try {
-                        $recentAuditCount = \App\Models\AuditLog::where('created_at', '>=', now()->subDay())->count();
-                    } catch (\Throwable $e) {
-                        $recentAuditCount = 0;
-                    }
-                @endphp
+                        {{-- Nhật ký thao tác - chỉ hiển thị cho admin (nếu muốn staff cũng xem, bỏ điều kiện) --}}
+                        @if (auth()->user()->vai_tro === 'admin')
+                            @php
+                                // Quick count của audit logs trong 24 giờ; tốt hơn là truyền biến từ controller/view composer
+                                try {
+                                    $recentAuditCount = \App\Models\AuditLog::where(
+                                        'created_at',
+                                        '>=',
+                                        now()->subDay(),
+                                    )->count();
+                                } catch (\Throwable $e) {
+                                    $recentAuditCount = 0;
+                                }
+                            @endphp
 
-                <a class="nav-link {{ request()->routeIs('staff.audit-logs.*') ? 'active' : '' }}"
-                   href="{{ route('staff.audit-logs.index') }}" data-section="section-staff">
-                    <i class="fas fa-history"></i> Nhật ký thao tác
-                    @if($recentAuditCount)
-                        <span class="badge bg-danger ms-2">{{ $recentAuditCount }}</span>
-                    @endif
-                </a>
+                            <a class="nav-link {{ request()->routeIs('staff.audit-logs.*') ? 'active' : '' }}"
+                                href="{{ route('staff.audit-logs.index') }}" data-section="section-staff">
+                                <i class="fas fa-history"></i> Nhật ký thao tác
+                                @if ($recentAuditCount)
+                                    <span class="badge bg-danger ms-2">{{ $recentAuditCount }}</span>
+                                @endif
+                            </a>
 
-                {{-- Quản lý hoàn tiền --}}
-                @php
-                    try {
-                        $pendingRefundsCount = \App\Models\RefundRequest::where('status', 'pending')->count();
-                    } catch (\Throwable $e) {
-                        $pendingRefundsCount = 0;
-                    }
-                @endphp
+                            {{-- Quản lý hoàn tiền --}}
+                            @php
+                                try {
+                                    $pendingRefundsCount = \App\Models\RefundRequest::where(
+                                        'status',
+                                        'pending',
+                                    )->count();
+                                } catch (\Throwable $e) {
+                                    $pendingRefundsCount = 0;
+                                }
+                            @endphp
 
-                <a class="nav-link {{ request()->routeIs('staff.refunds.*') ? 'active' : '' }}"
-                   href="{{ route('staff.refunds.index') }}" data-section="section-staff">
-                    <i class="fas fa-money-bill-wave"></i> Hoàn tiền
-                    @if($pendingRefundsCount > 0)
-                        <span class="badge bg-warning text-dark ms-2">{{ $pendingRefundsCount }}</span>
-                    @endif
-                </a>
+                            <a class="nav-link {{ request()->routeIs('staff.refunds.*') ? 'active' : '' }}"
+                                href="{{ route('staff.refunds.index') }}" data-section="section-staff">
+                                <i class="fas fa-money-bill-wave"></i> Hoàn tiền
+                                @if ($pendingRefundsCount > 0)
+                                    <span class="badge bg-warning text-dark ms-2">{{ $pendingRefundsCount }}</span>
+                                @endif
+                            </a>
+                        @endif
+
+                        <a class="nav-link {{ request()->routeIs('staff.invoices.*') ? 'active' : '' }}"
+                            href="{{ route('staff.invoices.index') }}" data-section="section-staff">
+                            <i class="fas fa-file-invoice-dollar"></i> Hóa đơn
+                        </a>
+
+                        {{-- Ví dụ: nếu muốn staff cũng thấy nhật ký, thay điều kiện ở trên bằng in_array(...) --}}
+                        {{-- <a class="nav-link {{ request()->routeIs('staff.audit-logs.*') ? 'active' : '' }}"
+                        href="{{ route('staff.audit-logs.index') }}" data-section="section-staff">
+                            <i class="fas fa-history"></i> Nhật ký thao tác
+                        </a> --}}
+
+                        {{-- <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
+                            href="{{ route('staff.reports') }}" data-section="section-staff">
+                                <i class="fas fa-chart-line"></i> Báo cáo
+                        </a> --}}
+                    </div>
+                </div>
             @endif
-
-            {{-- Ví dụ: nếu muốn staff cũng thấy nhật ký, thay điều kiện ở trên bằng in_array(...) --}}
-            {{-- <a class="nav-link {{ request()->routeIs('staff.audit-logs.*') ? 'active' : '' }}"
-                   href="{{ route('staff.audit-logs.index') }}" data-section="section-staff">
-                    <i class="fas fa-history"></i> Nhật ký thao tác
-               </a> --}}
-
-            {{-- <a class="nav-link {{ request()->routeIs('staff.reports') ? 'active' : '' }}"
-               href="{{ route('staff.reports') }}" data-section="section-staff">
-                <i class="fas fa-chart-line"></i> Báo cáo
-            </a> --}}
-        </div>
-    </div>
-@endif
         </div>
     </nav>
 
@@ -513,9 +525,12 @@
                                 <li><a class="dropdown-item" href="{{ route('home') }}">
                                         <i class="fas fa-home me-2"></i>Về trang chủ
                                     </a></li>
-                                <li><a class="dropdown-item" href="{{ route('staff.reports') }}"><i class="bi bi-file-text me-2"></i>Báo cáo thống kê</a></li>
-                                <li><a class="dropdown-item" href="{{ route('staff.analytics.rooms') }}"><i class="bi bi-graph-up me-2"></i>Thống kê phòng</a></li>
-                                <li><a class="dropdown-item" href="{{ route('staff.audit-logs.index') }}"><i class="bi bi-journal-text me-2"></i>Nhật ký thao tác</a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.reports') }}"><i
+                                            class="bi bi-file-text me-2"></i>Báo cáo thống kê</a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.analytics.rooms') }}"><i
+                                            class="bi bi-graph-up me-2"></i>Thống kê phòng</a></li>
+                                <li><a class="dropdown-item" href="{{ route('staff.audit-logs.index') }}"><i
+                                            class="bi bi-journal-text me-2"></i>Nhật ký thao tác</a></li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
@@ -607,23 +622,23 @@
                     // Parse HTML to extract content (assuming views have @section('content'))
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
-                    
+
                     // Try to find contentArea first, then try to find main content
                     let newContent = doc.querySelector('#contentArea')?.innerHTML;
-                    
+
                     // If not found, try to find the content section or main wrapper
                     if (!newContent) {
-                        newContent = doc.querySelector('.content-area')?.innerHTML 
-                            || doc.querySelector('main')?.innerHTML 
-                            || doc.querySelector('.container-fluid')?.outerHTML
-                            || doc.querySelector('body')?.innerHTML
-                            || html;
+                        newContent = doc.querySelector('.content-area')?.innerHTML ||
+                            doc.querySelector('main')?.innerHTML ||
+                            doc.querySelector('.container-fluid')?.outerHTML ||
+                            doc.querySelector('body')?.innerHTML ||
+                            html;
                     }
-                    
+
                     // Debug logging
                     console.log('Loading URL:', url);
                     console.log('Content length:', newContent?.length || 0);
-                    
+
                     // If still empty or just whitespace, try direct navigation
                     if (!newContent || newContent.trim() === '' || newContent.trim().length < 50) {
                         console.warn('Content is empty or too short, redirecting to:', url);
@@ -656,7 +671,8 @@
                     if (error.message.includes('Network') || error.message.includes('Failed to fetch')) {
                         window.location.href = url;
                     } else {
-                        contentArea.innerHTML = '<div class="alert alert-danger">Lỗi tải nội dung: ' + error.message + '. <a href="' + url + '">Tải lại trang</a></div>';
+                        contentArea.innerHTML = '<div class="alert alert-danger">Lỗi tải nội dung: ' + error.message +
+                            '. <a href="' + url + '">Tải lại trang</a></div>';
                         contentArea.classList.remove('content-loading');
                     }
                 });
@@ -900,39 +916,39 @@
 
             // Load chi tiết thông báo
             fetch(`/admin/admin-notifications/${notificationId}/detail`, {
-                credentials: 'include',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Tạo modal nếu chưa có
-                let modal = document.getElementById('adminNotificationDetailModal');
-                if (!modal) {
-                    modal = document.createElement('div');
-                    modal.id = 'adminNotificationDetailModal';
-                    modal.className = 'modal fade';
-                    modal.setAttribute('tabindex', '-1');
-                    modal.setAttribute('aria-labelledby', 'adminNotificationDetailModalLabel');
-                    modal.setAttribute('aria-hidden', 'true');
-                    document.body.appendChild(modal);
-                }
+                    credentials: 'include',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Tạo modal nếu chưa có
+                    let modal = document.getElementById('adminNotificationDetailModal');
+                    if (!modal) {
+                        modal = document.createElement('div');
+                        modal.id = 'adminNotificationDetailModal';
+                        modal.className = 'modal fade';
+                        modal.setAttribute('tabindex', '-1');
+                        modal.setAttribute('aria-labelledby', 'adminNotificationDetailModalLabel');
+                        modal.setAttribute('aria-hidden', 'true');
+                        document.body.appendChild(modal);
+                    }
 
-                // Format JSON payload
-                const jsonPayload = JSON.stringify(data.payload, null, 2);
+                    // Format JSON payload
+                    const jsonPayload = JSON.stringify(data.payload, null, 2);
 
-                // Format date và time
-                const createdDate = data.created_at.split(' ')[0];
-                const createdTime = data.created_at.split(' ')[1];
-                
-                // Get status icon
-                const statusIcon = data.trang_thai === 'read' ? 'fa-eye' : 
-                                 data.trang_thai === 'sent' ? 'fa-check-circle' : 
-                                 data.trang_thai === 'pending' ? 'fa-clock' : 'fa-exclamation-circle';
+                    // Format date và time
+                    const createdDate = data.created_at.split(' ')[0];
+                    const createdTime = data.created_at.split(' ')[1];
 
-                modal.innerHTML = `
+                    // Get status icon
+                    const statusIcon = data.trang_thai === 'read' ? 'fa-eye' :
+                        data.trang_thai === 'sent' ? 'fa-check-circle' :
+                        data.trang_thai === 'pending' ? 'fa-clock' : 'fa-exclamation-circle';
+
+                    modal.innerHTML = `
                     <div class="modal-dialog modal-xl modal-dialog-scrollable">
                         <div class="modal-content">
                             <div class="modal-header border-0 pb-0">
@@ -1005,16 +1021,16 @@
                                                 </div>
 
                                                 ${data.link ? `
-                                                <div class="mb-3">
-                                                    <h6 class="text-muted mb-2">
-                                                        <i class="fas fa-link text-primary me-1"></i>Liên kết
-                                                    </h6>
-                                                    <a href="${data.link}" class="btn btn-outline-primary btn-sm mb-2" target="_blank">
-                                                        <i class="fas fa-external-link-alt me-1"></i>Xem chi tiết
-                                                    </a>
-                                                    <div class="text-muted small">${data.link}</div>
-                                                </div>
-                                                ` : ''}
+                                                                <div class="mb-3">
+                                                                    <h6 class="text-muted mb-2">
+                                                                        <i class="fas fa-link text-primary me-1"></i>Liên kết
+                                                                    </h6>
+                                                                    <a href="${data.link}" class="btn btn-outline-primary btn-sm mb-2" target="_blank">
+                                                                        <i class="fas fa-external-link-alt me-1"></i>Xem chi tiết
+                                                                    </a>
+                                                                    <div class="text-muted small">${data.link}</div>
+                                                                </div>
+                                                                ` : ''}
                                             </div>
                                         </div>
                                     </div>
@@ -1094,50 +1110,50 @@
                     </div>
                 `;
 
-                // Hiển thị modal
-                const bsModal = new bootstrap.Modal(modal);
-                bsModal.show();
+                    // Hiển thị modal
+                    const bsModal = new bootstrap.Modal(modal);
+                    bsModal.show();
 
-                // Đánh dấu đã đọc nếu chưa đọc
-                if (data.trang_thai !== 'read') {
-                    markAdminNotificationAsRead(notificationId);
-                }
+                    // Đánh dấu đã đọc nếu chưa đọc
+                    if (data.trang_thai !== 'read') {
+                        markAdminNotificationAsRead(notificationId);
+                    }
 
-                // Reload notifications sau khi đánh dấu đã đọc
-                setTimeout(() => {
-                    loadAdminNotifications();
-                    loadAdminUnreadCount();
-                }, 500);
-            })
-            .catch(error => {
-                console.error('Error loading notification detail:', error);
-                // Nếu lỗi, chuyển đến trang chi tiết
-                window.location.href = `/admin/admin-notifications/${notificationId}`;
-            });
+                    // Reload notifications sau khi đánh dấu đã đọc
+                    setTimeout(() => {
+                        loadAdminNotifications();
+                        loadAdminUnreadCount();
+                    }, 500);
+                })
+                .catch(error => {
+                    console.error('Error loading notification detail:', error);
+                    // Nếu lỗi, chuyển đến trang chi tiết
+                    window.location.href = `/admin/admin-notifications/${notificationId}`;
+                });
         }
 
         // Mark notification as read
         function markAdminNotificationAsRead(notificationId) {
             fetch(`/admin/admin-notifications/${notificationId}/mark-read`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                credentials: 'include'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Cập nhật UI
-                    loadAdminNotifications();
-                    loadAdminUnreadCount();
-                }
-            })
-            .catch(error => {
-                console.error('Error marking notification as read:', error);
-            });
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'include'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Cập nhật UI
+                        loadAdminNotifications();
+                        loadAdminUnreadCount();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error marking notification as read:', error);
+                });
         }
 
         // Get time ago

@@ -17,11 +17,28 @@
         </a>
     </div>
 
-    {{-- Month/Year Filter --}}
+    {{-- Filters --}}
     <div class="card shadow-sm rounded-4 border-0 mb-4">
         <div class="card-body p-3">
-            <form method="GET" action="{{ route('staff.analytics.rooms') }}" class="row g-3 align-items-end">
-                <div class="col-md-3">
+            <form method="GET" action="{{ route('staff.analytics.rooms') }}" id="filterForm" class="row g-3 align-items-end">
+                {{-- Time Range Selection --}}
+                <div class="col-12">
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="time_range_type" id="timeRangeMonth" value="month" 
+                            @if(!$startDate || !$endDate) checked @endif>
+                        <label class="btn btn-outline-primary" for="timeRangeMonth">
+                            <i class="bi bi-calendar-month me-1"></i>Theo Tháng/Năm
+                        </label>
+                        <input type="radio" class="btn-check" name="time_range_type" id="timeRangeCustom" value="custom"
+                            @if($startDate && $endDate) checked @endif>
+                        <label class="btn btn-outline-primary" for="timeRangeCustom">
+                            <i class="bi bi-calendar-range me-1"></i>Tùy Chỉnh
+                        </label>
+                    </div>
+                </div>
+                
+                {{-- Month/Year Filter --}}
+                <div class="col-md-3 time-filter-month">
                     <label class="form-label small fw-semibold">Tháng</label>
                     <select name="month" class="form-select">
                         @foreach($monthOptions as $value => $label)
@@ -29,7 +46,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 time-filter-month">
                     <label class="form-label small fw-semibold">Năm</label>
                     <select name="year" class="form-select">
                         @foreach($yearOptions as $y)
@@ -37,15 +54,63 @@
                         @endforeach
                     </select>
                 </div>
+                
+                {{-- Custom Date Range --}}
+                <div class="col-md-3 time-filter-custom" style="display: none;">
+                    <label class="form-label small fw-semibold">Từ ngày</label>
+                    <input type="date" name="start_date" class="form-select" value="{{ $startDate ?? '' }}" max="{{ now()->format('Y-m-d') }}">
+                </div>
+                <div class="col-md-3 time-filter-custom" style="display: none;">
+                    <label class="form-label small fw-semibold">Đến ngày</label>
+                    <input type="date" name="end_date" class="form-select" value="{{ $endDate ?? '' }}" max="{{ now()->format('Y-m-d') }}">
+                </div>
+                
+                {{-- Room Type Filter --}}
                 <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Loại phòng</label>
+                    <select name="room_type_id" class="form-select">
+                        <option value="">Tất cả loại phòng</option>
+                        @foreach($allRoomTypes as $rt)
+                            <option value="{{ $rt->id }}" @selected($roomTypeId == $rt->id)>{{ $rt->ten }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                
+                {{-- Room Filter --}}
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Phòng</label>
+                    <select name="room_id" class="form-select" id="roomFilter">
+                        <option value="">Tất cả phòng</option>
+                        @foreach($allRooms as $r)
+                            <option value="{{ $r->id }}" 
+                                data-room-type="{{ $r->loai_phong_id }}"
+                                @selected($roomId == $r->id)>
+                                {{ $r->ma_phong }} - {{ $r->loaiPhong->ten ?? '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="bi bi-funnel me-1"></i>Lọc
                     </button>
                 </div>
-                <div class="col-md-3 text-end">
-                    <div class="badge bg-info fs-6 px-3 py-2">
-                        {{ $selectedDate->locale('vi')->translatedFormat('F Y') }}
-                    </div>
+                <div class="col-md-2">
+                    <a href="{{ route('staff.analytics.rooms') }}" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-x-circle me-1"></i>Xóa
+                    </a>
+                </div>
+                <div class="col-md-4 text-end">
+                    @if($startDate && $endDate)
+                        <div class="badge bg-info fs-6 px-3 py-2">
+                            {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                        </div>
+                    @else
+                        <div class="badge bg-info fs-6 px-3 py-2">
+                            {{ $selectedDate->locale('vi')->translatedFormat('F Y') }}
+                        </div>
+                    @endif
                 </div>
             </form>
         </div>
@@ -167,6 +232,104 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Toggle between month/year and custom date range
+    const timeRangeRadios = document.querySelectorAll('input[name="time_range_type"]');
+    const monthFilters = document.querySelectorAll('.time-filter-month');
+    const customFilters = document.querySelectorAll('.time-filter-custom');
+    
+    timeRangeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'month') {
+                monthFilters.forEach(el => el.style.display = 'block');
+                customFilters.forEach(el => el.style.display = 'none');
+                document.querySelector('input[name="start_date"]').value = '';
+                document.querySelector('input[name="end_date"]').value = '';
+            } else {
+                monthFilters.forEach(el => el.style.display = 'none');
+                customFilters.forEach(el => el.style.display = 'block');
+            }
+        });
+    });
+    
+    // Set initial state based on which radio is checked
+    const selectedTimeRange = document.querySelector('input[name="time_range_type"]:checked');
+    if (selectedTimeRange) {
+        if (selectedTimeRange.value === 'custom') {
+            monthFilters.forEach(el => el.style.display = 'none');
+            customFilters.forEach(el => el.style.display = 'block');
+        } else {
+            monthFilters.forEach(el => el.style.display = 'block');
+            customFilters.forEach(el => el.style.display = 'none');
+        }
+    }
+    
+    // Filter rooms by room type
+    const roomTypeSelect = document.querySelector('select[name="room_type_id"]');
+    const roomSelect = document.getElementById('roomFilter');
+    const allRoomOptions = Array.from(roomSelect.querySelectorAll('option'));
+    
+    function filterRoomsByType() {
+        const selectedRoomTypeId = roomTypeSelect.value;
+        
+        // Clear current selection if it doesn't match
+        if (selectedRoomTypeId && roomSelect.value) {
+            const selectedOption = roomSelect.querySelector(`option[value="${roomSelect.value}"]`);
+            if (selectedOption && selectedOption.dataset.roomType !== selectedRoomTypeId) {
+                roomSelect.value = '';
+            }
+        }
+        
+        // Show/hide room options based on room type
+        allRoomOptions.forEach(option => {
+            if (option.value === '') {
+                option.style.display = 'block'; // Always show "Tất cả phòng"
+            } else if (!selectedRoomTypeId || option.dataset.roomType === selectedRoomTypeId) {
+                option.style.display = 'block';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+    }
+    
+    // Apply filter on change
+    roomTypeSelect.addEventListener('change', filterRoomsByType);
+    
+    // Apply filter on page load if room type is already selected
+    if (roomTypeSelect.value) {
+        filterRoomsByType();
+    }
+    
+    // Validate date range and clean up form data
+    const filterForm = document.getElementById('filterForm');
+    filterForm.addEventListener('submit', function(e) {
+        const timeRangeType = document.querySelector('input[name="time_range_type"]:checked').value;
+        
+        if (timeRangeType === 'custom') {
+            const startDate = document.querySelector('input[name="start_date"]').value;
+            const endDate = document.querySelector('input[name="end_date"]').value;
+            
+            if (!startDate || !endDate) {
+                e.preventDefault();
+                alert('Vui lòng chọn đầy đủ từ ngày và đến ngày');
+                return false;
+            }
+            
+            if (new Date(startDate) > new Date(endDate)) {
+                e.preventDefault();
+                alert('Ngày bắt đầu không được lớn hơn ngày kết thúc');
+                return false;
+            }
+            
+            // Remove month/year from form if using custom range
+            document.querySelector('select[name="month"]').disabled = true;
+            document.querySelector('select[name="year"]').disabled = true;
+        } else {
+            // Remove custom dates from form if using month/year
+            document.querySelector('input[name="start_date"]').disabled = true;
+            document.querySelector('input[name="end_date"]').disabled = true;
+        }
+    });
+    
     // Room Type Bar Chart
     const chartCanvas = document.getElementById('roomTypeChart');
     if (chartCanvas) {

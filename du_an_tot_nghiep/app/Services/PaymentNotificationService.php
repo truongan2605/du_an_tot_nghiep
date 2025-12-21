@@ -103,7 +103,7 @@ class PaymentNotificationService
                     'payload' => [
                         'title' => 'Nhận thanh toán tiền cọc mới',
                         'message' => "Khách hàng {$customerName} đã thanh toán tiền cọc cho đơn #{$booking->ma_tham_chieu}. Số tiền: " . number_format($transaction->so_tien, 0, ',', '.') . " VNĐ",
-                        'link' => "/admin/giao-dich/{$transaction->id}",
+                        'link' => "/staff/bookings/{$booking->id}",
                         'booking_id' => $booking->id,
                         'transaction_id' => $transaction->id,
                         'customer_name' => $customerName,
@@ -211,7 +211,7 @@ class PaymentNotificationService
                         'message' => $isFullyPaid
                             ? "Khách hàng {$customerName} đã thanh toán đầy đủ cho đơn #{$booking->ma_tham_chieu}. Tổng tiền: " . number_format($booking->tong_tien, 0, ',', '.') . " VNĐ"
                             : "Khách hàng {$customerName} đã thanh toán thêm " . number_format($transaction->so_tien, 0, ',', '.') . " VNĐ cho đơn #{$booking->ma_tham_chieu}. Còn lại: " . number_format($remaining, 0, ',', '.') . " VNĐ",
-                        'link' => "/admin/giao-dich/{$transaction->id}",
+                        'link' => "/staff/bookings/{$booking->id}",
                         'booking_id' => $booking->id,
                         'transaction_id' => $transaction->id,
                         'customer_name' => $customerName,
@@ -595,7 +595,7 @@ class PaymentNotificationService
                     'payload' => [
                         'title' => 'Khách hàng đã thanh toán toàn bộ',
                         'message' => "Khách hàng {$customerName} đã thanh toán toàn bộ cho đơn #{$booking->ma_tham_chieu}. Tổng tiền: " . number_format($booking->tong_tien, 0, ',', '.') . " VNĐ",
-                        'link' => $transaction ? "/admin/giao-dich/{$transaction->id}" : "/staff/bookings/{$booking->id}",
+                        'link' => "/staff/bookings/{$booking->id}",
                         'booking_id' => $booking->id,
                         'transaction_id' => $transaction ? $transaction->id : null,
                         'customer_name' => $customerName,
