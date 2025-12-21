@@ -259,7 +259,13 @@
                                                         </div>
                                                     </div>
 
+                                                    {{-- Tuổi trẻ em --}}
                                                     <div id="children_ages_container" class="mb-2"></div>
+
+                                                    {{-- Thông báo vượt sức chứa (người lớn + trẻ > 6 tuổi) --}}
+                                                    <div id="capacity_block_notice"
+                                                        class="alert alert-warning py-2 px-3 mb-0 mt-2 small"
+                                                        style="display:none;"></div>
 
                                                     <div class="mt-3">
                                                         <i class="fa-solid fa-bed"></i>
@@ -639,11 +645,7 @@
 
                                                             @foreach ($vouchers as $voucher)
                                                                 @php
-                                                                    // $vouchers đã được lọc ở controller (active + còn hạn + còn lượt),
-                                                                    // giữ check này để an toàn nếu sau này logic thay đổi
-                                                                    $isExpired = \Carbon\Carbon::parse(
-                                                                        $voucher->end_date,
-                                                                    )->isPast();
+                                                                    $isExpired = \Carbon\Carbon::parse($voucher->end_date)->isPast();
                                                                 @endphp
 
                                                                 <label
@@ -659,12 +661,11 @@
                                                                                 class="fw-semibold text-primary d-block">{{ $voucher->name }}</span>
                                                                             <small class="text-muted d-block">Mã:
                                                                                 {{ $voucher->code }}</small>
-                                                                            {{-- NEW: Hiển thị giá trị voucher --}}
                                                                             <small class="text-muted d-block">
                                                                                 Giảm: <span
                                                                                     class="fw-semibold">{{ $voucher->display_value }}</span>
                                                                             </small>
-                                                                            
+
                                                                             <small class="text-muted">
                                                                                 {{ \Carbon\Carbon::parse($voucher->start_date)->format('d/m') }}
                                                                                 -
@@ -681,7 +682,6 @@
                                                             @endforeach
                                                         </div>
                                                     @else
-                                                        {{-- Không có voucher dùng được --}}
                                                         <div class="border rounded p-3 bg-light">
                                                             <p class="text-muted small mb-2">Bạn không có voucher nào.</p>
                                                             <a href="{{ route('client.vouchers.index') }}"
@@ -691,7 +691,6 @@
                                                         </div>
                                                     @endif
                                                 @else
-                                                    {{-- Chưa đăng nhập --}}
                                                     <div class="border rounded p-3 bg-light">
                                                         <p class="text-muted small mb-2">Vui lòng đăng nhập để sử dụng
                                                             voucher.</p>
@@ -701,7 +700,6 @@
                                                         </a>
                                                     </div>
                                                 @endif
-
 
                                                 <div id="voucherResult" class="mt-3"></div>
                                             </div>
@@ -889,7 +887,7 @@
                             const voucherDiscountInput = document.getElementById(
                                 'voucher_discount_input');
                             const voucherCodeHiddenInput = document.getElementById(
-                            'voucher_code_input');
+                                'voucher_code_input');
                             if (voucherIdInput) voucherIdInput.value = '';
                             if (voucherDiscountInput) voucherDiscountInput.value = '';
                             if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
@@ -926,6 +924,9 @@
             const availabilityMessageEl = document.getElementById('availability_message');
             const weekendNoticeEl = document.getElementById('weekend_notice');
 
+            // NEW: cảnh báo sức chứa
+            const capacityNoticeEl = document.getElementById('capacity_block_notice');
+
             const pricePerNight = Number({!! json_encode($basePrice) !!});
             const baseCapacity = Number({{ $baseCapacity }});
             const ADULT_PRICE = {{ \App\Http\Controllers\Client\BookingController::ADULT_PRICE }};
@@ -955,6 +956,86 @@
                 if (isNaN(v)) v = min;
                 if (v < min) el.value = min;
                 else if (v > max) el.value = max;
+            }
+
+            // ====== NEW: Helper cho "ngày gần nhất còn trống" theo NGÀY NHẬN PHÒNG gần nhất ======
+            let nearestAvailAbort = 0;
+
+            function addDays(yyyy_mm_dd, days) {
+                const d = new Date(yyyy_mm_dd + 'T00:00:00');
+                d.setDate(d.getDate() + days);
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            }
+
+            function formatDateVi(yyyy_mm_dd) {
+                const d = new Date(yyyy_mm_dd + 'T00:00:00');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const yyyy = d.getFullYear();
+                return `${dd}/${mm}/${yyyy}`;
+            }
+
+            // NEW: tìm ngày nhận phòng gần nhất >= ngày nhận hiện tại + 1 ngày
+            // (tính theo ngày nhận phòng gần nhất, không phụ thuộc ngày trả phòng)
+            async function findNearestAvailableCheckinDate(fromDate, nights) {
+                const token = ++nearestAvailAbort;
+
+                try {
+                    const loaiId = {{ $phong->loai_phong_id }};
+                    const phongId = {{ $phong->id }};
+
+                    const MAX_LOOKAHEAD_DAYS = 60;
+
+                    for (let offset = 1; offset <= MAX_LOOKAHEAD_DAYS; offset++) {
+                        if (token !== nearestAvailAbort) return;
+
+                        const newFrom = addDays(fromDate, offset);
+                        const newTo = addDays(newFrom, nights);
+
+                        const params = new URLSearchParams({
+                            loai_phong_id: String(loaiId),
+                            phong_id: String(phongId),
+                            from: newFrom,
+                            to: newTo
+                        }).toString();
+
+                        const url = '{{ route('booking.availability') }}' + '?' + params;
+                        const res = await fetch(url, {
+                            method: 'GET',
+                            headers: { 'Accept': 'application/json' }
+                        });
+                        if (!res.ok) continue;
+
+                        const data = await res.json();
+                        const avail = Number(data.available || 0);
+
+                        if (avail > 0) {
+                            if (availabilityMessageEl && token === nearestAvailAbort) {
+                                availabilityMessageEl.className = 'small mt-2 text-danger';
+                                availabilityMessageEl.innerHTML =
+                                    `Loại phòng này không còn phòng trống trong thời gian đã chọn. ` +
+                                    `Phòng còn trống gần nhất vào <strong>14:00</strong> ngày <strong>${formatDateVi(newFrom)}</strong>.`;
+                            }
+                            return;
+                        }
+                    }
+
+                    if (availabilityMessageEl && token === nearestAvailAbort) {
+                        availabilityMessageEl.className = 'small mt-2 text-danger';
+                        availabilityMessageEl.innerText =
+                            `Loại phòng này không còn phòng trống trong thời gian đã chọn. Chưa tìm thấy phòng trống trong ${MAX_LOOKAHEAD_DAYS} ngày tới.`;
+                    }
+                } catch (e) {
+                    console.error(e);
+                    if (availabilityMessageEl && token === nearestAvailAbort) {
+                        availabilityMessageEl.className = 'small mt-2 text-danger';
+                        availabilityMessageEl.innerText =
+                            `Loại phòng này không còn phòng trống trong thời gian đã chọn. (Không thể kiểm tra ngày trống gần nhất do lỗi hệ thống.)`;
+                    }
+                }
             }
 
             function setHiddenDates(arr) {
@@ -1010,6 +1091,9 @@
                     const to = toInput.value;
                     if (!from || !to) return;
 
+                    // reset tìm kiếm ngày gần nhất (tránh hiển thị kết quả cũ)
+                    nearestAvailAbort++;
+
                     const loaiId = {{ $phong->loai_phong_id }};
                     const phongId = {{ $phong->id }};
                     const params = new URLSearchParams({
@@ -1042,9 +1126,14 @@
                         if (availabilityMessageEl) {
                             availabilityMessageEl.className = 'small mt-2 text-danger';
                             availabilityMessageEl.innerText =
-                                `Phòng {{ $phong->ma_phong }} không khả dụng trong khoảng thời gian đã chọn.`;
+                                `Loại phòng này không còn phòng trống trong thời gian đã chọn. Đang tìm ngày nhận phòng gần nhất còn trống...`;
                         }
                         toggleSubmit(false);
+
+                        // NEW: tìm ngày nhận phòng gần nhất (theo ngày nhận phòng)
+                        const nights = Math.max(1, Math.round((new Date(to + 'T00:00:00') - new Date(from + 'T00:00:00')) / (1000 * 60 * 60 * 24)));
+                        // "ngày gần nhất" tính theo ngày NHẬN PHÒNG gần nhất kể từ ngày nhận hiện tại
+                        findNearestAvailableCheckinDate(from, nights);
                     } else {
                         if (availabilityMessageEl) availabilityMessageEl.innerText = '';
                         toggleSubmit(true);
@@ -1116,6 +1205,9 @@
                 }
             }
 
+            // Tính đúng số người "ăn sức chứa"
+            // - Người lớn luôn tính
+            // - Trẻ em >= 7 tuổi tính như 1 khách
             function computePersonCharges() {
                 const adults = Number(adultsInput.value || 0);
                 const ages = Array.from(document.querySelectorAll('.child-age-input')).map(x => {
@@ -1126,13 +1218,8 @@
                     return v;
                 });
 
-                let computedAdults = adults;
-                let chargeableChildren = 0;
-
-                ages.forEach(a => {
-                    if (a >= 13) computedAdults++;
-                    else if (a >= 7) chargeableChildren++;
-                });
+                const chargeableChildren = ages.filter(a => a >= 7).length;
+                const computedAdults = adults;
 
                 return {
                     computedAdults,
@@ -1178,11 +1265,29 @@
                 updateInputLimitsByRooms();
 
                 const persons = computePersonCharges();
-                const computedAdults = persons.computedAdults;
+                const computedAdults = persons.computedAdults; // = adults
                 const chargeableChildren = persons.chargeableChildren;
+
+                // chỉ những người "ăn sức chứa" = người lớn + trẻ >= 7
                 const countedPersons = computedAdults + chargeableChildren;
 
+                // backend chốt max capacity = baseCapacity + 2
                 const totalMaxAllowed = (baseCapacity + 2) * roomsCount;
+
+                const isCapacityBlocked = countedPersons > totalMaxAllowed;
+
+                if (capacityNoticeEl) {
+                    if (isCapacityBlocked) {
+                        capacityNoticeEl.style.display = 'block';
+                        capacityNoticeEl.innerHTML =
+                            `Vượt sức chứa tối đa. Trẻ em từ <strong>7 tuổi</strong> trở lên được tính như <strong>1 khách</strong>. ` +
+                            `Hiện tại: <strong>${countedPersons}</strong> / <strong>${totalMaxAllowed}</strong>. ` +
+                            `Vui lòng <strong>giảm số khách</strong> hoặc <strong>tăng số phòng</strong>.`;
+                    } else {
+                        capacityNoticeEl.style.display = 'none';
+                        capacityNoticeEl.innerHTML = '';
+                    }
+                }
 
                 // extra logic như cũ
                 const extraCountTotal = Math.max(0, countedPersons - (baseCapacity * roomsCount));
@@ -1257,7 +1362,7 @@
                 // display
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
                 priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :
-                '0 đ';
+                    '0 đ';
                 priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ? fmtVnd(childrenChargePerNightTotal) :
                     '0 đ';
                 const addonsEl = document.getElementById('price_addons_display');
@@ -1281,10 +1386,10 @@
                     originalDepositInput.value = depositRaw;
                 }
 
-                // basic guard
+                // basic guard (kết hợp cả availability + capacity)
                 const form = document.getElementById('bookingForm');
                 const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
-                if (submitBtn) submitBtn.disabled = (currentAvailableRooms <= 0) || (countedPersons > totalMaxAllowed);
+                if (submitBtn) submitBtn.disabled = (currentAvailableRooms <= 0) || isCapacityBlocked;
             }
 
             window.bookingUpdateSummary = updateSummary;
@@ -1353,7 +1458,7 @@
 
                     const voucherId = document.getElementById('voucher_id_input')?.value || null;
                     const voucherDiscount = document.getElementById('voucher_discount_input')?.value ||
-                    null;
+                        null;
                     const voucherCodeHidden = document.getElementById('voucher_code_input')?.value || null;
 
                     const depositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
