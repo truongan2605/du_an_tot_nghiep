@@ -571,41 +571,62 @@
                                                     </button>
                                                 </div>
 
-                                                @if (Auth::check() && Auth::user()->vouchers->count() > 0)
-                                                    <div class="border rounded p-3 bg-light" style="max-height: 180px; overflow-y: auto;">
-                                                        <small class="text-muted fw-bold d-block mb-2">Voucher của bạn:</small>
+                                                @if (Auth::check())
+    @if ($vouchers->count() > 0)
+        <div class="border rounded p-3 bg-light" style="max-height: 180px; overflow-y: auto;">
+            <small class="text-muted fw-bold d-block mb-2">Voucher của bạn:</small>
 
-                                                        @foreach ($vouchers as $voucher)
-                                                            @php
-                                                                $isExpired = \Carbon\Carbon::parse($voucher->end_date)->isPast();
-                                                            @endphp
-                                                            <label class="d-flex justify-content-between align-items-center p-2 mb-2 rounded border {{ $isExpired ? 'bg-light text-muted' : 'bg-white shadow-sm' }}"
-                                                                style="cursor: pointer; transition: 0.2s">
-                                                                <div class="form-check">
-                                                                    <input class="form-check-input voucher-checkbox"
-                                                                        type="checkbox"
-                                                                        value="{{ $voucher->code }}"
-                                                                        data-code="{{ $voucher->code }}"
-                                                                        {{ $isExpired ? 'disabled' : '' }}>
-                                                                    <div class="ms-2">
-                                                                        <span class="fw-semibold text-primary d-block">{{ $voucher->name }}</span>
-                                                                        <small class="text-muted d-block">Mã: {{ $voucher->code }}</small>
-                                                                        <small class="text-muted">
-                                                                            {{ \Carbon\Carbon::parse($voucher->start_date)->format('d/m') }}
-                                                                            -
-                                                                            {{ \Carbon\Carbon::parse($voucher->end_date)->format('d/m') }}
-                                                                        </small>
-                                                                    </div>
-                                                                </div>
-                                                                <span class="badge {{ $isExpired ? 'bg-secondary' : 'bg-success' }} px-2 py-1 rounded-pill">
-                                                                    {{ $isExpired ? 'Hết hạn' : 'Dùng được' }}
-                                                                </span>
-                                                            </label>
-                                                        @endforeach
-                                                    </div>
-                                                @else
-                                                    <p class="text-muted small">Bạn chưa nhận mã giảm giá nào.</p>
-                                                @endif
+            @foreach ($vouchers as $voucher)
+                @php
+                    // $vouchers đã được lọc ở controller (active + còn hạn + còn lượt),
+                    // giữ check này để an toàn nếu sau này logic thay đổi
+                    $isExpired = \Carbon\Carbon::parse($voucher->end_date)->isPast();
+                @endphp
+
+                <label class="d-flex justify-content-between align-items-center p-2 mb-2 rounded border {{ $isExpired ? 'bg-light text-muted' : 'bg-white shadow-sm' }}"
+                       style="cursor: pointer; transition: 0.2s">
+                    <div class="form-check">
+                        <input class="form-check-input voucher-checkbox"
+                               type="checkbox"
+                               value="{{ $voucher->code }}"
+                               data-code="{{ $voucher->code }}"
+                               {{ $isExpired ? 'disabled' : '' }}>
+                        <div class="ms-2">
+                            <span class="fw-semibold text-primary d-block">{{ $voucher->name }}</span>
+                            <small class="text-muted d-block">Mã: {{ $voucher->code }}</small>
+                            <small class="text-muted">
+                                {{ \Carbon\Carbon::parse($voucher->start_date)->format('d/m') }}
+                                -
+                                {{ \Carbon\Carbon::parse($voucher->end_date)->format('d/m') }}
+                            </small>
+                        </div>
+                    </div>
+
+                    <span class="badge {{ $isExpired ? 'bg-secondary' : 'bg-success' }} px-2 py-1 rounded-pill">
+                        {{ $isExpired ? 'Hết hạn' : 'Dùng được' }}
+                    </span>
+                </label>
+            @endforeach
+        </div>
+    @else
+        {{-- Không có voucher dùng được --}}
+        <div class="border rounded p-3 bg-light">
+            <p class="text-muted small mb-2">Bạn không có voucher nào.</p>
+            <a href="{{ route('client.vouchers.index') }}" target="_blank" class="btn btn-outline-success btn-sm">
+    Nhận voucher
+</a>
+        </div>
+    @endif
+@else
+    {{-- Chưa đăng nhập --}}
+    <div class="border rounded p-3 bg-light">
+        <p class="text-muted small mb-2">Vui lòng đăng nhập để sử dụng voucher.</p>
+        <a href="{{ route('login') }}" class="btn btn-outline-primary btn-sm">
+            Đăng nhập
+        </a>
+    </div>
+@endif
+
 
                                                 <div id="voucherResult" class="mt-3"></div>
                                             </div>

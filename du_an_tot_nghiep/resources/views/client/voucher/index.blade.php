@@ -45,8 +45,19 @@
             {{-- ===== MAIN CONTENT ===== --}}
             <div class="col-lg-9">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h3 class="fw-bold mb-0">Danh sách Voucher</h3>
-                </div>
+    <h3 class="fw-bold mb-0">Danh sách Voucher</h3>
+
+    @auth
+        <a href="{{ route('client.vouchers.my') }}" class="btn btn-outline-primary rounded-pill">
+            Ví Voucher
+        </a>
+    @else
+        <a href="{{ route('login') }}" class="btn btn-outline-primary rounded-pill">
+            Ví Voucher
+        </a>
+    @endauth
+</div>
+
 
                 @if ($vouchers->count() > 0)
                     <div class="row g-4">
