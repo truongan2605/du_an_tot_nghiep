@@ -315,7 +315,7 @@
                                             </div>
 
                                             <div class="card-body">
-                                                <h6>Tiện ích</h6>
+                                                <h6>Dịch vụ</h6>
                                                 @if ($phong->tienNghis && $phong->tienNghis->count())
                                                     <ul class="list-unstyled">
                                                         @foreach ($phong->tienNghis as $tn)
