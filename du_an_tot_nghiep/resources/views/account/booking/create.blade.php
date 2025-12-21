@@ -22,19 +22,25 @@
         $qTo = request('ngay_tra_phong');
 
         $defaultFrom = old('ngay_nhan_phong', $qFrom ?: \Carbon\Carbon::today()->format('Y-m-d'));
-        $defaultTo   = old('ngay_tra_phong',  $qTo   ?: \Carbon\Carbon::tomorrow()->format('Y-m-d'));
+        $defaultTo = old('ngay_tra_phong', $qTo ?: \Carbon\Carbon::tomorrow()->format('Y-m-d'));
 
         $defaultRooms = (int) old('rooms_count', request('rooms_count', 1));
-        if ($defaultRooms < 1) $defaultRooms = 1;
+        if ($defaultRooms < 1) {
+            $defaultRooms = 1;
+        }
 
         $defaultAdults = (int) old('adults', request('adults', min(2, max(1, $baseCapacity))));
-        if ($defaultAdults < 1) $defaultAdults = 1;
+        if ($defaultAdults < 1) {
+            $defaultAdults = 1;
+        }
 
         $defaultChildren = (int) old('children', request('children', 0));
-        if ($defaultChildren < 0) $defaultChildren = 0;
+        if ($defaultChildren < 0) {
+            $defaultChildren = 0;
+        }
 
         // ====== Giữ lại tham số để quay về chi tiết phòng (nếu cần) ======
-        $backToDetailParams = http_build_query(request()->only(['date_range','adults','children','rooms_count']));
+        $backToDetailParams = http_build_query(request()->only(['date_range', 'adults', 'children', 'rooms_count']));
     @endphp
 
     <main>
@@ -122,7 +128,8 @@
                                             </a>
                                         </li>
                                         <li class="breadcrumb-item">
-                                            <a href="{{ route('rooms.show', $phong->id) }}@if($backToDetailParams)?{{ $backToDetailParams }}@endif">
+                                            <a
+                                                href="{{ route('rooms.show', $phong->id) }}@if ($backToDetailParams) ?{{ $backToDetailParams }} @endif">
                                                 Chi tiết phòng
                                             </a>
                                         </li>
@@ -178,7 +185,8 @@
                                             <div class="col-lg-6">
                                                 <div class="d-flex">
                                                     <i class="bi bi-calendar fs-3 me-2 mt-2"></i>
-                                                    <div class="form-control-border form-control-transparent form-fs-md w-100">
+                                                    <div
+                                                        class="form-control-border form-control-transparent form-fs-md w-100">
                                                         <label class="form-label">Nhận phòng - Trả phòng</label>
 
                                                         {{-- Input hiển thị (flatpickr sẽ tạo altInput đẹp) --}}
@@ -195,7 +203,8 @@
                                                             Giờ nhận phòng: 14:00 – Giờ trả phòng: 12:00
                                                         </small>
 
-                                                        <div id="weekend_notice" class="small mt-1 text-danger" style="display:none;"></div>
+                                                        <div id="weekend_notice" class="small mt-1 text-danger"
+                                                            style="display:none;"></div>
                                                         <div id="availability_message" class="small mt-2"></div>
 
                                                         @error('ngay_nhan_phong')
@@ -220,7 +229,8 @@
                                                                 value="{{ $defaultAdults }}">
                                                             <small id="adults_help" class="text-muted d-block">
                                                                 Số người tối đa:
-                                                                <strong id="room_capacity_display">{{ ($baseCapacity + 2) * $defaultRooms }}</strong>
+                                                                <strong
+                                                                    id="room_capacity_display">{{ ($baseCapacity + 2) * $defaultRooms }}</strong>
                                                             </small>
                                                         </div>
 
@@ -242,7 +252,8 @@
                                                                 value="{{ old('rooms_count', $defaultRooms) }}">
                                                             <small class="text-muted d-block">
                                                                 Có sẵn cho ngày đã chọn:
-                                                                <strong id="available_rooms_display">{{ $availableRoomsDefault ?? 0 }}</strong>
+                                                                <strong
+                                                                    id="available_rooms_display">{{ $availableRoomsDefault ?? 0 }}</strong>
                                                                 phòng
                                                             </small>
                                                         </div>
@@ -256,7 +267,8 @@
                                                         <ul class="list-unstyled mb-2">
                                                             @forelse ($phong->bedTypes as $bt)
                                                                 <li class="mb-1">
-                                                                    <div class="d-flex justify-content-between align-items-center">
+                                                                    <div
+                                                                        class="d-flex justify-content-between align-items-center">
                                                                         <div>
                                                                             <strong>{{ $bt->name }}</strong>
                                                                             <div class="small text">
@@ -267,13 +279,15 @@
                                                                             </div>
                                                                             <div class="small text">
                                                                                 Giá/giường:
-                                                                                {{ number_format($bt->price, 0, ',', '.') }} đ/đêm
+                                                                                {{ number_format($bt->price, 0, ',', '.') }}
+                                                                                đ/đêm
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                 </li>
                                                             @empty
-                                                                <li><em>Không có giường nào được cấu hình cho phòng này.</em></li>
+                                                                <li><em>Không có giường nào được cấu hình cho phòng
+                                                                        này.</em></li>
                                                             @endforelse
                                                         </ul>
                                                     </div>
@@ -300,7 +314,8 @@
                                                     <ul class="list-unstyled">
                                                         @foreach ($phong->tienNghis as $tn)
                                                             <li>
-                                                                <i class="{{ $tn->icon ?? 'fa-solid fa-check' }} text-success me-2"></i>
+                                                                <i
+                                                                    class="{{ $tn->icon ?? 'fa-solid fa-check' }} text-success me-2"></i>
                                                                 {{ $tn->ten }}
                                                                 @if ($tn->mo_ta)
                                                                     <div class="small text-muted">
@@ -328,7 +343,9 @@
                                                                                 {{ \Illuminate\Support\Str::limit($addon->mo_ta ?? '', 100) }}
                                                                             </div>
                                                                             <div class="small text">
-                                                                                + {{ number_format($addon->gia ?? 0, 0, ',', '.') }} đ / đêm
+                                                                                +
+                                                                                {{ number_format($addon->gia ?? 0, 0, ',', '.') }}
+                                                                                đ / đêm
                                                                             </div>
                                                                         </span>
                                                                     </label>
@@ -337,7 +354,8 @@
                                                         </ul>
                                                     @endif
                                                 @else
-                                                    <p class="mb-0"><em>Không có tiện ích nào được liệt kê cho phòng này.</em></p>
+                                                    <p class="mb-0"><em>Không có tiện ích nào được liệt kê cho phòng
+                                                            này.</em></p>
                                                 @endif
                                             </div>
                                         </div>
@@ -354,22 +372,29 @@
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Họ và tên</label>
-                                                    <input type="text" name="name" class="form-control form-control-lg"
+                                                    <input type="text" name="name"
+                                                        class="form-control form-control-lg"
                                                         value="{{ old('name', $u->name ?? '') }}" required>
-                                                    @error('name') <div class="text-danger small">{{ $message }}</div> @enderror
+                                                    @error('name')
+                                                        <div class="text-danger small">{{ $message }}</div>
+                                                    @enderror
                                                 </div>
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Địa chỉ</label>
-                                                    <input type="text" name="address" class="form-control form-control-lg"
+                                                    <input type="text" name="address"
+                                                        class="form-control form-control-lg"
                                                         value="{{ old('address', $u->address ?? '') }}" required>
-                                                    @error('address') <div class="text-danger small">{{ $message }}</div> @enderror
+                                                    @error('address')
+                                                        <div class="text-danger small">{{ $message }}</div>
+                                                    @enderror
                                                 </div>
 
                                                 <div class="row g-3">
                                                     <div class="col-md-6">
                                                         <label class="form-label">Email</label>
-                                                        <input type="email" class="form-control" value="{{ $u->email ?? '' }}" readonly>
+                                                        <input type="email" class="form-control"
+                                                            value="{{ $u->email ?? '' }}" readonly>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label">Số điện thoại</label>
@@ -385,13 +410,18 @@
 
                                                 <div class="mb-3">
                                                     <input type="hidden" name="phong_id" value="{{ $phong->id }}">
-                                                    <input type="hidden" name="tong_tien" id="hidden_tong_tien" value="{{ (int) $basePrice }}">
-                                                    <input type="hidden" name="deposit_amount" id="hidden_deposit" value="0">
+                                                    <input type="hidden" name="tong_tien" id="hidden_tong_tien"
+                                                        value="{{ (int) $basePrice }}">
+                                                    <input type="hidden" name="deposit_amount" id="hidden_deposit"
+                                                        value="0">
 
                                                     {{-- voucher gửi lên server --}}
-                                                    <input type="hidden" name="voucher_id" id="voucher_id_input" value="">
-                                                    <input type="hidden" name="voucher_discount" id="voucher_discount_input" value="">
-                                                    <input type="hidden" name="ma_voucher" id="voucher_code_input" value="">
+                                                    <input type="hidden" name="voucher_id" id="voucher_id_input"
+                                                        value="">
+                                                    <input type="hidden" name="voucher_discount"
+                                                        id="voucher_discount_input" value="">
+                                                    <input type="hidden" name="ma_voucher" id="voucher_code_input"
+                                                        value="">
 
                                                     {{-- GIÁ GỐC (KHÔNG VOUCHER) --}}
                                                     <input type="hidden" id="original_total" value="0">
@@ -404,8 +434,9 @@
                                                         <div class="card border">
                                                             <div class="card-body p-3">
                                                                 <div class="form-check mb-2">
-                                                                    <input type="radio" name="deposit_percentage" value="50"
-                                                                        class="form-check-input" id="deposit_50" checked>
+                                                                    <input type="radio" name="deposit_percentage"
+                                                                        value="50" class="form-check-input"
+                                                                        id="deposit_50" checked>
                                                                     <label for="deposit_50" class="form-check-label">
                                                                         <strong>Đặt cọc 50%</strong>
                                                                         <small class="text-muted d-block">
@@ -414,8 +445,9 @@
                                                                     </label>
                                                                 </div>
                                                                 <div class="form-check">
-                                                                    <input type="radio" name="deposit_percentage" value="100"
-                                                                        class="form-check-input" id="deposit_100">
+                                                                    <input type="radio" name="deposit_percentage"
+                                                                        value="100" class="form-check-input"
+                                                                        id="deposit_100">
                                                                     <label for="deposit_100" class="form-check-label">
                                                                         <strong>Thanh toán toàn bộ 100%</strong>
                                                                         <small class="text-muted d-block">
@@ -445,53 +477,77 @@
                                                                 <tbody>
                                                                     <tr>
                                                                         <td class="small">≥ 7 ngày trước check-in</td>
-                                                                        <td class="text-center"><span class="badge bg-success">Hoàn 100%</span></td>
-                                                                        <td class="text-center"><span class="badge bg-success">Hoàn 90%</span></td>
+                                                                        <td class="text-center"><span
+                                                                                class="badge bg-success">Hoàn 100%</span>
+                                                                        </td>
+                                                                        <td class="text-center"><span
+                                                                                class="badge bg-success">Hoàn 90%</span>
+                                                                        </td>
                                                                     </tr>
                                                                     <tr>
                                                                         <td class="small">3-6 ngày trước</td>
-                                                                        <td class="text-center"><span class="badge bg-warning text-dark">Hoàn 70%</span></td>
-                                                                        <td class="text-center"><span class="badge bg-warning text-dark">Hoàn 60%</span></td>
+                                                                        <td class="text-center"><span
+                                                                                class="badge bg-warning text-dark">Hoàn
+                                                                                70%</span></td>
+                                                                        <td class="text-center"><span
+                                                                                class="badge bg-warning text-dark">Hoàn
+                                                                                60%</span></td>
                                                                     </tr>
                                                                     <tr>
                                                                         <td class="small">1-2 ngày trước</td>
-                                                                        <td class="text-center"><span class="badge bg-warning text-dark">Hoàn 30%</span></td>
-                                                                        <td class="text-center"><span class="badge bg-warning text-dark">Hoàn 40%</span></td>
+                                                                        <td class="text-center"><span
+                                                                                class="badge bg-warning text-dark">Hoàn
+                                                                                30%</span></td>
+                                                                        <td class="text-center"><span
+                                                                                class="badge bg-warning text-dark">Hoàn
+                                                                                40%</span></td>
                                                                     </tr>
                                                                     <tr>
                                                                         <td class="small">&lt; 24 giờ</td>
-                                                                        <td class="text-center"><span class="badge bg-danger">Không hoàn</span></td>
-                                                                        <td class="text-center"><span class="badge bg-warning text-dark">Hoàn 20%</span></td>
+                                                                        <td class="text-center"><span
+                                                                                class="badge bg-danger">Không hoàn</span>
+                                                                        </td>
+                                                                        <td class="text-center"><span
+                                                                                class="badge bg-warning text-dark">Hoàn
+                                                                                20%</span></td>
                                                                     </tr>
                                                                 </tbody>
                                                             </table>
                                                         </div>
                                                         <small class="text-muted">
                                                             <i class="bi bi-exclamation-triangle me-1"></i>
-                                                            <strong>Lưu ý:</strong> Thanh toán 100% ngay được ưu đãi thêm khi hủy phòng
+                                                            <strong>Lưu ý:</strong> Thanh toán 100% ngay được ưu đãi thêm
+                                                            khi hủy phòng
                                                         </small>
                                                     </div>
 
                                                     <div class="mt-3">
-                                                        <label for="phuong_thuc" class="form-label">Phương thức thanh toán</label>
-                                                        <select name="phuong_thuc" id="phuong_thuc" class="form-select" required>
+                                                        <label for="phuong_thuc" class="form-label">Phương thức thanh
+                                                            toán</label>
+                                                        <select name="phuong_thuc" id="phuong_thuc" class="form-select"
+                                                            required>
                                                             <option value="">Chọn phương thức</option>
-                                                            <option value="vnpay" {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>
+                                                            <option value="vnpay"
+                                                                {{ old('phuong_thuc') == 'vnpay' ? 'selected' : '' }}>
                                                                 Thanh toán bằng VNPAY
                                                             </option>
-                                                            <option value="momo" {{ old('phuong_thuc') == 'momo' ? 'selected' : '' }}>
+                                                            <option value="momo"
+                                                                {{ old('phuong_thuc') == 'momo' ? 'selected' : '' }}>
                                                                 Thanh toán bằng MoMo
                                                             </option>
                                                         </select>
                                                     </div>
                                                 </div>
 
-                                                <input type="hidden" name="final_per_night" id="final_per_night_input" value="">
-                                                <input type="hidden" name="snapshot_total" id="snapshot_total_input" value="">
+                                                <input type="hidden" name="final_per_night" id="final_per_night_input"
+                                                    value="">
+                                                <input type="hidden" name="snapshot_total" id="snapshot_total_input"
+                                                    value="">
 
                                                 <div class="mt-3">
-                                                    <button type="submit" class="btn btn-lg btn-primary">Xác nhận</button>
-                                                    <a href="{{ route('rooms.show', $phong->id) }}@if($backToDetailParams)?{{ $backToDetailParams }}@endif"
+                                                    <button type="submit" class="btn btn-lg btn-primary">Xác
+                                                        nhận</button>
+                                                    <a href="{{ route('rooms.show', $phong->id) }}@if ($backToDetailParams) ?{{ $backToDetailParams }} @endif"
                                                         class="btn btn-secondary ms-2">
                                                         Hủy
                                                     </a>
@@ -550,9 +606,11 @@
                                                     <span class="fw-semibold" id="nights_count_display">-</span>
                                                 </li>
 
-                                                <li class="list-group-item d-flex justify-content-between border-top pt-2 mt-1">
+                                                <li
+                                                    class="list-group-item d-flex justify-content-between border-top pt-2 mt-1">
                                                     <span class="fw-bold text-dark">Tổng</span>
-                                                    <span class="fs-5 fw-bold text-dark" id="total_snapshot_display">-</span>
+                                                    <span class="fs-5 fw-bold text-dark"
+                                                        id="total_snapshot_display">-</span>
                                                 </li>
                                             </ul>
 
@@ -564,7 +622,8 @@
                                                 </h6>
 
                                                 <div class="input-group mb-3">
-                                                    <input type="text" id="voucher_code" class="form-control rounded-start"
+                                                    <input type="text" id="voucher_code"
+                                                        class="form-control rounded-start"
                                                         placeholder="Nhập hoặc chọn mã giảm giá">
                                                     <button class="btn btn-success rounded-end px-4" id="applyVoucherBtn">
                                                         Áp dụng
@@ -572,60 +631,76 @@
                                                 </div>
 
                                                 @if (Auth::check())
-    @if ($vouchers->count() > 0)
-        <div class="border rounded p-3 bg-light" style="max-height: 180px; overflow-y: auto;">
-            <small class="text-muted fw-bold d-block mb-2">Voucher của bạn:</small>
+                                                    @if ($vouchers->count() > 0)
+                                                        <div class="border rounded p-3 bg-light"
+                                                            style="max-height: 180px; overflow-y: auto;">
+                                                            <small class="text-muted fw-bold d-block mb-2">Voucher của
+                                                                bạn:</small>
 
-            @foreach ($vouchers as $voucher)
-                @php
-                    // $vouchers đã được lọc ở controller (active + còn hạn + còn lượt),
-                    // giữ check này để an toàn nếu sau này logic thay đổi
-                    $isExpired = \Carbon\Carbon::parse($voucher->end_date)->isPast();
-                @endphp
+                                                            @foreach ($vouchers as $voucher)
+                                                                @php
+                                                                    // $vouchers đã được lọc ở controller (active + còn hạn + còn lượt),
+                                                                    // giữ check này để an toàn nếu sau này logic thay đổi
+                                                                    $isExpired = \Carbon\Carbon::parse(
+                                                                        $voucher->end_date,
+                                                                    )->isPast();
+                                                                @endphp
 
-                <label class="d-flex justify-content-between align-items-center p-2 mb-2 rounded border {{ $isExpired ? 'bg-light text-muted' : 'bg-white shadow-sm' }}"
-                       style="cursor: pointer; transition: 0.2s">
-                    <div class="form-check">
-                        <input class="form-check-input voucher-checkbox"
-                               type="checkbox"
-                               value="{{ $voucher->code }}"
-                               data-code="{{ $voucher->code }}"
-                               {{ $isExpired ? 'disabled' : '' }}>
-                        <div class="ms-2">
-                            <span class="fw-semibold text-primary d-block">{{ $voucher->name }}</span>
-                            <small class="text-muted d-block">Mã: {{ $voucher->code }}</small>
-                            <small class="text-muted">
-                                {{ \Carbon\Carbon::parse($voucher->start_date)->format('d/m') }}
-                                -
-                                {{ \Carbon\Carbon::parse($voucher->end_date)->format('d/m') }}
-                            </small>
-                        </div>
-                    </div>
+                                                                <label
+                                                                    class="d-flex justify-content-between align-items-center p-2 mb-2 rounded border {{ $isExpired ? 'bg-light text-muted' : 'bg-white shadow-sm' }}"
+                                                                    style="cursor: pointer; transition: 0.2s">
+                                                                    <div class="form-check">
+                                                                        <input class="form-check-input voucher-checkbox"
+                                                                            type="checkbox" value="{{ $voucher->code }}"
+                                                                            data-code="{{ $voucher->code }}"
+                                                                            {{ $isExpired ? 'disabled' : '' }}>
+                                                                        <div class="ms-2">
+                                                                            <span
+                                                                                class="fw-semibold text-primary d-block">{{ $voucher->name }}</span>
+                                                                            <small class="text-muted d-block">Mã:
+                                                                                {{ $voucher->code }}</small>
+                                                                            {{-- NEW: Hiển thị giá trị voucher --}}
+                                                                            <small class="text-muted d-block">
+                                                                                Giảm: <span
+                                                                                    class="fw-semibold">{{ $voucher->display_value }}</span>
+                                                                            </small>
+                                                                            
+                                                                            <small class="text-muted">
+                                                                                {{ \Carbon\Carbon::parse($voucher->start_date)->format('d/m') }}
+                                                                                -
+                                                                                {{ \Carbon\Carbon::parse($voucher->end_date)->format('d/m') }}
+                                                                            </small>
+                                                                        </div>
+                                                                    </div>
 
-                    <span class="badge {{ $isExpired ? 'bg-secondary' : 'bg-success' }} px-2 py-1 rounded-pill">
-                        {{ $isExpired ? 'Hết hạn' : 'Dùng được' }}
-                    </span>
-                </label>
-            @endforeach
-        </div>
-    @else
-        {{-- Không có voucher dùng được --}}
-        <div class="border rounded p-3 bg-light">
-            <p class="text-muted small mb-2">Bạn không có voucher nào.</p>
-            <a href="{{ route('client.vouchers.index') }}" target="_blank" class="btn btn-outline-success btn-sm">
-    Nhận voucher
-</a>
-        </div>
-    @endif
-@else
-    {{-- Chưa đăng nhập --}}
-    <div class="border rounded p-3 bg-light">
-        <p class="text-muted small mb-2">Vui lòng đăng nhập để sử dụng voucher.</p>
-        <a href="{{ route('login') }}" class="btn btn-outline-primary btn-sm">
-            Đăng nhập
-        </a>
-    </div>
-@endif
+                                                                    <span
+                                                                        class="badge {{ $isExpired ? 'bg-secondary' : 'bg-success' }} px-2 py-1 rounded-pill">
+                                                                        {{ $isExpired ? 'Hết hạn' : 'Dùng được' }}
+                                                                    </span>
+                                                                </label>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        {{-- Không có voucher dùng được --}}
+                                                        <div class="border rounded p-3 bg-light">
+                                                            <p class="text-muted small mb-2">Bạn không có voucher nào.</p>
+                                                            <a href="{{ route('client.vouchers.index') }}"
+                                                                target="_blank" class="btn btn-outline-success btn-sm">
+                                                                Nhận voucher
+                                                            </a>
+                                                        </div>
+                                                    @endif
+                                                @else
+                                                    {{-- Chưa đăng nhập --}}
+                                                    <div class="border rounded p-3 bg-light">
+                                                        <p class="text-muted small mb-2">Vui lòng đăng nhập để sử dụng
+                                                            voucher.</p>
+                                                        <a href="{{ route('login') }}"
+                                                            class="btn btn-outline-primary btn-sm">
+                                                            Đăng nhập
+                                                        </a>
+                                                    </div>
+                                                @endif
 
 
                                                 <div id="voucherResult" class="mt-3"></div>
@@ -634,8 +709,10 @@
 
                                         <div class="card-footer border-top bg-light">
                                             <div class="d-flex justify-content-between align-items-center">
-                                                <span class="h6 mb-0 fw-bold" id="deposit_percentage_label">Đặt cọc (50%)</span>
-                                                <span class="h6 mb-0 fw-bold text-primary" id="payable_now_display">-</span>
+                                                <span class="h6 mb-0 fw-bold" id="deposit_percentage_label">Đặt cọc
+                                                    (50%)</span>
+                                                <span class="h6 mb-0 fw-bold text-primary"
+                                                    id="payable_now_display">-</span>
                                             </div>
                                             <small class="text-muted d-block mt-1 fst-italic" id="remaining_info">
                                                 Phần còn lại (50%) thanh toán tại khách sạn khi check in
@@ -741,28 +818,32 @@
                     }
 
                     fetch('{{ route('booking.apply-voucher') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({ code: code, total: total })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (!resultBox) return;
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                code: code,
+                                total: total
+                            })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (!resultBox) return;
 
-                        const fmtVndLocal = (num) =>
-                            new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
+                            const fmtVndLocal = (num) =>
+                                new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
 
-                        if (data.success) {
-                            const discountAmount = Number(data.discount || 0);
-                            const discountText = discountAmount > 0 ? fmtVndLocal(discountAmount) : '0 đ';
+                            if (data.success) {
+                                const discountAmount = Number(data.discount || 0);
+                                const discountText = discountAmount > 0 ? fmtVndLocal(discountAmount) :
+                                    '0 đ';
 
-                            const finalTotalLocal = Math.max(0, total - discountAmount);
-                            const finalTextLocal = fmtVndLocal(finalTotalLocal);
+                                const finalTotalLocal = Math.max(0, total - discountAmount);
+                                const finalTextLocal = fmtVndLocal(finalTotalLocal);
 
-                            resultBox.innerHTML = `
+                                resultBox.innerHTML = `
                                 <div class="alert alert-success p-2">
                                     ✅ Áp dụng thành công <strong>${data.voucher_name || code}</strong><br>
                                     Giảm: <strong>${discountText}</strong><br>
@@ -770,41 +851,51 @@
                                     <small class="text-muted">Tiền cọc sẽ được tính lại theo % bạn chọn (50% hoặc 100%).</small>
                                 </div>`;
 
-                            const voucherIdInput = document.getElementById('voucher_id_input');
-                            if (voucherIdInput && data.voucher_id) voucherIdInput.value = data.voucher_id;
+                                const voucherIdInput = document.getElementById('voucher_id_input');
+                                if (voucherIdInput && data.voucher_id) voucherIdInput.value = data
+                                    .voucher_id;
 
-                            const voucherDiscountInput = document.getElementById('voucher_discount_input');
-                            if (voucherDiscountInput && typeof data.discount !== 'undefined') {
-                                voucherDiscountInput.value = data.discount;
+                                const voucherDiscountInput = document.getElementById(
+                                    'voucher_discount_input');
+                                if (voucherDiscountInput && typeof data.discount !== 'undefined') {
+                                    voucherDiscountInput.value = data.discount;
+                                }
+
+                                const voucherCodeHiddenInput = document.getElementById(
+                                    'voucher_code_input');
+                                if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = data
+                                    .voucher_code || code;
+
+                                if (window.bookingUpdateSummary) window.bookingUpdateSummary();
+                            } else {
+                                resultBox.innerHTML =
+                                    `<div class="alert alert-danger p-2">${data.message || 'Không áp dụng được mã giảm giá.'}</div>`;
+                                const voucherIdInput = document.getElementById('voucher_id_input');
+                                const voucherDiscountInput = document.getElementById(
+                                    'voucher_discount_input');
+                                const voucherCodeHiddenInput = document.getElementById(
+                                    'voucher_code_input');
+                                if (voucherIdInput) voucherIdInput.value = '';
+                                if (voucherDiscountInput) voucherDiscountInput.value = '';
+                                if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
+
+                                if (window.bookingUpdateSummary) window.bookingUpdateSummary();
                             }
-
-                            const voucherCodeHiddenInput = document.getElementById('voucher_code_input');
-                            if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = data.voucher_code || code;
-
-                            if (window.bookingUpdateSummary) window.bookingUpdateSummary();
-                        } else {
-                            resultBox.innerHTML = `<div class="alert alert-danger p-2">${data.message || 'Không áp dụng được mã giảm giá.'}</div>`;
+                        })
+                        .catch(() => {
+                            if (resultBox) resultBox.innerHTML =
+                                `<div class="alert alert-danger p-2">Có lỗi xảy ra khi áp dụng mã giảm giá.</div>`;
                             const voucherIdInput = document.getElementById('voucher_id_input');
-                            const voucherDiscountInput = document.getElementById('voucher_discount_input');
-                            const voucherCodeHiddenInput = document.getElementById('voucher_code_input');
+                            const voucherDiscountInput = document.getElementById(
+                                'voucher_discount_input');
+                            const voucherCodeHiddenInput = document.getElementById(
+                            'voucher_code_input');
                             if (voucherIdInput) voucherIdInput.value = '';
                             if (voucherDiscountInput) voucherDiscountInput.value = '';
                             if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
 
                             if (window.bookingUpdateSummary) window.bookingUpdateSummary();
-                        }
-                    })
-                    .catch(() => {
-                        if (resultBox) resultBox.innerHTML = `<div class="alert alert-danger p-2">Có lỗi xảy ra khi áp dụng mã giảm giá.</div>`;
-                        const voucherIdInput = document.getElementById('voucher_id_input');
-                        const voucherDiscountInput = document.getElementById('voucher_discount_input');
-                        const voucherCodeHiddenInput = document.getElementById('voucher_code_input');
-                        if (voucherIdInput) voucherIdInput.value = '';
-                        if (voucherDiscountInput) voucherDiscountInput.value = '';
-                        if (voucherCodeHiddenInput) voucherCodeHiddenInput.value = '';
-
-                        if (window.bookingUpdateSummary) window.bookingUpdateSummary();
-                    });
+                        });
                 });
             }
         });
@@ -929,7 +1020,12 @@
                     }).toString();
 
                     const url = '{{ route('booking.availability') }}' + '?' + params;
-                    const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                    const res = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
                     if (!res.ok) return;
 
                     const data = await res.json();
@@ -974,8 +1070,9 @@
                 for (let i = 0; i < count; i++) {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'mb-2 child-age-wrapper';
-                    const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[i] !== 'undefined')
-                        ? Number(initialChildrenAges[i]) : 0;
+                    const initialVal = (Array.isArray(initialChildrenAges) && typeof initialChildrenAges[i] !==
+                            'undefined') ?
+                        Number(initialChildrenAges[i]) : 0;
 
                     wrapper.innerHTML = `
                         <label class="form-label">Tuổi trẻ em ${i + 1}</label>
@@ -1037,7 +1134,10 @@
                     else if (a >= 7) chargeableChildren++;
                 });
 
-                return { computedAdults, chargeableChildren };
+                return {
+                    computedAdults,
+                    chargeableChildren
+                };
             }
 
             function countWeekendNights(fromDate, toDate) {
@@ -1143,17 +1243,23 @@
                 const modalDepositLabel = document.getElementById('modal_deposit_label');
                 const remainingInfo = document.getElementById('remaining_info');
 
-                if (depositLabel) depositLabel.innerText = depositPercent === 1 ? 'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
-                if (modalDepositLabel) modalDepositLabel.innerText = depositPercent === 1 ? 'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
+                if (depositLabel) depositLabel.innerText = depositPercent === 1 ? 'Thanh toán toàn bộ (100%)' :
+                    `Đặt cọc (${percentageText})`;
+                if (modalDepositLabel) modalDepositLabel.innerText = depositPercent === 1 ?
+                    'Thanh toán toàn bộ (100%)' : `Đặt cọc (${percentageText})`;
                 if (remainingInfo) {
-                    if (depositPercent === 1) remainingInfo.innerText = 'Đã thanh toán đủ - Không cần thanh toán thêm khi check-in';
-                    else remainingInfo.innerText = `Phần còn lại (${100 - (depositPercent * 100)}%) thanh toán tại khách sạn khi check in`;
+                    if (depositPercent === 1) remainingInfo.innerText =
+                        'Đã thanh toán đủ - Không cần thanh toán thêm khi check-in';
+                    else remainingInfo.innerText =
+                        `Phần còn lại (${100 - (depositPercent * 100)}%) thanh toán tại khách sạn khi check in`;
                 }
 
                 // display
                 priceBaseDisplay.innerText = fmtVnd(basePerRoom);
-                priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) : '0 đ';
-                priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ? fmtVnd(childrenChargePerNightTotal) : '0 đ';
+                priceAdultsDisplay.innerText = adultsChargePerNightTotal > 0 ? fmtVnd(adultsChargePerNightTotal) :
+                '0 đ';
+                priceChildrenDisplay.innerText = childrenChargePerNightTotal > 0 ? fmtVnd(childrenChargePerNightTotal) :
+                    '0 đ';
                 const addonsEl = document.getElementById('price_addons_display');
                 if (addonsEl) addonsEl.innerText = addonsPerNight > 0 ? fmtVnd(addonsPerNight) : '0 đ';
 
@@ -1170,7 +1276,8 @@
 
                 if (originalTotalInput) originalTotalInput.value = rawTotal;
                 if (originalDepositInput) {
-                    const depositRaw = depositPercent === 1 ? rawTotal : Math.ceil(rawTotal * depositPercent / 1000) * 1000;
+                    const depositRaw = depositPercent === 1 ? rawTotal : Math.ceil(rawTotal * depositPercent / 1000) *
+                        1000;
                     originalDepositInput.value = depositRaw;
                 }
 
@@ -1215,7 +1322,8 @@
             const vnpayProceedBtn = document.getElementById('vnpayProceedBtn');
             if (vnpayProceedBtn) {
                 vnpayProceedBtn.addEventListener('click', async function() {
-                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('vnpayConfirmModal'));
+                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById(
+                        'vnpayConfirmModal'));
                     if (modalInstance) modalInstance.hide();
 
                     const submitBtn = document.querySelector('#bookingForm button[type="submit"]');
@@ -1232,8 +1340,10 @@
 
                     const adults = adultsInput.value;
                     const children = childrenInput.value;
-                    const childrenAges = Array.from(document.querySelectorAll('input[name="children_ages[]"]')).map(el => el.value);
-                    const addons = Array.from(document.querySelectorAll('input[name="addons[]"]:checked')).map(el => el.value);
+                    const childrenAges = Array.from(document.querySelectorAll(
+                        'input[name="children_ages[]"]')).map(el => el.value);
+                    const addons = Array.from(document.querySelectorAll('input[name="addons[]"]:checked'))
+                        .map(el => el.value);
                     const roomsCount = roomsInput.value;
                     const soKhach = Number(adults) + Number(children);
 
@@ -1242,7 +1352,8 @@
                     const phone = document.querySelector('input[name="phone"]').value.trim();
 
                     const voucherId = document.getElementById('voucher_id_input')?.value || null;
-                    const voucherDiscount = document.getElementById('voucher_discount_input')?.value || null;
+                    const voucherDiscount = document.getElementById('voucher_discount_input')?.value ||
+                    null;
                     const voucherCodeHidden = document.getElementById('voucher_code_input')?.value || null;
 
                     const depositRadio = document.querySelector('input[name="deposit_percentage"]:checked');
@@ -1279,7 +1390,8 @@
                                 name: name,
                                 address: address,
                                 phone: phone,
-                                ghi_chu: document.querySelector('textarea[name="ghi_chu"]').value.trim() || '',
+                                ghi_chu: document.querySelector('textarea[name="ghi_chu"]')
+                                    .value.trim() || '',
                             }),
                         });
 
@@ -1329,7 +1441,8 @@
             document.querySelectorAll('.addon-checkbox').forEach(chk => chk.addEventListener('change', updateSummary));
             if (Array.isArray(initialSelectedAddons) && initialSelectedAddons.length) {
                 document.querySelectorAll('.addon-checkbox').forEach(chk => {
-                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons.includes(Number(chk.value));
+                    chk.checked = initialSelectedAddons.includes(String(chk.value)) || initialSelectedAddons
+                        .includes(Number(chk.value));
                 });
             }
 

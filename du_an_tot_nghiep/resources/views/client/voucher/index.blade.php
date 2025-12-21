@@ -45,18 +45,18 @@
             {{-- ===== MAIN CONTENT ===== --}}
             <div class="col-lg-9">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="fw-bold mb-0">Danh sách Voucher</h3>
+                    <h3 class="fw-bold mb-0">Danh sách Voucher</h3>
 
-    @auth
-        <a href="{{ route('client.vouchers.my') }}" class="btn btn-outline-primary rounded-pill">
-            Ví Voucher
-        </a>
-    @else
-        <a href="{{ route('login') }}" class="btn btn-outline-primary rounded-pill">
-            Ví Voucher
-        </a>
-    @endauth
-</div>
+                    @auth
+                        <a href="{{ route('client.vouchers.my') }}" class="btn btn-outline-primary rounded-pill">
+                            Ví Voucher
+                        </a>
+                    @else
+                        <a href="{{ route('login') }}" class="btn btn-outline-primary rounded-pill">
+                            Ví Voucher
+                        </a>
+                    @endauth
+                </div>
 
 
                 @if ($vouchers->count() > 0)
@@ -117,7 +117,8 @@
                                                 @if ($pointsRequired && $pointsRequired > 0)
                                                     <button class="btn btn-primary w-100 rounded-pill btn-claim"
                                                         data-id="{{ $voucher->id }}" data-points="{{ $pointsRequired }}">
-                                                        Đổi voucher — {{ number_format($pointsRequired, 0, ',', '.') }} điểm
+                                                        Đổi voucher — {{ number_format($pointsRequired, 0, ',', '.') }}
+                                                        điểm
                                                     </button>
                                                 @else
                                                     <button class="btn btn-primary w-100 rounded-pill btn-claim"
@@ -155,7 +156,7 @@
                 btn.addEventListener('click', function() {
                     const id = this.dataset.id;
                     const pointsNeeded = this.dataset.points ? parseInt(this.dataset.points, 10) :
-                    0;
+                        0;
                     const button = this;
 
                     // Nếu user chưa đăng nhập, backend sẽ trả 401 — xử lý tiếp theo
