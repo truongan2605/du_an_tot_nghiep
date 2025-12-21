@@ -3057,7 +3057,7 @@
                             <div class="alert alert-info border-0 mb-3">
                                 <h6 class="mb-2">
                                     <i class="bi bi-arrow-down-circle me-1"></i>
-                                    Bạn đang chọn phòng rẻ hơn - Tiết kiệm tiền! 🎉
+                                    Bạn đang chọn phòng rẻ hơn - Tiết kiệm tiền!
                                 </h6>
                                 <p class="mb-0 small">Số tiền chênh lệch sẽ được hoàn lại qua voucher</p>
                             </div>
