@@ -180,12 +180,13 @@ class AdminChangeRoomController extends Controller
         $newRoom = Phong::findOrFail($request->new_room_id);
         
         $oldPhongId = $item->phong_id;
+        $oldPhong = $item->phong;  // ✅ THÊM DÒNG NÀY
         $checkIn = $booking->ngay_nhan_phong;
         $checkOut = $booking->ngay_tra_phong;
         $soDem = Carbon::parse($checkIn)->diffInDays(Carbon::parse($checkOut));
 
         /* ===== PHÒNG CŨ ===== */
-        $oldBasePrice = $item->phong->tong_gia;
+        $oldBasePrice = $oldPhong->tong_gia;  // ✅ ĐỔI TỪ $item->phong SANG $oldPhong
         $oldExtraFee = ($item->number_adult * 150000) + ($item->number_child * 60000);
         
         $oldCalculation = $this->calculateRoomPriceWithWeekend($oldBasePrice, $oldExtraFee, $checkIn, $checkOut);
@@ -193,7 +194,7 @@ class AdminChangeRoomController extends Controller
 
         /* ===== PHÒNG MỚI ===== */
         $totalGuests = $item->so_nguoi_o ?: (
-            ($item->phong->suc_chua ?? 2) +
+            ($oldPhong->suc_chua ?? 2) +
             ($item->number_adult ?? 0) +
             ($item->number_child ?? 0)
         );
@@ -221,7 +222,68 @@ class AdminChangeRoomController extends Controller
         $booking->tong_tien += ($newTotal - $oldTotal);
         $booking->save();
 
+        // ✅ TÌM HÓA ĐƠN (nếu có)
+$hoaDon = \DB::table('hoa_don')
+    ->where('dat_phong_id', $booking->id)
+    ->first();
+
+// Chỉ lưu nếu ĐÃ CÓ hóa đơn
+if ($hoaDon) {
+    $priceDifference = $newTotal - $oldTotal;
+
+    if ($priceDifference != 0) {
+        $loaiDoiPhong = $priceDifference > 0 ? 'tăng' : 'giảm';
+        $actionText = $priceDifference > 0 ? 'Cần thu thêm' : 'Hoàn lại';
         
+        \DB::table('hoa_don_items')->insert([
+            'hoa_don_id' => $hoaDon->id,
+            'type' => 'doi_phong',
+            'ref_id' => $item->id,
+            'phong_id' => $newRoom->id,
+            'loai_phong_id' => $newRoom->loai_phong_id,
+            'name' => sprintf('Phí đổi phòng: #%s (%s) → #%s (%s)', 
+                $oldPhong->ma_phong ?? 'N/A',
+                $oldPhong->loaiPhong->ten ?? 'N/A',
+                $newRoom->ma_phong,
+                $newRoom->loaiPhong->ten ?? 'N/A'
+            ),
+            'quantity' => 1,
+            'unit_price' => $priceDifference,
+            'amount' => $priceDifference,
+            'note' => sprintf(
+                "Đổi phòng %s\n" .
+                "• Phòng cũ: %s (#%s) - %s đ\n" .
+                "• Phòng mới: %s (#%s) - %s đ\n" .
+                "• Chênh lệch: %s %s đ",
+                $loaiDoiPhong === 'tăng' ? '(Nâng cấp)' : '(Hạ cấp)',
+                $oldPhong->name ?? 'N/A',
+                $oldPhong->ma_phong ?? 'N/A',
+                number_format($oldTotal),
+                $newRoom->name,
+                $newRoom->ma_phong,
+                number_format($newTotal),
+                $actionText,
+                number_format(abs($priceDifference))
+            ),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        
+        // ✅ CẬP NHẬT LẠI ITEM PHÒNG TRONG HOÁ ĐƠN
+        \DB::table('hoa_don_items')
+            ->where('hoa_don_id', $hoaDon->id)
+            ->where('ref_id', $item->id)
+            ->where('type', 'phong')
+            ->update([
+                'phong_id' => $newRoom->id,
+                'loai_phong_id' => $newRoom->loai_phong_id,
+                'name' => sprintf('%s (%s)', $newRoom->name, $newRoom->loaiPhong->ten ?? 'N/A'),
+                'unit_price' => $newTotal / $soDem,
+                'amount' => $newTotal,
+                'updated_at' => now(),
+            ]);
+    }
+}
 
         /* ===== UPDATE ITEM ===== */
         $item->update([
@@ -258,7 +320,7 @@ class AdminChangeRoomController extends Controller
         LichSuDoiPhong::create([
             'dat_phong_id' => $booking->id,
             'dat_phong_item_id' => $item->id,
-            'phong_cu_id' => $item->getOriginal('phong_id'),
+             'phong_cu_id' => $oldPhongId,
             'phong_moi_id' => $newRoom->id,
             'gia_cu' => $oldTotal,
             'gia_moi' => $newTotal,
@@ -715,9 +777,10 @@ class AdminChangeRoomController extends Controller
         $checkOut = $booking->ngay_tra_phong;
         $soDem = Carbon::parse($checkIn)->diffInDays(Carbon::parse($checkOut));
         $oldPhongId = $item->phong_id;
+        $oldPhong = $item->phong;  // ✅ THÊM DÒNG NÀY
 
         /* ===== PHÒNG CŨ (với cuối tuần) ===== */
-        $oldBase = $item->phong->tong_gia;
+        $oldBase = $oldPhong->tong_gia;  // ✅ ĐỔI
         $oldExtra = ($item->number_adult * 150000) + ($item->number_child * 60000);
         
         $oldCalculation = $this->calculateRoomPriceWithWeekend($oldBase, $oldExtra, $checkIn, $checkOut);
@@ -763,7 +826,93 @@ class AdminChangeRoomController extends Controller
             $loaiDoiPhong = 'giu_nguyen';
             $message = "Đổi phòng lỗi thành công! (Phòng ngang bằng)";
         }
+// ✅ THÊM ĐOẠN NÀY VÀO
+// ✅ TÌM HÓA ĐƠN (nếu có)
+$hoaDon = \DB::table('hoa_don')
+    ->where('dat_phong_id', $booking->id)
+    ->first();
 
+// Chỉ lưu nếu ĐÃ CÓ hóa đơn
+if ($hoaDon) {
+    if ($priceDifference > 0) {
+        // ✅ NÂNG CẤP MIỄN PHÍ - GHI CHÚ NHƯNG KHÔNG THU TIỀN
+        \DB::table('hoa_don_items')->insert([
+            'hoa_don_id' => $hoaDon->id,
+            'type' => 'doi_phong_loi',
+            'ref_id' => $item->id,
+            'phong_id' => $room->id,
+            'loai_phong_id' => $room->loai_phong_id,
+            'name' => sprintf('Đổi phòng lỗi (Nâng cấp miễn phí): #%s → #%s', 
+                $oldPhong->ma_phong ?? 'N/A',
+                $room->ma_phong
+            ),
+            'quantity' => 1,
+            'unit_price' => 0,
+            'amount' => 0,
+            'note' => sprintf(
+                "Nâng cấp miễn phí do phòng lỗi\n" .
+                "• Phòng cũ: %s (#%s) - %s đ\n" .
+                "• Phòng mới: %s (#%s) - %s đ\n" .
+                "• Chênh lệch: +%s đ (Khách không phải trả)",
+                $oldPhong->name ?? 'N/A',
+                $oldPhong->ma_phong ?? 'N/A',
+                number_format($oldTotal),
+                $room->name,
+                $room->ma_phong,
+                number_format($newTotal),
+                number_format($priceDifference)
+            ),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        
+    } elseif ($priceDifference < 0) {
+        // ✅ HẠ CẤP - HOÀN TIỀN
+        \DB::table('hoa_don_items')->insert([
+            'hoa_don_id' => $hoaDon->id,
+            'type' => 'doi_phong_loi',
+            'ref_id' => $item->id,
+            'phong_id' => $room->id,
+            'loai_phong_id' => $room->loai_phong_id,
+            'name' => sprintf('Hoàn tiền do đổi phòng lỗi: #%s → #%s', 
+                $oldPhong->ma_phong ?? 'N/A',
+                $room->ma_phong
+            ),
+            'quantity' => 1,
+            'unit_price' => $priceDifference,
+            'amount' => $priceDifference,
+            'note' => sprintf(
+                "Hoàn tiền do hạ cấp phòng lỗi\n" .
+                "• Phòng cũ: %s (#%s) - %s đ\n" .
+                "• Phòng mới: %s (#%s) - %s đ\n" .
+                "• Hoàn lại: %s đ (Sẽ trừ vào tổng thanh toán)",
+                $oldPhong->name ?? 'N/A',
+                $oldPhong->ma_phong ?? 'N/A',
+                number_format($oldTotal),
+                $room->name,
+                $room->ma_phong,
+                number_format($newTotal),
+                number_format(abs($priceDifference))
+            ),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+    
+    // ✅ CẬP NHẬT LẠI ITEM PHÒNG TRONG HOÁ ĐƠN
+    \DB::table('hoa_don_items')
+        ->where('hoa_don_id', $hoaDon->id)
+        ->where('ref_id', $item->id)
+        ->where('type', 'phong')
+        ->update([
+            'phong_id' => $room->id,
+            'loai_phong_id' => $room->loai_phong_id,
+            'name' => sprintf('%s (%s)', $room->name, $room->loaiPhong->ten ?? 'N/A'),
+            'unit_price' => $newTotal / $soDem,
+            'amount' => $newTotal,
+            'updated_at' => now(),
+        ]);
+}
         /* ===== UPDATE ITEM ===== */
         $item->gia_tren_dem = $newBase + $newExtra;
         $item->phong_id = $room->id;

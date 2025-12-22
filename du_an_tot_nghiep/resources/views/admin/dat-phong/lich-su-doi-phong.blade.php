@@ -318,28 +318,42 @@
                     }
                     
                     // TÍNH GIÁ PHÒNG CŨ
-                    $giaCuGoc = $ls->gia_cu ?? 0;
-                    $extraFeeCu = ($extraAdultsCu * 150000) + ($extraChildrenCu * 60000);
-                    $pricePerNightCu = $giaCuGoc + $extraFeeCu;
-                    
-                    $weekdayTotalCu = $pricePerNightCu * $weekdayNights;
-                    $weekendTotalCu = $pricePerNightCu * 1.1 * $weekendNights;
-                    $weekendSurchargeCu = $pricePerNightCu * 0.1 * $weekendNights;
-                    $totalRoomPriceCu = $weekdayTotalCu + $weekendTotalCu;
-                    $totalRoomPriceCuAfterVoucher = $totalRoomPriceCu - $voucherPerRoom;
+// ✅ TÍNH GIÁ PHÒNG CŨ - GIÁ ĐÃ LƯU TRONG LỊCH SỬ LÀ TỔNG CUỐI CÙNG
+$totalRoomPriceCu = $ls->gia_cu ?? 0;  // ✅ Đây đã là tổng rồi
+$totalRoomPriceCuAfterVoucher = $totalRoomPriceCu - $voucherPerRoom;
+
+// Tính ngược lại các thành phần (để hiển thị)
+$giaCuGoc = $phongCu->tong_gia ?? 0;
+$extraFeeCu = 0; // Chưa biết chính xác
+
+// Ước tính phụ thu cuối tuần
+if ($totalNights > 0) {
+    $avgPricePerNightCu = $totalRoomPriceCu / $totalNights;
+    $weekendSurchargeCu = ($giaCuGoc * 0.1) * $weekendNights;
+} else {
+    $avgPricePerNightCu = 0;
+    $weekendSurchargeCu = 0;
+}
                     
                     // TÍNH GIÁ PHÒNG MỚI
-                    $giaMoiGoc = $ls->gia_moi ?? 0;
-                    $extraFeeMoi = ($extraAdultsMoi * 150000) + ($extraChildrenMoi * 60000);
-                    $pricePerNightMoi = $giaMoiGoc + $extraFeeMoi;
-                    
-                    $weekdayTotalMoi = $pricePerNightMoi * $weekdayNights;
-                    $weekendTotalMoi = $pricePerNightMoi * 1.1 * $weekendNights;
-                    $weekendSurchargeMoi = $pricePerNightMoi * 0.1 * $weekendNights;
-                    $totalRoomPriceMoi = $weekdayTotalMoi + $weekendTotalMoi;
-                    $totalRoomPriceMoiAfterVoucher = $totalRoomPriceMoi - $voucherPerRoom;
-                    
-                    $priceDiff = $totalRoomPriceMoiAfterVoucher - $totalRoomPriceCuAfterVoucher;
+              // ✅ TÍNH GIÁ PHÒNG MỚI - GIÁ ĐÃ LƯU TRONG LỊCH SỬ LÀ TỔNG CUỐI CÙNG
+$totalRoomPriceMoi = $ls->gia_moi ?? 0;  // ✅ Đây đã là tổng rồi
+$totalRoomPriceMoiAfterVoucher = $totalRoomPriceMoi - $voucherPerRoom;
+
+// Tính ngược lại các thành phần (để hiển thị)
+$giaMoiGoc = $phongMoi->tong_gia ?? 0;
+$extraFeeMoi = ($extraAdultsMoi * 150000) + ($extraChildrenMoi * 60000);
+
+// Ước tính phụ thu cuối tuần
+if ($totalNights > 0) {
+    $avgPricePerNightMoi = $totalRoomPriceMoi / $totalNights;
+    $weekendSurchargeMoi = ($giaMoiGoc * 0.1) * $weekendNights;
+} else {
+    $avgPricePerNightMoi = 0;
+    $weekendSurchargeMoi = 0;
+}
+
+$priceDiff = $totalRoomPriceMoi - $totalRoomPriceCu;  // ✅ So sánh giá gốc (chưa trừ voucher)
                     
                     $badgeClass = 'badge-same';
                     $badgeText = 'Giữ nguyên';
@@ -409,50 +423,52 @@
                                             <i class="bi bi-hash"></i> {{ $phongCu->ma_phong ?? '' }}
                                         </p>
 
-                                        <div class="info-row">
-                                            <span class="info-label">
-                                                <i class="bi bi-tag me-1"></i> Giá gốc
-                                            </span>
-                                            <span class="info-value">{{ number_format($giaCuGoc) }}₫</span>
-                                        </div>
+                                       <div class="info-row">
+    <span class="info-label">
+        <i class="bi bi-tag me-1"></i> Giá gốc
+    </span>
+    <span class="info-value">{{ number_format($giaCuGoc) }}₫</span>
+</div>
 
-                                        @if($extraFeeCu > 0)
-                                        <div class="info-row">
-                                            <span class="info-label">
-                                                <i class="bi bi-plus-circle me-1"></i> Phụ thu
-                                            </span>
-                                            <span class="info-value text-warning">+{{ number_format($extraFeeCu) }}₫</span>
-                                        </div>
-                                        @endif
+@if($extraFeeCu > 0)
+<div class="info-row">
+    <span class="info-label">
+        <i class="bi bi-plus-circle me-1"></i> Phụ thu
+    </span>
+    <span class="info-value text-warning">+{{ number_format($extraFeeCu) }}₫</span>
+</div>
+@endif
 
-                                        @if($weekendNights > 0)
-                                        <div class="info-row">
-                                            <span class="info-label d-flex align-items-center gap-2">
-                                                <i class="bi bi-calendar-week"></i> Cuối tuần
-                                                <span class="weekend-tag">
-                                                    <i class="bi bi-star-fill"></i>
-                                                    {{ $weekendNights }} đêm
-                                                </span>
-                                            </span>
-                                            <span class="info-value text-danger">+{{ number_format($weekendSurchargeCu) }}₫</span>
-                                        </div>
-                                        @endif
+@if($weekendNights > 0 && $weekendSurchargeCu > 0)
+<div class="info-row">
+    <span class="info-label d-flex align-items-center gap-2">
+        <i class="bi bi-calendar-week"></i> Cuối tuần
+        <span class="weekend-tag">
+            <i class="bi bi-star-fill"></i>
+            {{ $weekendNights }} đêm
+        </span>
+    </span>
+    <span class="info-value text-danger">+{{ number_format($weekendSurchargeCu) }}₫</span>
+</div>
+@endif
 
-                                        <div class="info-row">
-                                            <span class="info-label">
-                                                <i class="bi bi-ticket-perforated me-1"></i> Voucher
-                                            </span>
-                                            <span class="info-value text-success">-{{ number_format($voucherPerRoom) }}₫</span>
-                                        </div>
+@if($voucherPerRoom > 0)
+<div class="info-row">
+    <span class="info-label">
+        <i class="bi bi-ticket-perforated me-1"></i> Voucher
+    </span>
+    <span class="info-value text-success">-{{ number_format($voucherPerRoom) }}₫</span>
+</div>
+@endif
 
-                                        <div class="info-row">
-                                            <span class="info-label">
-                                                <i class="bi bi-calculator me-1"></i> <strong>TỔNG PHÒNG</strong>
-                                            </span>
-                                            <span class="price-badge bg-danger text-white">
-                                                {{ number_format($totalRoomPriceCuAfterVoucher) }}₫
-                                            </span>
-                                        </div>
+<div class="info-row">
+    <span class="info-label">
+        <i class="bi bi-calculator me-1"></i> <strong>TỔNG PHÒNG</strong>
+    </span>
+    <span class="price-badge bg-danger text-white">
+        {{ number_format($totalRoomPriceCuAfterVoucher) }}₫
+    </span>
+</div>
                                     </div>
                                 </div>
 
@@ -483,50 +499,52 @@
                                             <i class="bi bi-hash"></i> {{ $phongMoi->ma_phong ?? '' }}
                                         </p>
 
-                                        <div class="info-row">
-                                            <span class="info-label">
-                                                <i class="bi bi-tag me-1"></i> Giá gốc
-                                            </span>
-                                            <span class="info-value">{{ number_format($giaMoiGoc) }}₫</span>
-                                        </div>
+                                      <div class="info-row">
+    <span class="info-label">
+        <i class="bi bi-tag me-1"></i> Giá gốc
+    </span>
+    <span class="info-value">{{ number_format($giaMoiGoc) }}₫</span>
+</div>
 
-                                        @if($extraFeeMoi > 0)
-                                        <div class="info-row">
-                                            <span class="info-label">
-                                                <i class="bi bi-plus-circle me-1"></i> Phụ thu
-                                            </span>
-                                            <span class="info-value text-warning">+{{ number_format($extraFeeMoi) }}₫</span>
-                                        </div>
-                                        @endif
+@if($extraFeeMoi > 0)
+<div class="info-row">
+    <span class="info-label">
+        <i class="bi bi-plus-circle me-1"></i> Phụ thu
+    </span>
+    <span class="info-value text-warning">+{{ number_format($extraFeeMoi) }}₫</span>
+</div>
+@endif
 
-                                        @if($weekendNights > 0)
-                                        <div class="info-row">
-                                            <span class="info-label d-flex align-items-center gap-2">
-                                                <i class="bi bi-calendar-week"></i> Cuối tuần
-                                                <span class="weekend-tag">
-                                                    <i class="bi bi-star-fill"></i>
-                                                    {{ $weekendNights }} đêm
-                                                </span>
-                                            </span>
-                                            <span class="info-value text-danger">+{{ number_format($weekendSurchargeMoi) }}₫</span>
-                                        </div>
-                                        @endif
+@if($weekendNights > 0 && $weekendSurchargeMoi > 0)
+<div class="info-row">
+    <span class="info-label d-flex align-items-center gap-2">
+        <i class="bi bi-calendar-week"></i> Cuối tuần
+        <span class="weekend-tag">
+            <i class="bi bi-star-fill"></i>
+            {{ $weekendNights }} đêm
+        </span>
+    </span>
+    <span class="info-value text-danger">+{{ number_format($weekendSurchargeMoi) }}₫</span>
+</div>
+@endif
 
-                                        <div class="info-row">
-                                            <span class="info-label">
-                                                <i class="bi bi-ticket-perforated me-1"></i> Voucher
-                                            </span>
-                                            <span class="info-value text-success">-{{ number_format($voucherPerRoom) }}₫</span>
-                                        </div>
+@if($voucherPerRoom > 0)
+<div class="info-row">
+    <span class="info-label">
+        <i class="bi bi-ticket-perforated me-1"></i> Voucher
+    </span>
+    <span class="info-value text-success">-{{ number_format($voucherPerRoom) }}₫</span>
+</div>
+@endif
 
-                                        <div class="info-row">
-                                            <span class="info-label">
-                                                <i class="bi bi-calculator me-1"></i> <strong>TỔNG PHÒNG</strong>
-                                            </span>
-                                            <span class="price-badge bg-success text-white">
-                                                {{ number_format($totalRoomPriceMoiAfterVoucher) }}₫
-                                            </span>
-                                        </div>
+<div class="info-row">
+    <span class="info-label">
+        <i class="bi bi-calculator me-1"></i> <strong>TỔNG PHÒNG</strong>
+    </span>
+    <span class="price-badge bg-success text-white">
+        {{ number_format($totalRoomPriceMoiAfterVoucher) }}₫
+    </span>
+</div>
                                     </div>
                                 </div>
                             </div>
