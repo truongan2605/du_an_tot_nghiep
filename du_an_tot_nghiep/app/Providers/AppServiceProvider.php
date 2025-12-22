@@ -29,6 +29,6 @@ class AppServiceProvider extends ServiceProvider
         DatPhong::observe(DatPhongObserver::class);
         Paginator::useBootstrapFive();
 
-        Mail::alwaysTo('truongan26052005@gmail.com');
+        Mail::alwaysTo('leducmanhvd2019@gmail.com');
     }
 }
