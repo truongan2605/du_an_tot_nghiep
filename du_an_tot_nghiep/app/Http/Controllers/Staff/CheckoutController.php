@@ -34,82 +34,84 @@ class CheckoutController extends Controller
             $nights = max(1, $nights);
         }
 
-  $roomLines = [];
-$roomsTotal = 0;
+        $roomLines = [];
+        $roomsTotal = 0;
 
-$checkIn = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
-$checkOut = \Carbon\Carbon::parse($booking->ngay_tra_phong);
-$totalNights = $checkIn->diffInDays($checkOut);
+        $checkIn = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+        $checkOut = \Carbon\Carbon::parse($booking->ngay_tra_phong);
+        $totalNights = $checkIn->diffInDays($checkOut);
 
-$weekendNights = 0;
-$current = $checkIn->copy();
-while ($current->lt($checkOut)) {
-    $dayOfWeek = $current->dayOfWeek;
-    if ($dayOfWeek == \Carbon\Carbon::FRIDAY || 
-        $dayOfWeek == \Carbon\Carbon::SATURDAY || 
-        $dayOfWeek == \Carbon\Carbon::SUNDAY) {
-        $weekendNights++;
-    }
-    $current->addDay();
-}
-$weekdayNights = $totalNights - $weekendNights;
+        $weekendNights = 0;
+        $current = $checkIn->copy();
+        while ($current->lt($checkOut)) {
+            $dayOfWeek = $current->dayOfWeek;
+            if (
+                $dayOfWeek == \Carbon\Carbon::FRIDAY ||
+                $dayOfWeek == \Carbon\Carbon::SATURDAY ||
+                $dayOfWeek == \Carbon\Carbon::SUNDAY
+            ) {
+                $weekendNights++;
+            }
+            $current->addDay();
+        }
+        $weekdayNights = $totalNights - $weekendNights;
 
-// ✅ TÍNH VOUCHER
-$totalRooms = $booking->datPhongItems->count() ?: 1;
-$voucherPerRoom = 0;
-if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
-    $voucherPerRoom = (float)$booking->discount_amount / $totalRooms;
-} elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
-    $voucherPerRoom = (float)$booking->voucher_discount / $totalRooms;
-}
+        // ✅ TÍNH VOUCHER
+        $totalRooms = $booking->datPhongItems->count() ?: 1;
+        $voucherPerRoom = 0;
+        if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
+            $voucherPerRoom = (float)$booking->discount_amount / $totalRooms;
+        } elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
+            $voucherPerRoom = (float)$booking->voucher_discount / $totalRooms;
+        }
 
-foreach ($booking->datPhongItems as $item) {
-    $basePrice = $item->phong->tong_gia ?? 0;
-    
-    $extraAdults = $item->number_adult ?? 0;
-    $extraChildren = $item->number_child ?? 0;
-    $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
-    
-    $pricePerNight = $basePrice + $extraCharge;
-    
-    $weekdayTotal = $pricePerNight * $weekdayNights;
-    
-    $weekendBaseTotal = $basePrice * $weekendNights;
-    $weekendSurcharge = $basePrice * 0.1 * $weekendNights;
-    $weekendExtraTotal = $extraCharge * $weekendNights;
-    $weekendTotal = $weekendBaseTotal + $weekendSurcharge + $weekendExtraTotal;
-    
-    $lineTotalPerRoom = $weekdayTotal + $weekendTotal;
-    
-    $qty = $item->so_luong ?? 1;
-    
-    // ✅ TRƯỚC VOUCHER
-    $lineTotal = $lineTotalPerRoom * $qty;
-    
-    // ✅ SAU VOUCHER (cho 1 phòng, không nhân qty)
-    $lineTotalAfterVoucher = $lineTotal - $voucherPerRoom;
+        foreach ($booking->datPhongItems as $item) {
+            $basePrice = $item->phong->tong_gia ?? 0;
 
-    
-    
-    $roomLines[] = [
-        'phong_id'   => $item->phong_id,
-        'ma_phong'   => $item->phong?->ma_phong ?? null,
-        'loai'       => $item->loaiPhong?->ten ?? null,
-        'base_price' => $basePrice,
-        'extra_charge' => $extraCharge,
-        'extra_adults' => $extraAdults,
-        'extra_children' => $extraChildren,
-        'weekend_surcharge' => $weekendSurcharge,
-        'weekend_nights' => $weekendNights,
-        'voucher_per_room' => $voucherPerRoom, // ✅ Thêm voucher
-        'qty'        => $qty,
-        'nights'     => $totalNights,
-        'line_total' => round($lineTotal), // ✅ Trước voucher
-        'line_total_after_voucher' => round($lineTotalAfterVoucher), // ✅ Sau voucher
-    ];
-    
-    $roomsTotal += $lineTotalAfterVoucher; // ✅ Cộng giá SAU voucher
-}
+            $extraAdults = $item->number_adult ?? 0;
+            $extraChildren = $item->number_child ?? 0;
+            $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
+
+            $pricePerNight = $basePrice + $extraCharge;
+
+            $weekdayTotal = $pricePerNight * $weekdayNights;
+
+            $weekendBaseTotal = $basePrice * $weekendNights;
+            $weekendSurcharge = $basePrice * 0.1 * $weekendNights;
+            $weekendExtraTotal = $extraCharge * $weekendNights;
+            $weekendTotal = $weekendBaseTotal + $weekendSurcharge + $weekendExtraTotal;
+
+            $lineTotalPerRoom = $weekdayTotal + $weekendTotal;
+
+            $qty = $item->so_luong ?? 1;
+
+            // ✅ TRƯỚC VOUCHER
+            $lineTotal = $lineTotalPerRoom * $qty;
+
+            // ✅ SAU VOUCHER (cho 1 phòng, không nhân qty)
+            $lineTotalAfterVoucher = $lineTotal - $voucherPerRoom;
+
+
+
+            $roomLines[] = [
+                'phong_id'   => $item->phong_id,
+                'ma_phong'   => $item->phong?->ma_phong ?? null,
+                'loai'       => $item->loaiPhong?->ten ?? null,
+                'base_price' => $basePrice,
+                'extra_charge' => $extraCharge,
+                'extra_adults' => $extraAdults,
+                'extra_children' => $extraChildren,
+                'weekend_surcharge' => $weekendSurcharge,
+                'weekend_nights' => $weekendNights,
+                'voucher_per_room' => $voucherPerRoom, // ✅ Thêm voucher
+                'qty'        => $qty,
+                'nights'     => $totalNights,
+                'line_total' => round($lineTotal), // ✅ Trước voucher
+                'line_total_after_voucher' => round($lineTotalAfterVoucher), // ✅ Sau voucher
+            ];
+
+            $roomsTotal += $lineTotalAfterVoucher; // ✅ Cộng giá SAU voucher
+        }
 
         $unpaidHoaDons = HoaDon::where('dat_phong_id', $booking->id)
             ->where('trang_thai', '!=', 'da_thanh_toan')
@@ -119,7 +121,10 @@ foreach ($booking->datPhongItems as $item) {
         $extrasTotal = 0;
         if ($unpaidHoaDons->isNotEmpty()) {
             $unpaidIds = $unpaidHoaDons->pluck('id')->toArray();
-            $items = HoaDonItem::whereIn('hoa_don_id', $unpaidIds)->get();
+            // Loại bỏ phí đổi phòng khỏi phần phát sinh (chỉ hiển thị trong chênh lệch đổi phòng)
+            $items = HoaDonItem::whereIn('hoa_don_id', $unpaidIds)
+                ->whereNotIn('type', ['doi_phong', 'doi_phong_loi'])
+                ->get();
 
             foreach ($items as $it) {
                 $extrasItems[] = [
@@ -182,11 +187,28 @@ foreach ($booking->datPhongItems as $item) {
             }
         }
 
-        $earlyNet = $earlyRefundEstimate - $extrasTotal;
+        // ✅ LẤY LỊCH SỬ ĐỔI PHÒNG (tính trước để dùng cho early/late checkout)
+        $changeRoomHistory = \App\Models\LichSuDoiPhong::where('dat_phong_id', $booking->id)
+            ->with(['phongCu', 'phongMoi'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $totalRoomChangeDiff = 0; // Tổng chênh lệch từ đổi phòng
+
+        foreach ($changeRoomHistory as $history) {
+            $diff = $history->gia_moi - $history->gia_cu;
+            $totalRoomChangeDiff += $diff;
+        }
+
+        // Early checkout: tính cả chênh lệch đổi phòng
+        // Nếu totalRoomChangeDiff > 0 (phải thu thêm), trừ vào khoản hoàn
+        // Nếu totalRoomChangeDiff < 0 (hoàn lại), cộng vào khoản hoàn
+        $earlyNet = $earlyRefundEstimate - $extrasTotal - $totalRoomChangeDiff;
         $earlyNetIsRefund = $earlyNet >= 0;
         $earlyNetDisplay = (int) round(abs($earlyNet), 0);
 
-        $lateNet = $lateFeeEstimate + $extrasTotal;
+        // Late checkout: tính cả chênh lệch đổi phòng
+        $lateNet = $lateFeeEstimate + $extrasTotal + $totalRoomChangeDiff;
         $lateNetDisplay = (int) round($lateNet, 0);
 
         $roomIdsForBooking = collect($booking->datPhongItems)->pluck('phong_id')->filter()->unique()->values()->all();
@@ -214,21 +236,8 @@ foreach ($booking->datPhongItems as $item) {
             $blockingNextBookingStart = \Carbon\Carbon::parse($blockingNextBooking->ngay_nhan_phong);
         }
 
-        // ✅ LẤY LỊCH SỬ ĐỔI PHÒNG
-$changeRoomHistory = \App\Models\LichSuDoiPhong::where('dat_phong_id', $booking->id)
-    ->with(['phongCu', 'phongMoi'])
-    ->orderBy('created_at', 'desc')
-    ->get();
-
-$totalRoomChangeDiff = 0; // Tổng chênh lệch từ đổi phòng
-
-foreach ($changeRoomHistory as $history) {
-    $diff = $history->gia_moi - $history->gia_cu;
-    $totalRoomChangeDiff += $diff;
-}
-
-// ✅ TÍNH SỐ TIỀN THỰC TẾ CẦN THU
-$actualAmountToPay = ($extrasTotal ?? 0) + $totalRoomChangeDiff;
+        // ✅ TÍNH SỐ TIỀN THỰC TẾ CẦN THU (đã tính totalRoomChangeDiff ở trên)
+        $actualAmountToPay = ($extrasTotal ?? 0) + $totalRoomChangeDiff;
 
 
         // Check for ANY pending online payment transactions
@@ -243,8 +252,8 @@ $actualAmountToPay = ($extrasTotal ?? 0) + $totalRoomChangeDiff;
             'roomsTotal',
             'extrasItems',
             'changeRoomHistory', // ✅ Thêm
-    'totalRoomChangeDiff', // ✅ Thêm
-    'actualAmountToPay', // ✅ Thêm
+            'totalRoomChangeDiff', // ✅ Thêm
+            'actualAmountToPay', // ✅ Thêm
             'extrasTotal',
             'discount',
             'roomSnapshot',
@@ -308,30 +317,30 @@ $actualAmountToPay = ($extrasTotal ?? 0) + $totalRoomChangeDiff;
 
     // hítory item
     private function archiveDatPhongItems(int $bookingId)
-{
-    $cartItems = DB::table('dat_phong_item')->where('dat_phong_id', $bookingId)->get();
+    {
+        $cartItems = DB::table('dat_phong_item')->where('dat_phong_id', $bookingId)->get();
 
-    $created = collect();
-    foreach ($cartItems as $it) {
-        // map tên cột theo db của bạn: nếu cột tên khác, sửa lại
-        $payload = [
-            'dat_phong_id' => $it->dat_phong_id ?? $bookingId,
-            'phong_id' => $it->phong_id ?? null,
-            'phong_ma' => $it->phong_ma ?? null,
-            'loai_phong_id' => $it->loai_phong_id ?? null,
-            'gia_tren_dem' => $it->gia_tren_dem ?? ($it->gia ?? null),
-            'so_luong' => $it->so_luong ?? 1,
-            'snapshot' => null,
-            'created_at' => $it->created_at ?? now(),
-            'updated_at' => $it->updated_at ?? now(),
-        ];
+        $created = collect();
+        foreach ($cartItems as $it) {
+            // map tên cột theo db của bạn: nếu cột tên khác, sửa lại
+            $payload = [
+                'dat_phong_id' => $it->dat_phong_id ?? $bookingId,
+                'phong_id' => $it->phong_id ?? null,
+                'phong_ma' => $it->phong_ma ?? null,
+                'loai_phong_id' => $it->loai_phong_id ?? null,
+                'gia_tren_dem' => $it->gia_tren_dem ?? ($it->gia ?? null),
+                'so_luong' => $it->so_luong ?? 1,
+                'snapshot' => null,
+                'created_at' => $it->created_at ?? now(),
+                'updated_at' => $it->updated_at ?? now(),
+            ];
 
-        $createdItem = DatPhongItemHistory::create($payload);
-        $created->push($createdItem);
+            $createdItem = DatPhongItemHistory::create($payload);
+            $created->push($createdItem);
+        }
+
+        return $created;
     }
-
-    return $created;
-}
 
     /**
      * Xóa ảnh CCCD từ snapshot_meta của booking
@@ -402,7 +411,10 @@ $actualAmountToPay = ($extrasTotal ?? 0) + $totalRoomChangeDiff;
             $existingItems = collect();
             $extrasTotal = 0;
             if (!empty($unpaidIds)) {
-                $existingItems = HoaDonItem::whereIn('hoa_don_id', $unpaidIds)->get();
+                // Loại bỏ phí đổi phòng khỏi phần phát sinh (chỉ hiển thị trong chênh lệch đổi phòng)
+                $existingItems = HoaDonItem::whereIn('hoa_don_id', $unpaidIds)
+                    ->whereNotIn('type', ['doi_phong', 'doi_phong_loi'])
+                    ->get();
                 foreach ($existingItems as $it) {
                     $extrasTotal += (float)($it->amount ?? 0);
                 }
@@ -497,10 +509,10 @@ $actualAmountToPay = ($extrasTotal ?? 0) + $totalRoomChangeDiff;
                 }
 
                 // 1) sao chép cart -> history
-$this->archiveDatPhongItems($booking->id);
+                $this->archiveDatPhongItems($booking->id);
 
-// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
-DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+                // 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+                DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
 
                 $booking->checkout_at = now();
@@ -609,10 +621,10 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 }
 
                 // 1) sao chép cart -> history
-$this->archiveDatPhongItems($booking->id);
+                $this->archiveDatPhongItems($booking->id);
 
-// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
-DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+                // 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+                DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
 
                 $booking->checkout_at = now();
@@ -669,10 +681,10 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                     }
 
                     // 1) sao chép cart -> history
-$this->archiveDatPhongItems($booking->id);
+                    $this->archiveDatPhongItems($booking->id);
 
-// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
-DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+                    // 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+                    DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
 
                     $booking->checkout_at = now();
@@ -741,10 +753,10 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 }
 
                 // 1) sao chép cart -> history
-$this->archiveDatPhongItems($booking->id);
+                $this->archiveDatPhongItems($booking->id);
 
-// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
-DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+                // 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+                DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
 
                 $booking->checkout_at = now();
@@ -831,10 +843,10 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
             }
 
             // 1) sao chép cart -> history
-$this->archiveDatPhongItems($booking->id);
+            $this->archiveDatPhongItems($booking->id);
 
-// 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
-DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+            // 2) sau khi đã tạo history, xóa cart (nếu bạn muốn)
+            DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
 
             $booking->checkout_at = now();
@@ -871,7 +883,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
         try {
             // Reload booking với user relationship
             $booking->load(['user']);
-            
+
             // Kiểm tra booking có user và email không
             if (!$booking->user || !$booking->user->email) {
                 Log::warning('Cannot send invoice email: missing user or email', [
@@ -935,7 +947,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                         'trang_thai' => 'that_bai',
                         'ghi_chu' => $pending->ghi_chu . ' (Tự động hủy - ' . now()->format('d/m/Y H:i') . ')',
                     ]);
-                    
+
                     Log::info('Auto-cancelled abandoned pending transaction', [
                         'transaction_id' => $pending->id,
                         'booking_id' => $booking->id,
@@ -968,7 +980,6 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 'success' => true,
                 'payment_url' => $paymentUrl,
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Checkout payment init failed', [
@@ -1034,7 +1045,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
     private function generateMoMoCheckoutURL(GiaoDich $transaction, DatPhong $booking)
     {
         $momoService = new MoMoPaymentService();
-        
+
         $orderId = 'CHECKOUT_' . $booking->id . '_' . time();
         $returnUrl = route('staff.checkout.payment.callback');
 
@@ -1113,7 +1124,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
         if ($vnp_ResponseCode === '00') {
             $transaction->update(['trang_thai' => 'thanh_cong']);
-            
+
             // Mark invoice as paid and complete checkout
             $this->completeCheckoutAfterPayment($booking);
 
@@ -1131,7 +1142,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
         Log::info('MoMo checkout callback received', $request->all());
 
         $momoService = new MoMoPaymentService();
-        
+
         // Try to verify signature, but log and continue if fails (for debugging)
         try {
             if (!$momoService->verifySignature($request->all())) {
@@ -1159,7 +1170,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
         if ($resultCode == 0) {
             $transaction->update(['trang_thai' => 'thanh_cong']);
-            
+
             $this->completeCheckoutAfterPayment($booking);
 
             return redirect()->route('staff.bookings.show', $booking->id)
@@ -1185,7 +1196,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
             if ($unpaidHoaDons->isNotEmpty()) {
                 // Mark existing invoices as paid
                 $hoaDon = $unpaidHoaDons->first();
-                
+
                 // Update tong_thuc_thu if not already calculated
                 $tongThucThu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
                 if ($tongThucThu > 0) {
@@ -1193,7 +1204,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 }
                 $hoaDon->trang_thai = 'da_thanh_toan';
                 $hoaDon->save();
-                
+
                 // Mark other unpaid invoices as paid too
                 HoaDon::where('dat_phong_id', $booking->id)
                     ->where('id', '!=', $hoaDon->id)
@@ -1236,7 +1247,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
             // Get phongIds before archiving (for room release)
             $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
             $phongIds = collect($datPhongItems)->pluck('phong_id')->filter()->unique()->toArray();
-            
+
             // Archive and delete items
             $this->archiveDatPhongItems($booking->id);
             DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
@@ -1255,7 +1266,7 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
                 $phongIds = DatPhongItemHistory::where('dat_phong_id', $booking->id)
                     ->pluck('phong_id')->filter()->unique()->toArray();
             }
-            
+
             if (!empty($phongIds)) {
                 Phong::whereIn('id', $phongIds)->update([
                     'trang_thai' => 'trong',
