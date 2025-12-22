@@ -657,15 +657,32 @@
                 $pricePerNight = $basePrice + $extraCharge;
                 
                 // Tính tổng có cuối tuần
-                $weekdayTotal = $pricePerNight * $weekdayNights;
-                $weekendTotal = $pricePerNight * 1.1 * $weekendNights;
-                $weekendSurcharge = $pricePerNight * 0.1 * $weekendNights;
-                $totalRoomPrice = $weekdayTotal + $weekendTotal;
+// ✅ Tính tổng có cuối tuần (CHỈ TĂNG GIÁ GỐC, KHÔNG TĂNG PHỤ THU)
+$weekdayTotal = $pricePerNight * $weekdayNights;
+$weekendBaseTotal = $basePrice * $weekendNights;
+$weekendSurcharge = $basePrice * 0.1 * $weekendNights; // CHỈ tính trên giá gốc
+$weekendExtraTotal = $extraCharge * $weekendNights;
+$weekendTotal = $weekendBaseTotal + $weekendSurcharge + $weekendExtraTotal;
+$totalRoomPrice = $weekdayTotal + $weekendTotal;
                 
-                // Giá trung bình/đêm (để hiển thị)
-                $avgPricePerNight = $totalNights > 0 ? $totalRoomPrice / $totalNights : 0;
-                
-                $hasWeekendSurcharge = $weekendNights > 0;
+              $totalRoomPrice = $weekdayTotal + $weekendTotal;
+
+// ✅ TÍNH VOUCHER CHO TỪNG PHÒNG
+$totalRooms = $booking->datPhongItems->count() ?: 1;
+$voucherPerRoom = 0;
+if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
+    $voucherPerRoom = (float)$booking->discount_amount / $totalRooms;
+} elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
+    $voucherPerRoom = (float)$booking->voucher_discount / $totalRooms;
+}
+
+// Tổng sau trừ voucher
+$totalRoomPriceAfterVoucher = $totalRoomPrice - $voucherPerRoom;
+
+// Giá trung bình/đêm (để hiển thị)
+$avgPricePerNight = $totalNights > 0 ? $totalRoomPrice / $totalNights : 0;
+
+$hasWeekendSurcharge = $weekendNights > 0;
             } else {
                 $basePrice = $isArrayLine ? $item['unit_price'] ?? 0 : $item->gia_tren_dem ?? 0;
                 $extraCharge = 0;
@@ -771,17 +788,46 @@
                                     </div>
                                 </div>
                                 @endif
+
+                                {{-- ✅ Voucher --}}
+@php
+    $voucherPerRoom = $voucherPerRoom ?? 0;
+@endphp
+
+@if($voucherPerRoom > 0)
+<div class="text-start border-start ps-3">
+    <small class="text-muted d-block">Voucher</small>
+    <span class="text-success">
+        <i class="bi bi-tag me-1"></i>
+        -{{ number_format($voucherPerRoom, 0) }}₫
+    </span>
+    <div class="small text-muted">
+        Giảm giá
+    </div>
+</div>
+@endif
                             </div>
                         </div>
                         
                         {{-- TỔNG GIÁ --}}
                         <div class="border-top pt-2 mt-2">
                             <div class="d-flex justify-content-between align-items-center">
-                                <div class="text-start">
-                                    <small class="text-muted">Giá TB/đêm</small>
-                                    <div>
-                                        <strong class="text-success fs-5">{{ number_format($avgPricePerNight, 0) }}₫</strong>
-                                    </div>
+                               <div class="text-start">
+    @if($voucherPerRoom > 0)
+        <small class="text-muted">Giá TB/đêm (trước voucher)</small>
+        <div>
+            <span class="text-muted text-decoration-line-through">{{ number_format($avgPricePerNight, 0) }}₫</span>
+        </div>
+        <small class="text-success fw-bold">Giá thực tế</small>
+        <div>
+            <strong class="text-success fs-5">{{ number_format($totalRoomPriceAfterVoucher / $totalNights, 0) }}₫/đêm</strong>
+        </div>
+    @else
+        <small class="text-muted">Giá TB/đêm</small>
+        <div>
+            <strong class="text-success fs-5">{{ number_format($avgPricePerNight, 0) }}₫</strong>
+        </div>
+    @endif
 
                                     <div class="col-md-4 text-end d-flex align-items-center justify-content-end gap-2">
                                         @if(!empty($unitPrice))
@@ -817,7 +863,7 @@
 
                             @if($booking->checked_in_at)
                                @if(
-                                !in_array($booking->trang_thai, ['da_huy', 'da_hoan_thanh'])
+                                !in_array($booking->trang_thai, ['da_huy', 'da_hoan_thanh' , 'da_xac_nhan'])
                                 && is_object($item)
                             )
                                 <a href="{{ route('admin.change-room-error.form', $item->id) }}" 

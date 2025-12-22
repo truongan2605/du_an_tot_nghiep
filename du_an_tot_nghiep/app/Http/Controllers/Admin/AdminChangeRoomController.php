@@ -41,7 +41,7 @@ class AdminChangeRoomController extends Controller
     }
     
     /**
-     * Tính tổng giá phòng có áp dụng 10% cuối tuần
+     * Tính tổng giá phòng có áp dụng 10% cuối tuần (CHỈ TÍNH TRÊN GIÁ GỐC)
      */
     private function calculateRoomPriceWithWeekend($basePrice, $extraCharge, $checkIn, $checkOut)
     {
@@ -57,14 +57,17 @@ class AdminChangeRoomController extends Controller
         // Giá ngày thường
         $weekdayTotal = $pricePerNight * $weekdayNights;
         
-        // Giá cuối tuần (+10%)
-        $weekendTotal = $pricePerNight * 1.1 * $weekendNights;
+        // ✅ Giá cuối tuần: CHỈ TĂNG GIÁ GỐC +10%, KHÔNG TĂNG PHỤ THU
+        $weekendBaseTotal = $basePrice * $weekendNights;
+        $weekendSurcharge = $basePrice * 0.1 * $weekendNights;
+        $weekendExtraTotal = $extraCharge * $weekendNights;
+        $weekendTotal = $weekendBaseTotal + $weekendSurcharge + $weekendExtraTotal;
         
         return [
             'total' => $weekdayTotal + $weekendTotal,
             'weekend_nights' => $weekendNights,
             'weekday_nights' => $weekdayNights,
-            'weekend_surcharge' => ($pricePerNight * 0.1 * $weekendNights)
+            'weekend_surcharge' => $weekendSurcharge
         ];
     }
 
@@ -268,167 +271,195 @@ class AdminChangeRoomController extends Controller
     // ============================
     // API LẤY PHÒNG TRỐNG
     // ============================
-    public function getAvailableRooms(Request $request, $id)
-    {
-        try {
-            $item = DatPhongItem::findOrFail($id);
-            $booking = $item->datPhong;
+   public function getAvailableRooms(Request $request, $id)
+{
+    try {
+        $item = DatPhongItem::findOrFail($id);
+        $booking = $item->datPhong;
 
-            $currentItem = $item;
-            $currentRoom = $currentItem->phong;
+        $currentItem = $item;
+        $currentRoom = $currentItem->phong;
 
-            if (!$currentRoom) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Không tìm thấy phòng'
-                ], 404);
-            }
-
-            $checkIn = Carbon::parse($booking->ngay_nhan_phong);
-            $checkOut = Carbon::parse($booking->ngay_tra_phong);
-            $nights = $checkIn->diffInDays($checkOut);
-            
-            // Tính số đêm cuối tuần
-            $weekendNights = $this->calculateWeekendNights($checkIn, $checkOut);
-            $weekdayNights = $nights - $weekendNights;
-
-            $totalRooms = $booking->datPhongItems->count() ?: 1;
-
-            $currentRoomBasePrice = $currentRoom->tong_gia ?? 0;
-
-            // Lấy tất cả phòng không bảo trì
-            $allRooms = Phong::where('trang_thai', 'trong')->pluck('id')->toArray();
-
-            $fromStartStr = $checkIn->copy()->setTime(14, 0)->toDateTimeString();
-            $toEndStr = $checkOut->copy()->setTime(12, 0)->toDateTimeString();
-
-            $bookedRoomIds = \DB::table('dat_phong_item')
-                ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
-                ->whereNotNull('dat_phong_item.phong_id')
-                ->whereNotIn('dat_phong.trang_thai', ['da_xac_nhan', 'dang_cho_xac_nhan', 'dang_su_dung'])
-                ->where('dat_phong.id', '!=', $booking->id)
-                ->whereRaw(
-                    "CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? 
-                     AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?",
-                    [$toEndStr, $fromStartStr]
-                )
-                ->pluck('dat_phong_item.phong_id')
-                ->toArray();
-
-            $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
-
-            $currentBookingRoomIds = $booking->datPhongItems()
-                ->whereNotNull('phong_id')
-                ->pluck('phong_id')
-                ->toArray();
-
-            $excludeRoomIds = array_unique(array_merge($bookedRoomIds, $currentBookingRoomIds));
-
-            // Load chi tiết
-            $availableRooms = Phong::whereNotIn('id', $excludeRoomIds)
-                ->whereIn('trang_thai', ['dang_o', 'trong'])
-                ->with(['loaiPhong', 'images'])
-                ->get()
-                ->map(function ($room) use ($currentRoomBasePrice, $currentItem, $checkIn, $checkOut, $nights, $weekendNights, $weekdayNights) {
-                    $roomBasePrice = $room->tong_gia ?? 0;
-                    $roomCapacity = $room->suc_chua ?? 2;
-
-                    $totalGuestsInOldRoom = $currentItem->so_nguoi_o ?? 0;
-
-                    if ($totalGuestsInOldRoom == 0) {
-                        $oldRoomCapacity = $currentItem->phong->suc_chua ?? 2;
-                        $totalGuestsInOldRoom = $oldRoomCapacity + ($currentItem->number_adult ?? 0) + ($currentItem->number_child ?? 0);
-                    }
-
-                    $extraGuestsInNewRoom = max(0, $totalGuestsInOldRoom - $roomCapacity);
-
-                    $oldExtraAdults = $currentItem->number_adult ?? 0;
-                    $oldExtraChildren = $currentItem->number_child ?? 0;
-                    $oldTotalExtra = $oldExtraAdults + $oldExtraChildren;
-
-                    if ($extraGuestsInNewRoom > 0 && $oldTotalExtra > 0) {
-                        $adultRatio = $oldExtraAdults / $oldTotalExtra;
-                        $extraAdults = round($extraGuestsInNewRoom * $adultRatio);
-                        $extraChildren = $extraGuestsInNewRoom - $extraAdults;
-                    } else {
-                        $extraAdults = 0;
-                        $extraChildren = 0;
-                    }
-
-                    $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
-
-                    // ✅ TÍNH GIÁ CÓ CUỐI TUẦN
-                    $pricePerNight = $roomBasePrice + $extraCharge;
-                    
-                    // Giá ngày thường
-                    $weekdayTotal = $pricePerNight * $weekdayNights;
-                    
-                    // Giá cuối tuần (+10%)
-                    $weekendTotal = $pricePerNight * 1.1 * $weekendNights;
-                    
-                    $roomTotalForStay = $weekdayTotal + $weekendTotal;
-                    $weekendSurcharge = $pricePerNight * 0.1 * $weekendNights;
-
-                    // So sánh giá gốc
-                    $priceDiff = $roomBasePrice - $currentRoomBasePrice;
-
-                    $imagePath = '/images/room-placeholder.jpg';
-                    if ($room->images && $room->images->count() > 0) {
-                        $firstImage = $room->images->first();
-                        if ($firstImage->image_url) {
-                            $imagePath = $firstImage->image_url;
-                        } elseif ($firstImage->image_path) {
-                            $imagePath = asset('storage/' . $firstImage->image_path);
-                        }
-                    }
-
-                    return [
-                        'id' => $room->id,
-                        'code' => $room->ma_phong,
-                        'name' => $room->name,
-                        'type_name' => $room->loaiPhong->ten ?? 'Standard',
-                        'type_id' => $room->loai_phong_id,
-                        'price_per_night' => $roomBasePrice,
-                        'price_total' => $roomTotalForStay,
-                        'extra_charge' => $extraCharge,
-                        'extra_adults' => $extraAdults,
-                        'extra_children' => $extraChildren,
-                        'price_difference' => $priceDiff,
-                        'weekend_surcharge' => $weekendSurcharge,
-                        'weekend_nights' => $weekendNights,
-                        'weekday_nights' => $weekdayNights,
-                        'image' => $imagePath,
-                        'capacity' => $roomCapacity,
-                    ];
-                })
-                ->values();
-
-            return response()->json([
-                'success' => true,
-                'current_room' => [
-                    'id' => $currentRoom->id,
-                    'code' => $currentRoom->ma_phong,
-                    'name' => $currentRoom->name,
-                    'price' => $currentRoomBasePrice,
-                ],
-                'available_rooms' => $availableRooms,
-                'booking_info' => [
-                    'check_in' => $checkIn->format('Y-m-d'),
-                    'check_out' => $checkOut->format('Y-m-d'),
-                    'nights' => $nights,
-                    'weekend_nights' => $weekendNights,
-                    'weekday_nights' => $weekdayNights,
-                    'total_rooms' => $totalRooms,
-                ]
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('❌ API Error: ' . $e->getMessage());
+        if (!$currentRoom) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
+                'message' => 'Không tìm thấy phòng'
+            ], 404);
         }
+
+        $checkIn = Carbon::parse($booking->ngay_nhan_phong);
+        $checkOut = Carbon::parse($booking->ngay_tra_phong);
+        $nights = $checkIn->diffInDays($checkOut);
+        
+        // Tính số đêm cuối tuần
+        $weekendNights = $this->calculateWeekendNights($checkIn, $checkOut);
+        $weekdayNights = $nights - $weekendNights;
+
+        $totalRooms = $booking->datPhongItems->count() ?: 1;
+        
+        // ✅ TÍNH VOUCHER
+        $voucherPerRoom = 0;
+        if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
+            $voucherPerRoom = (float)$booking->discount_amount / $totalRooms;
+        } elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
+            $voucherPerRoom = (float)$booking->voucher_discount / $totalRooms;
+        }
+
+        // ✅ TÍNH TỔNG PHÒNG HIỆN TẠI (đã có mọi thứ)
+        $currentRoomBasePrice = $currentRoom->tong_gia ?? 0;
+        $currentExtraFee = ($currentItem->number_adult * 150000) + ($currentItem->number_child * 60000);
+        
+        $currentCalculation = $this->calculateRoomPriceWithWeekend(
+            $currentRoomBasePrice, 
+            $currentExtraFee, 
+            $checkIn, 
+            $checkOut
+        );
+        $currentRoomTotalPrice = $currentCalculation['total'];
+
+        // Lấy tất cả phòng không bảo trì
+        $allRooms = Phong::where('trang_thai', 'trong')->pluck('id')->toArray();
+
+        $fromStartStr = $checkIn->copy()->setTime(14, 0)->toDateTimeString();
+        $toEndStr = $checkOut->copy()->setTime(12, 0)->toDateTimeString();
+
+        $bookedRoomIds = \DB::table('dat_phong_item')
+            ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
+            ->whereNotNull('dat_phong_item.phong_id')
+            ->whereNotIn('dat_phong.trang_thai', ['da_xac_nhan', 'dang_cho_xac_nhan', 'dang_su_dung'])
+            ->where('dat_phong.id', '!=', $booking->id)
+            ->whereRaw(
+                "CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? 
+                 AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?",
+                [$toEndStr, $fromStartStr]
+            )
+            ->pluck('dat_phong_item.phong_id')
+            ->toArray();
+
+        $availableRoomIds = array_diff($allRooms, $bookedRoomIds, [$currentRoom->id]);
+
+        $currentBookingRoomIds = $booking->datPhongItems()
+            ->whereNotNull('phong_id')
+            ->pluck('phong_id')
+            ->toArray();
+
+        $excludeRoomIds = array_unique(array_merge($bookedRoomIds, $currentBookingRoomIds));
+
+        // Load chi tiết
+        $availableRooms = Phong::whereNotIn('id', $excludeRoomIds)
+            ->whereIn('trang_thai', ['dang_o', 'trong'])
+            ->with(['loaiPhong', 'images'])
+            ->get()
+            ->map(function ($room) use (
+                $currentRoomTotalPrice, 
+                $currentItem, 
+                $checkIn, 
+                $checkOut, 
+                $nights, 
+                $weekendNights, 
+                $weekdayNights,
+                $voucherPerRoom
+            ) {
+                $roomBasePrice = $room->tong_gia ?? 0;
+                $roomCapacity = $room->suc_chua ?? 2;
+
+                $totalGuestsInOldRoom = $currentItem->so_nguoi_o ?? 0;
+
+                if ($totalGuestsInOldRoom == 0) {
+                    $oldRoomCapacity = $currentItem->phong->suc_chua ?? 2;
+                    $totalGuestsInOldRoom = $oldRoomCapacity + ($currentItem->number_adult ?? 0) + ($currentItem->number_child ?? 0);
+                }
+
+                $extraGuestsInNewRoom = max(0, $totalGuestsInOldRoom - $roomCapacity);
+
+                $oldExtraAdults = $currentItem->number_adult ?? 0;
+                $oldExtraChildren = $currentItem->number_child ?? 0;
+                $oldTotalExtra = $oldExtraAdults + $oldExtraChildren;
+
+                if ($extraGuestsInNewRoom > 0 && $oldTotalExtra > 0) {
+                    $adultRatio = $oldExtraAdults / $oldTotalExtra;
+                    $extraAdults = round($extraGuestsInNewRoom * $adultRatio);
+                    $extraChildren = $extraGuestsInNewRoom - $extraAdults;
+                } else {
+                    $extraAdults = 0;
+                    $extraChildren = 0;
+                }
+
+                $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
+
+                // ✅ TÍNH GIÁ CÓ CUỐI TUẦN (CHỈ GIÁ GỐC +10%, KHÔNG TĂNG PHỤ THU)
+                $weekdayTotal = ($roomBasePrice + $extraCharge) * $weekdayNights;
+                $weekendBaseTotal = $roomBasePrice * $weekendNights;
+                $weekendSurcharge = $roomBasePrice * 0.1 * $weekendNights;
+                $weekendExtraTotal = $extraCharge * $weekendNights;
+                $weekendTotal = $weekendBaseTotal + $weekendSurcharge + $weekendExtraTotal;
+                
+                $roomTotalForStay = $weekdayTotal + $weekendTotal;
+
+                // ✅ CHÊNH LỆCH = GIÁ GỐC MỚI - GIÁ GỐC CŨ (CHƯA TRỪ VOUCHER)
+                $priceDiff = $roomTotalForStay - $currentRoomTotalPrice;
+
+                $imagePath = '/images/room-placeholder.jpg';
+                if ($room->images && $room->images->count() > 0) {
+                    $firstImage = $room->images->first();
+                    if ($firstImage->image_url) {
+                        $imagePath = $firstImage->image_url;
+                    } elseif ($firstImage->image_path) {
+                        $imagePath = asset('storage/' . $firstImage->image_path);
+                    }
+                }
+
+                return [
+                    'id' => $room->id,
+                    'code' => $room->ma_phong,
+                    'name' => $room->name,
+                    'type_name' => $room->loaiPhong->ten ?? 'Standard',
+                    'type_id' => $room->loai_phong_id,
+                    'price_per_night' => $roomBasePrice,
+                    'price_total' => $roomTotalForStay,
+                    'extra_charge' => $extraCharge,
+                    'extra_adults' => $extraAdults,
+                    'extra_children' => $extraChildren,
+                    'price_difference' => $priceDiff,
+                    'weekend_surcharge' => $weekendSurcharge,
+                    'weekend_nights' => $weekendNights,
+                    'weekday_nights' => $weekdayNights,
+                    'voucher_per_room' => $voucherPerRoom,
+                    'image' => $imagePath,
+                    'capacity' => $roomCapacity,
+                     'price_total_after_voucher' => $roomTotalForStay - $voucherPerRoom,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'current_room' => [
+                'id' => $currentRoom->id,
+                'code' => $currentRoom->ma_phong,
+                'name' => $currentRoom->name,
+                'price' => $currentRoomBasePrice,
+                'total_price' => $currentRoomTotalPrice,
+            ],
+            'available_rooms' => $availableRooms,
+            'booking_info' => [
+                'check_in' => $checkIn->format('Y-m-d'),
+                'check_out' => $checkOut->format('Y-m-d'),
+                'nights' => $nights,
+                'weekend_nights' => $weekendNights,
+                'weekday_nights' => $weekdayNights,
+                'total_rooms' => $totalRooms,
+                'voucher_per_room' => $voucherPerRoom,
+            ]
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('❌ API Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
     }
+}
 
     // ============================
     // FORM ĐỔI PHÒNG LỖI
@@ -468,14 +499,19 @@ class AdminChangeRoomController extends Controller
     // ============================
     // API PHÒNG TRỐNG ĐỔI PHÒNG LỖI
     // ============================
-    public function getAvailableRoomsForError(Request $request, $id)
-    {
+   public function getAvailableRoomsForError(Request $request, $id)
+{
+    try {
         $item = DatPhongItem::findOrFail($id);
         $booking = $item->datPhong;
         $currentRoom = $item->phong;
 
         if (!$booking->checked_in_at) {
             return response()->json(['success' => false, 'message' => 'Chưa check-in'], 403);
+        }
+
+        if (!$currentRoom) {
+            return response()->json(['success' => false, 'message' => 'Không tìm thấy phòng'], 404);
         }
 
         $checkIn = Carbon::parse($booking->ngay_nhan_phong);
@@ -485,6 +521,28 @@ class AdminChangeRoomController extends Controller
         $weekendNights = $this->calculateWeekendNights($checkIn, $checkOut);
         $weekdayNights = $nights - $weekendNights;
 
+        // ✅ TÍNH VOUCHER (giống đổi phòng thường)
+        $totalRooms = $booking->datPhongItems->count() ?: 1;
+        $voucherPerRoom = 0;
+        if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
+            $voucherPerRoom = (float)$booking->discount_amount / $totalRooms;
+        } elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
+            $voucherPerRoom = (float)$booking->voucher_discount / $totalRooms;
+        }
+
+        // ✅ TÍNH GIÁ PHÒNG HIỆN TẠI
+        $currentRoomBasePrice = $currentRoom->tong_gia ?? 0;
+        $currentExtraFee = ($item->number_adult * 150000) + ($item->number_child * 60000);
+        
+        $currentCalculation = $this->calculateRoomPriceWithWeekend(
+            $currentRoomBasePrice, 
+            $currentExtraFee, 
+            $checkIn, 
+            $checkOut
+        );
+        $currentRoomTotalPrice = $currentCalculation['total'];
+
+        // Lọc phòng trống
         $allRooms = Phong::where('trang_thai', 'trong')->pluck('id')->toArray();
 
         $fromStartStr = $checkIn->copy()->setTime(14, 0)->toDateTimeString();
@@ -507,20 +565,21 @@ class AdminChangeRoomController extends Controller
 
         $excludeRoomIds = array_unique(array_merge($bookedRoomIds, $currentBookingRoomIds));
         
-        $currentRoomBasePrice = $currentRoom->tong_gia ?? 0;
-        $currentExtraFee = ($item->number_adult * 150000) + ($item->number_child * 60000);
-        
-        // Tính giá phòng hiện tại với cuối tuần
-        $currentCalculation = $this->calculateRoomPriceWithWeekend($currentRoomBasePrice, $currentExtraFee, $checkIn, $checkOut);
-        $currentRoomTotalPrice = $currentCalculation['total'];
-        
         $showLowerPrice = $request->get('show_lower_price', false);
 
         $availableRooms = Phong::whereNotIn('id', $excludeRoomIds)
             ->whereIn('trang_thai', ['dang_o', 'trong'])
             ->with(['loaiPhong', 'images'])
             ->get()
-            ->map(function ($room) use ($currentRoomTotalPrice, $nights, $item, $checkIn, $checkOut, $weekendNights, $weekdayNights) {
+            ->map(function ($room) use (
+                $currentRoomTotalPrice, 
+                $item, 
+                $checkIn, 
+                $checkOut, 
+                $weekendNights, 
+                $weekdayNights,
+                $voucherPerRoom  // ✅ THÊM BIẾN NÀY
+            ) {
                 $roomBasePrice = $room->tong_gia ?? 0;
                 $roomCapacity = $room->suc_chua ?? 2;
 
@@ -546,12 +605,13 @@ class AdminChangeRoomController extends Controller
 
                 $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
                 
-                // ✅ TÍNH GIÁ VỚI CUỐI TUẦN
-                $pricePerNight = $roomBasePrice + $extraCharge;
-                $weekdayTotal = $pricePerNight * $weekdayNights;
-                $weekendTotal = $pricePerNight * 1.1 * $weekendNights;
+                // TÍNH GIÁ VỚI CUỐI TUẦN
+                $weekdayTotal = ($roomBasePrice + $extraCharge) * $weekdayNights;
+                $weekendBaseTotal = $roomBasePrice * $weekendNights;
+                $weekendSurcharge = $roomBasePrice * 0.1 * $weekendNights;
+                $weekendExtraTotal = $extraCharge * $weekendNights;
+                $weekendTotal = $weekendBaseTotal + $weekendSurcharge + $weekendExtraTotal;
                 $newRoomTotalPrice = $weekdayTotal + $weekendTotal;
-                $weekendSurcharge = $pricePerNight * 0.1 * $weekendNights;
                 
                 $priceDiff = $newRoomTotalPrice - $currentRoomTotalPrice;
                 $isUpgrade = $priceDiff >= 0;
@@ -573,16 +633,20 @@ class AdminChangeRoomController extends Controller
                     'type_name' => $room->loaiPhong->ten ?? 'Standard',
                     'type_id' => $room->loai_phong_id,
                     'price_per_night' => $roomBasePrice,
+                    'price_total' => $newRoomTotalPrice,
                     'extra_charge' => $extraCharge,
                     'extra_adults' => $extraAdults,
                     'extra_children' => $extraChildren,
                     'price_difference' => $priceDiff,
                     'weekend_surcharge' => $weekendSurcharge,
                     'weekend_nights' => $weekendNights,
+                    'weekday_nights' => $weekdayNights,
                     'is_upgrade' => $isUpgrade,
                     'is_downgrade' => $priceDiff < 0,
                     'image' => $imagePath,
                     'capacity' => $roomCapacity,
+                    'voucher_per_room' => $voucherPerRoom,  // ✅ THÊM
+                    'price_total_after_voucher' => $newRoomTotalPrice - $voucherPerRoom,  // ✅ THÊM
                 ];
             })
             ->filter(function($room) use ($showLowerPrice) {
@@ -607,18 +671,30 @@ class AdminChangeRoomController extends Controller
                 'id' => $currentRoom->id,
                 'code' => $currentRoom->ma_phong,
                 'name' => $currentRoom->name,
-                'price' => $currentRoomTotalPrice,
+                'price' => $currentRoomBasePrice,
+                'total_price' => $currentRoomTotalPrice,
             ],
             'available_rooms' => $availableRooms,
             'booking_info' => [
+                'check_in' => $checkIn->format('Y-m-d'),
+                'check_out' => $checkOut->format('Y-m-d'),
                 'nights' => $nights,
                 'weekend_nights' => $weekendNights,
                 'weekday_nights' => $weekdayNights,
                 'is_checked_in' => true,
+                'total_rooms' => $totalRooms,  // ✅ THÊM
+                'voucher_per_room' => $voucherPerRoom,  // ✅ THÊM
             ],
             'showing_lower_price' => (bool)$showLowerPrice,
         ]);
+    } catch (\Exception $e) {
+        \Log::error('❌ getAvailableRoomsForError Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
     }
+}
 
     // ============================
     // THỰC HIỆN ĐỔI PHÒNG LỖI
