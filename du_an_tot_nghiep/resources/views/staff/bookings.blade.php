@@ -23,7 +23,7 @@
         </div>
 
         {{-- CÁC CHỈ SỐ KPI --}}
-        <div class="row g-3 mb-4">
+        {{-- <div class="row g-3 mb-4">
             <div class="col-6 col-md-4 col-lg-2">
                 <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
                     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.3s ease;">
@@ -119,7 +119,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> --}}
 
         <div class="card shadow-sm rounded-3 border-0">
             <div class="card-body p-0">
