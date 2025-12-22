@@ -221,6 +221,8 @@ class AdminChangeRoomController extends Controller
         $booking->tong_tien += ($newTotal - $oldTotal);
         $booking->save();
 
+        
+
         /* ===== UPDATE ITEM ===== */
         $item->update([
             'phong_id' => $newRoom->id,
@@ -326,7 +328,7 @@ class AdminChangeRoomController extends Controller
         $bookedRoomIds = \DB::table('dat_phong_item')
             ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
             ->whereNotNull('dat_phong_item.phong_id')
-            ->whereNotIn('dat_phong.trang_thai', ['da_xac_nhan', 'dang_cho_xac_nhan', 'dang_su_dung'])
+            ->whereIn('dat_phong.trang_thai', ['da_xac_nhan', 'dang_cho_xac_nhan', 'dang_su_dung'])
             ->where('dat_phong.id', '!=', $booking->id)
             ->whereRaw(
                 "CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? 
@@ -551,7 +553,7 @@ class AdminChangeRoomController extends Controller
         $bookedRoomIds = \DB::table('dat_phong_item')
             ->join('dat_phong', 'dat_phong_item.dat_phong_id', '=', 'dat_phong.id')
             ->whereNotNull('dat_phong_item.phong_id')
-            ->whereNotIn('dat_phong.trang_thai', ['da_xac_nhan', 'dang_cho_xac_nhan', 'dang_su_dung'])
+            ->whereIn('dat_phong.trang_thai', ['da_xac_nhan', 'dang_cho_xac_nhan', 'dang_su_dung'])
             ->where('dat_phong.id', '!=', $booking->id)
             ->whereRaw("CONCAT(dat_phong.ngay_nhan_phong,' 14:00:00') < ? AND CONCAT(dat_phong.ngay_tra_phong,' 12:00:00') > ?",
                 [$toEndStr, $fromStartStr])

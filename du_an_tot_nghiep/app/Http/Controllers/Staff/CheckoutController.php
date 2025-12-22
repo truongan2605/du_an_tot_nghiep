@@ -34,23 +34,82 @@ class CheckoutController extends Controller
             $nights = max(1, $nights);
         }
 
-        $roomLines = [];
-        $roomsTotal = 0;
-        foreach ($booking->datPhongItems as $item) {
-            $unitPrice = $item->gia_tren_dem ?? 0;
-            $qty = $item->so_luong ?? 1;
-            $lineTotal = $unitPrice * $qty * $nights;
-            $roomLines[] = [
-                'phong_id'   => $item->phong_id,
-                'ma_phong'   => $item->phong?->ma_phong ?? null,
-                'loai'       => $item->loaiPhong?->ten ?? null,
-                'unit_price' => $unitPrice,
-                'qty'        => $qty,
-                'nights'     => $nights,
-                'line_total' => $lineTotal,
-            ];
-            $roomsTotal += $lineTotal;
-        }
+  $roomLines = [];
+$roomsTotal = 0;
+
+$checkIn = \Carbon\Carbon::parse($booking->ngay_nhan_phong);
+$checkOut = \Carbon\Carbon::parse($booking->ngay_tra_phong);
+$totalNights = $checkIn->diffInDays($checkOut);
+
+$weekendNights = 0;
+$current = $checkIn->copy();
+while ($current->lt($checkOut)) {
+    $dayOfWeek = $current->dayOfWeek;
+    if ($dayOfWeek == \Carbon\Carbon::FRIDAY || 
+        $dayOfWeek == \Carbon\Carbon::SATURDAY || 
+        $dayOfWeek == \Carbon\Carbon::SUNDAY) {
+        $weekendNights++;
+    }
+    $current->addDay();
+}
+$weekdayNights = $totalNights - $weekendNights;
+
+// ✅ TÍNH VOUCHER
+$totalRooms = $booking->datPhongItems->count() ?: 1;
+$voucherPerRoom = 0;
+if (!empty($booking->discount_amount) && $booking->discount_amount > 0) {
+    $voucherPerRoom = (float)$booking->discount_amount / $totalRooms;
+} elseif (!empty($booking->voucher_discount) && $booking->voucher_discount > 0) {
+    $voucherPerRoom = (float)$booking->voucher_discount / $totalRooms;
+}
+
+foreach ($booking->datPhongItems as $item) {
+    $basePrice = $item->phong->tong_gia ?? 0;
+    
+    $extraAdults = $item->number_adult ?? 0;
+    $extraChildren = $item->number_child ?? 0;
+    $extraCharge = ($extraAdults * 150000) + ($extraChildren * 60000);
+    
+    $pricePerNight = $basePrice + $extraCharge;
+    
+    $weekdayTotal = $pricePerNight * $weekdayNights;
+    
+    $weekendBaseTotal = $basePrice * $weekendNights;
+    $weekendSurcharge = $basePrice * 0.1 * $weekendNights;
+    $weekendExtraTotal = $extraCharge * $weekendNights;
+    $weekendTotal = $weekendBaseTotal + $weekendSurcharge + $weekendExtraTotal;
+    
+    $lineTotalPerRoom = $weekdayTotal + $weekendTotal;
+    
+    $qty = $item->so_luong ?? 1;
+    
+    // ✅ TRƯỚC VOUCHER
+    $lineTotal = $lineTotalPerRoom * $qty;
+    
+    // ✅ SAU VOUCHER (cho 1 phòng, không nhân qty)
+    $lineTotalAfterVoucher = $lineTotal - $voucherPerRoom;
+
+    
+    
+    $roomLines[] = [
+        'phong_id'   => $item->phong_id,
+        'ma_phong'   => $item->phong?->ma_phong ?? null,
+        'loai'       => $item->loaiPhong?->ten ?? null,
+        'base_price' => $basePrice,
+        'extra_charge' => $extraCharge,
+        'extra_adults' => $extraAdults,
+        'extra_children' => $extraChildren,
+        'weekend_surcharge' => $weekendSurcharge,
+        'weekend_nights' => $weekendNights,
+        'voucher_per_room' => $voucherPerRoom, // ✅ Thêm voucher
+        'qty'        => $qty,
+        'nights'     => $totalNights,
+        'line_total' => round($lineTotal), // ✅ Trước voucher
+        'line_total_after_voucher' => round($lineTotalAfterVoucher), // ✅ Sau voucher
+    ];
+    
+    $roomsTotal += $lineTotalAfterVoucher; // ✅ Cộng giá SAU voucher
+}
 
         $unpaidHoaDons = HoaDon::where('dat_phong_id', $booking->id)
             ->where('trang_thai', '!=', 'da_thanh_toan')
@@ -155,6 +214,22 @@ class CheckoutController extends Controller
             $blockingNextBookingStart = \Carbon\Carbon::parse($blockingNextBooking->ngay_nhan_phong);
         }
 
+        // ✅ LẤY LỊCH SỬ ĐỔI PHÒNG
+$changeRoomHistory = \App\Models\LichSuDoiPhong::where('dat_phong_id', $booking->id)
+    ->with(['phongCu', 'phongMoi'])
+    ->orderBy('created_at', 'desc')
+    ->get();
+
+$totalRoomChangeDiff = 0; // Tổng chênh lệch từ đổi phòng
+
+foreach ($changeRoomHistory as $history) {
+    $diff = $history->gia_moi - $history->gia_cu;
+    $totalRoomChangeDiff += $diff;
+}
+
+// ✅ TÍNH SỐ TIỀN THỰC TẾ CẦN THU
+$actualAmountToPay = ($extrasTotal ?? 0) + $totalRoomChangeDiff;
+
 
         // Check for ANY pending online payment transactions
         $pendingPayment = GiaoDich::where('dat_phong_id', $booking->id)
@@ -167,6 +242,9 @@ class CheckoutController extends Controller
             'roomLines',
             'roomsTotal',
             'extrasItems',
+            'changeRoomHistory', // ✅ Thêm
+    'totalRoomChangeDiff', // ✅ Thêm
+    'actualAmountToPay', // ✅ Thêm
             'extrasTotal',
             'discount',
             'roomSnapshot',

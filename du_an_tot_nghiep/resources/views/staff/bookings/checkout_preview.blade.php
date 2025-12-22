@@ -72,33 +72,72 @@
         @endif
 
         {{-- Room lines --}}
-        <h5>Chi tiết phòng</h5>
-        <div class="table-responsive mb-3">
-            <table class="table table-sm">
-                <thead>
-                    <tr>
-                        <th>Phòng</th>
-                        <th>Loại</th>
-                        <th>Giá/đêm</th>
-                        <th>Số lượng</th>
-                        <th>Đêm</th>
-                        <th>Thành tiền</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($roomLines as $line)
-                        <tr>
-                            <td>{{ $line['ma_phong'] ?? 'Phòng #' . $line['phong_id'] }}</td>
-                            <td>{{ $line['loai'] }}</td>
-                            <td>{{ number_format($line['unit_price'] ?? 0) }} ₫</td>
-                            <td style="padding-left: 25px">{{ $line['qty'] }}</td>
-                            <td style="padding-left: 22px">{{ $line['nights'] }}</td>
-                            <td>{{ number_format($line['line_total'] ?? 0) }} ₫</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+   <h5>Chi tiết phòng</h5>
+<h5>Chi tiết phòng</h5>
+<div class="table-responsive mb-3">
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Phòng</th>
+                <th>Loại</th>
+                <th>Giá gốc/đêm</th>
+                <th>Phụ thu/đêm</th>
+                <th>Weekend</th>
+                <th>Voucher</th>
+                <th>Số đêm</th>
+                <th class="text-end">Thành tiền</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($roomLines as $line)
+                <tr>
+                    <td><strong>{{ $line['ma_phong'] ?? 'Phòng #' . $line['phong_id'] }}</strong></td>
+                    <td>{{ $line['loai'] }}</td>
+                    <td>{{ number_format($line['base_price'] ?? 0) }}₫</td>
+                    <td>
+                        @if(($line['extra_charge'] ?? 0) > 0)
+                            <span class="text-warning">+{{ number_format($line['extra_charge']) }}₫</span>
+                            <div class="small text-muted">
+                                @if(($line['extra_adults'] ?? 0) > 0)
+                                    {{ $line['extra_adults'] }} NL
+                                @endif
+                                @if(($line['extra_children'] ?? 0) > 0)
+                                    {{ ($line['extra_adults'] ?? 0) > 0 ? ', ' : '' }}{{ $line['extra_children'] }} TE
+                                @endif
+                            </div>
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td>
+                        @if(($line['weekend_surcharge'] ?? 0) > 0)
+                            <span class="text-danger">+{{ number_format($line['weekend_surcharge']) }}₫</span>
+                            <div class="small text-muted">{{ $line['weekend_nights'] ?? 0 }} đêm</div>
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td>
+                        @if(($line['voucher_per_room'] ?? 0) > 0)
+                            <span class="text-success">-{{ number_format($line['voucher_per_room']) }}₫</span>
+                        @else
+                            -
+                        @endif
+                    </td>
+                    <td>{{ $line['nights'] }}</td>
+                    <td class="text-end">
+                        <strong>{{ number_format($line['line_total_after_voucher'] ?? 0) }}₫</strong>
+                        @if(($line['voucher_per_room'] ?? 0) > 0)
+                            <div class="small text-muted text-decoration-line-through">
+                                {{ number_format($line['line_total']) }}₫
+                            </div>
+                        @endif
+                    </td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
 
         {{-- Extras --}}
         <h5>Các khoản phát sinh (dịch vụ / sự cố)</h5>
@@ -112,40 +151,119 @@
                 <li class="list-group-item text-muted">Không có phát sinh.</li>
             @endforelse
         </ul>
-
-        {{-- Totals card --}}
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>Tổng phòng</div>
-                    <div>{{ number_format($roomSnapshot ?? $roomsTotal, 0) }} ₫</div>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <div>Phát sinh (chưa thanh toán)</div>
-                    <div>{{ number_format($extrasTotal ?? 0, 0) }} ₫</div>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <div>Giảm giá</div>
-                    <div>- {{ number_format($discount ?? 0, 0) }} ₫</div>
-                </div>
-                <hr>
-                <div class="d-flex justify-content-between fw-bold">
-                    <div>Tổng</div>
-                    <div>{{ number_format(($roomSnapshot ?? $roomsTotal) + ($extrasTotal ?? 0) - ($discount ?? 0), 0) }}
-                        ₫</div>
-                </div>
-
-                <div class="d-flex justify-content-between">
-                    <div>Đã thu trước</div>
-                    <div>- {{ number_format($roomsTotal ?? 0, 0) }} ₫</div>
-                </div>
-
-                <div class="d-flex justify-content-between fw-semibold">
-                    <div>Còn phải thanh toán (chỉ phát sinh)</div>
-                    <div>{{ number_format($amountToPayNow ?? ($extrasTotal ?? 0), 0) }} ₫</div>
+{{-- ✅ LỊCH SỬ ĐỔI PHÒNG --}}
+@if(!empty($changeRoomHistory) && $changeRoomHistory->count() > 0)
+<h5>Lịch sử đổi phòng</h5>
+<div class="card mb-3 border-info">
+    <div class="card-body">
+        @foreach($changeRoomHistory as $history)
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+            <div>
+                <strong>
+                    #{{ $history->phongCu->ma_phong ?? '' }} 
+                    <i class="bi bi-arrow-right mx-2"></i> 
+                    #{{ $history->phongMoi->ma_phong ?? '' }}
+                </strong>
+                <div class="small text-muted">
+                    {{ $history->created_at->format('d/m/Y H:i') }}
+                    @if($history->loai == 'nang_cap')
+                        <span class="badge bg-success ms-2">Nâng cấp</span>
+                    @elseif($history->loai == 'ha_cap')
+                        <span class="badge bg-warning text-dark ms-2">Hạ cấp</span>
+                    @else
+                        <span class="badge bg-secondary ms-2">Ngang bằng</span>
+                    @endif
                 </div>
             </div>
+            <div class="text-end">
+                @php
+                    $diff = $history->gia_moi - $history->gia_cu;
+                @endphp
+                @if($diff > 0)
+                    <span class="text-danger fw-bold">+{{ number_format($diff) }}₫</span>
+                    <div class="small text-muted">Tăng</div>
+                @elseif($diff < 0)
+                    <span class="text-success fw-bold">{{ number_format($diff) }}₫</span>
+                    <div class="small text-muted">Giảm (hoàn)</div>
+                @else
+                    <span class="text-muted">0₫</span>
+                @endif
+            </div>
         </div>
+        @endforeach
+        
+        @if(abs($totalRoomChangeDiff ?? 0) > 0)
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+            <strong>Tổng chênh lệch từ đổi phòng:</strong>
+            <strong class="{{ ($totalRoomChangeDiff ?? 0) > 0 ? 'text-danger' : 'text-success' }}">
+                {{ ($totalRoomChangeDiff ?? 0) > 0 ? '+' : '' }}{{ number_format($totalRoomChangeDiff ?? 0) }}₫
+            </strong>
+        </div>
+        @endif
+    </div>
+</div>
+@endif
+
+{{-- Extras --}}
+<h5>Các khoản phát sinh (dịch vụ / sự cố)</h5>
+<ul class="list-group mb-3">
+    @forelse ($extrasItems as $ei)
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>{{ $ei['name'] }} <small class="text-muted">x{{ $ei['quantity'] }}</small></div>
+            <div class="text-end">{{ number_format($ei['amount'], 0) }} ₫</div>
+        </li>
+    @empty
+        <li class="list-group-item text-muted">Không có phát sinh.</li>
+    @endforelse
+</ul>
+{{-- Totals card --}}
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between">
+            <div>Tổng phòng (ban đầu)</div>
+            <div>{{ number_format($roomSnapshot ?? $roomsTotal, 0) }} ₫</div>
+        </div>
+        
+        @if(abs($totalRoomChangeDiff ?? 0) > 0)
+        <div class="d-flex justify-content-between">
+            <div>Chênh lệch đổi phòng</div>
+            <div class="{{ ($totalRoomChangeDiff ?? 0) > 0 ? 'text-danger' : 'text-success' }}">
+                {{ ($totalRoomChangeDiff ?? 0) > 0 ? '+' : '' }} {{ number_format($totalRoomChangeDiff ?? 0, 0) }} ₫
+            </div>
+        </div>
+        @endif
+        
+        <div class="d-flex justify-content-between">
+            <div>Phát sinh (chưa thanh toán)</div>
+            <div>{{ number_format($extrasTotal ?? 0, 0) }} ₫</div>
+        </div>
+        
+        <div class="d-flex justify-content-between">
+            <div>Giảm giá</div>
+            <div>- {{ number_format($discount ?? 0, 0) }} ₫</div>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between fw-bold">
+            <div>Tổng</div>
+            <div>{{ number_format(($roomSnapshot ?? $roomsTotal) + ($totalRoomChangeDiff ?? 0) + ($extrasTotal ?? 0) - ($discount ?? 0), 0) }} ₫</div>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <div>Đã thu trước</div>
+            <div>- {{ number_format($roomsTotal ?? 0, 0) }} ₫</div>
+        </div>
+
+        <div class="d-flex justify-content-between fw-semibold">
+            <div>Còn phải thanh toán</div>
+            <div class="{{ ($actualAmountToPay ?? 0) > 0 ? 'text-danger' : (($actualAmountToPay ?? 0) < 0 ? 'text-success' : '') }}">
+                {{ number_format($actualAmountToPay ?? 0, 0) }} ₫
+                @if(($actualAmountToPay ?? 0) < 0)
+                    <small>(Hoàn lại)</small>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
 
         {{-- Issued invoices (chờ thanh toán) --}}
         @php
