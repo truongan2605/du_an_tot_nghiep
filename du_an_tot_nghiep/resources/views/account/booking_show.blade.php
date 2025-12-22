@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', 'Chi tiết đặt phòng')
 
@@ -21,6 +21,9 @@
             } elseif ($format === 'd M Y H:i') {
                 $monthName = $months[$carbon->month];
                 return $carbon->format('d') . ' ' . $monthName . ' ' . $carbon->format('Y H:i');
+            } elseif ($format === 'd M Y') {
+                $monthName = $months[$carbon->month];
+                return $carbon->format('d') . ' ' . $monthName . ' ' . $carbon->format('Y');
             }
             
             return $carbon->format($format);
