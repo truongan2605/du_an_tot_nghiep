@@ -302,6 +302,11 @@
                         $needPayment = true;
                         $paymentAmount = $earlyNetDisplay;
                     }
+                    // Normal checkout (on time) needs payment if there are extras
+                    elseif (empty($earlyEligible) && empty($lateEligible) && ($extrasTotal ?? 0) > 0) {
+                        $needPayment = true;
+                        $paymentAmount = $extrasTotal;
+                    }
                 @endphp
 
                 @if ($needPayment && $paymentAmount > 0)

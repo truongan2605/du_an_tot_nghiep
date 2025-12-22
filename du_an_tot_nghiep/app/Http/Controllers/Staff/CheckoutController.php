@@ -1095,40 +1095,114 @@ DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
 
     private function completeCheckoutAfterPayment(DatPhong $booking)
     {
-        // Mark invoices as paid
-        HoaDon::where('dat_phong_id', $booking->id)
-            ->where('trang_thai', '!=', 'da_thanh_toan')
-            ->update(['trang_thai' => 'da_thanh_toan']);
+        DB::beginTransaction();
+        try {
+            // Check if there are unpaid invoices
+            $unpaidHoaDons = HoaDon::where('dat_phong_id', $booking->id)
+                ->where('trang_thai', '!=', 'da_thanh_toan')
+                ->get();
 
-        // Archive and delete items
-        $this->archiveDatPhongItems($booking->id);
-        DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+            $hoaDon = null;
 
-        // Update booking
-        $booking->update([
-            'checkout_at' => now(),
-            'checkout_by' => Auth::id(),
-            'trang_thai' => 'hoan_thanh',
-            'blocks_checkin' => false,
-        ]);
+            if ($unpaidHoaDons->isNotEmpty()) {
+                // Mark existing invoices as paid
+                $hoaDon = $unpaidHoaDons->first();
+                
+                // Update tong_thuc_thu if not already calculated
+                $tongThucThu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
+                if ($tongThucThu > 0) {
+                    $hoaDon->tong_thuc_thu = number_format($tongThucThu, 2, '.', '');
+                }
+                $hoaDon->trang_thai = 'da_thanh_toan';
+                $hoaDon->save();
+                
+                // Mark other unpaid invoices as paid too
+                HoaDon::where('dat_phong_id', $booking->id)
+                    ->where('id', '!=', $hoaDon->id)
+                    ->where('trang_thai', '!=', 'da_thanh_toan')
+                    ->update(['trang_thai' => 'da_thanh_toan']);
+            } else {
+                // Create new invoice if none exists (for normal checkout with extras)
+                $nights = 1;
+                if ($booking->ngay_nhan_phong && $booking->ngay_tra_phong) {
+                    $nights = Carbon::parse($booking->ngay_nhan_phong)
+                        ->diffInDays(Carbon::parse($booking->ngay_tra_phong));
+                    $nights = max(1, $nights);
+                }
 
-        // Release rooms
-        $phongIds = DatPhongItemHistory::where('dat_phong_id', $booking->id)
-            ->pluck('phong_id')->filter()->unique()->toArray();
-        
-        if (!empty($phongIds)) {
-            Phong::whereIn('id', $phongIds)->update([
-                'trang_thai' => 'trong',
-                'don_dep' => true,
+                $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
+
+                $hoaDon = HoaDon::create([
+                    'dat_phong_id' => $booking->id,
+                    'so_hoa_don' => 'HD' . time(),
+                    'tong_thuc_thu' => 0,
+                    'don_vi' => $booking->don_vi_tien ?? 'VND',
+                    'trang_thai' => 'da_thanh_toan',
+                    'created_by' => Auth::id() ?? null,
+                ]);
+
+                // Only add room items if dat_phong_item still exists (not already archived)
+                // This prevents adding room items that were already paid via deposit
+                if ($datPhongItems->isNotEmpty()) {
+                    foreach ($datPhongItems as $it) {
+                        $roomItem = $this->buildRoomItemFromDatPhongItem($hoaDon->id, $it, $booking, $nights);
+                        HoaDonItem::create($roomItem);
+                    }
+                }
+
+                $tongThucThu = (float) HoaDonItem::where('hoa_don_id', $hoaDon->id)->sum('amount');
+                $hoaDon->tong_thuc_thu = $tongThucThu > 0 ? number_format($tongThucThu, 2, '.', '') : '0.00';
+                $hoaDon->save();
+            }
+
+            // Get phongIds before archiving (for room release)
+            $datPhongItems = DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->get();
+            $phongIds = collect($datPhongItems)->pluck('phong_id')->filter()->unique()->toArray();
+            
+            // Archive and delete items
+            $this->archiveDatPhongItems($booking->id);
+            DB::table('dat_phong_item')->where('dat_phong_id', $booking->id)->delete();
+
+            // Update booking
+            $booking->update([
+                'checkout_at' => now(),
+                'checkout_by' => Auth::id(),
+                'trang_thai' => 'hoan_thanh',
+                'blocks_checkin' => false,
             ]);
-        }
 
-        // Send notifications
-        $hoaDon = HoaDon::where('dat_phong_id', $booking->id)->latest()->first();
-        if ($hoaDon) {
-            $notificationService = new PaymentNotificationService();
-            $notificationService->sendCheckoutNotification($booking, $hoaDon->id);
-            $this->sendInvoiceEmail($booking, $hoaDon);
+            // Release rooms (use phongIds we got before deletion)
+            if (empty($phongIds)) {
+                // Fallback: try to get from history if dat_phong_item was already deleted
+                $phongIds = DatPhongItemHistory::where('dat_phong_id', $booking->id)
+                    ->pluck('phong_id')->filter()->unique()->toArray();
+            }
+            
+            if (!empty($phongIds)) {
+                Phong::whereIn('id', $phongIds)->update([
+                    'trang_thai' => 'trong',
+                    'don_dep' => true,
+                ]);
+            }
+
+            // Xóa ảnh CCCD sau khi checkout thành công
+            $this->deleteCCCDImages($booking);
+
+            DB::commit();
+
+            // Send notifications
+            if ($hoaDon) {
+                $notificationService = new PaymentNotificationService();
+                $notificationService->sendCheckoutNotification($booking, $hoaDon->id);
+                $this->sendInvoiceEmail($booking, $hoaDon);
+            }
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error in completeCheckoutAfterPayment', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
     }
 }
