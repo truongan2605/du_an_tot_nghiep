@@ -26,7 +26,6 @@
 
         {{-- CÁC CHỈ SỐ KPI --}}
         <div class="row g-3 mb-4">
-            {{-- 1. Số phòng trống --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
                 <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
                     style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transition: all 0.3s ease;">
@@ -44,8 +43,7 @@
                 </div>
             </div>
 
-            {{-- 2. Số phòng đang có khách --}}
-            <div class="col-12 col-md-6 col-lg-4 col-xl-2">
+            {{-- <div class="col-12 col-md-6 col-lg-4 col-xl-2">
                 <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
                     style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); transition: all 0.3s ease;">
                     <div class="card-body text-white p-4">
@@ -60,10 +58,9 @@
                         <small class="text-white-50 d-block" style="font-size: 0.75rem;">Theo dõi phòng đang sử dụng</small>
                     </div>
                 </div>
-            </div>
+            </div> --}}
 
-            {{-- 3. Số phòng chờ dọn / bảo trì --}}
-            <div class="col-12 col-md-6 col-lg-4 col-xl-2">
+            {{-- <div class="col-12 col-md-6 col-lg-4 col-xl-2">
                 <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
                     style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); transition: all 0.3s ease;">
                     <div class="card-body text-white p-4">
@@ -78,9 +75,8 @@
                         <small class="text-white-50 d-block" style="font-size: 0.75rem;">Quản lý dọn phòng</small>
                     </div>
                 </div>
-            </div>
+            </div> --}}
 
-            {{-- 4. Số đặt phòng hôm nay --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
                 <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
                     style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); transition: all 0.3s ease;">
@@ -98,7 +94,6 @@
                 </div>
             </div>
 
-            {{-- 5. Tổng doanh thu hôm nay --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
                 <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
                     style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); transition: all 0.3s ease;">
@@ -116,7 +111,6 @@
                 </div>
             </div>
 
-            {{-- 6. Doanh thu tháng này --}}
             <div class="col-12 col-md-6 col-lg-4 col-xl-2">
                 <div class="card kpi-card border-0 shadow-lg h-100 kpi-card-hover"
                     style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); transition: all 0.3s ease;">
@@ -135,7 +129,6 @@
             </div>
         </div>
 
-        {{-- Phần Doanh Thu với Tabs --}}
         <div class="row g-3 mb-4" style="margin-left: 0; margin-right: 0;">
             <div class="col-12">
                 <div class="card border-0 shadow-sm chart-card" style="overflow: hidden;">

@@ -12,7 +12,14 @@
             </h1>
             <p class="text-muted">Thông tin chi tiết đặt phòng</p>
             
-          
+            {{-- Staff Action Buttons --}}
+            {{-- @if(in_array($booking->trang_thai, ['da_xac_nhan', 'dang_su_dung']))
+                <div class="mt-3">
+                    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#staffChangeRoomModal">
+                        <i class="bi bi-shuffle me-2"></i>Đổi phòng
+                    </button>
+                </div>
+            @endif --}}
         </div>
 
         <!-- Main Card -->
@@ -391,13 +398,13 @@
                                 </div>
                             </div>
 
-                            <div class="d-flex align-items-center">
+                            {{-- <div class="d-flex align-items-center">
                                 <i class="bi bi-credit-card-2-front-fill text-muted me-3"></i>
                                 <div>
                                     <small class="text-muted">Phương Thức</small>
                                     <p class="mb-0">{{ $booking->phuong_thuc_thanh_toan ?? 'VN PAY' }}</p>
                                 </div>
-                            </div>
+                            </div> --}}
                         </div>
                     </div>
                 </div>

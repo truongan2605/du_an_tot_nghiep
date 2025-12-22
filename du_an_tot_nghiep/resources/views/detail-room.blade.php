@@ -54,9 +54,9 @@
                             <h1 class="fs-2">
                                 {{ $phong->loaiPhong->ten ?? ($phong->loaiPhong->ten_loai ?? '—') }}
                             </h1>
-                            <p class="fw-bold mb-0">
+                            {{-- <p class="fw-bold mb-0">
                                 <i class="bi bi-geo-alt me-2"></i> Tầng {{ $phong->tang->so_tang ?? '—' }}
-                            </p>
+                            </p> --}}
                         </div>
                     </div>
                 </div>
@@ -211,7 +211,7 @@
                         <!-- Beds & Bedding -->
                         <div class="card bg-transparent">
                             <div class="card-header border-bottom bg-transparent px-0 pt-0">
-                                <h3 class="card-title mb-0">Giường & Chăn gối</h3>
+                                <h3 class="card-title mb-0">Giường</h3>
                             </div>
                             <div class="card-body pt-4 p-0">
                                 <div class="mb-3">
