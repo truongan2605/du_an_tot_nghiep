@@ -81,7 +81,7 @@
                         <th>Loại</th>
                         <th>Giá gốc/đêm</th>
                         <th>Phụ thu/đêm</th>
-                        <th>Weekend</th>
+                        <th>Cuối tuần</th>
                         <th>Voucher</th>
                         <th>Số đêm</th>
                         <th class="text-end">Thành tiền</th>
