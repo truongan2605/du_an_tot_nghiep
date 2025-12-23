@@ -49,7 +49,10 @@
 						<h5 class="text-white mb-2 mb-md-4">Đặt phòng</h5>
 						<ul class="nav flex-column text-primary-hover">
 							<li class="nav-item"><a class="nav-link text-body-secondary" href="#"><i class="fa-solid fa-hotel me-2"></i>Khách sạn</a></li>
-
+<a href="{{ route('map') }}" class="btn btn-outline-light">
+    <i class="fas fa-map-marker-alt me-2"></i>
+    Tìm đường đến khách sạn
+</a>
 						</ul>
 					</div>
 				</div>

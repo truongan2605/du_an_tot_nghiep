@@ -521,5 +521,10 @@ Route::get('/test-admin-notifications', function () {
     ]);
 })->middleware(['auth', 'admin']);
 
+// Thêm vào cuối file (trước dòng cuối cùng)
+Route::get('/map', function () {
+    return view('guest.map');
+})->name('map');
+
 // ==================== AUTH ====================
 require __DIR__ . '/auth.php';
